@@ -7,14 +7,23 @@ EasyHybrid is a graphical extension of pDynamo that allows users to perform most
 The interface has been designed to make it easy to determine reaction pathways in biological systems, particularly when using hybrid quantum mechanics/molecular mechanics (QC/MM) methods. EasyHybrid allows users to access a variety of pDynamo capabilities within its graphical environment, including:
 
 Pure quantum chemistry (QC) simulations, both ab initio and semi-empirical
+
 Pure molecular mechanics (MM) simulations using AMBER, CHARMM, or OPLS force fields
+
 Hybrid QC/MM simulations
+
 Single point calculations
+
 Energy minimization
+
 Molecular dynamics
+
 Reaction coordinate scanning
+
 Umbrella sampling
+
 Reaction path calculations
+
 
 
 
