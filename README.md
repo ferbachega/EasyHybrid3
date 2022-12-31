@@ -1,2 +1,2 @@
 # EasyHybrid3
-EasyHybrid3, a pDynamo graphical environment.
+EasyHybrid is a free and open source graphical environment for the pDynamo3 package. It is developed using a combination of Python3, Cython3, GTK, and modern OpenGL. It utilizes the Vismol graphical engine to render 3D structures. The interface has been designed to make it easy to determine reaction pathways in biological systems, particularly when using hybrid quantum mechanics/molecular mechanics (QC/MM) methods.
