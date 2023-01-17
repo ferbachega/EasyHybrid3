@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.22.2 -->
+<interface>
+  <requires lib="gtk+" version="3.20"/>
+  <object class="GtkWindow" id="window">
+    <property name="can_focus">False</property>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child>
+      <object class="GtkAlignment">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="top_padding">5</property>
+        <property name="bottom_padding">5</property>
+        <property name="left_padding">5</property>
+        <property name="right_padding">5</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <property name="spacing">5</property>
+            <child>
+              <object class="GtkTextView" id="entry_text_buffer">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="editable">False</property>
+                <property name="monospace">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkSeparator">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="entry_terminal">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="has_focus">True</property>
+                <property name="is_focus">True</property>
+                <property name="input_purpose">terminal</property>
+                <signal name="activate" handler="on_entry_terminal" swapped="no"/>
+                <signal name="backspace" handler="on_entry_terminal_backspace" swapped="no"/>
+                <signal name="changed" handler="on_entry_terminal_change" swapped="no"/>
+                <signal name="key-press-event" handler="on_key_press_event" swapped="no"/>
+                <signal name="move-cursor" handler="on_entry_terminal_move_cursor" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

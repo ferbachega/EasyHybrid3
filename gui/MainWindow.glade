@@ -65,7 +65,7 @@
   <object class="GtkImage" id="image25">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="pixbuf">icons/icon_QCSetup1.2.png</property>
+    <property name="pixbuf">icons/icon_QCSetup1.3.png</property>
   </object>
   <object class="GtkImage" id="image3">
     <property name="visible">True</property>
@@ -86,6 +86,26 @@
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="pixbuf">icons/icon_umbrella_sampling_24x24.png</property>
+  </object>
+  <object class="GtkImage" id="image7">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="pixbuf">icons/icon_NEB_24x24.png</property>
+  </object>
+  <object class="GtkImage" id="image8">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="pixbuf">icons/icon_montecarlo_24x24.png</property>
+  </object>
+  <object class="GtkLabel" id="label1">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="label" translatable="yes">label</property>
+  </object>
+  <object class="GtkLabel" id="label2">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="label" translatable="yes">label</property>
   </object>
   <object class="GtkWindow" id="window1">
     <property name="can_focus">False</property>
@@ -686,7 +706,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkToolButton">
+                  <object class="GtkToolButton" id="toolbutton_normal_modes">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="tooltip_text" translatable="yes">Normal Modes</property>
@@ -724,6 +744,34 @@
                     <property name="label" translatable="yes">__glade_unnamed_7</property>
                     <property name="use_underline">True</property>
                     <property name="icon_widget">image6</property>
+                    <signal name="clicked" handler="on_main_toolbar_clicked" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToolButton" id="toolbutton_chain_of_states_opt">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">__glade_unnamed_8</property>
+                    <property name="use_underline">True</property>
+                    <property name="icon_widget">image7</property>
+                    <signal name="clicked" handler="on_main_toolbar_clicked" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToolButton" id="toolbutton_monte_carlo">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="use_underline">True</property>
+                    <property name="label_widget">label2</property>
+                    <property name="icon_widget">image8</property>
                     <signal name="clicked" handler="on_main_toolbar_clicked" swapped="no"/>
                   </object>
                   <packing>
