@@ -42,6 +42,7 @@ EasyHybrid references:
 
 
 important links:
+https://github.com/casebor/graphics_engines (engine based on OpenGL)
 
 https://www.pdynamo.org/home (pDynamo website)
 
