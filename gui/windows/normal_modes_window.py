@@ -130,7 +130,10 @@ class NormalModesWindow(Gtk.Window):
             
             self.Visible  = True   
 
-    
+
+        else:
+            self.window.present()
+            
     def CloseWindow (self, button, data  = None):
         """ Function doc """
         self.window.destroy()

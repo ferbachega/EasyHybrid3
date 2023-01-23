@@ -142,7 +142,9 @@ class GeometryOptimizatrionWindow(Gtk.Window):
             #self._starting_coordinates_model_update()
             self.window.show_all()
             self.Visible  = True   
-
+        
+        else:
+            self.window.present()
     
     def CloseWindow (self, button, data  = None):
         """ Function doc """

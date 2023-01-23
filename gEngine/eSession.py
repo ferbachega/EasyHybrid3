@@ -190,7 +190,7 @@ class GLMenu:
                     new_color = [color.red, color.green, color.blue]
 
                 self.colorchooserdialog.destroy()
-                self.set_color(new_color)
+                self.set_color(color =new_color)
 
             def set_as_qc_atoms (_):
                 """ Function doc """
@@ -650,6 +650,7 @@ class EasyHybridSession(VismolSession, GLMenu):
         """ Class initialiser """
         super().__init__(toolkit="Gtk_3.0")
         ##print('\n\n\n',a, '\n\n\n')
+        self.selection_box_frane = None
     
     def _selection_function (self, selected, _type = None, disable = True):
         #"""     P I C K I N G     S E L E C T I O N S     """
@@ -822,6 +823,34 @@ button position in the main treeview (active column).""".format(name,self.main.p
         return True
 
 
+    def set_color (self, symbol = 'C', color = [0.9, 0.9, 0.0] ):
+        """ Function doc """
+        
+        selection = self.selections[self.current_selection]
+                
+        atomlist = []
+        
+        vobjects = {}
+                        
+        for atom in selection.selected_atoms:
+            if atom.symbol == symbol:
+                #atomlist.append(atom.index-1)
+                
+                if atom.vm_object.index in vobjects.keys():
+                    vobjects[atom.vm_object.index].append(atom.index-1)
+                else:
+                    vobjects[atom.vm_object.index] = [atom.index-1]
+                    
+                #vobject = atom.vm_object
+        
+        for vob_id, atomlist in vobjects.items():
+            vobject = self.vm_objects_dic[vob_id]
+                
+            self.set_color_by_index (vobject = vobject, indexes = atomlist, color = color ) 
+            self.main.p_session._apply_fixed_representation_to_vobject(system_id = None, vismol_object = vobject)
+            self.main.p_session._apply_QC_representation_to_vobject(system_id = None, vismol_object = vobject)
+    
+    
     def create_new_selection (self):
         """ Function doc """
         return VMSele(self)

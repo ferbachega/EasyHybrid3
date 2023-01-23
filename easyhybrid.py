@@ -135,7 +135,7 @@ class MainWindow:
         #self.treeview = GtkEasyHybridMainTreeView(self, vm_session)
         #self.ScrolledWindow_notebook_H1.add(self.treeview)
 
-        self.notebook_H1.append_page(self.ScrolledWindow_notebook_H1, Gtk.Label('Objects'))
+        self.notebook_H1.append_page(child = self.ScrolledWindow_notebook_H1, tab_label= Gtk.Label(label = 'Objects'))
         
 
 
@@ -170,7 +170,7 @@ class MainWindow:
             #self.container.pack_start(self.traj_frame, False, False, 1)
             #self.container.pack_start(self.command_line_entry, False, False, 0)
 
-            self.notebook_H2.append_page(self.container, Gtk.Label('view'))
+            self.notebook_H2.append_page(child = self.container, tab_label = Gtk.Label(label = 'view'))
             #self.notebook_H2.append_page(Gtk.TextView(), Gtk.Label('logs'))
             
             
@@ -191,8 +191,9 @@ class MainWindow:
             self.bottom_notebook = BottonNoteBook(main = self)
             #self.paned_V.add(self.builder.get_object('notebook_text_and_logs'))
             self.paned_V.add(self.bottom_notebook.widget)
-            self.paned_V.set_position(400)
-            
+            self.paned_V_position = 400
+            self.paned_V.set_position(self.paned_V_position)
+
             self.bottom_notebook.status_teeview_add_new_item(message = 'This is EasyHybrid 3.0, have a happy simulation day!')
             
             #for i in range (10):
@@ -283,10 +284,21 @@ class MainWindow:
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
 
         self.window.connect("destroy", Gtk.main_quit)
+        self.window.connect("check-resize", self.window_resize)
         self.window.connect("delete-event",    Gtk.main_quit)
+        
+        self.builder.get_object('button_test').connect("clicked",    self.run_test)
+        
         self.window.show_all()
 
-
+    def window_resize (self, a, b =None, c=None):
+        """ Function doc """
+        w, h = a.get_size()
+        #self.paned_V_position += h/100
+        #self.paned_V.set_position(self.paned_V_position)
+        
+        #print ( a.get_size(), b, c)
+    
     def add_vobject_to_vobject_liststore_dict (self, vismol_object):
         """ Function doc """
         e_id = vismol_object.e_id
@@ -625,7 +637,20 @@ class MainWindow:
             self.refresh_main_statusbar()
     
     
-
+    def run_test (self, widget):
+        """ Function doc """
+        print('aloowww')
+        #print(self.vm_session.vm_glcore.glcamera)
+        print(self.vm_session.vm_glcore.glcamera.fog_end          ) #= self.z_far
+        print(self.vm_session.vm_glcore.glcamera.fog_start        ) #= self.fog_end - self.min_zfar
+        print('\nview matrixes: \n', self.vm_session.vm_glcore.glcamera.view_matrix      ) #= self._get_view_matrix(pos)
+        print('\nprojection_matrix: \n',self.vm_session.vm_glcore.glcamera.projection_matrix) #= self._get_projection_matrix()
+        print('\ncamera position: \n', self.vm_session.vm_glcore.glcamera.get_position()) #= self._get_projection_matrix()
+        for key, vobj in self.vm_session.vm_objects_dic.items():
+            print(vobj.model_mat)
+            print(vobj.trans_mat)
+        
+        
 
 class EasyHybridMainTreeView(Gtk.TreeView):
     
@@ -907,11 +932,11 @@ class TreeViewMenu:
 
                                 '_separator'            : ''      ,
                                 'Info'                  : self.f2 ,
-                                'Rename'                : self.menu_rename ,
+                                'Rename Object'                : self.menu_rename ,
                                 '_separator'            : ''      ,
 
                                 'Load Data Into System' : self.load_data_to_a_system ,
-                                'Define Color Palette'  : self.f2 ,
+                                'Change Color'  : self.change_system_color_palette ,
                                 'Edit Parameters'       : self.f2 ,
                                 '_separator'            : ''      ,
 
@@ -931,11 +956,11 @@ class TreeViewMenu:
                                 
                                 'header'                : None    ,
                                 '_separator'            : ''      ,
-                                'Rename Project'        : self.menu_rename ,
+                                'Rename System'        : self.menu_rename ,
                                 '_separator'            : ''      ,
                                 'Info'                  : self.f2 ,
                                 'Load Data Into System' : self.load_data_to_a_system ,
-                                'Define Color Palette'  : self.f2 ,
+                                'Change Color '  : self.change_system_color_palette ,
                                 'Edit Parameters'       : self.f2 ,
                                 'Export As...'          : self.menu_export_data_window ,
                                 'Merge System With...'  : self.f3 ,
@@ -965,6 +990,37 @@ class TreeViewMenu:
         #print (list(model))
         self.treeview.main.import_trajectory_window.OpenWindow(sys_selected = model.get_value(iter, 0))
 
+    def change_system_color_palette (self, widget):
+        """ Function doc """
+        #selection               = self.selections[self.current_selection]
+        self.colorchooserdialog = Gtk.ColorChooserDialog()
+        
+        if self.colorchooserdialog.run() == Gtk.ResponseType.OK:
+            color = self.colorchooserdialog.get_rgba()
+            #print(color.red,color.green, color.blue )
+            new_color = [color.red, color.green, color.blue]
+
+        else:
+            new_color = False
+        
+        
+        
+        
+        
+        if new_color:
+            self.colorchooserdialog.destroy()
+
+            #----------------------------------------------------------------------
+            selection     = self.treeview.get_selection()
+            (model, iter) = selection.get_selected()
+            self.selectedID  = int(model.get_value(iter, 0))  # @+
+            #----------------------------------------------------------------------
+            #print('self.selectedID',self.selectedID)
+            print('self.selectedID',type(self.main.p_session.psystem[self.selectedID].e_color_palette ))
+            
+            self.main.p_session.psystem[self.selectedID].e_color_palette['C'] = new_color
+
+            #self.set_color(color =new_color)
     
     def f2 (self, vobject = None):
         """ Function doc """
@@ -1149,7 +1205,7 @@ class TreeViewMenu:
             if menu_items[label] == None:
                 # just a label
                 
-                mitem = Gtk.MenuItem(label)
+                mitem = Gtk.MenuItem(label = label)
                 if label == 'header':
                     menu_header    = mitem
                 
@@ -1158,7 +1214,7 @@ class TreeViewMenu:
                 mitem = Gtk.SeparatorMenuItem()
             
             else:
-                mitem = Gtk.MenuItem(label)
+                mitem = Gtk.MenuItem(label = label)
                 mitem.connect('activate', menu_items[label])
             
             tree_view_menu.append(mitem)

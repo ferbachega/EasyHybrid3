@@ -32,6 +32,9 @@ from gi.repository import GdkPixbuf
 from gui.gtk_widgets import FolderChooserButton
 from gui.gtk_widgets import VismolTrajectoryFrame
 
+from util.file_parser import get_file_type  
+from util.file_parser import read_MOL2  
+
 import gc
 import os
 
@@ -705,6 +708,9 @@ class PDynamoSelectionWindow:
             self.window.show_all()
             self.Visible  = True
     
+        else:
+            self.window.present()
+    
     def import_data (self, button):
         """ Function doc """
         entry_name    = None
@@ -888,7 +894,7 @@ class EasyHybridSetupQCModelWindow:
         else:
             ''' Updating the number of atoms '''
             self.update_number_of_qc_atoms ()
-
+            self.window.present()
             
     def update_number_of_qc_atoms (self):
         """ Function doc """
@@ -1035,17 +1041,6 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
                                'GLU': [128,0,128], 
                                'TYR': [6,176,176], 
                                'MET': [30, 144, 255]}
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1266,6 +1261,8 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             #self.PutBackUpWindowData()
             #gtk.main()
             #----------------------------------------------------------------
+        else:
+            self.window.present()
 
     def CloseWindow (self, button):
         """ Function doc """
@@ -1561,13 +1558,13 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         
         self.vm_session.vm_glcore.queue_draw()
         
-        self.atom_liststore.clear()
+        #self.atom_liststore.clear()
         
-        for atom in res.atoms.values():
-            #res_color = self.residues_dictionary[self.VObj.residues[resi].name]
-            color  =  self.VObj.color_palette[atom.symbol]
-            swatch = self.getColouredPixmap( int(color[0]*255), int(color[1]*255), int(color[2]*255) )
-            self.atom_liststore.append(list([swatch, int(atom.index), atom.name, atom.symbol ,  charges[atom.index-1] , int(atom.atom_id) ]))
+        #for atom in res.atoms.values():
+        #    #res_color = self.residues_dictionary[self.VObj.residues[resi].name]
+        #    color  =  self.VObj.color_palette[atom.symbol]
+        #    swatch = self.getColouredPixmap( int(color[0]*255), int(color[1]*255), int(color[2]*255) )
+        #    self.atom_liststore.append(list([swatch, int(atom.index), atom.name, atom.symbol ,  charges[atom.index-1] , int(atom.atom_id) ]))
 
         #self.treeview_atom.set_model(self.atom_liststore)
     def on_treeview_Objects_button_release_event(self, tree, event):
@@ -1809,7 +1806,7 @@ class ImportANewSystemWindow(Gtk.Window):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
-            self.builder.add_from_file(os.path.join(self.home,'gui/windows/windows_and_dialogs.glade'))
+            self.builder.add_from_file(os.path.join(self.home,'gui/windows/import_system_window.glade'))
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('ImportNewSystemWindow')
@@ -1863,11 +1860,20 @@ class ImportANewSystemWindow(Gtk.Window):
                             'charmm_par'  : [],
                             'charmm_psf'  : None,
                             'charmm_extra': None, 
-                            'opls_folder' : [],
+                            'prm_folder' : [],
                             'coordinates' : None,
                             }
             self.system_types_combo.set_active(0)
 
+            self.window.connect('destroy', self.CloseWindow)
+            self.builder.get_object('button_load_files')        .connect('clicked', self.on_button_load_files_clicked)
+            self.builder.get_object('button_remove_files')      .connect('clicked', self.on_button_delete_files_clicked)
+            #self.builder.get_object('gtkbox_OPLS_folderchooser').connect('clicked',)
+            self.builder.get_object('button_cancel')            .connect('clicked', self.CloseWindow)
+            self.builder.get_object('import_import_system')     .connect('clicked', self.on_button_import_system_clicked)
+
+        else:
+            self.window.present()
             #----------------------------------------------------------------
     def CloseWindow (self, button, data  = None):
         """ Function doc """
@@ -1892,8 +1898,9 @@ class ImportANewSystemWindow(Gtk.Window):
             'charmm_par'  : [],
             'charmm_psf'  : None,
             'charmm_extra': None, 
-            'opls_folder' : [],
+            'prm_folder' : [],
             'coordinates' : None,
+            'charges'     : None,
             }
         self.residue_liststore = Gtk.ListStore(str, str, str)
         self.treeview.set_model(self.residue_liststore)
@@ -1917,6 +1924,13 @@ class ImportANewSystemWindow(Gtk.Window):
             self.builder.get_object('gtkbox_OPLS_folderchooser').show()
             self.builder.get_object('gtk_label_fftype').set_text(self.OPLS_txt)
             
+            '''Eventually, the user may have another set of parameters, but 
+            by default, the pDynamo3 parameter directories are first searched.'''
+            path = os.environ.get('PDYNAMO3_PARAMETERS')
+            path = os.path.join(path,'forceFields/opls/protein')
+            self.builder.get_object('OPLS_folderchooserbutton').set_filename(path)
+            
+            
         if fftype == 3: #"pDynamo files(*.pkl,*.yaml)":
             self.builder.get_object('gtkbox_OPLS_folderchooser').hide()
             
@@ -1926,10 +1940,17 @@ class ImportANewSystemWindow(Gtk.Window):
         if fftype == 5:#"DYFF":
             self.builder.get_object('gtkbox_OPLS_folderchooser').show()
             self.builder.get_object('gtk_label_fftype').set_text(self.DYFF_txt)
-
-
+            #try:
+            '''Eventually, the user may have another set of parameters, but 
+            by default, the pDynamo3 parameter directories are first searched.'''
+            path = os.environ.get('PDYNAMO3_PARAMETERS')            
+            path = os.path.join(path,'forceFields/dyff/dyff-1.0')
+            self.builder.get_object('OPLS_folderchooserbutton').set_filename(path)
+            #except:
+            #    pass
+                
     def filetype_parser(self, filein, systemtype):
-        filetype = self.GetFileType(filein)
+        filetype = get_file_type(filein)
         #print (filetype, systemtype)
         if filetype in ['top', 'prmtop', 'TOP', 'PRMTOP', ]:
             if systemtype == 0:
@@ -1956,6 +1977,10 @@ class ImportANewSystemWindow(Gtk.Window):
         elif filetype in ['pdb', 'PDB','mol','MOL','mol2','MOL2', 'xyz', 'XYZ', 'crd', 'inpcrd', 'chm']:
             #if systemtype == 1:
             self.files['coordinates'] = filein
+            if filetype == 'mol2':
+                atoms, bonds = read_MOL2(filein)
+                self.files['charges'] = atoms['charges']
+                pass
             return 'coordinates'
         
         
@@ -1967,16 +1992,16 @@ class ImportANewSystemWindow(Gtk.Window):
         else:
             return 'unknow'
         
-    def GetFileType(self, filename):
-        file_type = filename.split('.')
-        return file_type[-1]
+    #def GetFileType(self, filename):
+    #    file_type = filename.split('.')
+    #    return file_type[-1]
 
-    def on_delete_files_button_clicked (self, button):
+    def on_button_delete_files_clicked (self, button):
         """ Function doc """
         self.residue_liststore = Gtk.ListStore(str, str, str)
         self.treeview.set_model(self.residue_liststore)
     
-    def on_import_files_button_clicked (self, button):
+    def on_button_load_files_clicked (self, button):
         """ Function doc """
         files = self.easyhybrid_main.filechooser.open(select_multiple = True)
         #print(files)
@@ -1994,7 +2019,7 @@ class ImportANewSystemWindow(Gtk.Window):
             filetype = self.filetype_parser( _file, systemtype)
             self.residue_liststore.append(list([_file, filetype, 'unk' ]))
         self.treeview.set_model(self.residue_liststore)
-        self.files['opls_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()
+        self.files['prm_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()
         #print(self.files)
 
     def on_button_import_a_new_system_clicked (self, button):
@@ -2008,7 +2033,7 @@ class ImportANewSystemWindow(Gtk.Window):
             print('cancel_button_import_a_new_system')
             self.dialog.hide()
             
-    def on_button4_import_system_clicked (self, button):
+    def on_button_import_system_clicked (self, button):
         #print('ok_button_import_a_new_system')
         #systemtype = self.system_types_combo.get_active()
         active_iter = self.system_types_combo.get_active_iter()
@@ -2018,7 +2043,7 @@ class ImportANewSystemWindow(Gtk.Window):
             systemtype = model[active_iter][1]
         else:
             return None
-        self.files['opls_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()
+        self.files['prm_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()
         name =  self.builder.get_object('entry_system_name').get_text()
         tag  =  self.builder.get_object('entry_system_tag').get_text()
         print(self.files, systemtype)
@@ -2031,7 +2056,7 @@ class ImportANewSystemWindow(Gtk.Window):
                                                                            )
         #'''
         #if systemtype == 2:
-        #    self.files['opls_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()
+        #    self.files['prm_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()
         
         #print ('systemtype',systemtype, self.files )
         ##self.easyhybrid_main.p_session.get_bonds_from_pDynamo_system()
@@ -2165,6 +2190,9 @@ class ImportTrajectoryWindow:
             self.combox.set_active(0)
             self.window.show_all()
             self.Visible  = True
+        
+        else:
+            self.window.present()
     
     def CloseWindow (self, button, data  = None):
         """ Function doc """
@@ -2383,7 +2411,7 @@ class TrajectoryPlayerWindow:
             self.Visible  = True
     
         else:
-            pass
+            self.window.present()
         
 
     def CloseWindow (self, button, data  = None):
@@ -2581,6 +2609,7 @@ class PotentialEnergyAnalysisWindow():
             self.Visible  = True
     
         else:
+            
             _id = self.coordinates_combobox.get_active()
             
             self.vobject_liststore = Gtk.ListStore(str, int, int) # name, vobj_id, sys_id

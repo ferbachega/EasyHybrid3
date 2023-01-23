@@ -317,7 +317,10 @@ class PotentialEnergyScanWindow():
             self.combobox_reaction_coord1.set_active(0)
             self.combobox_reaction_coord2.set_active(0)
             self.Visible  = True
-    
+
+        else:
+            self.window.present()
+            
     def CloseWindow (self, button, data  = None):
         """ Function doc """
         self.window.destroy()

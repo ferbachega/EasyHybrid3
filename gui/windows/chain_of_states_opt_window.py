@@ -130,7 +130,10 @@ class ChainOfStatesOptWindow(Gtk.Window):
             self.window.show_all()
             self.Visible  = True   
 
-    
+
+        else:
+            self.window.present()
+            
     def CloseWindow (self, button, data  = None):
         """ Function doc """
         self.window.destroy()

@@ -701,17 +701,21 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
             self.define_NBModel(_type = 1, system = system)        
         
         elif system_type == 2:
-            mmModel        = MMModelOPLS.WithParameterSet ( input_files['opls_folder'] )       
+            mmModel        = MMModelOPLS.WithParameterSet ( input_files['prm_folder'] )       
             system         = ImportSystem ( input_files['coordinates'])
             system.DefineMMModel ( mmModel )
             self.define_NBModel(_type = 1, system = system)          
         
         elif system_type == 5:
-            mmModel        = MMModelDYFF.WithParameterSet ( input_files['opls_folder'] )       
+            mmModel        = MMModelDYFF.WithParameterSet ( input_files['prm_folder'] )       
             system         = ImportSystem ( input_files['coordinates'])
             system.DefineMMModel ( mmModel )
             self.define_NBModel(_type = 1, system = system)          
-        
+            if input_files['charges']:
+                print('\nGetting atomic charges from mol2 file!\n')
+                for index, chg in enumerate(input_files['charges']):
+                    system.mmState.charges[index] = chg
+            
         elif system_type == 3 or system_type == 4 :
             system = ImportSystem (input_files['coordinates'])
 
@@ -794,7 +798,7 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         
         system.e_active                   = False
         system.e_date                     = date.today()               # Time     
-        system.e_color_palette            = self.color_palette_counter # will be replaced by a dict
+        system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
         
         
         '''When the number of available colors runs out, we have to reset the counter'''
@@ -971,10 +975,10 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         """ Function doc """
         if system_id:
             system = self.psystem[system_id]
-            return COLOR_PALETTE[system.e_color_palette]
+            return system.e_color_palette
         else:
             system = self.psystem[self.active_id]
-            return COLOR_PALETTE[system.e_color_palette]
+            return  system.e_color_palette 
     
     def _build_vobject_from_pDynamo_system (self                                          , 
                                             system                    = None              , 
@@ -1004,7 +1008,7 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         vm_object = VismolObject(self.vm_session, 
                                  len(self.vm_session.vm_objects_dic), 
                                  name = name, 
-                                 color_palette = COLOR_PALETTE[system.e_color_palette])
+                                 color_palette = system.e_color_palette)
                                  
         vm_object.set_model_matrix(self.vm_session.vm_glcore.model_mat)
         

@@ -78,6 +78,9 @@ class TerminalWindow():
             self.visible    =  True
             '''--------------------------------------------------------------------------------------------'''
 
+        else:
+            self.window.present()
+            
 
     def CloseWindow (self, button, data  = None):
         """ Function doc """

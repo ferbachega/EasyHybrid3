@@ -97,6 +97,11 @@
     <property name="can_focus">False</property>
     <property name="pixbuf">icons/icon_montecarlo_24x24.png</property>
   </object>
+  <object class="GtkImage" id="image9">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-missing-image</property>
+  </object>
   <object class="GtkLabel" id="label1">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -773,6 +778,20 @@
                     <property name="label_widget">label2</property>
                     <property name="icon_widget">image8</property>
                     <signal name="clicked" handler="on_main_toolbar_clicked" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToolButton" id="button_test">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">__glade_unnamed_7</property>
+                    <property name="use_underline">True</property>
+                    <property name="icon_widget">image9</property>
+                    <signal name="clicked" handler="run_test" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>
