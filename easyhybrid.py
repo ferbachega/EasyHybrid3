@@ -640,10 +640,13 @@ class MainWindow:
     
     def run_test (self, widget):
         """ Function doc """
+        
+        self.vm_session.selection_around()
+        '''
         #print('aloowww')
         #print(self.vm_session.vm_glcore.glcamera)
-        print(self.vm_session.vm_glcore.glcamera.fog_end          ) #= self.z_far
-        print(self.vm_session.vm_glcore.glcamera.fog_start        ) #= self.fog_end - self.min_zfar
+        print(self.vm_session.vm_glcore.glcamera.z_near          ) #= self.z_far
+        print(self.vm_session.vm_glcore.glcamera.z_far        ) #= self.fog_end - self.min_zfar
         print('\nview matrixes: \n', self.vm_session.vm_glcore.glcamera.view_matrix      ) #= self._get_view_matrix(pos)
         print('\nprojection_matrix: \n',self.vm_session.vm_glcore.glcamera.projection_matrix) #= self._get_projection_matrix()
         print('\ncamera position: \n', self.vm_session.vm_glcore.glcamera.get_position()) #= self._get_projection_matrix()
@@ -712,6 +715,8 @@ class MainWindow:
         text+= '# declare molecule = union {                                       \n'
         text+= '// ATOMS                                                           \n'
         
+                                                                
+        
         for key, vobj in self.vm_session.vm_objects_dic.items():
             for i, atom in vobj.atoms.items():
                 #print(i, atom)
@@ -743,10 +748,17 @@ class MainWindow:
         text+='                                                                        \n'
         text+='object {molecule}                                                       \n'
 
+
+        text+= 'plane                                                              \n'
+        text+= '{                                                                  \n'
+        text+= '	z, {}                                                          \n'.format( -self.vm_session.vm_glcore.glcamera.z_far )
+        text+= '    pigment { rgb <   1.000000, 1.000000, 1.000000 > }                  \n'#.format(0.0, 0.0 , self.vm_session.vm_glcore.glcamera.fog_end )
+        text+= '} \n' 
+
         pov_file.write(text)
         #print(text)
-        os.system('povray +A0.3 -UV +W2218 +H1748 +Itemp.pov +Otemp2.png')
-
+        os.system('povray +A0.3 -UV +W1000 +H1000 +Itemp.pov +Otemp2.png')
+        '''
         
         
 

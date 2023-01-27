@@ -887,3 +887,49 @@ button position in the main treeview (active column).""".format(name,self.main.p
         self.vm_glcore.updated_coords = True
         self.vm_widget.queue_draw()
 
+
+
+    def selection_around(self, selection = None, radius = 10, grid_size = 3):
+        """ Function doc """
+        if selection is None:
+            selection = self.selections[self.current_selection]
+        else:
+            pass
+        
+        #freelist = []                
+        
+        for atom in selection.selected_atoms:
+            '''checks if the selected atoms belong to the active project'''
+            true_or_false = self.check_selected_atom(atom, dialog = True)
+            if true_or_false:
+                freelist.append(atom.index -1)
+            else:
+        
+                return False
+
+        grid = {}
+        
+        for index, atom in self.vm_objects_dic[0].atoms.items():
+            xyz = atom.coords()
+            grid_pos = (int(xyz[0]/grid_size), int(xyz[1]/grid_size), int(xyz[2]/grid_size))
+            print (index, atom.index, atom.coords(), grid_pos )
+            
+            if grid_pos in grid.keys():
+                grid[grid_pos].append(atom)
+            else:
+                grid[grid_pos] = []
+                grid[grid_pos].append(atom)
+        
+        for key,  grid_element in grid.items():
+            print(key, len(grid_element)) 
+            
+
+
+
+
+
+
+
+
+
+
