@@ -43,6 +43,7 @@ from gui.windows.windows_and_dialogs import EasyHybridDialogSetQCAtoms
 from gui.windows.windows_and_dialogs import EasyHybridSetupQCModelWindow
 from gui.windows.windows_and_dialogs import EasyHybridGoToAtomWindow
 from gui.windows.windows_and_dialogs import PDynamoSelectionWindow
+from gui.windows.windows_and_dialogs import EasyHybridSelectionWindow
 from gui.windows.windows_and_dialogs import ExportDataWindow
 #from gui.windows.windows_and_dialogs import EnergyRefinementWindow
 from gui.windows.windows_and_dialogs import ImportTrajectoryWindow
@@ -254,7 +255,8 @@ class MainWindow:
         self.window_list.append(self.go_to_atom_window)
 
         
-        self.pDynamo_selection_window     = PDynamoSelectionWindow       ( main = self)
+        #self.pDynamo_selection_window     = PDynamoSelectionWindow       ( main = self)
+        self.pDynamo_selection_window     = EasyHybridSelectionWindow       ( main = self)
         
         self.export_data_window           = ExportDataWindow             ( main = self)
         self.window_list.append(self.export_data_window)
@@ -288,7 +290,7 @@ class MainWindow:
         self.window.connect("check-resize", self.window_resize)
         self.window.connect("delete-event",    Gtk.main_quit)
         
-        self.builder.get_object('button_test').connect("clicked",    self.run_test)
+        #self.builder.get_object('button_test').connect("clicked",    self.run_test)
         
         self.window.show_all()
 
@@ -640,8 +642,44 @@ class MainWindow:
     
     def run_test (self, widget):
         """ Function doc """
+        from vismol.libgl.representations import SticksRepresentation
+        import numpy as np
+        #self.vm_session.vm_objects_dic[0].define_molecules()
         
-        self.vm_session.selection_around()
+        #'''
+        #----------------------------------------------------------------------------------------------------------------------------
+        selection = self.vm_session.selections[self.vm_session.current_selection]
+        selection_dict = {}
+        vobject = None
+        for atom in selection.selected_atoms:
+            selection_dict[atom.atom_id] = atom
+            vobject = atom.vm_object
+        
+        
+        vobject.dynamic_bonds = []
+        for frame in range(len(vobject.frames)):
+            
+            bonds = vobject.find_bonded_and_nonbonded_atoms(selection=selection_dict, frame=frame, internal = False)
+            #bonds = np.array(bonds, dtype=np.int32)
+            vobject.dynamic_bonds.append(bonds)
+            #print(len(bonds), bonds)
+        print(vobject.dynamic_bonds)
+        # define_new_indexes_to_vbo
+        # define_new_indexes_to_vbo(self, input_indexes)
+        vobject.representations["dynamic"] = SticksRepresentation(vobject, self.vm_session.vm_glcore,
+                                                                  active=True, indexes=vobject.dynamic_bonds[0], is_dynamic = True)
+        #vobject.representations["dynamic"].is_dynamic = True
+        #vobject.representations["dynamic"].was_rep_ind_modified = True
+        #----------------------------------------------------------------------------------------------------------------------------
+        #'''
+        
+        
+        
+        
+        
+        
+        #self.vm_session.selection_around()
+
         '''
         #print('aloowww')
         #print(self.vm_session.vm_glcore.glcamera)

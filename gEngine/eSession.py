@@ -27,6 +27,8 @@ import gi, sys
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
 from vismol.core.vismol_session import VismolSession
+import vismol.utils.selectors as selectors
+
 from gui.windows.windows_and_dialogs import EasyHybridDialogPrune
 from vismol.core.vismol_selections import VismolViewingSelection as VMSele
 import numpy as np
@@ -326,6 +328,10 @@ class GLMenu:
                 ##print('self.selections[self.current_selection].invert_selection()')
                 self.selections[self.current_selection].invert_selection()
             
+            def call_selection_modify_window (_):
+                """ Function doc """
+                self.main.pDynamo_selection_window.OpenWindow()
+            
             
             sele_menu = { 
                     #'header' : ['MenuItem', None],
@@ -337,7 +343,71 @@ class GLMenu:
                     'separator1':['separator', None],
                     
                     
-                    'show'   : [
+                    
+                    'Modify' :['MenuItem', call_selection_modify_window],
+                    
+                    #'Modify' :['submenu',  
+                    #
+                    #                        {
+                    #                        'Around'          : ['submenu',
+                    #                                                        {
+                    #                                                        'Atom within 4 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Atom within 5 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Atom within 6 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Atom within 8 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Atom within 12 A'         : ['MenuItem', menu_show_lines],
+                    #                                                        'Atom within 15 A'         : ['MenuItem', menu_show_lines],
+                    #                                                        'separator9'    : ['separator', None],
+                    #                                                        'Residues within 4 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Residues within 5 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Residues within 6 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Residues within 8 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Residues within 12 A'         : ['MenuItem', menu_show_lines],
+                    #                                                        'Residues within 15 A'         : ['MenuItem', menu_show_lines],
+                    #                                                        'separator2'    : ['separator', None],
+                    #                                                        'Molecules within 4 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Molecules within 5 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Molecules within 6 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Molecules within 8 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Molecules within 12 A'         : ['MenuItem', menu_show_lines],
+                    #                                                        'Molecules within 15 A'         : ['MenuItem', menu_show_lines],
+                    #                                                        }
+                    #
+                    #                                            ],
+                    #                        
+                    #                        'Expand'          : ['submenu',
+                    #                                                        {
+                    #                                                        'Atom within 4 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Atom within 5 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Atom within 6 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Atom within 8 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Atom within 12 A'         : ['MenuItem', menu_show_lines],
+                    #                                                        'Atom within 15 A'         : ['MenuItem', menu_show_lines],
+                    #                                                        'separator9'    : ['separator', None],
+                    #                                                        'Residues within 4 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Residues within 5 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Residues within 6 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Residues within 8 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Residues within 12 A'         : ['MenuItem', menu_show_lines],
+                    #                                                        'Residues within 15 A'         : ['MenuItem', menu_show_lines],
+                    #                                                        'separator2'    : ['separator', None],
+                    #                                                        'Molecules within 4 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Molecules within 5 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Molecules within 6 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Molecules within 8 A'         : ['MenuItem', menu_show_lines] ,
+                    #                                                        'Molecules within 12 A'         : ['MenuItem', menu_show_lines],
+                    #                                                        'Molecules within 15 A'         : ['MenuItem', menu_show_lines],
+                    #                                                        }
+                    #
+                    #                                            ],
+                    #                        
+                    #                        
+                    #                        'Invert'        : ['MenuItem', menu_set_color_yellow],
+                    #
+                    #                       }
+                    #          ],
+                    
+                    'Show'   : [
                                 'submenu' ,{
                                             
                                             'lines'         : ['MenuItem', menu_show_lines],
@@ -354,7 +424,7 @@ class GLMenu:
                                ],
                     
                     
-                    'hide'   : [
+                    'Hide'   : [
                                 'submenu',  {
                                             'lines'         : ['MenuItem', menu_hide_lines],
                                             #'dotted_lines'  : ['MenuItem', menu_hide_dotted_lines],
@@ -369,7 +439,7 @@ class GLMenu:
                                             }
                                 ],
                     
-                    'color'   : [
+                    'Color'   : [
                                 'submenu',  {
                                             'grey'          : ['MenuItem', menu_set_color_grey],
                                             'yellow'        : ['MenuItem', menu_set_color_yellow],
@@ -383,8 +453,7 @@ class GLMenu:
                                             }
                                 ],
                     
-                    'Invert Selection':['MenuItem', invert_selection],
-                    
+
                     
 
                     
@@ -887,32 +956,223 @@ button position in the main treeview (active column).""".format(name,self.main.p
         self.vm_glcore.updated_coords = True
         self.vm_widget.queue_draw()
 
+    
+    
 
-
-    def selection_around(self, selection = None, radius = 10, grid_size = 3):
+    def define_vismol_object_molecules (self, vobject):
         """ Function doc """
-        if selection is None:
-            selection = self.selections[self.current_selection]
-        else:
-            pass
         
-        #freelist = []                
+        self.verified = set()
+        
+        self.molecules = {0 : []}
+        
+        
+        #def func (bond):
+        #    """ Function doc """
+        #    verified = []
+        #    
+        #    for bond in bonds:
+        #        verified.append(bond.atom_index_i)
+        #        verified.append(bond.atom_index_j)
+        #        
+        #        for bond.atom_i.bonds:
+        #            func (bond)
+                
+        #def func(atom)
+        #
+        #
+        #for index , atom in vobject.atoms.items():
+        #    
+        #    if index in verified:
+        #        pass
+        #    else:
+        #        
+        #        for bond in atom.bonds:
+        #            print (bond)
+        
+        #for bond in vobject.bonds:
+            
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    def _define_inner_box (self, selection, grid_size):
+        """  
+        Establishes the inner box (smallest box in Cartesian space) that encompasses the selected atoms
+        
+        inputs:
+                selection =  vismol selection object 
+                grid_size =  float
+                
+        return :
+                vobjects,             = list of involved object
+                grid_min,             = list (xyz) 
+                grid_max,             = list (xyz)
+                selected_indexes_dict = dict, the keys ate the vobject.index -> list os selected indexes 
+        
+                                        max(xyz) = grid_max 
+                  |-------|-------|-------|
+                  |       |       |      x|
+                  |    x  |       | x x x |
+                  |     xx|       |x      |
+                  |-------|-------|-------|
+                  |       |xx  xxx|       |
+                  |       |   x   |       |
+                  |       | x   x |       |
+                  |-------|-------|-------|
+                  |      x|x      |x      |
+                  |   x x |       | x     |
+                  |x      |       |       |
+                  |-------|-------|-------|
+                   ^
+        min(xyz) = grid_min
+
+        
+        """
+        print ('Defining the selection inner box')
+        i = []
+        j = []
+        k = []
+        selected_indexes = set()
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        vobject  = None
+        vobjects = []
+        
+        selected_indexes_dict = {}
+        selected_indexes_dict = {}
         
         for atom in selection.selected_atoms:
             '''checks if the selected atoms belong to the active project'''
             true_or_false = self.check_selected_atom(atom, dialog = True)
+            
             if true_or_false:
-                freelist.append(atom.index -1)
-            else:
-        
-                return False
+                xyz = atom.coords()
+                
+                vobject = atom.vm_object
+                
+                if vobject in vobjects:
+                    pass
+                else:
+                    vobjects.append(vobject)
+                
+                #grid_pos = (int(xyz[0]/grid_size), int(xyz[1]/grid_size), int(xyz[2]/grid_size))
+                #i.append(grid_pos[0])
+                #j.append(grid_pos[1])
+                #k.append(grid_pos[2])
+                i.append(xyz[0])
+                j.append(xyz[1])
+                k.append(xyz[2])
+                
+                #selected_indexes.add(atom.index-1)
+                
+                if vobject.index in selected_indexes_dict.keys():
+                    selected_indexes_dict[vobject.index].append(atom.index-1)
+                else:
+                    selected_indexes_dict[vobject.index]=[]
+                    selected_indexes_dict[vobject.index].append(atom.index-1)
 
-        grid = {}
+
+                #if grid_pos in selected_grip.keys():
+                #    selected_grip[grid_pos].append(atom)
+                #else:
+                #    selected_grip[grid_pos] = []
+                #    selected_grip[grid_pos].append(atom)
+            else:
+                print('invalid selection list')
+                return False
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         
-        for index, atom in self.vm_objects_dic[0].atoms.items():
+        #print ('\nkey (grid pos) / num of atoms',
+        #'\n max i: ', max(i) , 'min i: ', min(i),
+        #'\n max j: ', max(j) , 'min j: ', min(j),
+        #'\n max k: ', max(k) , 'min k: ', min(k))
+        
+        grid_min = [min(i), min(j), min(k)]
+        grid_max = [max(i), max(j), max(k)]
+        return vobjects, grid_min, grid_max, selected_indexes_dict
+    
+    
+    def _define_selectable_indexes (self, vobject, grid_min, grid_max, radius, grid_size = 10):
+        """  
+        Establishes the list of selectable atoms (big box)
+        Sets up a box that contains selectable atoms (which will be checked later). 
+        The box size is established by the chosen search radius.
+        
+        inputs:
+                vobject   =  vismol  object 
+                grid_min  =  list
+                grid_max  =  list
+                radius    =  float
+                grid_size = float
+                
+        return :
+                selectable_indexes = set()
+        
+        
+                                        max(xyz) = grid_max 
+           |-------|-------|-------|-------|-------|-------|
+           |                                               |
+           |      ||-------------------------------||      |
+           |      ||       |       |       |       ||      |
+           |      ||-------|-box of selectable-----||      |
+           |      ||       |     atoms     |       ||      |
+           |      ||       |       |       |       ||      |
+           |      ||       |-------------- |       ||      |
+           |      ||------||-------|-------||------||      |
+           |      ||      ||       |       ||      ||      |
+           |      ||      || inner box     ||      ||      |
+           |      ||      ||  (selected    ||      ||      |
+           |      ||------||----atoms)-----||------||      |
+           |      ||      ||       |       ||      ||      |                  ^
+           |      ||      ||       |       ||      ||      |
+           |      ||      ||       |       ||      ||      |
+           |      ||------||-------|-------||------||      |
+           |      ||       |---------------|       ||      |
+           |      ||       |       |       |       ||      |
+           |      ||       |       |       |       ||      |
+           |      ||-------|-------|-------|-------||      |
+           |      ||       |       |       |       ||      |                  ^
+           |      ||-------------------------------||      |
+           |                                               |
+           |-------|-------|-------|-------|-------|-------|
+
+
+        min(xyz) = grid_min
+
+        
+        
+        """
+        
+        print ('Defining the selectable indexes')
+        
+        selectable_indexes = set()
+        grid = {}
+        radius = radius 
+
+        for index, atom in vobject.atoms.items():
             xyz = atom.coords()
-            grid_pos = (int(xyz[0]/grid_size), int(xyz[1]/grid_size), int(xyz[2]/grid_size))
-            print (index, atom.index, atom.coords(), grid_pos )
+            
+            grid_pos = (int(xyz[0]/grid_size), 
+                        int(xyz[1]/grid_size), 
+                        int(xyz[2]/grid_size))
+            
+            
+            if grid_pos[0] >= grid_min[0]-radius and grid_pos[0] <= grid_max[0]+radius:
+                if grid_pos[1] >= grid_min[1]-radius and grid_pos[1] <= grid_max[1]+radius:                
+                    if grid_pos[2] >= grid_min[2]-radius and grid_pos[2] <= grid_max[2]+radius:
+                        #----------------------------
+                        selectable_indexes.add(index)
+                        #----------------------------
+            
             
             if grid_pos in grid.keys():
                 grid[grid_pos].append(atom)
@@ -920,16 +1180,132 @@ button position in the main treeview (active column).""".format(name,self.main.p
                 grid[grid_pos] = []
                 grid[grid_pos].append(atom)
         
-        for key,  grid_element in grid.items():
-            print(key, len(grid_element)) 
+        return selectable_indexes
+
+        
+    
+    def advanced_selection (self, selection = None, _type = 'Around' ,selecting_by = 'Residue',   radius = 10, grid_size = 10):
+        """ Function doc """
+        
+        grid_size = radius / grid_size
+        
+        if selection is None:
+            selection = self.selections[self.current_selection]
+        else:
+            pass        
+        
+        vobjects, grid_min, grid_max, selected_indexes_dict = self._define_inner_box(selection, grid_size)       
+        
+        
+        self._selection_function_set(None)
+
+        for vobject in vobjects:
+            selected_indexes = set(selected_indexes_dict[vobject.index])
+            selectable_indexes = self._define_selectable_indexes(vobject, grid_min, grid_max, radius, grid_size )
+            selectable_indexes = selectable_indexes - selected_indexes
+            #print('vobject.c_alpha_bonds', vobject.c_alpha_bonds )
+            #print('vobject.c_alpha_atoms', vobject.c_alpha_atoms )
+    
             
+            try:
+                coordinates = vobject.frames[self.frame]
+            except:
+                coordinates = vobject.frames[-1]
+            
+            new_selected_indexes, selectable_indexes = selectors.selection_spherical_expansion( 
+                                                                                            selected_indexes, 
+                                                                                            selectable_indexes, 
+                                                                                            coordinates, 
+                                                                                            radius )
+            
+            #-------------------------------------------------------------------------------------
+            if _type == 'Around':
+                new_selected_indexes = new_selected_indexes - selected_indexes
+            
+            
+            elif _type == 'Expand':
+                for index in selected_indexes:
+                    new_selected_indexes.add(index)
+            
+            elif _type == 'ByComplement':
+                keys = vobject.atoms.keys()
+                keys = set(keys)
+                
+                new_selected_indexes = keys - new_selected_indexes
+                #for index in selected_indexes:
+                #    new_selected_indexes.add(index)
+            
+            
+            else:
+                pass
+            #print ('_type', _type, 'selecting_by', selecting_by)
+            self.selections[self.current_selection].selecting_by_indexes( vobject, 
+                                                                new_selected_indexes, 
+                                                                clear=True)
+            #-------------------------------------------------------------------------------------
+            
+            
+            
+            
+            #-------------------------------------------------------------------------------------
+            if selecting_by == 'Residue':
+                new_selected_indexes = self._complement_by_residue( new_selected_indexes,vobject )
+            
+            elif selecting_by == 'Molecule':
+                new_selected_indexes = self._complement_by_molecule( new_selected_indexes, vobject )
+            
+            else:
+                pass
+            #-------------------------------------------------------------------------------------
+            
+            
+    
+                
+            self.selections[self.current_selection].active = True
+            self.vm_glcore.queue_draw()
 
 
+    def _complement_by_residue (self, new_selected_indexes, vobject ):
+        """ Function doc """
+        # - - - - - - - - - - selecting all the residues! - - - - - - - - - - - - - - - - - - - -  
+        for atom in self.selections[self.current_selection].selected_atoms:
+            keys = atom.residue.atoms.keys()
+            for key in keys:
+                new_selected_indexes.add(key)
+        
+        self.selections[self.current_selection].selecting_by_indexes( vobject, 
+                                                           new_selected_indexes, 
+                                                           clear=True)
+        return new_selected_indexes
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -         
+    def _complement_by_molecule (self, new_selected_indexes, vobject ):
+        """ Function doc """
+        # - - - - - - - - - - selecting all the residues! - - - - - - - - - - - - - - - - - - - -  
+        for atom in self.selections[self.current_selection].selected_atoms:
+            keys = atom.molecule.atoms.keys()
+            for key in keys:
+                new_selected_indexes.add(key)
+        
+        self.selections[self.current_selection].selecting_by_indexes( vobject, 
+                                                           new_selected_indexes, 
+                                                           clear=True)
+        return new_selected_indexes
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -         
 
-
-
-
-
-
-
+    def selection_around(self, selection = None, radius = 23, grid_size = 10): 
+        """ Function doc """
+        #self.define_vismol_object_molecules(self.vm_objects_dic[0])
+        selection = {}
+        for atom in self.selections[self.current_selection].selected_atoms:
+            selection[atom.index-1] = atom
+        
+        #selection = []
+        #for atom in self.selections[self.current_selection].selected_atoms:
+        #    selection.append(atom)
+        #print(list(self.selections[self.current_selection].selected_atoms))
+        #selection = list(self.selections[self.current_selection].selected_atoms)
+        bonds = self.vm_objects_dic[0].find_bonded_and_nonbonded_atoms( selection=selection, frame=self.frame)
+                                        
+        print(bonds)
+        #self.advanced_selection(selection = None, _type = 'around' , radius = 10, grid_size = 10)
 

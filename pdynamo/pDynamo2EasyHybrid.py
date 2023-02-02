@@ -460,7 +460,7 @@ class pSimulations:
         
         elif parameters['simulation_type'] == 'Relaxed_Surface_Scan':
             self.relaxed_surface_scan = RelaxedSurfaceScan()
-            self.relaxed_surface_scan.run(parameters)
+            self.relaxed_surface_scan.run(parameters = parameters, interface = True)
             
 
         
@@ -1684,10 +1684,13 @@ class Atom:
                  occupancy=0.0, bfactor=0.0, charge=0.0, bonds_indexes=None):
         """ Class initializer """
         self.vm_object = vismol_object
-        self.name = name
-        self.index = index   # - Remember that the "index" attribute refers to the numbering of atoms (it is not a zero base, it starts at 1 for the first atom)
-        self.residue = residue
-        self.chain = chain
+        
+        self.name     = name
+        self.index    = index   # - Remember that the "index" attribute refers to the numbering of atoms (it is not a zero base, it starts at 1 for the first atom)
+        self.residue  = residue
+        self.chain    = chain
+        self.molecule = None
+
         self.pos = pos     # - coordinates of the first frame
         self.unique_id = None
         

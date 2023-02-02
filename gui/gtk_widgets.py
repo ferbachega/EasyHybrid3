@@ -25,12 +25,14 @@ class VismolSelectionTypeBox(Gtk.Box):
         #combobox
         
         self.Vismol_selection_modes_ListStore = Gtk.ListStore(str)
-        data = ['atom'   , 
-                'residue',
-                'chain'  , 
-                'protein', 
-                'C alpha',
-                'solvent',
+        data = ['atom'    , 
+                'residue' ,
+                'chain'   , 
+                'molecule',
+                'solvent' ,
+                #'protein' , 
+                #'C alpha' ,
+                #'solvent' ,
                 #'atom name',
                 #'element',
                 ]
@@ -121,30 +123,30 @@ class VismolSelectionTypeBox(Gtk.Box):
             #self.show_or_hide_entries (name = 'element', show = False)
         
         elif self.active == 3:
-            self.vm_session.viewing_selection_mode(sel_type = 'protein')
+            self.vm_session.viewing_selection_mode(sel_type = 'molecule')
             #self.show_or_hide_entries (name = 'atom_names', show = False)
             #self.show_or_hide_entries (name = 'element', show = False)
         
         elif self.active == 4:
-            self.vm_session.viewing_selection_mode(sel_type = 'C alpha')
-            #self.show_or_hide_entries (name = 'atom_names', show = False)
-            #self.show_or_hide_entries (name = 'element', show = False)
-        
-        elif self.active == 5:
             self.vm_session.viewing_selection_mode(sel_type = 'solvent')
             #self.show_or_hide_entries (name = 'atom_names', show = False)
             #self.show_or_hide_entries (name = 'element', show = False)
         
-        elif self.active == 6:
-            self.vm_session.viewing_selection_mode(sel_type = 'atom name')
-            #self.show_or_hide_entries (name = 'atom_names', show = True)
-            #self.show_or_hide_entries (name = 'element', show = False)
-        
-        elif self.active == 7:
-            self.vm_session.viewing_selection_mode(sel_type = 'element')
-            #self.show_or_hide_entries (name = 'atom_names', show = False)
-            #self.show_or_hide_entries (name = 'element', show = True)
-                
+        #elif self.active == 5:
+        #    self.vm_session.viewing_selection_mode(sel_type = 'solvent')
+        #    #self.show_or_hide_entries (name = 'atom_names', show = False)
+        #    #self.show_or_hide_entries (name = 'element', show = False)
+        #
+        #elif self.active == 6:
+        #    self.vm_session.viewing_selection_mode(sel_type = 'atom name')
+        #    #self.show_or_hide_entries (name = 'atom_names', show = True)
+        #    #self.show_or_hide_entries (name = 'element', show = False)
+        #
+        #elif self.active == 7:
+        #    self.vm_session.viewing_selection_mode(sel_type = 'element')
+        #    #self.show_or_hide_entries (name = 'atom_names', show = False)
+        #    #self.show_or_hide_entries (name = 'element', show = True)
+        #        
         else:pass
         
     def change_sel_type_in_combobox (self, sel_type):

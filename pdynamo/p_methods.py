@@ -431,7 +431,7 @@ class RelaxedSurfaceScan:
         """ Class initialiser """
         pass
 
-    def run (self, parameters):
+    def run (self, parameters, interface = False):
         """ Function doc """
         full_path_trajectory =os.path.join(parameters['folder'], 
                               parameters['traj_folder_name']+".ptGeo")
@@ -448,7 +448,7 @@ class RelaxedSurfaceScan:
 
         
         if parameters['second_coordinate']:
-            self._run_scan_2D(parameters)
+            self._run_scan_2D(parameters = parameters, interface = False)
             
         else:
             self._run_scan_1D(parameters)
@@ -678,7 +678,7 @@ class RelaxedSurfaceScan:
         pprint(data)
         
         
-    def _run_scan_2D (self, parameters):
+    def _run_scan_2D (self, parameters = None, interface = False):
         """ Function doc """
         #-------------------------------------------------------------------------
         #Setting some local vars to ease the notation in the pDynamo methods
@@ -702,6 +702,7 @@ class RelaxedSurfaceScan:
         is unable to handle data that has been allocated using the GTK library. 
         When a system is generalized using EasyHybrid, it receives information 
         from the treeview, enabling easy interconnection of the data.'''
+        #if interface:
         backup = []
         backup.append(parameters['system'].e_treeview_iter)
         backup.append(parameters['system'].e_liststore_iter)
@@ -900,13 +901,21 @@ class RelaxedSurfaceScan:
                     text = "\nDATA  %4i  %4i     %13.12f       %13.12f       %13.12f"% (int(i), int(j),  float(data[(i,j)][0]), float(data[(i,j)][1]), float(data[(i,j)][2]))
                     arq.write(text)
             #--------------------------------------------------------------------------------------
+            
+
+            #if interface:
             parameters['system'].e_treeview_iter   = backup[0]
             parameters['system'].e_liststore_iter  = backup[1]
-
+            #else:
+            #    pass
+            
+            
         except:
+            #if interface:
             parameters['system'].e_treeview_iter   = backup[0]
             parameters['system'].e_liststore_iter  = backup[1]
-
+            #else:
+            #    pass
 
     def _run_scan_2D_old (self, parameters):
         """ Function doc """

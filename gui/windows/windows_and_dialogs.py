@@ -604,6 +604,142 @@ class ExportDataWindow:
         pass
 
 
+class EasyHybridSelectionWindow:
+    """ Class doc """
+    def __init__(self, main = None):
+        """ Class initialiser """
+        self.main = main
+        self.vm_session      = main.vm_session
+        self.Visible         = False        
+        self.home            = main.home
+        self.p_session       = main.p_session
+        
+        
+        self.chain = ''
+        self.resn  = ''
+        self.resi  = ''
+        self.atom  = ''
+
+        self._type_dict={
+                        0 : "Expand"   ,
+                        1 : "Around"   ,
+                        2 : "Complete" ,
+                        3 : "ByComplement" ,
+                        }
+        
+        self.select_by_dict ={
+                             0 : "Atom"      ,
+                             1 : "Residue"   ,
+                             2 : "Molecule"  ,
+                             4 : "Chain"    ,
+                             }
+        
+        
+    def OpenWindow (self):
+        """ Function doc """
+        if self.Visible  ==  False:
+            self.builder = Gtk.Builder()
+            self.builder.add_from_file(os.path.join(self.home, 'gui/windows/modify_selection_window.glade'))
+            self.builder.connect_signals(self)
+            
+            self.window = self.builder.get_object('modify_selection_window')
+            self.window.set_title('Modify Selection Window')
+            self.window.set_keep_above(True)
+             
+            
+            self.box_combo_methods = self.builder.get_object('box_combo_methods')
+            self.box_select_by     = self.builder.get_object('box_select_by')
+            
+            method_store = Gtk.ListStore(str)
+            for key, item in self._type_dict.items():
+                method_store.append([item])
+
+
+            #------------------------------------------------------------------
+            self.method_combo = Gtk.ComboBox.new_with_model(method_store)
+            renderer_text = Gtk.CellRendererText()
+            self.method_combo.pack_start(renderer_text, True)
+            self.method_combo.add_attribute(renderer_text, "text", 0)            
+            
+            self.method_combo.set_entry_text_column(0)
+            self.method_combo.set_active(0)
+            self.box_combo_methods.pack_start(self.method_combo, False, False, 0)
+            #------------------------------------------------------------------
+
+            
+            
+            select_by_store = Gtk.ListStore(str)
+            for key, item in self.select_by_dict.items():
+                select_by_store.append([item])
+
+
+            #------------------------------------------------------------------
+            self.select_by_combo = Gtk.ComboBox.new_with_model( select_by_store)
+            renderer_text = Gtk.CellRendererText()
+            self.select_by_combo.pack_start(renderer_text, True)
+            self.select_by_combo.add_attribute(renderer_text, "text", 0)            
+            
+            self.select_by_combo.set_entry_text_column(0)
+            self.select_by_combo.set_active(1)
+            self.box_select_by.pack_start(self.select_by_combo, False, False, 0)
+            #------------------------------------------------------------------
+            
+            
+            
+            #------------------------------------------------------------------
+            self.radius_spinbutton  = self.builder.get_object('radius_spinbutton' )
+            #------------------------------------------------------------------
+            self.radius_adjustment = Gtk.Adjustment(value          = 14 , 
+                                                 upper          = 100, 
+                                                 step_increment = 1  , 
+                                                 page_increment = 10 )
+
+            self.radius_spinbutton.set_adjustment ( self.radius_adjustment)
+            #------------------------------------------------------------------
+
+
+            self.window.show_all()
+            self.Visible  = True
+    
+        else:
+            self.window.present()
+    
+
+    def CloseWindow (self, button, data  = None):
+        """ Function doc """
+        self.window.destroy()
+        self.Visible    =  False
+    
+    
+    def run_selection (self, button):
+        """ Function doc """
+        #self.method_combo
+        #self.select_by_combo
+
+        _radius      =  self.radius_spinbutton.get_value ()
+        _type        =  self.method_combo.get_active()
+        _select_by   =  self.select_by_combo.get_active()
+        
+
+        
+        _type      = self._type_dict    [_type]
+        _select_by = self.select_by_dict[_select_by]
+
+
+
+        self.vm_session.advanced_selection( selection        = None,
+                                                _type        = _type ,
+                                                selecting_by = _select_by,
+                                               radius        = _radius,  
+                                               grid_size     = _radius)
+
+        
+
+    
+       
+
+
+
 class PDynamoSelectionWindow:
     """ Class doc """
     def __init__(self, main = None):
@@ -1549,7 +1685,10 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         #self.vm_session.vm_glcore.center_on_coordinates(res.vm_object, res.mass_center)
         
         atom_keys = list(res.atoms.values())
+        #print('\n\n\n', atom_keys, '\n\n\n')
+        #print('\n\n\n', res, '\n\n\n')
         self.vm_session._selection_function_set({atom_keys[0]})
+        
         self.vm_session.vm_glcore.updated_coords = True
         #self.vm_session.selections[self.vm_session.current_selection].selection_function_viewing_set( selected= {atom_keys[0]}, _type= "residue")
         
