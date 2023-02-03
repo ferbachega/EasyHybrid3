@@ -209,8 +209,8 @@ class MolecularDynamics:
         '''If a trajectory is provided, it holds for all optimization functions'''
         if parameters['trajectory_name']:
             full_path_trajectory = os.path.join(parameters['folder'], parameters['trajectory_name'] + '.ptGeo')
-            print('\n\n\n')
-            print('full_path_trajectory:', full_path_trajectory)
+            #print('\n\n\n')
+            #print('full_path_trajectory:', full_path_trajectory)
             self.trajectory = ExportTrajectory(full_path_trajectory, parameters['system'], log=None )
             
             self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(full_path_trajectory, 'output.log') )
@@ -606,7 +606,7 @@ class RelaxedSurfaceScan:
         
         for i in range(parameters['nsteps_RC1']):       
             distance = parameters['dminimum_RC1'] + ( parameters['dincre_RC1'] * float(i) )
-            print(parameters["rc_type_1"])
+            #print(parameters["rc_type_1"])
             
             
             '''----------------------------------------------------------------------------------------------------------------'''
@@ -695,7 +695,7 @@ class RelaxedSurfaceScan:
         
         arq = self.write_header(parameters)
         data = {}
-        print(parameters["rc_type_1"])
+        #print(parameters["rc_type_1"])
         
         
         '''This part of the program is crucial because the Clone function 
@@ -934,7 +934,7 @@ class RelaxedSurfaceScan:
         
         arq = self.write_header(parameters)
         data = {}
-        print(parameters["rc_type_1"])
+        #print(parameters["rc_type_1"])
 
         for i in range(parameters['nsteps_RC1']):       
             distance = parameters['dminimum_RC1'] + ( parameters['dincre_RC1'] * float(i) )

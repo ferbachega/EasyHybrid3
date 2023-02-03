@@ -1710,7 +1710,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         #print ( tree, event)
         
         if event.button == 3:
-            print ("button 3")
+            print ("button 3", event)
             #selection     = tree.get_selection()
             #model         = tree.get_model()
             #(model, iter) = selection.get_selected()
@@ -1813,7 +1813,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
 
     
     def on_chk_renderer_toggled(self, cell, path, model):
-        print(model[path][0])
+        print('on_chk_renderer_toggled -> model[path][0]: ', model[path][0])
 
 
     def residue_filter_func(self, model, iter, data):
@@ -2360,7 +2360,7 @@ class ImportTrajectoryWindow:
             '''selecting the vismol object from the content that is in the combobox '''
             model = self.combobox_pdynamo_system.get_model()
             name, sys_id = model[tree_iter][:2]
-            print (name, sys_id)
+            print ('name/ system_id: ', name, sys_id)
         else:
             return False
 
@@ -2403,7 +2403,7 @@ class ImportTrajectoryWindow:
             self.builder.get_object('entry_create_a_new_vobj').set_sensitive(True)
             self.builder.get_object('vobjects_combobox').set_sensitive(True)        
         
-        print (data_type, self.data_type_dict[data_type])
+        print ('\ndata_type: ', data_type, '\ndata_type_dict: ',self.data_type_dict[data_type])
         data_type = self.data_type_dict[data_type]
         
         if  data_type in self.folder_type_list:
@@ -2420,8 +2420,8 @@ class ImportTrajectoryWindow:
             '''selecting the vismol object from the content that is in the combobox '''
             model = self.combobox_starting_coordinates.get_model()
             name, vobject_id = model[tree_iter][:2]
-            print (name, model[tree_iter][:2])
-            #name, vobject_id = model[tree_iter][:2]
+            print ('\nname: ', name, '\nmodel[tree_iter][:2]: ', model[tree_iter][:2])
+
     def on_name_combo_changed (self, widget):
         """ Function doc """
         traj_type = self.builder.get_object('combobox_coordinate_type').get_active() 
@@ -2511,7 +2511,7 @@ class ImportTrajectoryWindow:
                 parameters['vobject']    = vobject
             #-------------------------------------------------------------------------------------------
 
-        print(parameters)
+        print('\n parameters: ', parameters)
         self.main.p_session.import_data ( parameters ) 
 
     def update (self):
@@ -2787,7 +2787,7 @@ class PotentialEnergyAnalysisWindow():
 
     def _draw_data (self, cla = True, refresh = True):
         """ Function doc """
-        print('self.pcm.cla()')
+        #print('self.pcm.cla()')
         if cla:
             if self.ax:
                 self.ax.cla()
@@ -2817,7 +2817,7 @@ class PotentialEnergyAnalysisWindow():
     def on_coordinates_combobox_change (self, widget):
         """ Function doc """
         _id = self.coordinates_combobox.get_active()
-        print(_id)
+        #print(_id)
         vobject_index = None
         #-----------------------------------------------------------------------------
         _iter = self.coordinates_combobox.get_active_iter()
@@ -2851,7 +2851,7 @@ class PotentialEnergyAnalysisWindow():
         
         #self.vobject = self.main.vm_session.vm_objects_dic[vobject_index]
         self.data = self.p_session.psystem[self.vobject.e_id].e_logfile_data[self.vobject.index][index] 
-        print(self.data)
+        print('data: ', self.data)
         self._draw_data(cla = True)
         
     def on_motion_notify_event (self, event):
@@ -2978,7 +2978,7 @@ class PotentialEnergyAnalysisWindow():
 
     def on_button_export_trajectory (self, widget):
         """ Function doc """
-        print (
+        print ('\nexport_trajectory: \n',
         self.xdata   ,
         self.ydata   ,
         self.zdata   ,
@@ -3002,8 +3002,7 @@ class PotentialEnergyAnalysisWindow():
 
         for xy in self.xy_traj:
             frame_number = self.vobject.idx_2D_xy[(xy[0], xy[1])]
-            #frames.append(self.vobject.frames[frame_number])
-            print(self.vobject.frames[frame_number])
+            #print(self.vobject.frames[frame_number])
             new_vismol_object.frames = np.vstack((new_vismol_object.frames, 
                                                   [self.vobject.frames[frame_number]]))
         

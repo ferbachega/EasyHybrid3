@@ -781,8 +781,8 @@ class UmbrellaSamplingWindow(Gtk.Window):
 
     def refresh_dmininum (self, coord1 =  False, coord2 = False):
         """ Function doc """
-        print('coord1',coord1 )
-        print('coord2',coord2 )
+        print('coord1: ',coord1 )
+        print('coord2: ',coord2 )
         if coord1:
             _type = self.combobox_reaction_coord1.get_active()
             print('_type', _type)
@@ -813,7 +813,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             pass    
               
         if coord2:
-            print('herehere')
+            #print('herehere')
             _type = self.combobox_reaction_coord2.get_active()
             try:
                 if _type == 0:

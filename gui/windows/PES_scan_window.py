@@ -197,7 +197,7 @@ class PotentialEnergyScanWindow():
             
             for method in methods:
                 self.method_store.append([method])
-                print (method)
+                #print (method)
             
             self.combobox_reaction_coord1 = self.builder.get_object('combobox_reaction_coord1')
             self.combobox_reaction_coord1.set_model(self.method_store)
@@ -225,7 +225,7 @@ class PotentialEnergyScanWindow():
             
             for method in methods:
                 self.method_store.append([method])
-                print (method)
+                #print (method)
             
             self.methods_combo = self.builder.get_object('combobox_methods')
             self.methods_combo.set_model(self.method_store)
@@ -430,7 +430,7 @@ class PotentialEnergyScanWindow():
         
         if coord1:
             _type = self.combobox_reaction_coord1.get_active()
-            print('_type', _type)
+            #print('_type', _type)
             if _type == 0:
                 index1 = int(self.builder.get_object('entry_atom1_index_coord1').get_text() )
                 index2 = int(self.builder.get_object('entry_atom2_index_coord1').get_text() )
@@ -666,7 +666,7 @@ class PotentialEnergyScanWindow():
         parameters["vobject_name"]     = self.builder.get_object('traj_name').get_text()        
         
         combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
-        print(combobox_starting_coordinates)
+        #print(combobox_starting_coordinates)
         tree_iter = combobox_starting_coordinates.get_active_iter()
         if tree_iter is not None:
             '''selecting the vismol object from the content that is in the combobox '''
@@ -683,7 +683,7 @@ class PotentialEnergyScanWindow():
         #----------------------------------------------------------------------------------               
         
         _type = self.combobox_reaction_coord1.get_active()
-        print('_type', _type)
+        #print('_type', _type)
         if _type == 0:
             parameters["rc_type_1"]     = "simple_distance"
             index1 = int( self.builder.get_object('entry_atom1_index_coord1').get_text() )

@@ -344,7 +344,7 @@ class EasyHybridImportTrajectory:
             frequency = line2[2]
             
             modes_dict[mode] = [frequency, [x, None]]
-            print(trajectory)
+            #print(trajectory)
             #-----------------------------------------------------------------------------------------------------------------------------
             trajectory = ImportTrajectory (trajectory, self.psystem[parameters['system_id']] )
             trajectory.ReadHeader ( )
@@ -362,7 +362,7 @@ class EasyHybridImportTrajectory:
             trajectory.Close ( )
             #-----------------------------------------------------------------------------------------------------------------------------
         vismol_object.normal_modes_dict = modes_dict
-        print (modes_dict)
+        #print (modes_dict)
         return modes_dict
 
     def import_data (self, parameters):
@@ -408,7 +408,7 @@ class EasyHybridImportTrajectory:
 
         
         
-        print (parameters)
+        #print (parameters)
         if parameters['logfile']:
             logfile= LogFileReader(parameters['logfile'])
             data   = logfile.get_data()
@@ -423,8 +423,9 @@ class EasyHybridImportTrajectory:
             else:
                 self.psystem[parameters['system_id']].e_logfile_data[vobject_id] = []
                 self.psystem[parameters['system_id']].e_logfile_data[vobject_id].append(data)
-            print ('\n\n\n\n\n\n\n')
-            print (self.psystem[parameters['system_id']].e_logfile_data)
+            
+            #print ('\n\n\n\n\n\n\n')
+            #print (self.psystem[parameters['system_id']].e_logfile_data)
         else:
             pass
         
@@ -444,7 +445,7 @@ class pSimulations:
     def run_simulation (self, parameters):
         """ Function doc """
         parameters['system'] = self.psystem[self.active_id] 
-        print(parameters)
+        pprint(parameters)
         
 
         if parameters['simulation_type'] == 'Geometry_Optimization':
@@ -453,7 +454,7 @@ class pSimulations:
             
         
         elif parameters['simulation_type'] == 'Molecular_Dynamics':
-            pprint(parameters)
+            #pprint(parameters)
             self.molecular_dynamics_object = MolecularDynamics()
             self.molecular_dynamics_object.run(parameters)
         
@@ -1582,7 +1583,7 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
             z = np.float32(frame[i+2])
             coords[0,atom_id,:] = x, y, z
             atom_id += 1
-        print (coords)
+        #print (coords)
         return coords
         
         
@@ -1736,9 +1737,11 @@ class Atom:
         self.nonbonded      = False
         self.impostor       = False
         self.ribbons        = False
+        self.dynamic        = False
         self.ball_and_stick = False
         self.sticks         = False
         self.spheres        = False
+        self.vdw_spheres    = False
         self.dash           = False
         self.surface        = False
         self.bonds          = []

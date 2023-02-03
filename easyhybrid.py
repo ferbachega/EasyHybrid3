@@ -308,12 +308,12 @@ class MainWindow:
         vismol_object.liststore_iter = self.vobject_liststore_dict[e_id].append([vismol_object.name, 
                                                                               vismol_object.index, 
                                                                               vismol_object.e_id])
-
+        '''
         print('\n\n\n\n')
         print(self.vobject_liststore_dict[e_id])
         print(list(self.vobject_liststore_dict[e_id]))
         print('\n\n\n\n')
-
+        '''
 
     def clear_vobject_liststore_dict (self, e_id = 'all'):
         """ Function doc """
@@ -664,12 +664,9 @@ class MainWindow:
             vobject.dynamic_bonds.append(bonds)
             #print(len(bonds), bonds)
         print(vobject.dynamic_bonds)
-        # define_new_indexes_to_vbo
-        # define_new_indexes_to_vbo(self, input_indexes)
+
         vobject.representations["dynamic"] = SticksRepresentation(vobject, self.vm_session.vm_glcore,
                                                                   active=True, indexes=vobject.dynamic_bonds[0], is_dynamic = True)
-        #vobject.representations["dynamic"].is_dynamic = True
-        #vobject.representations["dynamic"].was_rep_ind_modified = True
         #----------------------------------------------------------------------------------------------------------------------------
         #'''
         
@@ -951,7 +948,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         data2 = model.get_value(iter, 2)
         data1 = model.get_value(iter, 1)
         data0 = model.get_value(iter, 0)
-        print(data0, data1, data2, self.treestore[path][8])
+        #print(data0, data1, data2, self.treestore[path][8])
         self.main.trajectory_player_window.change_range(upper = self.treestore[path][8])
 
         selection             = tree.get_selection()
@@ -1230,11 +1227,11 @@ class TreeViewMenu:
             self.window.add(self.entry)
             self.rename_window_visible = True
             self.window.show_all()
-            print(menu_item)
+            #print(menu_item)
 
     def get_new_name (self, menu_item):
         """ Function doc """
-        print(self.entry.get_text())
+        print('New name: ', self.entry.get_text())
         
         new_name = self.entry.get_text()
         self.treeview.rename(new_name)

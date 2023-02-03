@@ -78,12 +78,12 @@ class GLMenu:
             def menu_show_dynamic_bonds (_):
                 """ Function doc """
                ##print('dynamic_test')
-                self.show_or_hide( rep_type = 'dynamic_bonds', show = True)
+                self.show_or_hide( rep_type = 'dynamic', show = True)
             
             def menu_hide_dynamic_bonds (_):
                 """ Function doc """
                ##print('dynamic_test')
-                self.show_or_hide( rep_type = 'dynamic_bonds', show = False)
+                self.show_or_hide( rep_type = 'dynamic', show = False)
             
             def menu_show_ribbons (_):
                 """ Function doc """
@@ -139,6 +139,14 @@ class GLMenu:
             def menu_hide_spheres (_):
                 """ Function doc """
                 self.show_or_hide( rep_type = 'spheres', show = False)
+            
+            def menu_show_vdw_spheres (_):
+                """ Function doc """
+                self.show_or_hide( rep_type = 'vdw_spheres', show = True)
+
+            def menu_hide_vdw_spheres (_):
+                """ Function doc """
+                self.show_or_hide( rep_type = 'vdw_spheres', show = False)
             
             def menu_show_dots (_):
                 """ Function doc """
@@ -336,6 +344,8 @@ class GLMenu:
             sele_menu = { 
                     #'header' : ['MenuItem', None],
                     
+                    '- Selection Menu -':['MenuItem', None],
+                    
                     'separator0':['separator', None],
                     
                     'Send to Selection List':['MenuItem', add_selection_to_sel_list],
@@ -344,7 +354,7 @@ class GLMenu:
                     
                     
                     
-                    'Modify' :['MenuItem', call_selection_modify_window],
+                    'Extend Selection' :['MenuItem', call_selection_modify_window],
                     
                     #'Modify' :['submenu',  
                     #
@@ -413,11 +423,16 @@ class GLMenu:
                                             'lines'         : ['MenuItem', menu_show_lines],
                                             #'dotted_lines'  : ['MenuItem', menu_show_dotted_lines],
                                             'sticks'        : ['MenuItem', menu_show_sticks],
-                                            'spheres'       : ['MenuItem', menu_show_spheres],
-                                            #'dots'          : ['MenuItem', menu_show_dots],
                                             'dynamic bonds' : ['MenuItem', menu_show_dynamic_bonds],
-                                            'ribbons'       : ['MenuItem', menu_show_ribbons],
+                                            'separator1'    : ['separator', None],
+                                            'spheres'       : ['MenuItem', menu_show_spheres],
+                                            'vdw_spheres'   : ['MenuItem', menu_show_vdw_spheres],
+                                            #'dots'          : ['MenuItem', menu_show_dots],
+                                            
                                             'separator2'    : ['separator', None],
+
+                                            'ribbons'       : ['MenuItem', menu_show_ribbons],
+                                            'separator3'    : ['separator', None],
                                             'nonbonded'     : ['MenuItem', menu_show_nonbonded],
                     
                                            }
@@ -429,12 +444,17 @@ class GLMenu:
                                             'lines'         : ['MenuItem', menu_hide_lines],
                                             #'dotted_lines'  : ['MenuItem', menu_hide_dotted_lines],
                                             'sticks'        : ['MenuItem', menu_hide_sticks],
-                                            'spheres'       : ['MenuItem', menu_hide_spheres],
-                                            #'dots'          : ['MenuItem', menu_hide_dots],
                                             'dynamic bonds' : ['MenuItem', menu_hide_dynamic_bonds],
+                                            'separator1'    : ['separator', None],
+
+                                            'spheres'       : ['MenuItem', menu_hide_spheres],
+                                            'vdw_spheres'   : ['MenuItem', menu_hide_vdw_spheres],
+                                            #'dots'          : ['MenuItem', menu_hide_dots],
+                                            'separator2'    : ['separator', None],
+
                                             'ribbons' : ['MenuItem', menu_hide_ribbons],
 
-                                            'separator2'    : ['separator', None],
+                                            'separator3'    : ['separator', None],
                                             'nonbonded'     : ['MenuItem', menu_hide_nonbonded],
                                             }
                                 ],
@@ -448,7 +468,11 @@ class GLMenu:
                                             'light_red'     : ['MenuItem', menu_set_color_light_red],
                                             'purple'        : ['MenuItem', menu_set_color_purple],
                                             'orange'        : ['MenuItem', menu_set_color_orange],
+                                            'separator1'    : ['separator', None],
+
                                             'custon'        : ['MenuItem', menu_color_change],
+                                            'separator2'    : ['separator', None],
+
                                             #'dotted_lines'  : ['MenuItem', menu_hide_dotted_lines],
                                             }
                                 ],
@@ -461,7 +485,7 @@ class GLMenu:
 
                     
                     
-                    'Selection type'   : [
+                    'Selection Type'   : [
                                 'submenu' ,{
                                             
                                             'viewing'   :  ['MenuItem', _selection_type_viewing],
@@ -486,15 +510,15 @@ class GLMenu:
                     
                     'separator3':['separator', None],
                     
-                    'Set as QC atoms'      :  ['MenuItem', set_as_qc_atoms],
+                    'Set as QC Atoms'      :  ['MenuItem', set_as_qc_atoms],
                     
                     'separator4':['separator', None],
 
-                    'Set as fixed atoms'   :  ['MenuItem', set_as_fixed_atoms],
-                    'Set as free atoms'   :  ['MenuItem', set_as_free_atoms],
+                    'Set as Fixed Atoms'   :  ['MenuItem', set_as_fixed_atoms],
+                    'Set as Free Atoms'   :  ['MenuItem', set_as_free_atoms],
                     
                     'separator5':['separator', None],
-                    'prune to selection'  :  ['MenuItem', prune_atoms],
+                    'Prune to Selection'  :  ['MenuItem', prune_atoms],
 
                     'separator6':['separator', None],
 
@@ -1294,18 +1318,12 @@ button position in the main treeview (active column).""".format(name,self.main.p
 
     def selection_around(self, selection = None, radius = 23, grid_size = 10): 
         """ Function doc """
-        #self.define_vismol_object_molecules(self.vm_objects_dic[0])
         selection = {}
         for atom in self.selections[self.current_selection].selected_atoms:
             selection[atom.index-1] = atom
         
-        #selection = []
-        #for atom in self.selections[self.current_selection].selected_atoms:
-        #    selection.append(atom)
-        #print(list(self.selections[self.current_selection].selected_atoms))
-        #selection = list(self.selections[self.current_selection].selected_atoms)
         bonds = self.vm_objects_dic[0].find_bonded_and_nonbonded_atoms( selection=selection, frame=self.frame)
                                         
-        print(bonds)
+        #print(bonds)
         #self.advanced_selection(selection = None, _type = 'around' , radius = 10, grid_size = 10)
 

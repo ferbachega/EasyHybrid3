@@ -202,17 +202,12 @@ class NormalModesAnalysisWindow(Gtk.Window):
     def on_cell_active_radio_toggled (self, widget, path):
         """ Function doc """
         selected_path = Gtk.TreePath(path)
-        
-        ##print(self.treestore[path][1], path, self.treestore[path][0])
-        #
         for row in self.liststore:
             ##print(row.path, selected_path)
             row[0] = row.path == selected_path
             
             if row.path == selected_path:
-                #system_e_id = row[0]
-                #self.main.p_session.active_id = system_e_id
-                print (row[0],  row[1],  row[2], self.modes[int(row[1])][1])
+                #print (row[0],  row[1],  row[2], self.modes[int(row[1])][1])
                 
                 self.lower = int(self.modes[int(row[1])][1][0])
                 self.upper = int(self.modes[int(row[1])][1][1])
@@ -403,7 +398,7 @@ class NormalModesAnalysisWindow(Gtk.Window):
         else:    
             name, vobject_id, system_id = self.coordinates_liststore[index]
             
-            print(name, vobject_id, system_id)
+            #print(name, vobject_id, system_id)
             
             try:
                 vobject = self.vm_session.vm_objects_dic[vobject_id]
@@ -508,7 +503,7 @@ class NormalModesAnalysisWindow(Gtk.Window):
                 self.treeview_menu.open_menu(iter, system_id)
 
         if event.button == 1:
-            print ('event.button == 1:')
+            print ('event.button == 1')
 
 
     def play (self, button):
@@ -535,19 +530,13 @@ class NormalModesAnalysisWindow(Gtk.Window):
         while self.stop_thread == False:
             if self.stop_thread:
                 return
-            #value = self.forward(None) 
 
-            #value =  int(self.scale.get_value())
-            
-            #self.scale.set_value(int(value))
             self.vm_session.set_frame(int(self.value))
             self.value += 1
-            print(self.value)
-            #return value
+            #print(self.value)
 
             if self.value >= self.upper:
                 self.value = self.lower
-                #self.scale.set_value(int(value))
                 self.vm_session.set_frame(self.value)
             #time.sleep(0.01)
             time.sleep(1/self.spin_button.get_value())
@@ -563,7 +552,7 @@ class NormalModesAnalysisWindow(Gtk.Window):
         value = value+1
         self.scale.set_value(int(value))
         self.vm_session.set_frame(int(value))
-        print(value)
+        #print(value)
         return value
         
         
@@ -600,7 +589,7 @@ class TreeViewMenu:
             self.key      = model.get_value(iter, 0)
             sys           = model.get_value(iter, 1)
             
-            print(self.key, self.e_id)
+            print('key: ', self.key, 'e_id: ',self.e_id)
             self.window = Gtk.Window()
             self.window.connect('destroy', self.destroy)
             self.window.set_keep_above(True)
@@ -610,11 +599,11 @@ class TreeViewMenu:
             self.window.add(self.entry)
             self.rename_window_visible = True
             self.window.show_all()
-            print(menu_item)
+            #print(menu_item)
 
     def rename (self, menu_item):
         """ Function doc """
-        print(self.entry.get_text())
+        print('New name: ', self.entry.get_text())
         new_name = self.entry.get_text()
         pass
         

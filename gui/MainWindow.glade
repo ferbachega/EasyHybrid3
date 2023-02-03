@@ -7,10 +7,10 @@
     <property name="can_focus">False</property>
     <property name="pixbuf">icons/icon_new_project.png</property>
   </object>
-  <object class="GtkImage" id="image11">
+  <object class="GtkImage" id="image10">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="pixbuf">icons/icon_system_check.png</property>
+    <property name="pixbuf">icons/icon_cell.png</property>
   </object>
   <object class="GtkImage" id="image12">
     <property name="visible">True</property>
@@ -579,6 +579,18 @@
                   </packing>
                 </child>
                 <child>
+                  <object class="GtkToolButton">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="use_underline">True</property>
+                    <property name="icon_widget">image10</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
                   <object class="GtkToolButton" id="selections">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
@@ -650,21 +662,6 @@
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="toolbar_style">icons</property>
-                <child>
-                  <object class="GtkToolButton" id="toolbutton_system_check">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="tooltip_text" translatable="yes">System Check</property>
-                    <property name="label" translatable="yes">toolbutton10</property>
-                    <property name="use_underline">True</property>
-                    <property name="icon_widget">image11</property>
-                    <signal name="clicked" handler="on_main_toolbar_clicked" swapped="no"/>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="homogeneous">False</property>
-                  </packing>
-                </child>
                 <child>
                   <object class="GtkToolButton" id="toolbutton_energy">
                     <property name="visible">True</property>
