@@ -31,6 +31,8 @@ from gi.repository import GdkPixbuf
 #from easyhybrid.pDynamoMethods.pDynamo2Vismol import *
 from gui.gtk_widgets import FolderChooserButton
 from gui.gtk_widgets import VismolTrajectoryFrame
+from gui.gtk_widgets import VismolTrajectoryFrame
+import external.orca_qc_keywords as orca_keys
 
 from util.file_parser import get_file_type  
 from util.file_parser import read_MOL2  
@@ -929,7 +931,379 @@ class PDynamoSelectionWindow:
         #print('VismolGoToAtomWindow2 update')
         pass
     
+
+
+
+
+
+
+
+class SetupORCAWindow:
+    """ Class doc """
+    
+    def __init__ (self, main, setup_QC_model_window):
+        """ Class initialiser """
+        self.main_session     = main
+        self.home             = main.home
+        self.Visible          = False        
+        self.vismol_object    = None 
+        
+        self.setup_QC_model_window = setup_QC_model_window
+        self.restricted   = True
+        
+        self.adjustment_nCPU = Gtk.Adjustment(value=1,
+                                              lower=1,
+                                              upper=1000,
+                                              step_increment=1,
+                                              page_increment=1,
+                                              page_size=0)
+                                           
+                                           
+        self.orca_methods_dict = {}
+        self.restrited_label = ''
+        
+        #---------------------------------------------------------------------
+        # ORCA
+        # this liststore contains the types of methods (HF, local and gradient corrections, ...)
+        self.liststore_orca_type_of_method = Gtk.ListStore(str)
+        for key, _type in orca_keys.type_of_method.items():
+            self.liststore_orca_type_of_method.append([_type])
+
+            # this liststore contains the methods (HF, B1LYP, B3LYP ...)
+            self.orca_methods_dict[key] = Gtk.ListStore(str)
             
+            for method in orca_keys.methods[key]:
+                self.orca_methods_dict[key].append([method])
+        #---------------------------------------------------------------------
+        
+        
+        #---------------------------------------------------------------------
+        #excited states
+        self.excited_states_liststore_dict = {}
+        self.excited_states_liststore_dict['semiemp'] = Gtk.ListStore(str)
+        for excited_state in orca_keys.list_semiemp_excited.values():
+            self.excited_states_liststore_dict['semiemp'].append([excited_state])
+        
+        self.excited_states_liststore_dict['HF'] = Gtk.ListStore(str)
+        for excited_state in orca_keys.list_HF_excited.values():
+            self.excited_states_liststore_dict['HF'].append([excited_state])
+        
+        
+        self.excited_states_liststore_dict['DFT'] = Gtk.ListStore(str)
+        for excited_state in orca_keys.list_DFT_excited.values():
+            self.excited_states_liststore_dict['DFT'].append([excited_state])
+        
+        #---------------------------------------------------------------------
+        
+        
+        
+        #---------------------------------------------------------------------
+        self.liststore_orca_scf_convergence = Gtk.ListStore(str)
+        for scf_convergence in orca_keys.list_scf_convergence.values():
+            self.liststore_orca_scf_convergence.append([scf_convergence])
+        #---------------------------------------------------------------------
+        
+        
+        #---------------------------------------------------------------------
+        #basis set and basis set group
+        self.orca_type_basis_dict = {}                       # contain  several liststores
+        self.liststore_orca_type_basis = Gtk.ListStore(str)  # 
+        
+        for key , type_basis in  orca_keys.basis_set_group_dict.items():
+
+            self.liststore_orca_type_basis.append([type_basis])
+            self.orca_type_basis_dict[key] =  Gtk.ListStore(str)
+            for basis in orca_keys.type_basis_dict[key]:
+                self.orca_type_basis_dict[key].append([basis])   
+        #---------------------------------------------------------------------
+        '''
+        This is a dictionary that stores combobox 
+        information in case you need to regenerate the window.
+        '''
+
+        self.comboboxes = {}
+
+
+    
+    def OpenWindow (self, vismol_object = None):
+        """ Function doc """
+        if self.Visible  ==  False:
+            self.builder = Gtk.Builder()
+            self.builder.add_from_file(os.path.join(self.home, 'gui/windows/setup_qc_model_window.glade'))
+            self.builder.connect_signals(self)
+            
+            self.window = self.builder.get_object('window_setup_orca')
+            self.window.set_keep_above(True)
+
+            #-------------------------------------------------------------------------------
+            self.orca_type_of_method_combo = self.builder.get_object('combobox_orca_type')
+            self.orca_type_of_method_combo.connect("changed", self.on_combobox_orca_type_changed)
+            self.orca_type_of_method_combo.set_model(self.liststore_orca_type_of_method)
+            renderer_text = Gtk.CellRendererText()
+            self.orca_type_of_method_combo.pack_start(renderer_text, True)
+            self.orca_type_of_method_combo.add_attribute(renderer_text, "text", 0)
+            
+            #-------------------------------------------------------------------------------
+            
+            #-------------------------------------------------------------------------------
+            self.orca_methods_combo = self.builder.get_object('combobox_orca_method')
+            self.orca_methods_combo.connect("changed", self.on_combobox_orca_method_changed)
+            self.orca_methods_combo.set_model( self.orca_methods_dict[0] )
+            renderer_text = Gtk.CellRendererText()
+            self.orca_methods_combo.pack_start(renderer_text, True)
+            self.orca_methods_combo.add_attribute(renderer_text, "text", 0)
+            #
+            #-------------------------------------------------------------------------------
+            
+            
+            #-------------------------------------------------------------------------------
+            self.combobox_orca_excited_states = self.builder.get_object('combobox_orca_excited_states')
+            #self.combobox_orca_excited_states.connect("changed", self.on_combobox_orca_method_changed)
+            self.combobox_orca_excited_states.set_model( self.excited_states_liststore_dict['HF'] )
+            renderer_text = Gtk.CellRendererText()
+            self.combobox_orca_excited_states.pack_start(renderer_text, True)
+            self.combobox_orca_excited_states.add_attribute(renderer_text, "text", 0)
+            #
+            #-------------------------------------------------------------------------------
+            
+            
+            #-------------------------------------------------------------------------------
+            self.orca_scf_conv_combo = self.builder.get_object('combobox_orca_scf_convergence')
+            #self.orca_scf_conv_combo.connect("changed", self.on_combobox_orca_method_changed)
+            self.orca_scf_conv_combo.set_model( self.liststore_orca_scf_convergence )
+            renderer_text = Gtk.CellRendererText()
+            self.orca_scf_conv_combo.pack_start(renderer_text, True)
+            self.orca_scf_conv_combo.add_attribute(renderer_text, "text", 0)
+            #
+            #-------------------------------------------------------------------------------
+            
+            
+            
+            #-------------------------------------------------------------------------------
+            self.orca_basis_group_combo = self.builder.get_object('combobox_orca_basis_set_group')
+            self.orca_basis_group_combo.connect("changed", self.on_orca_basis_group_combo_changed)
+            self.orca_basis_group_combo.set_model( self.liststore_orca_type_basis )
+            renderer_text = Gtk.CellRendererText()
+            self.orca_basis_group_combo.pack_start(renderer_text, True)
+            self.orca_basis_group_combo.add_attribute(renderer_text, "text", 0)
+            #-------------------------------------------------------------------------------
+            
+            
+            #-------------------------------------------------------------------------------
+            self.orca_basis_set_combo = self.builder.get_object('combobox_orca_basis_set')
+            #self.orca_basis_set_combo.connect("changed", self.on_orca_basis_set_combo_changed)
+            self.orca_basis_set_combo.set_model( self.orca_type_basis_dict[0] )
+            renderer_text = Gtk.CellRendererText()
+            self.orca_basis_set_combo.pack_start(renderer_text, True)
+            self.orca_basis_set_combo.add_attribute(renderer_text, "text", 0)
+            #-------------------------------------------------------------------------------            
+            
+            
+            #-------------------------------------------------------------------------------            
+            self.spinbutton_orca_ncpus = self.builder.get_object('spin_button_orca_ncpus')
+            self.spinbutton_orca_ncpus.set_adjustment(self.adjustment_nCPU)
+            #-------------------------------------------------------------------------------            
+            
+            
+            #-------------------------------------------------------------------------------            
+            try:
+                scratch = os.environ.get('PDYNAMO3_SCRATCH')
+                self.builder.get_object('entry_orca_scratch_folder').set_text(scratch)
+            except:
+                scratch  = os.environ.get('HOME')
+                self.builder.get_object('entry_orca_scratch_folder').set_text(scratch)
+                
+            #-------------------------------------------------------------------------------            
+            
+            
+            
+            
+            
+            '''-----------------------------------------------------------------------------------'''
+            
+            self.combobox_list = [self.orca_type_of_method_combo,
+                                  self.orca_methods_combo,
+                                  self.combobox_orca_excited_states,
+                                  self.orca_scf_conv_combo,
+                                  self.orca_basis_group_combo,
+                                  self.orca_basis_set_combo,
+                                 ]
+            
+            self.window.show_all()
+            self.orca_type_of_method_combo.set_active(0)
+            self.orca_methods_combo.set_active(0)
+            
+            self.orca_scf_conv_combo.set_active(0)
+            self.orca_basis_group_combo.set_active(0)
+            
+            
+            self.spinbutton_orca_ncpus.connect('value-changed', self.refresh_orca_parameters)
+
+            self.orca_type_of_method_combo.connect('changed', self.refresh_orca_parameters)
+            self.orca_methods_combo.connect('changed', self.refresh_orca_parameters)
+            self.combobox_orca_excited_states.connect('changed', self.refresh_orca_parameters)
+            self.orca_scf_conv_combo.connect('changed', self.refresh_orca_parameters)
+            self.orca_basis_group_combo.connect('changed', self.refresh_orca_parameters)
+            self.orca_basis_set_combo.connect('changed', self.refresh_orca_parameters)
+
+
+
+
+
+
+
+
+
+            
+            self.button_ok         = self.builder.get_object('orca_button_ok ') 
+            self.button_cancel     = self.builder.get_object('orca_button_cancel ') 
+            
+            self.button_ok.connect("clicked", self.on_button_ok)
+            #self.button_ok.connect("clicked", self.on_button_ok2)
+            self.button_cancel.connect("clicked", self.CloseWindow)
+            
+            self.window.connect("destroy", self.CloseWindow)
+            self.refresh_orca_parameters (None)
+            self.Visible  =  True
+            
+    def on_orca_basis_group_combo_changed (self, widget):
+        """ Function doc """
+        _id = widget.get_active()
+        self.orca_basis_set_combo.set_model( self.orca_type_basis_dict[_id])
+        self.orca_basis_set_combo.set_active( 0 )        
+    
+    
+    def on_combobox_orca_type_changed (self, widget):
+        """ Function doc """
+        _id = widget.get_active()
+        self.orca_methods_combo.set_model( self.orca_methods_dict[_id] )
+        self.orca_methods_combo.set_active( 0 )
+        
+        self.restrited = self.setup_QC_model_window.builder.get_object('radio_button_restricted').get_active()
+        
+        if _id in [0]:
+            self.combobox_orca_excited_states.set_model( self.excited_states_liststore_dict['HF'] )
+            if self.restrited:
+                self.restrited_label = 'RHF'
+            else:
+                self.restrited_label = 'UHF'
+                
+                
+        elif _id in [1,2,3,4]:
+            self.combobox_orca_excited_states.set_model( self.excited_states_liststore_dict['DFT'] )
+            if self.restrited:
+                self.restrited_label = 'RKS'
+            else:
+                self.restrited_label = 'UKS'
+        
+        elif _id == 7:
+            self.combobox_orca_excited_states.set_model( self.excited_states_liststore_dict['semiemp'] )
+            if self.restrited:
+                self.restrited_label = 'RHF'
+            else:
+                self.restrited_label = 'UHF'
+        
+        else:
+            self.combobox_orca_excited_states.set_model( None )
+            if self.restrited:
+                self.restrited_label = 'RHF'
+            else:
+                self.restrited_label = 'UHF'
+            
+            
+        self.combobox_orca_excited_states.set_active(0)
+        
+    def on_combobox_orca_method_changed (self, widget):
+        """ Function doc """
+        
+         
+    def build_ORCA_widgets(self):
+        """ Function doc """
+        self.builder.get_object('combobox_orca_type')
+                         
+
+    def CloseWindow (self, button, data  = None):
+        """ Function doc """
+        self.window.destroy()
+        self.Visible    =  False
+    
+    def on_button_ok (self, button):
+        """ Function doc """
+        print('on_button_ok')
+        textbuffer = self.builder.get_object('textview_orca').get_buffer ()
+        text = textbuffer.get_text (textbuffer.get_start_iter(), textbuffer.get_end_iter(), True)
+        print (text)
+        self.setup_QC_model_window.orca_options = text
+        self.setup_QC_model_window.orca_scratch = self.builder.get_object('entry_orca_scratch_folder').get_text()
+        self.CloseWindow (None)
+    
+    def on_button_ok2 (self, button):
+        """ Function doc """
+        print('on_button_ok2')
+        pass
+
+    def refresh_orca_parameters (self, widget):
+        """ Function doc """
+        #self.orca_type_of_method_combo,
+        
+        _iter = self.orca_methods_combo.get_active_iter()
+        model = self.orca_methods_combo.get_model()
+        method = model[_iter][0].split()
+        method = method[0]
+
+        
+        _iter =self.orca_basis_set_combo.get_active_iter()
+        model =self.orca_basis_set_combo.get_model()
+        basis = model[_iter][0].split()
+        basis = basis[0]
+        
+        
+        _iter =self.orca_scf_conv_combo.get_active_iter()
+        model =self.orca_scf_conv_combo.get_model()
+        scf_conv = model[_iter][0].split()
+        scf_conv = scf_conv[0]        
+        if scf_conv == 'Default':
+            scf_conv = ''
+        
+        
+        _iter =self.combobox_orca_excited_states.get_active_iter()
+        model =self.combobox_orca_excited_states.get_model()
+        e_states = model[_iter][0].split()
+        e_states = e_states[0]        
+        
+        if e_states == 'TD-DFT':
+            e_states = '''
+%tddft
+     nroots 8 # the number of excited states to be calculated.
+     maxdim 30 # the maximum dimension of the expansion space in the Davidson procedure.
+ end #tddft'''
+        else:
+            e_states = ''
+        
+        
+        #-----------------------------------------------------------------------
+        ncpu = self.spinbutton_orca_ncpus.get_value_as_int()
+        if ncpu > 1:
+            ncpu = '\n%pal nprocs {} \n end'.format(ncpu)
+        else:
+            ncpu = ''
+        
+        #-----------------------------------------------------------------------
+        
+        
+        
+        
+        textbuffer = self.builder.get_object('textview_orca').get_buffer ()
+        text = textbuffer.get_text (textbuffer.get_start_iter(), textbuffer.get_end_iter(), True)
+
+        new_text = '{} {} {} {} {} {}'.format(self.restrited_label,  method, basis, scf_conv, e_states, ncpu )
+        textbuffer.set_text(new_text)
+        #print(new_text)
+        #print('!',self.restrited_label,  method, basis, scf_conv, e_states, )
+
+
+    
+    
 class EasyHybridSetupQCModelWindow:
     """ Class doc """
     
@@ -962,15 +1336,19 @@ class EasyHybridSetupQCModelWindow:
                                            page_size=0)
         
         self.methods_id_dictionary = {
-                                      0 : 'am1'     ,
-                                      1 : 'am1dphot',
-                                      2 : 'pm3'     ,
-                                      3 : 'pm6'     ,
-                                      4 : 'mndo'    ,
-                                
+                                      0 : 'am1'             ,
+                                      1 : 'am1dphot'        ,
+                                      2 : 'pm3'             ,
+                                      3 : 'pm6'             ,
+                                      4 : 'mndo'            ,
+                                      5 : 'ab initio - ORCA',
+                                      6 : 'DFT / DFTB'      ,
                                       }
         
-      
+        self.setup_orca_window = SetupORCAWindow(self.main_session, self)
+        self.orca_options = ''
+        self.orca_scratch = ''
+    
     def refresh (self, option = 'all'):
         """ Function doc """
         self.update_number_of_qc_atoms()
@@ -980,12 +1358,12 @@ class EasyHybridSetupQCModelWindow:
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
-            self.builder.add_from_file(os.path.join(self.home, 'gui/windows/setup_qc_model_window2.glade'))
+            self.builder.add_from_file(os.path.join(self.home, 'gui/windows/setup_qc_model_window.glade'))
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('SetupQCModelWindow')
             self.window.set_keep_above(True)
-
+            #self.window.set_default_size(400, 150)
             self.vismol_object = vismol_object
             
             '''--------------------------------------------------------------------------------------------'''
@@ -1009,7 +1387,7 @@ class EasyHybridSetupQCModelWindow:
             renderer_text = Gtk.CellRendererText()
             self.methods_combo.pack_start(renderer_text, True)
             self.methods_combo.add_attribute(renderer_text, "text", 0)
-            self.methods_combo.set_active(self.method_id)
+            
             '''--------------------------------------------------------------------------------------------'''
 
 
@@ -1020,6 +1398,24 @@ class EasyHybridSetupQCModelWindow:
             
             self.window.show_all()                                               
             self.builder.connect_signals(self)                                   
+            self.methods_combo.set_active(self.method_id)
+            
+
+            
+
+            
+            
+            self.button_ok = self.builder.get_object('button_ok') 
+            self.button_cancel = self.builder.get_object('button_cancel') 
+            
+            self.button_ok.connect("clicked", self.on_button_ok)
+            self.button_cancel.connect("clicked", self.CloseWindow)
+            self.window.connect("destroy", self.CloseWindow)
+            
+            
+            self.button_orca_setup = self.builder.get_object('button_setup_orca') 
+            self.button_orca_setup.connect("clicked", self.on_button_setup_orca)
+
             
             
             ''' Updating the number of atoms '''
@@ -1031,7 +1427,10 @@ class EasyHybridSetupQCModelWindow:
             ''' Updating the number of atoms '''
             self.update_number_of_qc_atoms ()
             self.window.present()
-            
+    
+    
+
+
     def update_number_of_qc_atoms (self):
         """ Function doc """
         self.entry_number_of_qc_atoms = self.builder.get_object('entry_number_of_qc_atoms')
@@ -1066,13 +1465,11 @@ class EasyHybridSetupQCModelWindow:
             self.entry_number_of_qc_atoms.set_text(str(number_of_qc_atoms)+ ' (all)')
         '''----------------------------------------------------------------------------------------------'''
 
-    
     def CloseWindow (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
     
-    #----------------------------------------------------------------
     def on_spian_button_change (self, widget):
         """ Function doc """
         self.charge       = self.spinbutton_charge.get_value_as_int()
@@ -1080,7 +1477,19 @@ class EasyHybridSetupQCModelWindow:
         
     def on_name_combo_changed (self, combobox):
         """ Function doc """
+        pass
+        #
         self.method_id = self.builder.get_object('QCModel_methods_combobox').get_active()
+        
+        if self.method_id in [0,1,2,3,4]:            
+            self.builder.get_object('button_setup_orca').hide()
+            self.builder.get_object('expander_DIISSCF_converger').show()
+            
+        elif self.method_id == 5:
+            self.builder.get_object('button_setup_orca').show()
+            self.builder.get_object('expander_DIISSCF_converger').hide()
+            self.setup_orca_window.OpenWindow()
+        print(self.method_id)
     
     def on_button_ok (self, button):
         """ Function doc """
@@ -1102,21 +1511,38 @@ class EasyHybridSetupQCModelWindow:
                     'isSpinRestricted' : self.restricted  ,
                      }
 
-
+        if self.method_id == 5:
+            parameters['orca_options'  ] = self.orca_options
+            parameters['orca_scratch'  ] = self.orca_scratch
+            
         parameters['energyTolerance'  ] = float(self.builder.get_object('entry_energyTolerance').get_text())
         parameters['densityTolerance' ] = float(self.builder.get_object('entry_densityTolerance').get_text())
         parameters['maximumIterations'] = int(self.builder.get_object('entry_maximumIterations').get_text())
 
-
+        print(parameters)
         self.main_session.p_session.define_a_new_QCModel(system = None,  parameters = parameters, vismol_object =  self.vismol_object)
         #self.main_session.update_gui_widgets ()
         self.window.destroy()
         self.Visible    =  False
 
+    def on_button_setup_orca (self, button):
+        """ Function doc """
+        self.setup_orca_window.OpenWindow()
+        
+
+
+
     def update (self):
         """ Function doc """
         #print('VismolGoToAtomWindow2 update')
         pass
+
+
+
+
+
+
+
 
 
 class EasyHybridGoToAtomWindow(Gtk.Window):

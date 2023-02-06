@@ -371,6 +371,7 @@ class MainWindow:
             self.selection_list_window.OpenWindow()
 
         if button  == self.builder.get_object('toolbutton_energy'):
+            self.p_session.run_simulation (parameters = {'simulation_type' : 'Energy', 'system': self.p_session.psystem[self.p_session.active_id]})
             self.energy_refinement_window.OpenWindow()
             
         if button  == self.builder.get_object('toolbutton_setup_QCModel'):
@@ -586,7 +587,7 @@ class MainWindow:
             string = 'system: {}    atoms: {}    '.format(name, size)
 
             if psystem.qcModel:
-                hamiltonian   = psystem.qcModel.hamiltonian
+                hamiltonian   = getattr(psystem.qcModel, 'hamiltonian', 'ORCA')
                 n_QC_atoms    = len(list(psystem.qcState.pureQCAtoms))
                 
                 
@@ -614,6 +615,23 @@ class MainWindow:
                 
                 else:
                     string += 'nbModel: False    '
+                
+                
+                if psystem.symmetry:
+                    #nbmodel = psystem.mmModel.forceField
+                    string += 'PBC: True    symmetry: {}    '.format( psystem.symmetry.crystalSystem.label)
+                    print(psystem.symmetry)
+                    print(psystem.symmetryParameters)
+                    #summary_items = psystem.nbModel.SummaryItems()
+                    
+                
+                else:
+                    string += 'PBC: False    '
+            
+            
+            
+            
+            
             '''
             color_palette = self.p_session.get_color_palette()
             color     = color_palette['C']
@@ -642,11 +660,15 @@ class MainWindow:
     
     def run_test (self, widget):
         """ Function doc """
-        from vismol.libgl.representations import SticksRepresentation
-        import numpy as np
+        self.p_session.run_simulation (parameters = {'simulation_type' : 'Energy', 'system': self.p_session.psystem[self.p_session.active_id]})
+        #self.p_session.psystem[self.p_session.active_id].Energy()
+        
+        '''        
+        #from vismol.libgl.representations import SticksRepresentation
+        #import numpy as np
         #self.vm_session.vm_objects_dic[0].define_molecules()
         
-        #'''
+
         #----------------------------------------------------------------------------------------------------------------------------
         selection = self.vm_session.selections[self.vm_session.current_selection]
         selection_dict = {}

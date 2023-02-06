@@ -58,6 +58,20 @@ class LogFile:
         pass
 
 
+
+class EnergyCalculation:
+    """ Class doc """
+    
+    def __init__ (self):
+        """ Class initialiser """
+        pass
+    
+    def run (self, parameters):
+        """ Function doc """
+        return parameters['system'].Energy()
+        # - - - - - -
+
+
 class GeometryOptimization:
     """ Class doc """
     

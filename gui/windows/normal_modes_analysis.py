@@ -270,7 +270,7 @@ class NormalModesAnalysisWindow(Gtk.Window):
                                   #         )
             
             for i, data in self.modes.items():
-                self.liststore.append([False, str(i), data[0]])
+                self.liststore.append([False, str(i), '{:.3f}'.format(float(data[0]))])
             
             
             

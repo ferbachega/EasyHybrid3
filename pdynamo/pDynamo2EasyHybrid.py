@@ -68,6 +68,7 @@ from pdynamo.p_methods import RelaxedSurfaceScan
 from pdynamo.p_methods import MolecularDynamics
 from pdynamo.p_methods import ChainOfStatesOptimizePath
 from pdynamo.p_methods import NormalModes
+from pdynamo.p_methods import EnergyCalculation
 from pdynamo.LogFileWriter import LogFileReader
 
 '''
@@ -448,7 +449,16 @@ class pSimulations:
         pprint(parameters)
         
 
-        if parameters['simulation_type'] == 'Geometry_Optimization':
+        if parameters['simulation_type'] == 'Energy':
+            self.energy_calculations = EnergyCalculation()
+            energy = self.energy_calculations.run(parameters)
+            
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'New VObejct:  {}   Energy:  {:.3f}'.format(parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter), energy))
+            return True
+            #self.geometry_optimization_object = GeometryOptimization()
+            #self.geometry_optimization_object.run(parameters)
+        
+        elif parameters['simulation_type'] == 'Geometry_Optimization':
             self.geometry_optimization_object = GeometryOptimization()
             self.geometry_optimization_object.run(parameters)
             
@@ -479,9 +489,12 @@ class pSimulations:
             pass
         
         
+        if parameters['folder']:
+            self.psystem[self.active_id].e_working_folder == parameters['folder']
+        else:
+            pass
         
-        self.psystem[self.active_id].e_working_folder == parameters['folder']
-
+        
         vismol_object = self._add_vismol_object_to_easyhybrid_session(system = self.psystem[self.active_id], 
                                                                         name = parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter))        
         
@@ -1195,12 +1208,25 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
                                               
         system.electronicState = electronicState
         
-        converger = DIISSCFConverger.WithOptions( energyTolerance   = parameters['energyTolerance'] ,
-                                                  densityTolerance  = parameters['densityTolerance'] ,
-                                                  maximumIterations = parameters['maximumIterations'] )
-
-
-        qcModel         = QCModelMNDO.WithOptions ( hamiltonian = parameters['method'], converger=converger )
+        
+        
+        
+        
+        if parameters['method'] == 'ab initio - ORCA':
+            qcModel = QCModelORCA.WithOptions ( keywords       = [parameters['orca_options']], 
+                                                deleteJobFiles = False,
+                                                scratch        = parameters['orca_scratch'  ],
+                                                 )
+        
+        else:
+            converger = DIISSCFConverger.WithOptions( energyTolerance   = parameters['energyTolerance'] ,
+                                                      densityTolerance  = parameters['densityTolerance'] ,
+                                                      maximumIterations = parameters['maximumIterations'] )
+            qcModel         = QCModelMNDO.WithOptions ( hamiltonian = parameters['method'], converger=converger )
+        
+        
+        
+        
         
         if len(system.e_qc_table) > 0:
             
@@ -1211,9 +1237,14 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
             system.DefineQCModel (qcModel, qcSelection = Selection.FromIterable ( system.e_qc_table) )          
             
             if system.mmModel:
-                system.DefineNBModel ( NBModelCutOff.WithDefaults ( ) )
+                if parameters['method'] == 'ab initio - ORCA':
+                    system.DefineNBModel (NBModelORCA.WithDefaults ( ))
+                else:
+                    system.DefineNBModel ( NBModelCutOff.WithDefaults ( ) )
             else:
                 pass
+        
+        
         
         else:
             system.DefineQCModel (qcModel)
