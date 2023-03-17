@@ -29,16 +29,18 @@ import gc
 import os
 from gui.gtk_widgets import FolderChooserButton
 from gui.gtk_widgets import SaveTrajectoryBox
+from gui.gtk_widgets import CoordinatesComboBox
+from gui.gtk_widgets import ReactionCoordinateBox
 
 from gui.windows.PES_scan_window            import compute_sigma_a1_a3 
 from gui.windows.PES_scan_window            import get_dihedral 
 from gui.windows.PES_scan_window            import get_angle 
 from gui.windows.PES_scan_window            import get_distance 
 
-from gui.windows.PES_scan_window            import atomic_dic 
-from gui.windows.PES_scan_window            import texto_d1 
-from gui.windows.PES_scan_window            import texto_d2d1 
-
+#from gui.windows.PES_scan_window            import texto_d1 
+#from gui.windows.PES_scan_window            import texto_d2d1 
+from util.periodic_table import atomic_dic 
+from pprint import pprint
 
 HOME        = os.environ.get('HOME')
 
@@ -62,13 +64,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
                            }
         
         
-        self.reaction_coord_types = { 
-                            0: "simple distance", 
-                            1: "multiple distance", 
-                            2: 'dihedral'
-                            
-                            }
-        
+
         self.opt_methods = { 
                             0 : 'ConjugatedGradient',
                             1 : 'SteepestDescent'   ,
@@ -116,81 +112,61 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.input_type_combo.connect("changed", self.on_combobox_inputtype)
             '''--------------------------------------------------------------------------------------------'''
             
+            
+
+            #----------------------------------------------------------------------------------------------
             # - - - - - - - - - - - - - Starting Coordinates ComboBox - - - - - - - - - - - - - - - - -
-            self.combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
-            #---------------------------------------------------------------------------------------------
+            self.box_coordinates = self.builder.get_object('box_coordinates')
+            self.combobox_starting_coordinates = CoordinatesComboBox() #self.builder.get_object('coordinates_combobox')
+            #self.combobox_starting_coordinates.connect("changed", self.on_name_combo_changed)
+            self.box_coordinates.pack_start(self.combobox_starting_coordinates, False, False, 0)
             self._starting_coordinates_model_update(init = True)
-            
-            
-            self.combobox_starting_coordinates.connect("changed", self.on_name_combo_changed)
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_starting_coordinates.pack_start(renderer_text, True)
-            self.combobox_starting_coordinates.add_attribute(renderer_text, "text", 0)
             #----------------------------------------------------------------------------------------------
             
             
+            
+            #----------------------------------------------------------------------------------------------
             # - - - - - - - - - - - - - Folder Chooser Button - - - - - - - - - - - - - - - - -
             #----------------------------------------------------------------------------------------------
             self.folder_chooser_button = FolderChooserButton(main =  self.main, sel_type = 'folder', home =  self.home)
             self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
             system_id      = self.p_session.active_id
             #----------------------------------------------------------------------------------------------
+            #----------------------------------------------------------------------------------------------
+            self.folder_chooser_button2 = FolderChooserButton(main =  self.main, sel_type = 'folder', home =  self.home)
+            self.builder.get_object('folder_chooser_box2').pack_start(self.folder_chooser_button2.btn, True, True, 0)
+            #----------------------------------------------------------------------------------------------
             
-            
+        
+        
+            #----------------------------------------------------------------------------------------------
             # - - - - - - - - - - - - - - - - Spin Button Number Of CPUS - - - - - - - - - - - - - - - - -
             #----------------------------------------------------------------------------------------------
             self.spinbutton = self.builder.get_object('ncpus_spinbutton')
-
             # set the range of values that the spinbutton can take
             self.spinbutton.set_range(1, 1000)
-
             # set the increment step when the user clicks the up/down buttons
             self.spinbutton.set_increments(1, 10)
-
             # set the number of decimal places to display
             self.spinbutton.set_digits(0)
-
             # set the value of the spinbutton
             self.spinbutton.set_value(1)
             #----------------------------------------------------------------------------------------------
             
             
+            
+            #----------------------------------------------------------------------------------------------
             # - - - - - - - - - - - - - Reaction Coordinates 1 ComboBox - - - - - - - - - - - - - - - - -
             #----------------------------------------------------------------------------------------------
-            self.combobox_reaction_coord1 = self.builder.get_object('combobox_reaction_coord1')
-            self.reaction_coord1_store = Gtk.ListStore(str)
-
-            for key, reaction_coord_types in self.reaction_coord_types.items():
-                self.reaction_coord1_store.append([reaction_coord_types])
-            
-            self.combobox_reaction_coord1.set_model(self.reaction_coord1_store)
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_reaction_coord1.pack_start(renderer_text, True)
-            self.combobox_reaction_coord1.add_attribute(renderer_text, "text", 0)
-            self.combobox_reaction_coord1.connect("changed", self.change_cb_coordType1)
-
-            #----------------------------------------------------------------------------------------------
-
-        
-            # - - - - - - - - - - - - - Reaction Coordinates 2 ComboBox - - - - - - - - - - - - - - - - -
-            #----------------------------------------------------------------------------------------------
-            self.combobox_reaction_coord2 = self.builder.get_object('combobox_reaction_coord2')
-            self.reaction_coord2_store = Gtk.ListStore(str)
-
-            for key, reaction_coord_types in self.reaction_coord_types.items():
-                self.reaction_coord2_store.append([reaction_coord_types])
-
-
-            self.combobox_reaction_coord2.set_model(self.reaction_coord2_store)
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_reaction_coord2.pack_start(renderer_text, True)
-            self.combobox_reaction_coord2.add_attribute(renderer_text, "text", 0)
-            self.combobox_reaction_coord2.connect("changed", self.change_cb_coordType2)
-
+            self.RC_box1 = ReactionCoordinateBox(main = self.main, mode = 1)
+            self.builder.get_object('rc1_aligment').add(self.RC_box1)
+            self.RC_box2 = ReactionCoordinateBox(main = self.main, mode = 1)
+            self.builder.get_object('rc2_aligment').add(self.RC_box2)
             #----------------------------------------------------------------------------------------------
 
         
         
+            #----------------------------------------------------------------------------------------------
             # - - - - - - - - - - - - - -  Geometry Optimization ComboBox - - - - - - - - - - - - - - - - -
             #----------------------------------------------------------------------------------------------
             self.opt_methods_combo = self.builder.get_object('combobox_geo_opt')
@@ -206,7 +182,8 @@ class UmbrellaSamplingWindow(Gtk.Window):
             #----------------------------------------------------------------------------------------------
             
             
-            
+
+            #----------------------------------------------------------------------------------------------
             # - - - - - - - - - - - - - - - - Molecular Dynamics ComboBox - - - - - - - - - - - - - - - - -
             #----------------------------------------------------------------------------------------------
             self.md_integrators_combobox = self.builder.get_object('md_integrator_combobox')
@@ -223,17 +200,12 @@ class UmbrellaSamplingWindow(Gtk.Window):
             #----------------------------------------------------------------------------------------------
             
             
+            
             #---------------------------------------------------------------------------------------------
-            self.builder.get_object('button_import_picking_selection_coord1').connect("clicked", self.import_picking_selection_data)
-            self.builder.get_object('button_import_picking_selection_coord2').connect("clicked", self.import_picking_selection_data)
-            
-            self.builder.get_object('check_mass_restraints1').connect("clicked", self.toggle_mass_restraint1)
-            self.builder.get_object('check_mass_restraints2').connect("clicked", self.toggle_mass_restraint2)
-            
             self.builder.get_object('checkbox_reaction_coordinate2').connect("clicked", self.on_checkbox_reaction_coordinate2)
             self.builder.get_object('checkbox_geometry_optimization').connect("clicked", self.on_checkbox_geometry_optimization)
             
-            self.builder.get_object('box_reaction_coordinate2').set_sensitive(False)
+            self.RC_box2.set_sensitive(False)
             self.builder.get_object('frame_geometry_optimization').set_sensitive(False)
             
             self.builder.get_object('button_run').connect("clicked", self.run)
@@ -246,11 +218,11 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.window.show_all()
             
             self.input_type_combo.set_active(0)
-            self.combobox_reaction_coord1.set_active(0)
-            self.combobox_reaction_coord2.set_active(0)
+            self.RC_box1.set_rc_type(0)
+            self.RC_box2.set_rc_type(0)
             self.opt_methods_combo.set_active(0)
             self.md_integrators_combobox.set_active(0)
-
+            self.update_working_folder_chooser ( )
             self.Visible  = True   
 
         else:
@@ -260,92 +232,6 @@ class UmbrellaSamplingWindow(Gtk.Window):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
-
-
-    def change_cb_coordType1 (self, combobox):
-        """ Function doc """
-        
-        _type = self.combobox_reaction_coord1.get_active()        
-        
-        if _type == 0:
-            self.builder.get_object('label_atom3_index_coord1').hide()
-            self.builder.get_object('entry_atom3_index_coord1').hide()
-            self.builder.get_object('label_atom3_name_coord1').hide()
-            self.builder.get_object('entry_atom3_name_coord1').hide()
-            
-            self.builder.get_object('label_atom4_index_coord1').hide()
-            self.builder.get_object('entry_atom4_index_coord1').hide()
-            self.builder.get_object('label_atom4_name_coord1').hide()
-            self.builder.get_object('entry_atom4_name_coord1').hide()
-
-            self.builder.get_object('check_mass_restraints1').set_sensitive(False)
-
-        if _type == 1:
-            self.builder.get_object('label_atom3_index_coord1').show()
-            self.builder.get_object('entry_atom3_index_coord1').show()
-            self.builder.get_object('label_atom3_name_coord1') .show()
-            self.builder.get_object('entry_atom3_name_coord1') .show()
-            
-            self.builder.get_object('label_atom4_index_coord1').hide()
-            self.builder.get_object('entry_atom4_index_coord1').hide()
-            self.builder.get_object('label_atom4_name_coord1') .hide()
-            self.builder.get_object('entry_atom4_name_coord1') .hide()
-            self.builder.get_object('check_mass_restraints1').set_sensitive(True)
-
-        if _type == 2:
-            self.builder.get_object('label_atom3_index_coord1').show()
-            self.builder.get_object('entry_atom3_index_coord1').show()
-            self.builder.get_object('label_atom3_name_coord1') .show()
-            self.builder.get_object('entry_atom3_name_coord1') .show()
-            
-            self.builder.get_object('label_atom4_index_coord1').show()
-            self.builder.get_object('entry_atom4_index_coord1').show()
-            self.builder.get_object('label_atom4_name_coord1') .show()
-            self.builder.get_object('entry_atom4_name_coord1') .show()
-            self.builder.get_object('check_mass_restraints1').set_sensitive(False)
-
-                    
-    def change_cb_coordType2 (self, combobox):
-        """ Function doc """
-        
-        _type = self.combobox_reaction_coord2.get_active()        
-        
-        if _type == 0:
-            self.builder.get_object('label_atom3_index_coord2').hide()
-            self.builder.get_object('entry_atom3_index_coord2').hide()
-            self.builder.get_object('label_atom3_name_coord2').hide()
-            self.builder.get_object('entry_atom3_name_coord2').hide()
-            
-            self.builder.get_object('label_atom4_index_coord2').hide()
-            self.builder.get_object('entry_atom4_index_coord2').hide()
-            self.builder.get_object('label_atom4_name_coord2').hide()
-            self.builder.get_object('entry_atom4_name_coord2').hide()
-
-            self.builder.get_object('check_mass_restraints1').set_sensitive(False)
-
-        if _type == 1:
-            self.builder.get_object('label_atom3_index_coord2').show()
-            self.builder.get_object('entry_atom3_index_coord2').show()
-            self.builder.get_object('label_atom3_name_coord2') .show()
-            self.builder.get_object('entry_atom3_name_coord2') .show()
-            
-            self.builder.get_object('label_atom4_index_coord2').hide()
-            self.builder.get_object('entry_atom4_index_coord2').hide()
-            self.builder.get_object('label_atom4_name_coord2') .hide()
-            self.builder.get_object('entry_atom4_name_coord2') .hide()
-            self.builder.get_object('check_mass_restraints1').set_sensitive(True)
-
-        if _type == 2:
-            self.builder.get_object('label_atom3_index_coord2').show()
-            self.builder.get_object('entry_atom3_index_coord2').show()
-            self.builder.get_object('label_atom3_name_coord2') .show()
-            self.builder.get_object('entry_atom3_name_coord2') .show()
-            
-            self.builder.get_object('label_atom4_index_coord2').show()
-            self.builder.get_object('entry_atom4_index_coord2').show()
-            self.builder.get_object('label_atom4_name_coord2') .show()
-            self.builder.get_object('entry_atom4_name_coord2') .show()
-            self.builder.get_object('check_mass_restraints2').set_sensitive(False)
 
 
     def on_combobox_inputtype (self, combobox):
@@ -359,7 +245,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.builder.get_object('ncpus_spinbutton').hide()
             
             self.builder.get_object('label_starting_coordinates').show()
-            self.builder.get_object('combobox_starting_coordinates').show()
+            self.combobox_starting_coordinates.show()
         
         if _type == 1:
             self.builder.get_object('label_input_trajectory').show()
@@ -368,7 +254,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.builder.get_object('ncpus_spinbutton').show()
             
             self.builder.get_object('label_starting_coordinates').hide()
-            self.builder.get_object('combobox_starting_coordinates').hide()
+            self.combobox_starting_coordinates.hide()
 
 
     def on_md_integrator_combobox (self, widget = None):
@@ -454,181 +340,6 @@ class UmbrellaSamplingWindow(Gtk.Window):
             pass
 
 
-    def run (self, button):
-        """ Function doc """
-        
-        '''this combobox has the reference to the starting coordinates of a simulation'''
-        
-        parameters = {
-        
-                      "simulation_type":"Umbralla_Sampling",
-                      "trajectory_name": None                  , 
-                      "dialog"         : False                 , 
-                      
-                      "folder"         :os.getcwd()            , 
-                      
-                      
-                      
-                      
-                      #  - - - - - - - REACTION COORDINATES - - - - - - - - -
-                      
-                      "second_coordinate": False                           ,
-                      "ATOMS_RC1":None                                     ,
-                      "ATOMS_RC2":None                                     ,
-                      
-                      "ATOMS_RC1_NAMES":None                               ,
-                      "ATOMS_RC2_NAMES":None                               ,                      
-                      
-                      "nsteps_RC1":0                                       ,
-                      "nsteps_RC2":0                                       ,
-                      
-                      "force_constant_1":4000.0                            ,
-                      "force_constant_2":4000.0                            ,
-                      
-                      "dincre_RC1":0.1                                     ,
-                      "dincre_RC2":0.1                                     ,
-                      "dminimum_RC1":0.0                                   ,
-                      "dminimum_RC2":0.0                                   ,
-                      
-                      "sigma_pk1pk3_rc1":1.0                               ,
-                      "sigma_pk3pk1_rc1":-1.0                              ,
-                      "sigma_pk1pk3_rc2":1.0                               ,
-                      "sigma_pk3pk1_rc2":-1.0                              ,
-                      
-                      "rc_type_1":"simple_distance"                        ,
-                      "rc_type_2":"simple_distance"                        ,
-                      
-                      "MC_RC1":False                                       ,
-                      "MC_RC2":False                                       ,
-                      
-                      
-                      
-                      
-                      # - - - - - GEOMETRY OPT - - - - - - - -
-                      "optimizer"      :"ConjugatedGradient"   ,
-                      
-                      "maxIterations"  : 600                    ,
-                      "log_frequency"  : 10                     ,
-                      "save_frequency" : 10                     ,
-                      "rmsGradient"    : 0.1                    ,
-                      #"save_format"    :None                   ,
-                      #"save_traj"      :False                  ,
-                      #"save_pdb"       :False                  }
-                      
-                      
-                      # - - - - MOLECULAR DYNAMICS - - - - - -
-                      'seed'                      : None         ,
-                      'normalDeviateGenerator'    : None         ,
-                      'steps'                     : None         ,
-                      'timeStep'                  : None         ,
-                      'trajectories'              : None         ,
-                      
-                      #VelocityVerletDynamics
-                      'temperatureScaleFrequency' : None         ,
-                      'temperatureScaleOption'    : None         ,  # "linear" , "constant" ,
-                      'temperatureStart'          : None         ,
-                      'temperatureStop'           : None         ,
-                      
-                      #LeapFrogDynamics
-                      'pressure'                  : None         ,  #  LeapFrogDynamics 
-                      'pressureControl'           : None         ,  #  LeapFrogDynamics 
-                      'pressureCoupling'          : None         ,  #  LeapFrogDynamics 
-                                                                       
-                      'temperature'               : None         ,               
-                      'temperatureControl'        : None         ,  # True / False LeapFrogDynamics / LangevinDynamics
-                      'temperatureCoupling'       : None         ,  #  LeapFrogDynamics / LangevinDynamics
-                      
-                      #LangevinDynamics
-                      'collisionFrequency'        : None         ,
-        
-        
-        }
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        simParameters={ "simulation_type":"Geometry_Optimization",
-                        "trajectory_name": None                  , 
-                        "dialog"         : False                 , 
-                        "folder"         :os.getcwd()            , 
-                        "optimizer"      :"ConjugatedGradient"   ,
-                        "maxIterations"  :600                    ,
-                        "log_frequency"  :10                     ,
-                        "save_frequency" :10                     ,
-                        "rmsGradient"    :0.1                    ,
-                        "save_format"    :None                   ,
-                        "save_traj"      :False                  ,
-                        "save_pdb"       :False                  }
-        #----------------------------------------------------------------------------------
-        #combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
-        tree_iter = self.combobox_starting_coordinates.get_active_iter()
-        if tree_iter is not None:
-            
-            '''selecting the vismol object from the content that is in the combobox '''
-            model = self.combobox_starting_coordinates.get_model()
-            name, vobject_id = model[tree_iter][:2]
-            vobject = self.main.vm_session.vm_objects_dic[vobject_id]
-            
-            '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
-            #print('vobject:', vobject.name, len(vobject.frames) )
-            self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
-                
-        simParameters["optimizer"]      = self.opt_methods[self.builder.get_object('combobox_geo_opt').get_active()]
-        simParameters["log_frequency"]  = int  ( self.builder.get_object('entry_log_frequence').get_text())
-        simParameters["maxIterations"]  = int  ( self.builder.get_object('entry_max_int').get_text() )
-        simParameters["rmsGradient"]    = float( self.builder.get_object('entry_rmsd_tol').get_text() )
-        simParameters["vobject_name"]   = self.save_trajectory_box.builder.get_object('entry_trajectory_name').get_text()
-        
-        #------------------------------------------------------------------------------------
-        if self.save_trajectory_box.builder.get_object('checkbox_save_traj').get_active():
-            simParameters["save_traj"]       = True
-            simParameters["dialog"]          = True
-            simParameters["folder"]          = self.save_trajectory_box.folder_chooser_button.get_folder()
-            simParameters["trajectory_name"] = self.save_trajectory_box.builder.get_object('entry_trajectory_name').get_text()
-            saveFormat                       = self.save_trajectory_box.builder.get_object('combobox_format').get_active()
-            simParameters["save_frequency"]  = int( self.save_trajectory_box.builder.get_object('entry_trajectory_frequency').get_text() ) 
-            simParameters["trajectory_name"] = simParameters["trajectory_name"] + ".ptGeo"
-            if   saveFormat == 0: simParameters["save_format"] = ".ptGeo"
-            elif saveFormat == 1: simParameters["save_format"] = ".mdcrd"
-            elif saveFormat == 2: simParameters["save_format"] = ".dcd"
-            elif saveFormat == 3: simParameters["save_format"] = ".xyz"
-            self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder = simParameters["folder"] 
-        #-------------------------------------------------------------------------------------    
-        #print(simParameters)
-        
-        isExist = os.path.exists(simParameters['folder'])
-        if isExist:
-            pass
-        else:
-            self.run_dialog()
-            return None
-        
-        #self.main.refresh_main_statusbar(message = 'Running geometry optimization...')
-        
-        self.main.p_session.run_simulation( parameters = simParameters )
-        self.window.destroy()
-        self.Visible    =  False
-
-    
     def _starting_coordinates_model_update (self, init = False):
         """ Function doc """
         #------------------------------------------------------------------------------------
@@ -654,9 +365,6 @@ class UmbrellaSamplingWindow(Gtk.Window):
                 pass
 
     
-    def on_name_combo_changed(self, widget):
-        """ Function doc """
-    
     def run_dialog (self):
         """ Function doc """
         dialog = Gtk.MessageDialog(
@@ -671,25 +379,34 @@ class UmbrellaSamplingWindow(Gtk.Window):
         dialog.run()
         dialog.destroy()
 
+    
     def update (self, parameters = None):
         """ Function doc """
         self._starting_coordinates_model_update()
+        if self.Visible:
+            self.update_working_folder_chooser()
+
 
     def update_working_folder_chooser (self, folder = None):
         """ Function doc """
         if folder:
             #print('update_working_folder_chooser')
-            self.save_trajectory_box.set_folder(folder = folder)
+            self.folder_chooser_button.set_folder(folder = folder)
         else:
-            pass
+            
+            folder = self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder
+            if folder:
+                self.folder_chooser_button2.set_folder(folder = folder)
+            else:
+                pass
 
    
     def on_checkbox_reaction_coordinate2 (self, widget):
         """ Function doc """
         if widget.get_active():
-            self.builder.get_object('box_reaction_coordinate2').set_sensitive(True)
+            self.RC_box2.set_sensitive(True)
         else:
-            self.builder.get_object('box_reaction_coordinate2').set_sensitive(False)
+            self.RC_box2.set_sensitive(False) 
 
 
     def on_checkbox_geometry_optimization (self, widget):
@@ -700,147 +417,170 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.builder.get_object('frame_geometry_optimization').set_sensitive(False)
 
    
-
-
-    def toggle_mass_restraint1 (self, widget):
+    def get_input_setup_box_info (self, parameters):
         """ Function doc """
-        self.refresh_dmininum(coord1 =  True)
-    
-    def toggle_mass_restraint2 (self, widget):
+        parameters['input_type'] = self.builder.get_object('combobox_input_type').get_active()
+        
+        if parameters['input_type'] == 0:
+            vobject_id = self.combobox_starting_coordinates.get_vobject_id()
+            vobject = self.main.vm_session.vm_objects_dic[vobject_id]
+            self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+            parameters['vobj'] = vobject.name
+            parameters['source_folder'] = None
+            
+        elif parameters['input_type'] == 1:
+            parameters['vobj'] = None
+            parameters['source_folder'] = self.folder_chooser_button.get_folder ()
+            
+        
+        return parameters
+            
+        
+    def run (self, button):
         """ Function doc """
-        self.refresh_dmininum(coord2 =  True)
+        
+        '''this combobox has the reference to the starting coordinates of a simulation'''
+        parameters = {"simulation_type" : "Umbrella_Sampling"}
 
-    def import_picking_selection_data (self, widget):
-        """  
-                   R                    R
-                    \                  /
-                     A1--A2  . . . . A3
-                    /                  \ 
-                   R                    R
-                     ^   ^            ^
-                     |   |            |
-                    pk1-pk2  . . . . pk3
-                       d1       d2	
+        
+        
+        parameters = self.get_input_setup_box_info ( parameters)
+        parameters["folder"] = self.folder_chooser_button2.get_folder()        
 
-                q1 =  1 / (mpk1 + mpk3)  =  [ mpk1 * r (pk3_pk2)  -   mpk3 * r (pk1_pk2) ]
-        """       
-        atom1 = self.vm_session.picking_selections.picking_selections_list[0]
-        atom2 = self.vm_session.picking_selections.picking_selections_list[1]
-        atom3 = self.vm_session.picking_selections.picking_selections_list[2]
-        atom4 = self.vm_session.picking_selections.picking_selections_list[3]
-        if atom1:
-            self.vobject = atom1.vm_object
+
+        '''
+        
+        - If a trajectory folder is given then parallelization is allowed 
+            - NmaxThreads >= 1
+        
+        - If a vobject is provided and a second reaction coordinate is active 
+          (2D), then parallelization is allowed
+            - NmaxThreads >= 1
+        
+        - Else: sequetial
+        
+        '''
+        parameters["RC1"] = self.RC_box1.get_rc_data()
+        if self.builder.get_object('checkbox_reaction_coordinate2').get_active():
+            parameters["RC2"] = self.RC_box2.get_rc_data()
+            parameters["NmaxThreads"] =  int(self.builder.get_object('ncpus_spinbutton').get_value())
         else:
-            return None
+            parameters["RC2"] = None
             
-        if widget == self.builder.get_object('button_import_picking_selection_coord1'):
-            if atom1:
-                self.builder.get_object('entry_atom1_index_coord1').set_text(str(atom1.index-1) )
-                self.builder.get_object('entry_atom1_name_coord1' ).set_text(str(atom1.name) )
-            else: print('use picking selection to chose the central atom')            
-            #-------
-            if atom2:
-                self.builder.get_object('entry_atom2_index_coord1').set_text(str(atom2.index-1) )
-                self.builder.get_object('entry_atom2_name_coord1' ).set_text(str(atom2.name) )
-            else: print('use picking selection to chose the central atom')
-            #-------
-            if atom3:
-                self.builder.get_object('entry_atom3_index_coord1').set_text(str(atom3.index-1) )
-                self.builder.get_object('entry_atom3_name_coord1' ).set_text(str(atom3.name) )
-            else: print('use picking selection to chose the central atom')
-             #-------
-            if atom4:
-                self.builder.get_object('entry_atom4_index_coord1').set_text(str(atom4.index-1) )
-                self.builder.get_object('entry_atom4_name_coord1' ).set_text(str(atom4.name) )
-            else: print('use picking selection to chose the central atom')
+            if parameters['input_type'] == 1:
+                parameters["NmaxThreads"] = int(self.builder.get_object('ncpus_spinbutton').get_value())
+            else:
+                parameters["NmaxThreads"] = 1
             
-            self.refresh_dmininum( coord1 =  True, coord2 =  False)
-            
+        
+        
+        #----------------------------------------------------------------------
+        #                            GEO OPT
+        #----------------------------------------------------------------------
+        if self.builder.get_object('checkbox_geometry_optimization').get_active():
+            parameters['OPT_parm'] = self._define_OPT_parameters ()
         else:
-            if atom1:
-                self.builder.get_object('entry_atom1_index_coord2').set_text(str(atom1.index-1) )
-                self.builder.get_object('entry_atom1_name_coord2' ).set_text(str(atom1.name) )
-            else: print('use picking selection to chose the central atom')
-            #-------
-            if atom2:
-                self.builder.get_object('entry_atom2_index_coord2').set_text(str(atom2.index-1) )
-                self.builder.get_object('entry_atom2_name_coord2' ).set_text(str(atom2.name) )
-            else: print('use picking selection to chose the central atom')            
-            #-------
-            if atom3:
-                self.builder.get_object('entry_atom3_index_coord2').set_text(str(atom3.index-1) )
-                self.builder.get_object('entry_atom3_name_coord2' ).set_text(str(atom3.name) )
-            else: print('use picking selection to chose the central atom')           
-            #-------
-            if atom4:
-                self.builder.get_object('entry_atom4_index_coord2').set_text(str(atom4.index-1) )
-                self.builder.get_object('entry_atom4_name_coord2' ).set_text(str(atom4.name) )
-            else: print('use picking selection to chose the central atom')
-    
-            self.refresh_dmininum( coord1 =  False, coord2 =  True )
+            parameters['OPT_parm'] = None
+        #----------------------------------------------------------------------
+        
+        
+        #----------------------------------------------------------------------
+        #                          M. DYNAMICS
+        #----------------------------------------------------------------------        
+        parameters['MD_parm'] = self._define_MD_parameters ( )
+        #----------------------------------------------------------------------
+        
+        
+        parameters['traj_folder_name'] = self.builder.get_object('entry_traj_name').get_text()
+        
+        #pprint(parameters)
 
-    def refresh_dmininum (self, coord1 =  False, coord2 = False):
-        """ Function doc """
-        print('coord1: ',coord1 )
-        print('coord2: ',coord2 )
-        if coord1:
-            _type = self.combobox_reaction_coord1.get_active()
-            print('_type', _type)
-            if _type == 0:
-                index1 = int(self.builder.get_object('entry_atom1_index_coord1').get_text() )
-                index2 = int(self.builder.get_object('entry_atom2_index_coord1').get_text() )
 
-                dist1 = get_distance(self.vobject, index1, index2 )
-                self.builder.get_object('entry_dmin_coord1').set_text(str(dist1))
-            
-            elif _type == 1:
-                index1 = int(self.builder.get_object('entry_atom1_index_coord1').get_text() )
-                index2 = int(self.builder.get_object('entry_atom2_index_coord1').get_text() )
-                index3 = int(self.builder.get_object('entry_atom3_index_coord1').get_text() )
-                
-                dist1 = get_distance(self.vobject, index1, index2 )
-                dist2 = get_distance(self.vobject, index2, index3 )
-                
-                if self.builder.get_object('check_mass_restraints1').get_active():
-                    self.sigma_pk1_pk3, self.sigma_pk3_pk1  = compute_sigma_a1_a3(self.vobject, index1, index3)
-                    #print('distance a1 - a2:', dist1 - dist2)
-                    DMINIMUM =  (self.sigma_pk1_pk3 * dist1) -(self.sigma_pk3_pk1 * dist2*-1)
-                    self.builder.get_object('entry_dmin_coord1').set_text(str(DMINIMUM))
-                else:
-                    DMINIMUM =  dist1- dist2
-                    self.builder.get_object('entry_dmin_coord1').set_text(str(DMINIMUM))
-        else:
-            pass    
-              
-        if coord2:
-            #print('herehere')
-            _type = self.combobox_reaction_coord2.get_active()
-            try:
-                if _type == 0:
-                    index1 = int(self.builder.get_object('entry_atom1_index_coord2').get_text() )
-                    index2 = int(self.builder.get_object('entry_atom2_index_coord2').get_text() )
-
-                    dist1 = get_distance(self.vobject, index1, index2 )
-                    self.builder.get_object('check_mass_restraints2').set_text(str(dist1))
-                if _type == 1:
-                    index1 = int(self.builder.get_object('entry_atom1_index_coord2').get_text() )
-                    index2 = int(self.builder.get_object('entry_atom2_index_coord2').get_text() )
-                    index3 = int(self.builder.get_object('entry_atom3_index_coord2').get_text() )
-                    
-                    dist1 = get_distance(self.vobject, index1, index2 )
-                    dist2 = get_distance(self.vobject, index2, index3 )
-                    
-                    if self.builder.get_object('check_mass_restraints2').get_active():
-                        self.sigma_pk1_pk3_rc2, self.sigma_pk3_pk1_rc2  = compute_sigma_a1_a3(self.vobject, index1, index3)
-                        #print('distance a1 - a2:', dist1 - dist2)
-                        DMINIMUM =  (self.sigma_pk1_pk3_rc2 * dist1) -(self.sigma_pk3_pk1_rc2 * dist2*-1)
-                        self.builder.get_object('entry_dmin_coord2').set_text(str(DMINIMUM))
-                    else:
-                        DMINIMUM =  dist1- dist2
-                        self.builder.get_object('entry_dmin_coord2').set_text(str(DMINIMUM))
-            except:
-                print(texto_d1)
-                print(texto_d2d1)
-        else:
+        
+        isExist = os.path.exists(parameters['folder'])
+        if isExist:
             pass
+        else:
+            self.run_dialog()
+            return None
+        
+        
+        self.main.p_session.run_simulation( parameters = parameters )
+        self.window.destroy()
+        self.Visible    =  False
+
+
+
+    def _define_OPT_parameters (self):
+        parameters = {}
+        opt_id       = self.builder.get_object('combobox_geo_opt').get_active()
+        parameters['optimizer']        =  self.opt_methods[opt_id]
+        parameters["maxIterations"]    =  int  (self.builder.get_object('entry_max_int') .get_text())
+        parameters["rmsGradient"]      =  float(self.builder.get_object('entry_rmsd_tol').get_text())
+        return parameters
     
+    
+    def _define_MD_parameters (self):
+        """ Function doc """
+        integrator_id       = self.builder.get_object('md_integrator_combobox').get_active()
+        number_of_steps_eq  = int(self.builder.get_object('entry_number_of_steps_eq').get_text())
+        number_of_steps_dc  = int(self.builder.get_object('entry_number_of_steps_dc').get_text())
+        
+        
+        temp_start          = float(self.builder.get_object('entry_temp_start').get_text())
+        temp_scale_factor   = int(self.builder.get_object('entry_temp_scale_factor').get_text())
+        time_step           = float(self.builder.get_object('entry_time_step').get_text())
+        log_frequence       = int(self.builder.get_object('entry_log_frequency').get_text())
+        random_seed         = int(self.builder.get_object('entry_random_seed').get_text())
+        collision_frequency = float(self.builder.get_object('entry_collision_frequency').get_text())
+
+        temp_coupling       =  float(self.builder.get_object('entry_temp_coupling').get_text())
+        
+        if self.builder.get_object('check_pressure_control').get_active():
+            pressure_control = True
+        else:
+            pressure_control = False
+       
+        pressure          = float(self.builder.get_object('entry_pressure').get_text())
+        pressure_coupling = float(self.builder.get_object('entry_pressure_coupling').get_text())
+        
+
+        
+        MD_method = {
+                     0 : "Verlet"   ,
+                     1 : "LeapFrog" ,
+                     2 : "Langevin" ,
+                     }
+        
+        
+
+        parameters = {
+                    "simulation_type"           : "Umbrella_Sampling",
+                    "folder"                    : HOME                    ,
+                    'integrator'                : MD_method[integrator_id], # verlet / leapfrog /langevin
+                    'logFrequency'              : log_frequence           ,
+                    'seed'                      : random_seed             ,
+                    'normalDeviateGenerator'    : None                    ,
+                    'steps_eq'                  : number_of_steps_eq      ,
+                    'steps_dc'                  : number_of_steps_dc      ,
+                    'timeStep'                  : time_step               ,
+                    #'trajectories'              : None                    ,
+                    'trajectory_frequency'      : int(self.builder.get_object('entry_traj_frequency').get_text()), 
+                    
+                    #VelocityVerletDynamics
+                    'temperatureScaleFrequency' : temp_scale_factor                ,
+                    'temperatureStart'          : temp_start                       ,
+                    
+                    #LeapFrogDynamics
+                    'pressure'                  : pressure           ,  #  LeapFrogDynamics 
+                    'pressureControl'           : pressure_control   ,  #  LeapFrogDynamics 
+                    'pressureCoupling'          : pressure_coupling  ,  #  LeapFrogDynamics 
+                                                                     
+                    'temperature'               : temp_start         ,               
+                    'temperatureControl'        : True               ,  # True / False LeapFrogDynamics / LangevinDynamics
+                    'temperatureCoupling'       : temp_coupling      ,  #  LeapFrogDynamics / LangevinDynamics
+                    
+                    #LangevinDynamics
+                    'collisionFrequency'        : collision_frequency,
+                    }
+        return parameters

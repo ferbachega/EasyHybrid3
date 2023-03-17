@@ -106,7 +106,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkBox" id="hbox_matplot_figures">
+              <object class="GtkBox" id="hbox_plotting">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="hexpand">True</property>

@@ -29,6 +29,7 @@ import gc
 import os
 from gui.gtk_widgets import FolderChooserButton
 from gui.gtk_widgets import SaveTrajectoryBox
+from gui.gtk_widgets import CoordinatesComboBox
 
 VISMOL_HOME = os.environ.get('VISMOL_HOME')
 HOME        = os.environ.get('HOME')
@@ -73,16 +74,20 @@ class NormalModesWindow(Gtk.Window):
             
             # - - - - - - - - - - - - - Starting Coordinates ComboBox - - - - - - - - - - - - - - - - -
             '''--------------------------------------------------------------------------------------------'''
-            self.combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
+            #self.combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
             #---------------------------------------------------------------------------------------------
-            self._starting_coordinates_model_update(init = True)
+            #self._starting_coordinates_model_update(init = True)
             
-            self.combobox_starting_coordinates.connect("changed", self.on_name_combo_changed)
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_starting_coordinates.pack_start(renderer_text, True)
-            self.combobox_starting_coordinates.add_attribute(renderer_text, "text", 0)
+            #self.combobox_starting_coordinates.connect("changed", self.on_name_combo_changed)
+            #renderer_text = Gtk.CellRendererText()
+            #self.combobox_starting_coordinates.pack_start(renderer_text, True)
+            #self.combobox_starting_coordinates.add_attribute(renderer_text, "text", 0)
             #----------------------------------------------------------------------------------------------
-            
+            self.box_coordinates = self.builder.get_object('box_coordinates')
+            self.combobox_starting_coordinates = CoordinatesComboBox() #self.builder.get_object('coordinates_combobox')
+            self.combobox_starting_coordinates.connect("changed", self.on_name_combo_changed)
+            self.box_coordinates.pack_start(self.combobox_starting_coordinates, False, False, 0)
+            self._starting_coordinates_model_update(init = True)
             
 
 
@@ -249,6 +254,9 @@ class NormalModesWindow(Gtk.Window):
     def update (self, parameters = None):
         """ Function doc """
         self._starting_coordinates_model_update()
+        if self.Visible:
+            self.update_working_folder_chooser()
+
 
     def update_working_folder_chooser (self, folder = None):
         """ Function doc """
@@ -256,8 +264,12 @@ class NormalModesWindow(Gtk.Window):
             #print('update_working_folder_chooser')
             self.save_trajectory_box.set_folder(folder = folder)
         else:
-            pass
-            #self.save_trajectory_box.set_folder(folder = self.main.p_session.systems[self.main.p_session.active_id]['working_folder'])
+            
+            folder = self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder
+            if folder:
+                self.save_trajectory_box.set_folder(folder = folder)
+            else:
+                pass
    
 #=====================================================================================
    

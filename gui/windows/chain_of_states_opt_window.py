@@ -30,6 +30,7 @@ import os
 import copy
 from gui.gtk_widgets import FolderChooserButton
 from gui.gtk_widgets import SaveTrajectoryBox
+from gui.gtk_widgets import CoordinatesComboBox
 
 VISMOL_HOME = os.environ.get('VISMOL_HOME')
 HOME        = os.environ.get('HOME')
@@ -75,28 +76,45 @@ class ChainOfStatesOptWindow(Gtk.Window):
 
             # - - - - - - - - - - - - - Starting Coordinates ComboBox 1 - - - - - - - - - - - - - - - -
             '''--------------------------------------------------------------------------------------------'''
-            self.combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates1')
-            #---------------------------------------------------------------------------------------------
-            
-            self.combobox_starting_coordinates.connect("changed", self.on_name_combo_changed)
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_starting_coordinates.pack_start(renderer_text, True)
-            self.combobox_starting_coordinates.add_attribute(renderer_text, "text", 0)
+            #self.combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates1')
+            ##---------------------------------------------------------------------------------------------
+            #
+            #self.combobox_starting_coordinates.connect("changed", self.on_name_combo_changed)
+            #renderer_text = Gtk.CellRendererText()
+            #self.combobox_starting_coordinates.pack_start(renderer_text, True)
+            #self.combobox_starting_coordinates.add_attribute(renderer_text, "text", 0)
             #----------------------------------------------------------------------------------------------
             
+            #----------------------------------------------------------------------------------------------
+            self.box_coordinates1 = self.builder.get_object('box_coordinates1')
+            self.combobox_starting_coordinates = CoordinatesComboBox() #self.builder.get_object('coordinates_combobox')
+            self.box_coordinates1.pack_start(self.combobox_starting_coordinates, False, False, 0)
+            #----------------------------------------------------------------------------------------------
             
             
 
             # - - - - - - - - - - - - - Starting Coordinates ComboBox 2 - - - - - - - - - - - - - - - -
             '''--------------------------------------------------------------------------------------------'''
-            self.combobox_starting_coordinates2 = self.builder.get_object('combobox_starting_coordinates2')
-            #---------------------------------------------------------------------------------------------
+            #self.combobox_starting_coordinates2 = self.builder.get_object('combobox_starting_coordinates2')
+            ##---------------------------------------------------------------------------------------------
+            #
+            #self.combobox_starting_coordinates2.connect("changed", self.on_name_combo_changed)
+            #renderer_text = Gtk.CellRendererText()
+            #self.combobox_starting_coordinates2.pack_start(renderer_text, True)
+            #self.combobox_starting_coordinates2.add_attribute(renderer_text, "text", 0)
+            ##----------------------------------------------------------------------------------------------
             
-            self.combobox_starting_coordinates2.connect("changed", self.on_name_combo_changed)
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_starting_coordinates2.pack_start(renderer_text, True)
-            self.combobox_starting_coordinates2.add_attribute(renderer_text, "text", 0)
             #----------------------------------------------------------------------------------------------
+            self.box_coordinates2 = self.builder.get_object('box_coordinates2')
+            self.combobox_starting_coordinates2 = CoordinatesComboBox() #self.builder.get_object('coordinates_combobox')
+            self.box_coordinates2.pack_start(self.combobox_starting_coordinates2, False, False, 0)
+            #----------------------------------------------------------------------------------------------
+            
+            
+            
+            
+            
+            
             self._starting_coordinates_model_update(init = True)
 
             
@@ -267,15 +285,22 @@ class ChainOfStatesOptWindow(Gtk.Window):
     def update (self, parameters = None):
         """ Function doc """
         self._starting_coordinates_model_update()
+        if self.Visible:
+            self.update_working_folder_chooser()
+
 
     def update_working_folder_chooser (self, folder = None):
         """ Function doc """
         if folder:
             #print('update_working_folder_chooser')
-            self.save_trajectory_box.set_folder(folder = folder)
+            self.folder_chooser_button.set_folder(folder = folder)
         else:
-            pass
-            #self.save_trajectory_box.set_folder(folder = self.main.p_session.systems[self.main.p_session.active_id]['working_folder'])
+            
+            folder = self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder
+            if folder:
+                self.folder_chooser_button.set_folder(folder = folder)
+            else:
+                pass
    
 #=====================================================================================
    

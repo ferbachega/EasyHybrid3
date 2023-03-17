@@ -29,7 +29,11 @@ from gi.repository import Gtk, Gdk
 from vismol.core.vismol_session import VismolSession
 import vismol.utils.selectors as selectors
 
+from gui.gtk_widgets import get_distance
+
 from gui.windows.windows_and_dialogs import EasyHybridDialogPrune
+from gui.windows.windows_and_dialogs import AddHarmonicRestraintDialog
+
 from vismol.core.vismol_selections import VismolViewingSelection as VMSele
 import numpy as np
 logger = logging.getLogger(__name__)
@@ -287,12 +291,12 @@ class GLMenu:
                         #print ("Prune")
                         name         = dialog.name        
                         tag          = dialog.tag  
-                        
+                        color        = dialog.color 
                         #for row in self.treestore:
                         #    #row[2] = row.path == selected_path
                         #    row[3] =  False
                         #
-                        self.main.p_session.prune_system (selection = atomlist, name = name, summary = True, tag = tag)
+                        self.main.p_session.prune_system (selection = atomlist, name = name, summary = True, tag = tag, color = color)
             
             def set_as_fixed_atoms (_):
                 """ Function doc """
@@ -686,16 +690,60 @@ class GLMenu:
                                ]
                     }
 
-
+        
         if pick_menu is None:
             ''' Standard Sele Menu '''
+            
+            def add_harmonic_restraint(_):
+                """ Function doc """
+                print('add_harmonic_restraint')
+                atom1 = self.picking_selections.picking_selections_list[0]
+                atom2 = self.picking_selections.picking_selections_list[1]
+                atom3 = self.picking_selections.picking_selections_list[2]
+                atom4 = self.picking_selections.picking_selections_list[3]
+                if atom1:
+                    self.vobject = atom1.vm_object
+                else:
+                    return None
+                
+                #--------------------------------------------------------------
+                if atom1:
+                    print(str(atom1.index-1),str(atom1.name) )
+                else: print('use picking selection to chose the central atom')            
+                #--------------------------------------------------------------
+                if atom2:
+                    print(str(atom2.index-1),str(atom2.name) )
+                else: print('use picking selection to chose the central atom')            
+                #--------------------------------------------------------------
+                if atom2 and atom1:
+                    parameters = {}
+                    dist  = get_distance(atom1.vm_object, atom1.index-1, atom2.index-1)
+                    parameters['atom1']  = atom1.index-1
+                    parameters['atom2']  = atom2.index-1
+                    parameters['system'] = self.main.p_session.psystem[self.vobject.e_id]
+                    add_harmonic_restraint_dialog =  AddHarmonicRestraintDialog(self.main, atom1,  atom2, dist )
+                    
+                    #print(add_harmonic_restraint_dialog.ok)
+                    
+                    if add_harmonic_restraint_dialog.ok:
+                        #print(add_harmonic_restraint_dialog.dist)
+                        parameters['distance']       = float(add_harmonic_restraint_dialog.dist )
+                        parameters['force_constant'] = float(add_harmonic_restraint_dialog.force)
+                    
+                    
+                    
+                        #if atom2 and atom1:
+                        self.main.p_session.add_new_harmonic_restraint(parameters)
+                        self.main.selection_list_window.update_window (selections = False, restraints = True)
+            
+            
             pick_menu = { 
                     'header' : ['MenuItem', None],
                     
                     
                     
-                    'separator1':['separator', None],
-                    
+                    'separator1'              :['separator', None],
+                    'Add Harmonic Restraint'  :['MenuItem', add_harmonic_restraint],
                     
                     'show'   : [
                                 'submenu' ,{

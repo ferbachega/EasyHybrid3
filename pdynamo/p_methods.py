@@ -40,8 +40,53 @@ from pScientific.RandomNumbers import NormalDeviateGenerator                    
                                       RandomNumberGenerator
 
 from pprint import pprint
-import os
+import os, time
 
+
+def backup_orca_files (system, output_folder = None, output_name = None):
+    """ Function doc """
+    
+    
+    if system.qcModel:
+        items = system.qcModel.SummaryItems()
+        '''Checking if ORCA is being used'''
+        if items[0][0] == 'ORCA QC Model':
+            
+            scratch =  system.qcModel.scratch
+            _time = time.asctime()
+            
+            
+            if output_folder is None:
+                folder = scratch
+            else:
+                folder = output_folder
+            
+            
+            
+            if output_name is None:
+                output_name = 'orcaJob'+_time 
+            else:
+                pass
+            
+         
+            
+            print ('\nChecking for ORCA files at: ', scratch)
+
+            try:
+                os.rename(os.path.join(scratch, 'orcaJob.log'),   os.path.join(folder , output_name+'.orca.log'))
+                print('Renaming logfile to:', os.path.join(folder , output_name+'.orca.log'))
+            except:
+                print('File {} not found at:'.format(output_name+'.orca.log'), scratch)
+            
+            try:
+                os.rename(os.path.join(scratch, 'orcaJob.gbw'), os.path.join(folder , output_name+'.orca.gbw'))
+                print('Renaming gbwfile to:', os.path.join(folder , output_name+'.orca.gbw'))
+            except:
+                print('File {} not found at:'.format(output_name+'.orca.gbw'), scratch)
+            print ('\n')
+
+            
+        
 
 HEADER ='''
 ----------------------------------------------------------------------------- 
@@ -68,8 +113,270 @@ class EnergyCalculation:
     
     def run (self, parameters):
         """ Function doc """
-        return parameters['system'].Energy()
+        full_path_file = os.path.join(parameters['folder'])
+        self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(full_path_file, parameters['filename']+'.log') )
+        
+        parameters['system'].Summary(log = self.logFile2)
+        energy = parameters['system'].Energy(log = self.logFile2)
+        backup_orca_files(system        = parameters['system']         , 
+                          output_folder = parameters['folder']         , 
+                          output_name   = parameters['filename'])
+        
+        self.logFile2.Footer ( )
+        self.logFile2.Close()
+        self.logFile2 = None
+        
+        return energy
         # - - - - - -
+
+
+class EnergyRefinement:
+    
+    def __init__ (self):
+        """ Class initialiser """
+        pass
+    
+    def run (self, parameters, interface = False):
+        
+        full_path_trajectory = os.path.join(parameters['folder'], 
+                               parameters['filename'])
+        os.mkdir(
+                 full_path_trajectory
+                 )
+        
+        # - - - - - - - - - - - - - Checking trajectory - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(full_path_trajectory, 'output.log') )
+        parameters['system'].Summary(log = self.logFile2)
+        self.logFile2.Header ( )
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        self.logFile2.Footer ( )
+        self.logFile2.Close()
+        self.logFile2 = None
+        
+        logfile = self.write_header (parameters = parameters,
+                                     logfile    = os.path.join(full_path_trajectory, 'output.log') )
+        
+        if parameters['traj_type'] == 'pklfolder':
+            data_energy = {}
+            energy_list = []
+            text = ""
+            for frame in parameters["trajectory"]:
+                x = frame[5:-4]
+                parameters['system'].coordinates3 = ImportCoordinates3 (os.path.join(parameters['data_path'],frame)) 
+                energy = parameters['system'].Energy()
+                energy_list.append(energy)
+                
+                if parameters['RC1']['rc_type'] == 'simple_distance':
+                    atom1 = parameters['RC1']['ATOMS'][0]
+                    atom2 = parameters['RC1']['ATOMS'][1]
+                    dist =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                    data_energy[int(x)] = [energy, dist ]
+                
+                elif parameters['rc_type_1'] == 'multiple_distance':
+                    atom1 = parameters['RC1']['ATOMS'][0]
+                    atom2 = parameters['RC1']['ATOMS'][1]
+                    atom3 = parameters['RC1']['ATOMS'][2]
+                    dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                    dist2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
+                    dist  =  dist1 - dist2 
+                    data_energy[int(x)] = [energy, dist1, dist2]
+                
+                print ('frame:', x, dist,  energy)
+                backup_orca_files(system        = parameters['system']         , 
+                                  output_folder = full_path_trajectory         , 
+                                  output_name   = 'frame'+x)
+            
+            lowest_energy = min(energy_list)
+            keys = data_energy.keys()
+            for i in range(0, len(keys)):
+
+                
+                if parameters['RC1']['rc_type'] == 'simple_distance':
+                    distance = data_energy[i][1]
+                    energy   = data_energy[i][0]
+                    text += "\nDATA %9i       %13.12f        %13.12f"% (int(i), float(distance), float(energy))
+                
+                elif parameters['RC1']['rc_type'] == 'multiple_distance':
+                    distance1 = data_energy[i][1]
+                    distance2 = data_energy[i][2]
+                    energy    = data_energy[i][0]
+                    text += "\nDATA %9i       %13.12f        %13.12f        %13.12f"% (int(i), float(distance1), float(distance2), float(energy))
+                
+                else:
+                    pass
+        
+        
+            logfile.write(text)
+        
+        
+        elif parameters['traj_type'] == 'pklfolder2D': 
+            max_i = 0
+            max_j = 0
+            i_list = []
+            j_list = []
+            data   = {}
+            energy_list = []
+            
+            text = ""
+            for frame in parameters["trajectory"]:
+                i_j = frame[5:-4].split('_')
+                parameters['system'].coordinates3 = ImportCoordinates3 (os.path.join(parameters['data_path'],frame)) 
+                energy = parameters['system'].Energy()
+                i = int(i_j[0])
+                j = int(i_j[1])
+                i_list.append(i)
+                j_list.append(j)
+                energy_list.append(energy)
+                
+                
+                
+                if parameters['RC1']['rc_type'] == 'simple_distance':
+                    atom1 = parameters['RC1']['ATOMS'][0]
+                    atom2 = parameters['RC1']['ATOMS'][1]
+                    
+                    dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+ 
+                
+                elif parameters['RC1']['rc_type'] == 'multiple_distance':
+                    atom1 = parameters['RC1']['ATOMS'][0]
+                    atom2 = parameters['RC1']['ATOMS'][1]
+                    atom3 = parameters['RC1']['ATOMS'][2]
+                    dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                    dist2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
+                    
+                    dist1 =  dist1 - dist2 
+                 
+                
+                if parameters['RC2']['rc_type'] == 'simple_distance':
+                    atom1 = parameters['RC2']['ATOMS'][0]
+                    atom2 = parameters['RC2']['ATOMS'][1]
+                    dist2 = parameters['system'].coordinates3.Distance (atom1, atom2) 
+                 
+                elif parameters['RC2']['rc_type'] == 'multiple_distance':
+                    atom1 = parameters['RC2']['ATOMS'][0]
+                    atom2 = parameters['RC2']['ATOMS'][1]
+                    atom3 = parameters['RC2']['ATOMS'][2]
+                    dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                    dist2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
+                    
+                    dist2 = dist1 - dist2
+                 
+                
+                data[(i,j)] = [dist1, dist2, energy]
+                print ('frame:', i_j, energy)
+
+            max_i = max(i_list)
+            max_j = max(j_list)
+            
+            for i in range(0, max_i+1):
+                for j in range(0, max_j+1):
+
+                    text = "\nDATA  %4i  %4i     %13.12f       %13.12f       %13.12f"% (int(i), int(j),  float(data[(i,j)][0]), float(data[(i,j)][1]), float(data[(i,j)][2]))
+                    logfile.write(text)
+
+    def write_header (self, parameters, logfile = 'output.log'):
+        """ Function doc """
+        
+        arq = open(logfile, "a")
+        text = ""
+
+        if parameters['RC2'] is not None :
+            text = text + "\n"
+            text = text + "\n--------------------------------------------------------------------------------"
+            text = text + "\nTYPE                 EasyHybrid Energy Refinement 2D                            "
+            text = text + "\n--------------------------------------------------------------------------------"
+
+        else:
+            text = text + "\n"
+            text = text + "\n--------------------------------------------------------------------------------"
+            text = text + "\nTYPE                   EasyHybrid Energy Refinement                             "
+            text = text + "\n--------------------------------------------------------------------------------"
+
+
+
+
+        '''This part writes the parameters used in the first reaction coordinate'''
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------
+        if parameters['RC1']["rc_type"] == 'simple_distance':
+            text = text + "\n"
+            text = text + "\n----------------------- Coordinate 1 - Simple-Distance -------------------------"
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOMS_NAMES'][0] )
+            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOMS_NAMES'][1] )
+            text = text + "\n--------------------------------------------------------------------------------"
+
+        
+        elif parameters['RC1']["rc_type"] == 'multiple_distance':
+            text = text + "\n"
+            text = text + "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"	
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOMS_NAMES'][0] )
+            text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOMS_NAMES'][1] )
+            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOMS_NAMES'][2] )
+            text = text + "\n--------------------------------------------------------------------------------"
+        else:
+            pass
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------
+        
+        
+        
+        
+        if parameters['RC2'] is not None :
+
+            '''This part writes the parameters used in the second reaction coordinate'''
+            #-----------------------------------------------------------------------------------------------------------------------------------------------------------
+            if parameters['RC2']["rc_type"] == 'simple_distance':
+                text = text + "\n"
+                text = text + "\n----------------------- Coordinate 2 - Simple-Distance -------------------------"
+                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOMS_NAMES'][0] )
+                text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOMS_NAMES'][1] )
+                text = text + "\n--------------------------------------------------------------------------------"
+
+            
+            elif parameters['RC2']["rc_type"] == 'multiple_distance':
+                text = text + "\n"
+                text = text + "\n---------------------- Coordinate 2 - multiple-Distance ------------------------"	
+                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOMS_NAMES'][0] )
+                text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOMS_NAMES'][1] )
+                text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOMS_NAMES'][2] )
+                text = text + "\n--------------------------------------------------------------------------------"
+            else:
+                pass
+            #-----------------------------------------------------------------------------------------------------------------------------------------------------------
+            
+        
+        
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------
+        '''This part writes the header of the frames distances and energy'''
+        if parameters['RC2'] is not None :
+            text = text + "\n\n--------------------------------------------------------------------------------"
+            text = text + "\n   Frame i  /  j        RCOORD-1             RCOORD-2                Energy     "
+            text = text + "\n--------------------------------------------------------------------------------"
+
+
+
+
+        else:
+            if parameters['RC1']["rc_type"] == 'simple_distance':
+                text = text + "\n\n-------------------------------------------------------------"
+                text = text + "\n           Frame    dist-ATOM1-ATOM2             Energy      "
+                text = text + "\n-------------------------------------------------------------"
+            
+            elif parameters['RC1']["rc_type"] == 'multiple_distance':
+                text = text + "\n\n--------------------------------------------------------------------------------"
+                text = text + "\n           Frame     dist-ATOM1-ATOM2      dist-ATOM2-ATOM3         Energy        "
+                text = text + "\n--------------------------------------------------------------------------------  "
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+        
+        arq.write(text)
+        return arq
+
+    
+
+
+
+
+
 
 
 class GeometryOptimization:
@@ -95,6 +402,8 @@ class GeometryOptimization:
             self.logFile2.Header ( )
         else:
             pass
+            parameters['trajectory_name'] = None
+            parameters['folder'] = None
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         
         
@@ -115,6 +424,11 @@ class GeometryOptimization:
         
         else:
             print('Geometry Optimization method not found!' )
+        
+        
+        '''ORCA backup files'''
+        backup_orca_files(system = parameters['system'], output_folder = parameters['folder'], output_name = parameters['trajectory_name'])
+        
         
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         if parameters['trajectory_name']:
@@ -232,6 +546,9 @@ class MolecularDynamics:
             self.logFile2.Header ( )
         else:
             pass
+            parameters['trajectory_name'] = None
+            parameters['folder'] = None
+        
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         
         
@@ -247,7 +564,8 @@ class MolecularDynamics:
         else:
             pass    
         
-
+        backup_orca_files(system = parameters['system'], output_folder = parameters['folder'], output_name = parameters['trajectory_name'])
+        
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         if parameters['trajectory_name']:
             self.logFile2.Footer ( )
@@ -434,10 +752,8 @@ class MolecularDynamics:
                                               temperature            = parameters['temperatureStart']   ,
                                               timeStep               = parameters['timeStep']           )
             
+
             
-
-
-
 class RelaxedSurfaceScan:
     """ Class doc """
     
@@ -453,17 +769,17 @@ class RelaxedSurfaceScan:
                  full_path_trajectory
                  )
         
-        # - - - - - - - - - - - - - Checking trajectory - - - - - - - - - - - - - -
+        # - - - - - - - - - - - - - Checking trajectory - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(full_path_trajectory, 'output.log') )
         parameters['system'].Summary(log = self.logFile2)
         self.logFile2.Header ( )
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
         
-        if parameters['second_coordinate']:
+        if parameters['RC2'] is not None:
+            print('\n\n\nself._run_scan_2D(parameters = parameters, interface = False)')
             self._run_scan_2D(parameters = parameters, interface = False)
-            
         else:
             self._run_scan_1D(parameters)
         
@@ -483,7 +799,7 @@ class RelaxedSurfaceScan:
         arq = open(os.path.join( parameters['folder'], parameters['traj_folder_name']+".ptGeo", logfile), "a")
         text = ""
 
-        if parameters["second_coordinate"] :
+        if parameters["RC2"] is not None:
             text = text + "\n"
             text = text + "\n--------------------------------------------------------------------------------"
             text = text + "\nTYPE                         EasyHybrid-SCAN2D                                  "
@@ -500,27 +816,35 @@ class RelaxedSurfaceScan:
 
         '''This part writes the parameters used in the first reaction coordinate'''
         #-----------------------------------------------------------------------------------------------------------------------------------------------------------
-        if parameters["rc_type_1"] == 'simple_distance':
+        if parameters['RC1']["rc_type"] == 'simple_distance':
+            #text = text + "\n"
+            #text = text + "\n----------------------- Coordinate 1 - Simple-Distance -------------------------"
+            #text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['ATOMS_RC1'][0], parameters['ATOMS_RC1_NAMES'][0] )
+            #text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['ATOMS_RC1'][1], parameters['ATOMS_RC1_NAMES'][1] )
+            #text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['nsteps_RC1']  , parameters['force_constant_1']   )
+            #text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['dminimum_RC1'], parameters['maxIterations']      )
+            #text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['dincre_RC1']  , parameters['rmsGradient']        )
+            #text = text + "\n--------------------------------------------------------------------------------"
             text = text + "\n"
             text = text + "\n----------------------- Coordinate 1 - Simple-Distance -------------------------"
-            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['ATOMS_RC1'][0], parameters['ATOMS_RC1_NAMES'][0] )
-            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['ATOMS_RC1'][1], parameters['ATOMS_RC1_NAMES'][1] )
-            text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['nsteps_RC1']  , parameters['force_constant_1']   )
-            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['dminimum_RC1'], parameters['maxIterations']      )
-            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['dincre_RC1']  , parameters['rmsGradient']        )
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOMS_NAMES'][0] )
+            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOMS_NAMES'][1] )
+            text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']  , parameters['RC1']['force_constant'] )
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum'], parameters['maxIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']  , parameters['rmsGradient']           )
             text = text + "\n--------------------------------------------------------------------------------"
 
         
-        elif parameters["rc_type_1"] == 'multiple_distance':
+        elif parameters['RC1']["rc_type"] == 'multiple_distance':
             text = text + "\n"
             text = text + "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"	
-            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['ATOMS_RC1'][0]    , parameters['ATOMS_RC1_NAMES'][0] )
-            text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['ATOMS_RC1'][1]    , parameters['ATOMS_RC1_NAMES'][1] )
-            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['ATOMS_RC1'][2]    , parameters['ATOMS_RC1_NAMES'][2] )
-            text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['nsteps_RC1']      , parameters['force_constant_1']   ) 
-            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['dminimum_RC1']    , parameters['maxIterations']      )
-            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['dincre_RC1']      , parameters['rmsGradient']        )
-            text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['sigma_pk1pk3_rc1'], parameters['sigma_pk3pk1_rc1']      )
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOMS_NAMES'][0] )
+            text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOMS_NAMES'][1] )
+            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOMS_NAMES'][2] )
+            text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']      , parameters['RC1']['force_constant'] ) 
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['maxIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['rmsGradient']           )
+            text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['RC1']['sigma_pk1pk3'], parameters['RC1']['sigma_pk3pk1']   )
             text = text + "\n--------------------------------------------------------------------------------"
 
         else:
@@ -530,31 +854,31 @@ class RelaxedSurfaceScan:
         
         
         
-        if parameters["second_coordinate"] :
+        if parameters["RC2"] is not None :
 
             '''This part writes the parameters used in the second reaction coordinate'''
             #-----------------------------------------------------------------------------------------------------------------------------------------------------------
-            if parameters["rc_type_2"] == 'simple_distance':
+            if parameters['RC2']["rc_type"] == 'simple_distance':
                 text = text + "\n"
                 text = text + "\n----------------------- Coordinate 2 - Simple-Distance -------------------------"
-                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['ATOMS_RC2'][0], parameters['ATOMS_RC2_NAMES'][0] )
-                text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['ATOMS_RC2'][1], parameters['ATOMS_RC2_NAMES'][1] )
-                text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['nsteps_RC2']  , parameters['force_constant_1']   )
-                text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['dminimum_RC2'], parameters['maxIterations']      )
-                text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['dincre_RC2']  , parameters['rmsGradient']        )
+                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOMS_NAMES'][0] )
+                text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOMS_NAMES'][1] )
+                text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']  , parameters['RC2']['force_constant'] )
+                text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum'], parameters['maxIterations']         )
+                text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']  , parameters['rmsGradient']           )
                 text = text + "\n--------------------------------------------------------------------------------"
 
             
-            elif parameters["rc_type_2"] == 'multiple_distance':
+            elif parameters['RC2']["rc_type"] == 'multiple_distance':
                 text = text + "\n"
                 text = text + "\n---------------------- Coordinate 2 - multiple-Distance ------------------------"	
-                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['ATOMS_RC2'][0]    , parameters['ATOMS_RC2_NAMES'][0] )
-                text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['ATOMS_RC2'][1]    , parameters['ATOMS_RC2_NAMES'][1] )
-                text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['ATOMS_RC2'][2]    , parameters['ATOMS_RC2_NAMES'][2] )
-                text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['nsteps_RC2']      , parameters['force_constant_2']   ) 
-                text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['dminimum_RC2']    , parameters['maxIterations']      )
-                text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['dincre_RC2']      , parameters['rmsGradient']        )
-                text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['sigma_pk1pk3_rc2'], parameters['sigma_pk3pk1_rc2']      )
+                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOMS_NAMES'][0] )
+                text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOMS_NAMES'][1] )
+                text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOMS_NAMES'][2] )
+                text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']      , parameters['RC2']['force_constant'] )
+                text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maxIterations']         )
+                text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradient']           )
+                text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['RC2']['sigma_pk1pk3'], parameters['RC2']['sigma_pk3pk1']   )
                 text = text + "\n--------------------------------------------------------------------------------"
             else:
                 pass
@@ -569,7 +893,7 @@ class RelaxedSurfaceScan:
         
         #-----------------------------------------------------------------------------------------------------------------------------------------------------------
         '''This part writes the header of the frames distances and energy'''
-        if parameters["second_coordinate"] :
+        if parameters["RC2"] is not None :
             text = text + "\n\n--------------------------------------------------------------------------------"
             text = text + "\n   Frame i  /  j        RCOORD-1             RCOORD-2                Energy     "
             text = text + "\n--------------------------------------------------------------------------------"
@@ -578,12 +902,12 @@ class RelaxedSurfaceScan:
 
 
         else:
-            if parameters["rc_type_1"] == 'simple_distance':
+            if parameters['RC1']["rc_type"] == 'simple_distance':
                 text = text + "\n\n-------------------------------------------------------------"
                 text = text + "\n           Frame    dist-ATOM1-ATOM2             Energy      "
                 text = text + "\n-------------------------------------------------------------"
             
-            elif parameters["rc_type_1"] == 'multiple_distance':
+            elif parameters['RC1']["rc_type"] == 'multiple_distance':
                 text = text + "\n\n--------------------------------------------------------------------------------"
                 text = text + "\n           Frame     dist-ATOM1-ATOM2      dist-ATOM2-ATOM3         Energy        "
                 text = text + "\n--------------------------------------------------------------------------------  "
@@ -608,8 +932,8 @@ class RelaxedSurfaceScan:
         #-------------------------------------------------------------------------
         #Setting some local vars to ease the notation in the pDynamo methods
         #----------------------------------
-        atom1 = parameters['ATOMS_RC1'][0]
-        atom2 = parameters['ATOMS_RC1'][1]                   
+        atom1 = parameters['RC1']['ATOMS'][0]
+        atom2 = parameters['RC1']['ATOMS'][1]                   
         #---------------------------------
         restraints = RestraintModel()
         parameters['system'].DefineRestraintModel( restraints )                     
@@ -618,15 +942,15 @@ class RelaxedSurfaceScan:
         arq = self.write_header(parameters)
         data = []
         
-        for i in range(parameters['nsteps_RC1']):       
-            distance = parameters['dminimum_RC1'] + ( parameters['dincre_RC1'] * float(i) )
+        for i in range(parameters['RC1']['nsteps']):       
+            distance = parameters['RC1']['dminimum'] + ( parameters['RC1']['dincre'] * float(i) )
             #print(parameters["rc_type_1"])
             
             
             '''----------------------------------------------------------------------------------------------------------------'''
-            if parameters["rc_type_1"] == 'simple_distance':
+            if parameters['RC1']["rc_type"] == 'simple_distance':
                 #---------------------------------------------------------------------------------------------------------
-                rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['force_constant_1'])
+                rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
                 restraint         = RestraintDistance.WithOptions(energyModel = rmodel, point1= atom1, point2= atom2)
                 restraints["RC1"] = restraint            
                 #---------------------------------------------------------------------------------------------------------
@@ -648,17 +972,22 @@ class RelaxedSurfaceScan:
                                       parameters['traj_folder_name']+".ptGeo", 
                                       "frame{}.pkl".format(i) ), 
                         parameters['system'].coordinates3 ) 
+                
+                backup_orca_files(system        = parameters['system'], 
+                                  output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
+                                  output_name   = "frame{}".format(i))
+        
                 '''----------------------------------------------------------------------------------------------------------------'''
 
             
                 '''----------------------------------------------------------------------------------------------------------------'''
-            elif parameters["rc_type_1"] == 'multiple_distance':
+            elif parameters['RC1']["rc_type"] == 'multiple_distance':
                 #--------------------------------------------------------------------
-                atom3   = parameters['ATOMS_RC1'][2]
-                weight1 = parameters['sigma_pk1pk3_rc1'] #self.sigma_a1_a3[0]
-                weight2 = parameters['sigma_pk3pk1_rc1'] #self.sigma_a3_a1[0] 
+                atom3   = parameters['RC1']['ATOMS'][2]
+                weight1 = parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+                weight2 = parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
                 
-                rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['force_constant_1'])
+                rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
                 restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom2, atom1, weight1 ], [ atom2, atom3, weight2 ] ] )
                 restraints["RC1"] = restraint            
                 #--------------------------------------------------------------------
@@ -683,6 +1012,12 @@ class RelaxedSurfaceScan:
                                       parameters['traj_folder_name']+".ptGeo", 
                                       "frame{}.pkl".format(i) ), 
                         parameters['system'].coordinates3 ) 
+                
+                backup_orca_files(system        = parameters['system'], 
+                                  output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
+                                  output_name   = "frame{}".format(i))
+                
+                
                 '''----------------------------------------------------------------------------------------------------------------'''
 
             else:
@@ -697,11 +1032,11 @@ class RelaxedSurfaceScan:
         #-------------------------------------------------------------------------
         #Setting some local vars to ease the notation in the pDynamo methods
         #----------------------------------
-        atom_RC1_1 = parameters['ATOMS_RC1'][0]
-        atom_RC1_2 = parameters['ATOMS_RC1'][1]                   
+        atom_RC1_1 = parameters['RC1']['ATOMS'][0]
+        atom_RC1_2 = parameters['RC1']['ATOMS'][1]                   
         
-        atom_RC2_1 = parameters['ATOMS_RC2'][0]
-        atom_RC2_2 = parameters['ATOMS_RC2'][1]                   
+        atom_RC2_1 = parameters['RC1']['ATOMS'][0]
+        atom_RC2_2 = parameters['RC1']['ATOMS'][1]                   
         #---------------------------------
         restraints = RestraintModel()
         parameters['system'].DefineRestraintModel( restraints )                     
@@ -730,206 +1065,202 @@ class RelaxedSurfaceScan:
         This will generate frames (0,0) to (n, 0) serially, where n is the number of 
         steps from coordinate x)
         '''
-        try:
-            joblist = []
-            j = 0
-            for i in range(parameters['nsteps_RC1']):       
-                distance = parameters['dminimum_RC1'] + ( parameters['dincre_RC1'] * float(i) )
+        #try:
+        joblist = []
+        j = 0
+        for i in range(parameters['RC1']['nsteps']):       
+            distance = parameters['RC1']['dminimum'] + ( parameters['RC1']['dincre'] * float(i) )
+            
+            '''reaction coordinate 1 - starts at 0 and goes to nstpes'''
+            '''----------------------------------------------------------------------------------------------------------------'''
+            if parameters['RC1']["rc_type"] == 'simple_distance':
+                #---------------------------------------------------------------------------------------------------------
+                rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+                restraint         = RestraintDistance.WithOptions(energyModel = rmodel, point1= atom_RC1_1, point2= atom_RC1_2)
+                restraints["RC1"] = restraint            
+                #---------------------------------------------------------------------------------------------------------
+            
+            elif parameters['RC1']["rc_type"] == 'multiple_distance':
+                #--------------------------------------------------------------------
+                atom_RC1_3   = parameters['RC1']['ATOMS'][2]
+                weight1 = parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+                weight2 = parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
                 
-                '''reaction coordinate 1 - starts at 0 and goes to nstpes'''
-                '''----------------------------------------------------------------------------------------------------------------'''
-                if parameters["rc_type_1"] == 'simple_distance':
-                    #---------------------------------------------------------------------------------------------------------
-                    rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['force_constant_1'])
-                    restraint         = RestraintDistance.WithOptions(energyModel = rmodel, point1= atom_RC1_1, point2= atom_RC1_2)
-                    restraints["RC1"] = restraint            
-                    #---------------------------------------------------------------------------------------------------------
-                
-                elif parameters["rc_type_1"] == 'multiple_distance':
-                    #--------------------------------------------------------------------
-                    atom_RC1_3   = parameters['ATOMS_RC1'][2]
-                    weight1 = parameters['sigma_pk1pk3_rc1'] #self.sigma_a1_a3[0]
-                    weight2 = parameters['sigma_pk3pk1_rc1'] #self.sigma_a3_a1[0] 
-                    
-                    rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['force_constant_1'])
-                    restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom_RC1_2, atom_RC1_1, weight1 ], 
-                                                                                                                  [ atom_RC1_2, atom_RC1_3, weight2 ] 
-                                                                                                                ] )
-                    restraints["RC1"] = restraint            
-                    #--------------------------------------------------------------------
-                else:
-                    pass
-                    
-
-
-                '''reaction coordinate 2 - ONLY at 0 first'''
-                '''----------------------------------------------------------------------------------------------------------------'''
-                distance2 = parameters['dminimum_RC2'] + ( parameters['dincre_RC2'] * float(j) )
-                
-                if parameters["rc_type_2"] == 'simple_distance':
-                    #---------------------------------------------------------------------------------------------------------
-                    rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['force_constant_2'])
-                    restraint         = RestraintDistance.WithOptions(energyModel = rmodel, point1= atom_RC2_1, point2= atom_RC2_2)
-                    restraints["RC2"] = restraint            
-                    #---------------------------------------------------------------------------------------------------------
-                
-                elif parameters["rc_type_2"] == 'multiple_distance':
-                    #--------------------------------------------------------------------
-                    atom_RC2_3 = parameters['ATOMS_RC2'][2]
-                    weight1 = parameters['sigma_pk1pk3_rc2'] #self.sigma_a1_a3[0]
-                    weight2 = parameters['sigma_pk3pk1_rc2'] #self.sigma_a3_a1[0] 
-                    
-                    rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['force_constant_2'])
-                    restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ 
-                                                                                                                  [ atom_RC2_2, atom_RC2_1, weight1 ], 
-                                                                                                                  [ atom_RC2_2, atom_RC2_3, weight2 ] 
-                                                                                                                  ] )
-                    restraints["RC2"] = restraint            
-                    #--------------------------------------------------------------------
-               
-                
-                
-                
-                try:
-                    #-------------------------------------------------------------------------------------------------------------
-                    ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
-                                                             logFrequency           = parameters['log_frequency'],
-                                                             maximumIterations      = parameters['maxIterations'],
-                                                             rmsGradientTolerance   = parameters['rmsGradient']  ,
-                                                             log                    = None)
-
-                    energy   = parameters['system'].Energy(log=None)
-                    opt_convergency = ''
-                    #-------------------------------------------------------------------------------------------------------------
-                except:
-                    energy   = 0
-                    opt_convergency = 'Ops! Error in geometry optimization.'
-
-                #--------------------------------------------------------------------------------------
-                #                     Calculating the reaction coordinate 1
-                #--------------------------------------------------------------------------------------
-                distance1 = parameters['system'].coordinates3.Distance( atom_RC1_1 , atom_RC1_2  )
-                if parameters["rc_type_1"] == 'multiple_distance':
-                    distance2 = parameters['system'].coordinates3.Distance( atom_RC1_2,  atom_RC1_3  )
-                else:
-                    distance2 = 0
-                RC1_d1_minus_d2 = distance1 - distance2
-                #--------------------------------------------------------------------------------------
-                
-                
-                
-                #--------------------------------------------------------------------------------------
-                #                     Calculating the reaction coordinate 2
-                #--------------------------------------------------------------------------------------
-                distance1 = parameters['system'].coordinates3.Distance( atom_RC2_1 , atom_RC2_2  )
-                if parameters["rc_type_2"] == 'multiple_distance':
-                    distance2 = parameters['system'].coordinates3.Distance( atom_RC2_2,  atom_RC2_3  )
-                else:
-                    distance2 = 0
-                RC2_d1_minus_d2 = distance1 - distance2
-                #--------------------------------------------------------------------------------------
-                
-                
-                
-                #--------------------------------------------------------------------------------------
-                #                          Energy and data dictionary
-                #--------------------------------------------------------------------------------------
-                data[(i,j)] = [RC1_d1_minus_d2, RC2_d1_minus_d2, energy]    
-                #--------------------------------------------------------------------------------------
-                
-                
-                
-                #--------------------------------------------------------------------------------------
-                #                             Exporting Coordinates
-                #--------------------------------------------------------------------------------------
-                pkl = os.path.join( parameters['folder'], 
-                                      parameters['traj_folder_name']+".ptGeo", 
-                                      "frame{}_{}.pkl".format(i,j) )
-                                       
-                Pickle( pkl, parameters['system'].coordinates3 )
-                #--------------------------------------------------------------------------------------
-                
+                rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+                restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom_RC1_2, atom_RC1_1, weight1 ], 
+                                                                                                              [ atom_RC1_2, atom_RC1_3, weight2 ] 
+                                                                                                            ] )
+                restraints["RC1"] = restraint            
+                #--------------------------------------------------------------------
+            else:
+                pass
                 
 
-                #system = parameters['system']
-                #backup = []
-                #backup.append(system.e_treeview_iter)
-                #backup.append(system.e_liststore_iter)
+
+            '''reaction coordinate 2 - ONLY at 0 first'''
+            '''----------------------------------------------------------------------------------------------------------------'''
+            distance2 = parameters['RC2']['dminimum'] + ( parameters['RC2']['dincre'] * float(j) )
+            
+            if parameters['RC2']["rc_type"] == 'simple_distance':
+                #---------------------------------------------------------------------------------------------------------
+                rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'])
+                restraint         = RestraintDistance.WithOptions(energyModel = rmodel, point1= atom_RC2_1, point2= atom_RC2_2)
+                restraints["RC2"] = restraint            
+                #---------------------------------------------------------------------------------------------------------
+            
+            elif parameters['RC2']["rc_type"] == 'multiple_distance':
+                #--------------------------------------------------------------------
+                atom_RC2_3 = parameters['RC2']['ATOMS'][2]
+                weight1 = parameters['RC2']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+                weight2 = parameters['RC2']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
                 
-                #For some reason the previous dictionary had problems when submitted to the pool
-                new_parameters = {
-                                 
-                                 'ATOMS_RC1'       : parameters['ATOMS_RC1'],
-                                 'ATOMS_RC2'       : parameters['ATOMS_RC2'],
-                                 'rc_type_1'       : parameters['rc_type_1'],
-                                 'rc_type_2'       : parameters['rc_type_2'],
-                                 'dminimum_RC1'    : parameters['dminimum_RC1'],
-                                 'dminimum_RC2'    : parameters['dminimum_RC2'],
-                                 
-                                 'sigma_pk1pk3_rc1': parameters['sigma_pk1pk3_rc1'],
-                                 'sigma_pk3pk1_rc1': parameters['sigma_pk3pk1_rc1'],
-                                 'force_constant_1': parameters['force_constant_1'],
-                                 'nsteps_RC1'      : parameters['nsteps_RC1'],
-                                 'dincre_RC1'      : parameters['dincre_RC1'],
-                                 
-                                 
-                                 'sigma_pk1pk3_rc2': parameters['sigma_pk1pk3_rc2'],
-                                 'sigma_pk3pk1_rc2': parameters['sigma_pk3pk1_rc2'],
-                                 'force_constant_2': parameters['force_constant_2'],
-                                 'nsteps_RC2'      : parameters['nsteps_RC2'],
-                                 'dincre_RC2'      : parameters['dincre_RC2'],
-                                 
-                                 'log_frequency'   : parameters['log_frequency'],
-                                 'maxIterations'   : parameters['maxIterations'],
-                                 'rmsGradient'     : parameters['rmsGradient'],
-
-                                 'folder'          : parameters['folder']    , 
-                                 'traj_folder_name': parameters['traj_folder_name']
-                                 }
-                
-                print(i, j, 'Energy:', energy, opt_convergency)
-                #  - - - - adding to the joblist - - - - 
-                joblist.append([i, pkl, new_parameters, parameters['system']])
-                #--------------------------------------------------------------------------------------
-
-
-            #print(joblist)
-            p = multiprocessing.Pool(processes=parameters['NmaxThreads'])
-            #p = multiprocessing.Pool(processes=8)
-            #results = p.map(self._run_second_coordinate_in_parallel, joblist)
-            results = p.map(_run_second_coordinate_in_parallel, joblist)
+                rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'])
+                restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ 
+                                                                                                              [ atom_RC2_2, atom_RC2_1, weight1 ], 
+                                                                                                              [ atom_RC2_2, atom_RC2_3, weight2 ] 
+                                                                                                              ] )
+                restraints["RC2"] = restraint            
+                #--------------------------------------------------------------------
+           
             
             
-
             
-            for partial_data_dict in  results:
-                for key, partial_data in partial_data_dict.items():
-                    data[key] = partial_data
+            try:
+                #-------------------------------------------------------------------------------------------------------------
+                ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
+                                                         logFrequency           = parameters['log_frequency'],
+                                                         maximumIterations      = parameters['maxIterations'],
+                                                         rmsGradientTolerance   = parameters['rmsGradient']  ,
+                                                         log                    = None)
+
+                energy   = parameters['system'].Energy(log=None)
+                opt_convergency = ''
+                #-------------------------------------------------------------------------------------------------------------
+            except:
+                energy   = 0
+                opt_convergency = 'Ops! Error in geometry optimization.'
 
             #--------------------------------------------------------------------------------------
-            #                             Writing the log information 
+            #                     Calculating the reaction coordinate 1
             #--------------------------------------------------------------------------------------
-            for i in range(parameters['nsteps_RC1']):
-                for j in range(parameters['nsteps_RC2']):
+            distance1 = parameters['system'].coordinates3.Distance( atom_RC1_1 , atom_RC1_2  )
+            if parameters['RC1']["rc_type"] == 'multiple_distance':
+                distance2 = parameters['system'].coordinates3.Distance( atom_RC1_2,  atom_RC1_3  )
+            else:
+                distance2 = 0
+            RC1_d1_minus_d2 = distance1 - distance2
+            #--------------------------------------------------------------------------------------
             
-                    text = "\nDATA  %4i  %4i     %13.12f       %13.12f       %13.12f"% (int(i), int(j),  float(data[(i,j)][0]), float(data[(i,j)][1]), float(data[(i,j)][2]))
-                    arq.write(text)
+            
+            
             #--------------------------------------------------------------------------------------
+            #                     Calculating the reaction coordinate 2
+            #--------------------------------------------------------------------------------------
+            distance1 = parameters['system'].coordinates3.Distance( atom_RC2_1 , atom_RC2_2  )
+            if parameters['RC2']["rc_type"] == 'multiple_distance':
+                distance2 = parameters['system'].coordinates3.Distance( atom_RC2_2,  atom_RC2_3  )
+            else:
+                distance2 = 0
+            RC2_d1_minus_d2 = distance1 - distance2
+            #--------------------------------------------------------------------------------------
+            
+            
+            
+            #--------------------------------------------------------------------------------------
+            #                          Energy and data dictionary
+            #--------------------------------------------------------------------------------------
+            data[(i,j)] = [RC1_d1_minus_d2, RC2_d1_minus_d2, energy]    
+            #--------------------------------------------------------------------------------------
+            
+            
+            
+            #--------------------------------------------------------------------------------------
+            #                             Exporting Coordinates
+            #--------------------------------------------------------------------------------------
+            pkl = os.path.join( parameters['folder'], 
+                                  parameters['traj_folder_name']+".ptGeo", 
+                                  "frame{}_{}.pkl".format(i,j) )
+                                   
+            Pickle( pkl, parameters['system'].coordinates3 )
+            
+            backup_orca_files(system        = parameters['system'], 
+                              output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
+                              output_name   = "frame{}_{}".format(i,j))
+            
+            #--------------------------------------------------------------------------------------
+            
             
 
-            #if interface:
-            parameters['system'].e_treeview_iter   = backup[0]
-            parameters['system'].e_liststore_iter  = backup[1]
-            #else:
-            #    pass
+            #system = parameters['system']
+            #backup = []
+            #backup.append(system.e_treeview_iter)
+            #backup.append(system.e_liststore_iter)
             
+            #For some reason the previous dictionary had problems when submitted to the pool
+            new_parameters = {
+                             
+                             'ATOMS_RC1'       : parameters['RC1']['ATOMS'],
+                             'ATOMS_RC2'       : parameters['RC2']['ATOMS'],
+                             'rc_type_1'       : parameters['RC1']['rc_type'],
+                             'rc_type_2'       : parameters['RC2']['rc_type'],
+                             'dminimum_RC1'    : parameters['RC1']['dminimum'],
+                             'dminimum_RC2'    : parameters['RC2']['dminimum'],
+                             
+                             'sigma_pk1pk3_rc1': parameters['RC1']['sigma_pk1pk3'],
+                             'sigma_pk3pk1_rc1': parameters['RC1']['sigma_pk3pk1'],
+                             'force_constant_1': parameters['RC1']['force_constant'],
+                             'nsteps_RC1'      : parameters['RC1']['nsteps'],
+                             'dincre_RC1'      : parameters['RC1']['dincre'],
+                             
+                             
+                             'sigma_pk1pk3_rc2': parameters['RC2']['sigma_pk1pk3'],
+                             'sigma_pk3pk1_rc2': parameters['RC2']['sigma_pk3pk1'],
+                             'force_constant_2': parameters['RC2']['force_constant'],
+                             'nsteps_RC2'      : parameters['RC2']['nsteps'],
+                             'dincre_RC2'      : parameters['RC2']['dincre'],
+                             
+                             'log_frequency'   : parameters['log_frequency'],
+                             'maxIterations'   : parameters['maxIterations'],
+                             'rmsGradient'     : parameters['rmsGradient'],
+
+                             'folder'          : parameters['folder']    , 
+                             'traj_folder_name': parameters['traj_folder_name']
+                             }
             
-        except:
-            #if interface:
-            parameters['system'].e_treeview_iter   = backup[0]
-            parameters['system'].e_liststore_iter  = backup[1]
-            #else:
-            #    pass
+            print(i, j, 'Energy:', energy, opt_convergency)
+            #  - - - - adding to the joblist - - - - 
+            joblist.append([i, pkl, new_parameters, parameters['system']])
+            #--------------------------------------------------------------------------------------
+
+
+        #print(joblist)
+        p = multiprocessing.Pool(processes=parameters['NmaxThreads'])
+        #p = multiprocessing.Pool(processes=8)
+        #results = p.map(self._run_second_coordinate_in_parallel, joblist)
+        results = p.map(_run_second_coordinate_in_parallel, joblist)
+        
+        
+
+        
+        for partial_data_dict in  results:
+            for key, partial_data in partial_data_dict.items():
+                data[key] = partial_data
+
+        #--------------------------------------------------------------------------------------
+        #                             Writing the log information 
+        #--------------------------------------------------------------------------------------
+        for i in range(parameters['RC1']['nsteps']):
+            for j in range(parameters['RC2']['nsteps']):
+        
+                text = "\nDATA  %4i  %4i     %13.12f       %13.12f       %13.12f"% (int(i), int(j),  float(data[(i,j)][0]), float(data[(i,j)][1]), float(data[(i,j)][2]))
+                arq.write(text)
+        #--------------------------------------------------------------------------------------
+        
+
+        #if interface:
+        parameters['system'].e_treeview_iter   = backup[0]
+        parameters['system'].e_liststore_iter  = backup[1]
+
 
     def _run_scan_2D_old (self, parameters):
         """ Function doc """
@@ -1053,7 +1384,9 @@ class RelaxedSurfaceScan:
                                       "frame{}_{}.pkl".format(i,j) ), 
                                       parameters['system'].coordinates3 )
                 #--------------------------------------------------------------------------------------
-        
+                backup_orca_files(system        = parameters['system'], 
+                                  output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
+                                  output_name   = "frame{}_{}".format(i,j))
         
         
         #--------------------------------------------------------------------------------------
@@ -1065,7 +1398,592 @@ class RelaxedSurfaceScan:
                 text = "\nDATA  %4i  %4i     %13.12f       %13.12f       %13.12f"% (int(i), int(j),  float(data[(i,j)][0]), float(data[(i,j)][1]), float(data[(i,j)][2]))
                 arq.write(text)
         #--------------------------------------------------------------------------------------
+
+class UmbrellaSampling:
+    def __init__ (self):
+        """ Class initialiser """
+        pass
+
+    def write_header (self, parameters, logfile = 'output.log'):
+        """ Function doc """
+        
+        arq = open(os.path.join( parameters['folder'], parameters['traj_folder_name'], logfile), "a")
+        text = ""
+        
+        '''
+        if parameters["RC2"] is not None:
+            text = text + "\n"
+            text = text + "\n--------------------------------------------------------------------------------"
+            text = text + "\nTYPE                         EasyHybrid-SCAN2D                                  "
+            text = text + "\n--------------------------------------------------------------------------------"
+
+        else:
+            text = text + "\n"
+            text = text + "\n--------------------------------------------------------------------------------"
+            text = text + "\nTYPE                          EasyHybrid-SCAN                                   "
+            text = text + "\n--------------------------------------------------------------------------------"
+        '''
+
+
+
+        '''This part writes the parameters used in the first reaction coordinate'''
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------
+        '''
+        if parameters['RC1']["rc_type"] == 'simple_distance':
+            text = text + "\n"
+            text = text + "\n----------------------- Coordinate 1 - Simple-Distance -------------------------"
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOMS_NAMES'][0] )
+            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOMS_NAMES'][1] )
+            text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']  , parameters['RC1']['force_constant'] )
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum'], parameters['OPT_parm']['maxIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']  , parameters['OPT_parm']['rmsGradient']           )
+            text = text + "\n--------------------------------------------------------------------------------"
+
+        
+        elif parameters['RC1']["rc_type"] == 'multiple_distance':
+            text = text + "\n"
+            text = text + "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"	
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOMS_NAMES'][0] )
+            text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOMS_NAMES'][1] )
+            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOMS_NAMES'][2] )
+            text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']      , parameters['RC1']['force_constant'] ) 
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['OPT_parm']['maxIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['OPT_parm']['rmsGradient']           )
+            text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['RC1']['sigma_pk1pk3'], parameters['RC1']['sigma_pk3pk1']   )
+            text = text + "\n--------------------------------------------------------------------------------"
+
+        else:
+            pass
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------
+        '''
+        
+        
+        
+        #if parameters["RC2"] is not None :
+        #
+        #    '''This part writes the parameters used in the second reaction coordinate'''
+        #    #-----------------------------------------------------------------------------------------------------------------------------------------------------------
+        #    if parameters['RC2']["rc_type"] == 'simple_distance':
+        #        text = text + "\n"
+        #        text = text + "\n----------------------- Coordinate 2 - Simple-Distance -------------------------"
+        #        text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOMS_NAMES'][0] )
+        #        text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOMS_NAMES'][1] )
+        #        text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']  , parameters['RC2']['force_constant'] )
+        #        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum'], parameters['maxIterations']         )
+        #        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']  , parameters['rmsGradient']           )
+        #        text = text + "\n--------------------------------------------------------------------------------"
+        #
+        #    
+        #    elif parameters['RC2']["rc_type"] == 'multiple_distance':
+        #        text = text + "\n"
+        #        text = text + "\n---------------------- Coordinate 2 - multiple-Distance ------------------------"	
+        #        text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOMS_NAMES'][0] )
+        #        text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOMS_NAMES'][1] )
+        #        text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOMS_NAMES'][2] )
+        #        text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']      , parameters['RC2']['force_constant'] )
+        #        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maxIterations']         )
+        #        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradient']           )
+        #        text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['RC2']['sigma_pk1pk3'], parameters['RC2']['sigma_pk3pk1']   )
+        #        text = text + "\n--------------------------------------------------------------------------------"
+        #    else:
+        #        pass
+        #    #-----------------------------------------------------------------------------------------------------------------------------------------------------------
+        #    
+        #
+        #
+        #
+        #
+        #
+        #
+        #
+        ##-----------------------------------------------------------------------------------------------------------------------------------------------------------
+        #'''This part writes the header of the frames distances and energy'''
+        #if parameters["RC2"] is not None :
+        #    text = text + "\n\n--------------------------------------------------------------------------------"
+        #    text = text + "\n   Frame i  /  j        RCOORD-1             RCOORD-2                Energy     "
+        #    text = text + "\n--------------------------------------------------------------------------------"
+        #
+        #
+        #
+        #
+        #else:
+        #    if parameters['RC1']["rc_type"] == 'simple_distance':
+        #        text = text + "\n\n-------------------------------------------------------------"
+        #        text = text + "\n           Frame    dist-ATOM1-ATOM2             Energy      "
+        #        text = text + "\n-------------------------------------------------------------"
+        #    
+        #    elif parameters['RC1']["rc_type"] == 'multiple_distance':
+        #        text = text + "\n\n--------------------------------------------------------------------------------"
+        #        text = text + "\n           Frame     dist-ATOM1-ATOM2      dist-ATOM2-ATOM3         Energy        "
+        #        text = text + "\n--------------------------------------------------------------------------------  "
+        ##-----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+            
+        
+        
+        
+            
+            
+            #text = text + "\n\n------------------------------------------------------"
+            #text = text + "\n       Frame     distance-pK1-pK2         Energy      "
+            #text = text + "\n------------------------------------------------------"
+        
+        arq.write(text)
+        return arq
+
     
+
+    def run (self, parameters, interface = False):
+        """ Function doc """
+        
+        full_path_trajectory = os.path.join(parameters['folder'], 
+                                            parameters['traj_folder_name'])
+
+        os.mkdir(
+                 full_path_trajectory
+                 )
+        
+
+        # - - - - - - - - - - - - - Checking trajectory - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(full_path_trajectory, 'output.log') )
+        parameters['system'].Summary(log = self.logFile2)
+        self.logFile2.Header ( )
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+        if parameters['RC2'] is not None:
+            self._run_umbrella_sampling_2D(parameters = parameters, interface = False)
+        else:
+            self._run_umbrella_sampling_1D(parameters)
+
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        self.logFile2.Footer ( )
+        self.logFile2.Close()
+        self.logFile2 = None
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            
+
+    def _run_umbrella_sampling_1D (self, parameters):
+        """ Function doc """
+
+        #----------------------------------------------------------------------------------------
+        full_path_trajectory_eq = os.path.join(parameters['folder'], parameters['traj_folder_name'], 'equilibration')
+        isExist = os.path.exists(full_path_trajectory_eq)
+        if isExist:
+            pass
+        else:
+            os.mkdir(full_path_trajectory_eq)
+        parameters['trajectory_path_eq'] = full_path_trajectory_eq
+        #----------------------------------------------------------------------------------------
+        
+        
+        #----------------------------------------------------------------------------------------
+        full_path_trajectory_dc = os.path.join(parameters['folder'], parameters['traj_folder_name'], 'data_collection')
+        isExist = os.path.exists(full_path_trajectory_dc)
+        if isExist:
+            pass
+        else:
+            os.mkdir(full_path_trajectory_dc)
+        parameters['trajectory_path_dc'] = full_path_trajectory_dc
+        #----------------------------------------------------------------------------------------
+        
+
+        
+        
+        
+        
+        if parameters['input_type'] == 1: # means = parallel
+            #------------------------------------------------------------------
+            files = os.listdir( parameters['source_folder'])
+            pkl_files = []
+            for _file in files:
+                # Check file extention
+                if _file.endswith('.pkl'):
+                    pkl_files.append(_file)
+            pkl_files.sort()
+            
+            #-------------------------------------------------------------------------
+            e_treeview_iter  = getattr(parameters['system'], 'e_treeview_iter', None)
+            e_liststore_iter = getattr(parameters['system'], 'e_liststore_iter', None)
+            parameters['system'].e_treeview_iter   = None
+            parameters['system'].e_liststore_iter  = None            
+            #-------------------------------------------------------------------------
+            
+            
+            #-------------------------------------------------------------------------
+            joblist = []
+            for pkl in pkl_files:
+                #  - - - - adding to the joblist - - - - 
+                system  = parameters['system']
+                i = int(pkl[5:-4]) 
+                joblist.append([i, pkl, parameters, parameters['system']])
+            
+            print('input_type', parameters['input_type'],  joblist, parameters['NmaxThreads'])
+            p = multiprocessing.Pool(processes=parameters['NmaxThreads'])
+            results = p.map(_run_parallel_umbrella_sampling_1D, joblist)
+            #-------------------------------------------------------------------------
+
+
+            parameters['system'].e_treeview_iter  = e_treeview_iter 
+            parameters['system'].e_liststore_iter = e_liststore_iter 
+            
+        
+        else:
+            self._run_serial_umbrella_sampling_1D (parameters)
+    
+    
+    
+    
+    
+    def _run_serial_umbrella_sampling_1D (self, parameters):
+        """ Function doc """
+        
+        #-------------------------------------------------------------------------
+        #Setting some local vars to ease the notation in the pDynamo methods
+        #----------------------------------
+        opt_parameters  = parameters['OPT_parm']
+        md_paramters    = parameters['MD_parm']
+        
+        atom1 = parameters['RC1']['ATOMS'][0]
+        atom2 = parameters['RC1']['ATOMS'][1]                   
+        #---------------------------------
+        restraints = RestraintModel()
+        parameters['system'].DefineRestraintModel( restraints )                     
+        #----------------------------------------------------------------------------------------
+        
+        
+        full_path_trajectory_eq = parameters['trajectory_path_eq']
+        full_path_trajectory_dc = parameters['trajectory_path_dc']
+        '''
+        #----------------------------------------------------------------------------------------
+        full_path_trajectory_eq = os.path.join(parameters['folder'], parameters['traj_folder_name'], 'equilibration')
+        os.mkdir(full_path_trajectory_eq)
+        
+        full_path_trajectory_dc = os.path.join(parameters['folder'], parameters['traj_folder_name'], 'data_collection')
+        os.mkdir(full_path_trajectory_dc)
+        #----------------------------------------------------------------------------------------
+        '''
+        
+        arq = self.write_header(parameters)
+        data = []
+        
+        for i in range(parameters['RC1']['nsteps']):       
+            distance = parameters['RC1']['dminimum'] + ( parameters['RC1']['dincre'] * float(i) )
+            
+            
+            '''----------------------------------------------------------------------------------------------------------------'''
+            if parameters['RC1']["rc_type"] == 'simple_distance':
+                #---------------------------------------------------------------------------------------------------------
+                rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+                restraint         = RestraintDistance.WithOptions(energyModel = rmodel, point1= atom1, point2= atom2)
+                restraints["RC1"] = restraint            
+                #---------------------------------------------------------------------------------------------------------
+                
+            elif parameters['RC1']["rc_type"] == 'multiple_distance':
+                #--------------------------------------------------------------------
+                atom3   = parameters['RC1']['ATOMS'][2]
+                weight1 = parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+                weight2 = parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
+                
+                rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+                restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom2, atom1, weight1 ], [ atom2, atom3, weight2 ] ] )
+                restraints["RC1"] = restraint            
+                #--------------------------------------------------------------------
+            else:
+                pass
+                
+            
+            
+            '''             G E O M E T R Y   O P T I M I Z A T I O N            '''
+            if parameters['OPT_parm'] is not None:
+                _us_geo_opt(parameters['system'], opt_parameters)
+            
+            
+            
+            '''                M O L E C U L A R   D Y N A M I C S               '''
+            _us_molecular_dynamics (system          = parameters['system'], 
+                                    parameters      = md_paramters, 
+                                    path_trajectory = full_path_trajectory_eq, 
+                                    mode            = 0, 
+                                    i = i, 
+                                    j = None)
+            
+            _us_molecular_dynamics (system          = parameters['system'], 
+                                    parameters      = md_paramters, 
+                                    path_trajectory = full_path_trajectory_dc, 
+                                    mode            = 1, 
+                                    i = i, 
+                                    j = None)
+        #---------------------------------------
+        parameters['system'].DefineRestraintModel(None)
+        
+
+
+def _run_parallel_umbrella_sampling_1D (job):
+    """ Function doc """
+    #print('hello')
+    i          = job[0]
+    pkl        = job[1]
+    parameters = job[2]
+    system     = job[3]
+
+    parameters['system'].coordinates3 = ImportCoordinates3(os.path.join(parameters['source_folder'], pkl ))
+    #-------------------------------------------------------------------------
+    #Setting some local vars to ease the notation in the pDynamo methods
+    #----------------------------------
+    opt_parameters  = parameters['OPT_parm']
+    md_paramters    = parameters['MD_parm']
+    
+    
+    #----------------------------------------------------------------------------------------
+    full_path_trajectory_eq = parameters['trajectory_path_eq']
+    full_path_trajectory_dc = parameters['trajectory_path_dc']
+    #----------------------------------------------------------------------------------------    
+    
+    
+    #----------------------------------------------------------------------------------------    
+    atom1 = parameters['RC1']['ATOMS'][0]
+    atom2 = parameters['RC1']['ATOMS'][1]                   
+    #---------------------------------
+    restraints = RestraintModel()
+    parameters['system'].DefineRestraintModel( restraints )                     
+    #----------------------------------------------------------------------------------------
+
+
+    '''----------------------------------------------------------------------------------------------------------------'''
+    if parameters['RC1']["rc_type"] == 'simple_distance':
+        distance = system.coordinates3.Distance( atom1, atom2)
+        #---------------------------------------------------------------------------------------------------------
+        rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+        restraint         = RestraintDistance.WithOptions(energyModel = rmodel, point1= atom1, point2= atom2)
+        restraints["RC1"] = restraint            
+        #---------------------------------------------------------------------------------------------------------
+    elif parameters['RC1']["rc_type"] == 'multiple_distance':
+        #--------------------------------------------------------------------
+
+        atom3   = parameters['RC1']['ATOMS'][2]
+        weight1 = parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+        weight2 = parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
+        
+        distance_a1_a2 = system.coordinates3.Distance( atom1, atom2)
+        distance_a2_a3 = system.coordinates3.Distance( atom2, atom3)
+        
+        distance = (weight1 * distance_a1_a2) - (weight2 * distance_a2_a3*-1)
+        
+        rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+        restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom2, atom1, weight1 ], [ atom2, atom3, weight2 ] ] )
+        restraints["RC1"] = restraint            
+        #--------------------------------------------------------------------
+    else:
+        pass
+
+
+
+
+    '''             G E O M E T R Y   O P T I M I Z A T I O N            '''
+    if parameters['OPT_parm'] is not None:
+        _us_geo_opt(parameters['system'], opt_parameters)
+
+
+
+    '''                M O L E C U L A R   D Y N A M I C S               '''
+    _us_molecular_dynamics (system          = parameters['system'], 
+                            parameters      = md_paramters, 
+                            path_trajectory = full_path_trajectory_eq, 
+                            mode            = 0, 
+                            i = i, 
+                            j = None)
+
+    _us_molecular_dynamics (system          = parameters['system'], 
+                            parameters      = md_paramters, 
+                            path_trajectory = full_path_trajectory_dc, 
+                            mode            = 1, 
+                            i = i, 
+                            j = None)
+    #---------------------------------------
+    parameters['system'].DefineRestraintModel(None)
+
+
+
+
+
+
+
+
+
+
+
+def _us_geo_opt (system, parameters):
+    """ Function doc """
+    parameters['log_frequency'] = 50
+    
+    if parameters['optimizer'] == 'ConjugatedGradient':
+        #-------------------------------------------------------------------------------------------------------------
+        ConjugateGradientMinimize_SystemGeometry(system                     ,                
+                                                 logFrequency           = parameters['log_frequency'],
+                                                 maximumIterations      = parameters['maxIterations'],
+                                                 rmsGradientTolerance   = parameters['rmsGradient'])
+        #-------------------------------------------------------------------------------------------------------------
+    
+    elif parameters['optimizer'] == 'SteepestDescent':
+        SteepestDescentMinimize_SystemGeometry( system                                            ,               
+                                            logFrequency            = parameters['log_frequency'] ,
+                                            maximumIterations       = parameters['maxIterations'] ,
+                                            rmsGradientTolerance    = parameters['rmsGradient']   )
+    
+    elif parameters['optimizer'] == 'LFBGS':
+        LBFGSMinimize_SystemGeometry(parameters['system']                               ,                
+                                     logFrequency         = parameters['log_frequency'] ,
+                                     maximumIterations    = parameters['maxIterations'] ,
+                                     rmsGradientTolerance = parameters['rmsGradient']   )
+    else:
+        pass
+
+
+def _us_molecular_dynamics (system, parameters, path_trajectory, mode = 0, i = None, j = None):
+    """ 
+    
+    mode =  0 # equilibration
+    mode =  1 # data collection
+    
+    i = int  - 1a  RC index
+    j = int  - 2sd RC index  
+    Function doc """
+    
+
+    #-----------------------------------------------------------------------------------------------------
+    # . Equilibration.
+    if mode == 0:        
+        if j == None:
+            full_path_trajectory = os.path.join(path_trajectory, 'window{:d}.ptGeo'.format ( i ))
+        else:
+            full_path_trajectory = os.path.join(path_trajectory, 'window{:d}_{:d}.ptGeo'.format ( i, j ))
+        parameters['steps']  = parameters['steps_eq'] 
+    #-----------------------------------------------------------------------------------------------------
+    
+    
+    
+    
+    #-----------------------------------------------------------------------------------------------------
+    # . Data Collection
+    elif mode == 1:
+        if j == None:
+            full_path_trajectory = os.path.join(path_trajectory, 'window{:d}.ptRes'.format ( i ))
+        else:
+            full_path_trajectory = os.path.join(path_trajectory, 'window{:d}_{:d}.ptRes'.format ( i, j ))
+        parameters['steps']  = parameters['steps_dc']
+    #-----------------------------------------------------------------------------------------------------
+    else:
+        pass
+    
+    
+    #trajectoy instances
+    trajectory = ExportTrajectory(full_path_trajectory,  system , log=None )
+    
+    
+    
+    
+        
+    if parameters['integrator'] == 'Verlet':
+        _us_velocity_verlet_dynamics(system, trajectory, parameters)
+    
+    elif parameters['integrator'] == 'LeapFrog':
+        _us_leap_frog_dynamics (system, trajectory, parameters)
+    
+    elif parameters['integrator'] == 'Langevin':
+        _us_langevin_dynamics (system, trajectory, parameters)
+    
+    else:
+        pass
+        
+        
+def _us_leap_frog_dynamics (system, trajectory, parameters ):
+    """ Function doc """
+    if parameters['pressureControl']:
+        LeapFrogDynamics_SystemGeometry ( parameters['system']                       ,
+                                          logFrequency           = parameters['logFrequency'] ,
+                                          #normalDeviateGenerator = normalDeviateGenerator ,
+                                          pressure               = parameters['pressure'],
+                                          pressureControl        = parameters['pressureControl'],
+                                          pressureCoupling       = parameters['pressureCoupling'],
+                                          steps                  = parameters['steps'],
+                                          temperature            = parameters['temperatureStart'],
+                                          temperatureControl     = parameters['temperatureControl'],
+                                          temperatureCoupling    = parameters['temperatureCoupling'],
+                                          timeStep               = parameters['timeStep'],
+                                          trajectories           = [(trajectory, parameters['trajectory_frequency'])],
+                                          )
+                    
+
+    else:
+        LeapFrogDynamics_SystemGeometry ( system                                               ,
+                                          logFrequency           =  parameters['logFrequency'] ,
+                                          #normalDeviateGenerator = normalDeviateGenerator ,
+                                          steps                  =  parameters['steps'] ,
+                                          temperature            =  parameters['temperatureStart'] ,
+                                          temperatureControl     =  parameters['temperatureControl'] ,
+                                          temperatureCoupling    =  parameters['temperatureCoupling'] ,
+                                          timeStep               =  parameters['timeStep'] ,
+                                          trajectories           = [(trajectory,  parameters['trajectory_frequency'])]
+                                          
+                                          )
+                                          
+
+def _us_velocity_verlet_dynamics (system, trajectory, parameters):
+    """ Function doc """
+    # . Define a normal deviate generator in a given state.
+    #normalDeviateGenerator = NormalDeviateGenerator.WithRandomNumberGenerator ( RandomNumberGenerator.WithSeed ( parameters['seed'] ) )        
+
+    VelocityVerletDynamics_SystemGeometry ( system                                                     ,
+                                            logFrequency              = parameters['logFrequency']                  ,
+                                            #normalDeviateGenerator    = normalDeviateGenerator                      ,
+                                            steps                     = parameters['steps']                         ,
+                                            timeStep                  = parameters['timeStep']                      ,
+                                            temperatureScaleFrequency = parameters['temperatureScaleFrequency']     ,
+                                            temperatureScaleOption    = "constant"                                  ,
+                                            temperatureStart          = parameters['temperatureStart']              ,
+                                            trajectories              = [(trajectory, parameters['trajectory_frequency'])],
+                                            #log                       = self.logFile2
+                                            )
+
+
+def _us_langevin_dynamics (system, trajectory, parameters):
+    
+    """ Function doc """
+    # . Define a normal deviate generator in a given state.
+    #normalDeviateGenerator = NormalDeviateGenerator.WithRandomNumberGenerator ( RandomNumberGenerator.WithSeed ( parameters['seed'] ) )        
+    LangevinDynamics_SystemGeometry ( system                                                             ,
+                                      collisionFrequency     = parameters['collisionFrequency']                       ,
+                                      logFrequency           = parameters['logFrequency']                             ,
+                                      #normalDeviateGenerator = normalDeviateGenerator                                 ,
+                                      steps                  = parameters['steps']                                    ,
+                                      temperature            = parameters['temperatureStart']                         ,
+                                      timeStep               = parameters['timeStep']                                 ,
+                                      trajectories           = [(trajectory, parameters['trajectory_frequency'])],
+                                      #log                    = self.logFile2
+                                      )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class ChainOfStatesOptimizePath:
@@ -1126,6 +2044,7 @@ class ChainOfStatesOptimizePath:
         self.logFile2.Footer ( )
         self.logFile2.Close ( )
         self.logFile2 = None
+
 
 
 class NormalModes:
@@ -1342,6 +2261,10 @@ def _run_second_coordinate_in_parallel ( job):
                               "frame{}_{}.pkl".format(i,j) ), 
                               
                               system.coordinates3 )
+                              
+        backup_orca_files(system        = system, 
+                          output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
+                          output_name   = "frame{}_{}".format(i,j))
         #--------------------------------------------------------------------------------------
         print(i, j, 'Energy:', energy, opt_convergency)
     return data

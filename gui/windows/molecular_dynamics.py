@@ -28,6 +28,7 @@ from gi.repository import Gtk
 #from GTKGUI.gtkWidgets.filechooser import FileChooser
 from gui.gtk_widgets import FolderChooserButton
 from gui.gtk_widgets import SaveTrajectoryBox
+from gui.gtk_widgets import CoordinatesComboBox
 
 import gc
 import os
@@ -97,14 +98,21 @@ class MolecularDynamicsWindow():
             #
             #'''--------------------------------------------------------------------------------------------'''
             # combobox
-            self.starting_coords_liststore = self.main.vobject_liststore_dict[self.main.p_session.active_id]
-            self.combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
-            self.combobox_starting_coordinates.set_model(self.starting_coords_liststore)
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_starting_coordinates.pack_start(renderer_text, True)
-            self.combobox_starting_coordinates.add_attribute(renderer_text, "text", 0)
+            #self.starting_coords_liststore = self.main.vobject_liststore_dict[self.main.p_session.active_id]
+            #self.combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
+            #self.combobox_starting_coordinates.set_model(self.starting_coords_liststore)
+            #renderer_text = Gtk.CellRendererText()
+            #self.combobox_starting_coordinates.pack_start(renderer_text, True)
+            #self.combobox_starting_coordinates.add_attribute(renderer_text, "text", 0)
             #
-            size = len(self.starting_coords_liststore)
+            #self.starting_coords_liststore = self.main.vobject_liststore_dict[self.main.p_session.active_id]
+            self.box_coordinates = self.builder.get_object('box_coordinates')
+            self.combobox_starting_coordinates = CoordinatesComboBox() #self.builder.get_object('coordinates_combobox')
+            self.box_coordinates.pack_start(self.combobox_starting_coordinates, False, False, 0)
+            self._starting_coordinates_model_update(init = True)
+                       
+            
+            size = len(self.combobox_starting_coordinates.get_model())
             self.combobox_starting_coordinates.set_active(size-1)
             #'''--------------------------------------------------------------------------------------------'''
 
@@ -189,6 +197,32 @@ class MolecularDynamicsWindow():
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
+
+
+    def _starting_coordinates_model_update (self, init = False):
+        """ Function doc """
+        #------------------------------------------------------------------------------------
+        '''The combobox accesses, according to the id of the active system, 
+        listostore of the dictionary object_list state_dict'''
+        if self.Visible:
+
+            e_id = self.main.p_session.active_id 
+            self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[e_id])
+            #------------------------------------------------------------------------------------
+            size = len(self.main.vobject_liststore_dict[e_id])
+            self.combobox_starting_coordinates.set_active(size-1)
+            #------------------------------------------------------------------------------------
+        else:
+            if init:
+                e_id = self.main.p_session.active_id 
+                self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[e_id])
+                #------------------------------------------------------------------------------------
+                size = len(self.main.vobject_liststore_dict[e_id])
+                self.combobox_starting_coordinates.set_active(size-1)
+                #------------------------------------------------------------------------------------
+            else:
+                pass
+
     
     def run (self, button):
         '''
@@ -440,9 +474,20 @@ class MolecularDynamicsWindow():
     def update_working_folder_chooser (self, folder = None):
         """ Function doc """
         if folder:
-            print('update_working_folder_chooser')
+            #print('update_working_folder_chooser')
             self.save_trajectory_box.set_folder(folder = folder)
         else:
-            self.save_trajectory_box.set_folder(folder = HOME)
+            
+            folder = self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder
+            if folder:
+                self.save_trajectory_box.set_folder(folder = folder)
+            else:
+                pass
 
 
+    def update (self, parameters = None):
+        """ Function doc """
+        self._starting_coordinates_model_update()
+        if self.Visible:
+            self.update_working_folder_chooser()
+        

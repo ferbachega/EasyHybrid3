@@ -11,7 +11,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
-import glob, math, os, os.path, sys
+import glob, math, os, os.path, sys, shutil
 import pickle
 
 from datetime import date
@@ -69,6 +69,8 @@ from pdynamo.p_methods import MolecularDynamics
 from pdynamo.p_methods import ChainOfStatesOptimizePath
 from pdynamo.p_methods import NormalModes
 from pdynamo.p_methods import EnergyCalculation
+from pdynamo.p_methods import EnergyRefinement
+from pdynamo.p_methods import UmbrellaSampling
 from pdynamo.LogFileWriter import LogFileReader
 
 '''
@@ -129,7 +131,6 @@ class LoadAndSaveData:
         
         with open(filename,'wb') as outfile:
             pickle.dump(easyhybrid_session_data, outfile)
-
 
 
 class EasyHybridImportTrajectory:
@@ -434,7 +435,6 @@ class EasyHybridImportTrajectory:
         self.main.main_treeview.refresh_number_of_frames()
 
 
-
 class pSimulations:
     """ Class doc """
     
@@ -443,20 +443,78 @@ class pSimulations:
         pass
 
 
+    def _apply_restraints (self, parameters):
+        """ Function doc 
+        
+        parameters['system'].e_restraints_dict[rest_name] = [True, 
+                                                     rest_name ,
+                                                     'distance', 
+                                                     [parameters['atom1'],parameters['atom2']], 
+                                                     parameters['distance'],  
+                                                     parameters['force_constant']] 
+
+        """
+        #--------------------------------------------------------------------------
+        parameters['system'].DefineRestraintModel(None)
+        restraints = RestraintModel()
+        parameters['system'].DefineRestraintModel( restraints )
+        for name, restraint_list in parameters['system'].e_restraints_dict.items():
+
+            if restraint_list[0]:
+                
+                if restraint_list[2] == 'distance':
+                    rmodel    = RestraintEnergyModel.Harmonic(restraint_list[4],restraint_list[5])
+                    restraint = RestraintDistance.WithOptions(energyModel = rmodel, 
+                                                                   point1 = restraint_list[3][0] , 
+                                                                   point2 = restraint_list[3][1] )
+                    restraints[name] = restraint
+        #--------------------------------------------------------------------------
+        return parameters
+        
     def run_simulation (self, parameters):
-        """ Function doc """
+        """ Function doc 
+        arameters['system'].e_restraints_dict[rest_name] = [ True, 
+                                                             rest_name,
+                                                             parameters['atom1'], 
+                                                             parameters['atom2'], 
+                                                             parameters['distance'],  
+                                                             parameters['force_constant']]
+        
+        
+        
+        
+        """
         parameters['system'] = self.psystem[self.active_id] 
+        parameters = self._apply_restraints (parameters)
+        ##--------------------------------------------------------------------------
+        #parameters['system'].DefineRestraintModel(None)
+        #restraints = RestraintModel()
+        #parameters['system'].DefineRestraintModel( restraints )
+        #for name, restraint_list in parameters['system'].e_restraints_dict.items():
+        #
+        #    if restraint_list[0]:
+        #        rmodel    = RestraintEnergyModel.Harmonic(restraint_list[4],restraint_list[5])
+        #        restraint = RestraintDistance.WithOptions(energyModel = rmodel, 
+        #                                                        point1 = restraint_list[2] , 
+        #                                                        point2 = restraint_list[3] )
+        #        restraints[name] = restraint
+        ##--------------------------------------------------------------------------
+        
         pprint(parameters)
         
+        energy = None
+        new_vobject = True
 
-        if parameters['simulation_type'] == 'Energy':
+        if parameters['simulation_type'] == 'Energy_Single_Point':
             self.energy_calculations = EnergyCalculation()
             energy = self.energy_calculations.run(parameters)
-            
-            self.main.bottom_notebook.status_teeview_add_new_item(message = 'New VObejct:  {}   Energy:  {:.3f}'.format(parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter), energy))
-            return True
-            #self.geometry_optimization_object = GeometryOptimization()
-            #self.geometry_optimization_object.run(parameters)
+            new_vobject = False
+        
+        elif parameters['simulation_type'] == 'Energy_Refinement':
+            self.energy_refinement = EnergyRefinement()
+            energy = self.energy_refinement.run(parameters)
+            new_vobject = False
+
         
         elif parameters['simulation_type'] == 'Geometry_Optimization':
             self.geometry_optimization_object = GeometryOptimization()
@@ -472,6 +530,11 @@ class pSimulations:
         elif parameters['simulation_type'] == 'Relaxed_Surface_Scan':
             self.relaxed_surface_scan = RelaxedSurfaceScan()
             self.relaxed_surface_scan.run(parameters = parameters, interface = True)
+        
+        
+        elif parameters['simulation_type'] == 'Umbrella_Sampling':
+            self.umbrella_sampling = UmbrellaSampling()
+            self.umbrella_sampling.run(parameters = parameters, interface = True)
             
 
         
@@ -489,22 +552,40 @@ class pSimulations:
             pass
         
         
+        
         if parameters['folder']:
-            self.psystem[self.active_id].e_working_folder == parameters['folder']
+            self.psystem[self.active_id].e_working_folder = parameters['folder']
         else:
             pass
         
         
-        vismol_object = self._add_vismol_object_to_easyhybrid_session(system = self.psystem[self.active_id], 
-                                                                        name = parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter))        
         
-        self.main.bottom_notebook.status_teeview_add_new_item(message = 'New VObejct:  {} '.format(parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter)))
-                                                                                                                          
 
-        self._apply_fixed_representation_to_vobject(system_id = None, vismol_object = vismol_object)
-        self._apply_QC_representation_to_vobject   (system_id = None, vismol_object = vismol_object)
+    
+        if energy:
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'New VObejct:  {}   Energy:  {:.3f}'.format(parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter), energy), system = parameters['system'])
+        else:
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'New VObejct:  {} '.format(parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter)), system = parameters['system'])
+        
+        
+        
+        
+        
+        if new_vobject:
+            vismol_object = self._add_vismol_object_to_easyhybrid_session(system = self.psystem[self.active_id], 
+                                                                            name = parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter))        
+            self._apply_fixed_representation_to_vobject(system_id = None, vismol_object = vismol_object)
+            self._apply_QC_representation_to_vobject   (system_id = None, vismol_object = vismol_object)
+        
+        else:
+            pass
+
+
 
         parameters['system'].e_step_counter += 1
+        
+        return energy
+        
         
 class ModifyRepInVismol:
     """ Class doc """
@@ -595,7 +676,35 @@ class Restraints:
     
     def __init__ (self):
         """ Class initialiser """
-        pass
+    
+    
+    def add_new_harmonic_restraint (self, parameters, _type = 'distance'):
+        """ Function doc """
+        #restraints = RestraintModel()
+        #parameters['system'].DefineRestraintModel( restraints )
+        
+        if _type == 'distance':
+            
+            atom1 = parameters['atom1']
+            atom2 = parameters['atom2']
+           
+            rest_name = str(parameters['system'].e_restraint_counter)
+            parameters['system'].e_restraints_dict[rest_name] = [True, 
+                                                                 rest_name ,
+                                                                 'distance', 
+                                                                 [parameters['atom1'],parameters['atom2']], 
+                                                                 parameters['distance'],  
+                                                                 parameters['force_constant'],
+                                                                 parameters['system'].e_id] 
+            
+            
+            parameters['system'].e_restraint_counter += 1
+        
+        else:
+            pass
+        #restraints["RC1"] = restraint
+    
+    
     def define_harmonic_restraints (self, parameters):
         """ Function doc """
         parameters['equilibriumValue'] = 0.0
@@ -611,7 +720,7 @@ class Restraints:
                                                                    selection   = heavies           )
         system.DefineRestraintModel ( tethers )
 
-    def define_distance_farmonic_restraints (self, parameters):
+    def define_distance_harmonic_restraints (self, parameters):
         """ Function doc """
         restraints = RestraintModel()
         
@@ -628,7 +737,7 @@ class Restraints:
         parameters['system'].DefineRestraintModel(None)
 
 
-class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybridImportTrajectory):
+class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybridImportTrajectory, Restraints):
     """ Class doc """
     
     def __init__ (self, vm_session = None):
@@ -697,7 +806,7 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         return name
         
         
-    def load_a_new_pDynamo_system_from_dict (self, input_files = {}, system_type = 0, name = None, tag = None):
+    def load_a_new_pDynamo_system_from_dict (self, input_files = {}, system_type = 0, name = None, tag = None, color = None):
         """ Function doc """
 
         #psystem = self.generate_pSystem_dictionary()
@@ -745,7 +854,7 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         
         system.e_input_files = input_files
         system = self.append_system_to_pdynamo_session ( 
-                                                        system = system,  name = name, tag = tag )
+                                                        system = system,  name = name, tag = tag, color = color )
         
         '''-----------------------------------------------------------------'''
         
@@ -782,7 +891,7 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
                                           name           = 'pDynamo system',
                                           tag            = 'molsys'        ,
                                           working_folder = None            ,
-                                                        ):
+                                          color          = None            ):
         """ Function doc """
         
         if name:
@@ -795,7 +904,22 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         else:
             system.e_tag ='MolSys'
         
-        system.e_working_folder           = working_folder
+        
+        if working_folder is None:
+            is_wf_already_set = getattr ( system, "e_working_folder", False )            
+            #print ('is_wf_already_set = getattr ( system, "e_working_folder", False', is_wf_already_set )
+            if is_wf_already_set is False:
+                try:  
+                    system.e_working_folder = os.environ.get('PDYNAMO3_SCRATCH')
+                    #print (system.e_working_folder)
+                except:
+                    system.e_working_folder =  os.environ.get('HOME')
+            else:
+                pass
+        else:
+            system.e_working_folder           = working_folder
+        
+        
         
         try:
             system.e_charges_backup           = list(system.AtomicCharges()).copy()
@@ -812,15 +936,27 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         
         system.e_active                   = False
         system.e_date                     = date.today()               # Time     
-        system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
         
         
-        '''When the number of available colors runs out, we have to reset the counter'''
-        self.color_palette_counter        += 1
-        if self.color_palette_counter > len(COLOR_PALETTE.keys())-1:
-            self.color_palette_counter = 0
-        else:
+        is_color_palette = getattr(system, 'e_color_palette', None)
+        
+        if is_color_palette is not None:
             pass
+        else:
+            if color is not None:
+                system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
+                print(system.e_color_palette['C'])
+                system.e_color_palette['C']       = color
+                print(system.e_color_palette['C'])
+
+            else:
+                system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
+                '''When the number of available colors runs out, we have to reset the counter'''
+                self.color_palette_counter        += 1
+                if self.color_palette_counter > len(COLOR_PALETTE.keys())-1:
+                    self.color_palette_counter = 0
+                else:
+                    pass
         
         #system.e_vobject                  = None            # Vismol object associated with the system -> is the object that will 
 
@@ -838,6 +974,20 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         system.e_vm_objects               = {}                  
         system.e_logfile_data             = {}             # <--- vobject_id : [data0, data1, data2], ...]  obs: each "data" is a dictionary 
         system.e_step_counter             = 0              
+        
+        system.e_restraint_counter        = 0
+        system.e_restraints_dict          = {
+                                              #[True, 
+                                              # rest_name ,
+                                              # 'distance', 
+                                              # [parameters['atom1'],parameters['atom2']], 
+                                              # parameters['distance'],  
+                                              # parameters['force_constant']] 
+                                            
+                                            }
+        
+        
+        
         
         '''Now each pdynamo system object and vismol object has a 
         "treeview_iter" attribute, which is a reference to access 
@@ -1135,7 +1285,7 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         return True
 
 
-    def prune_system (self, selection = None, name = 'Pruned System', summary = True, tag = "molsys"):
+    def prune_system (self, selection = None, name = 'Pruned System', summary = True, tag = "molsys", color = None):
         """ Function doc """
         p_selection   = Selection.FromIterable ( selection )
         system        = PruneByAtom ( self.psystem[self.active_id], p_selection )
@@ -1149,7 +1299,7 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
             system.Summary ( )
             
         system = self.append_system_to_pdynamo_session ( 
-                                                        system = system,  name = name, tag = tag )
+                                                        system = system,  name = name, tag = tag, color = color )
         
         '''-----------------------------------------------------------------'''
         #system
@@ -1197,10 +1347,15 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         regions can distort the charge distribution of some residues. 
         (because charge rescale)'''
         
+        if vismol_object is None:
+            system =  self.psystem[self.active_id]
+        
+        
         if system:
             pass
         else:
-            system = self.psystem[self.active_id]
+            #system = self.psystem[self.active_id]
+            system = self.psystem[vismol_object.e_id]
         
         electronicState = ElectronicState.WithOptions ( charge = parameters['charge'], 
                                                   multiplicity = parameters['multiplicity'], 
@@ -1707,6 +1862,7 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         #-----------------------------------------------------------------------------------------------------------------------------
         return vismol_object
 
+
 class Atom:
     """ Class doc """
     
@@ -1920,13 +2076,24 @@ class Atom:
         return ball
     
     def coords(self, frame=None):
-        """ Function doc """
+        """ 
+        frame = int
+        
+        Returns the coordinates of an atom according to the specified frame. 
+        If no frame is specified, the frame set by easyhybrid (probably by the 
+        scale bar of the trajectory manipulation window) is used. If the object 
+        (vobject) has a smaller number of frames than the one set by the 
+        interface, the last frame of the object is used.
+        
+        return  xyz 
+        """
         if frame is None:
             frame  = self.vm_object.vm_session.frame
-        # x = self.vm_object.frames[frame][(self.index-1)*3  ]
-        # y = self.vm_object.frames[frame][(self.index-1)*3+1]
-        # z = self.vm_object.frames[frame][(self.index-1)*3+2]
-        # return np.array([x, y, z])
+            print (frame, len(self.vm_object.frames))
+            if len(self.vm_object.frames)-1 <= frame:
+                frame = len(self.vm_object.frames)-1
+            else:
+                pass
         return self.vm_object.frames[frame, self.atom_id]
     
     def get_grid_position(self, gridsize=3, frame=None):

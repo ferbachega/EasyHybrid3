@@ -2,23 +2,20 @@
 <!-- Generated with glade 3.22.2 -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
-  <object class="GtkAboutDialog">
+  <object class="GtkAboutDialog" id="about_dialog">
     <property name="can_focus">False</property>
     <property name="type_hint">dialog</property>
     <property name="program_name">EasyHybrid</property>
     <property name="version">3.0</property>
-    <property name="comments" translatable="yes">EasyHybrid is a free and open source graphical environment for the pDynamo3 package. </property>
+    <property name="comments" translatable="yes">EasyHybrid is a molecular modeling environment based on pDynamo3, with a focus on QC/MM hybrid simulations.</property>
     <property name="website">https://github.com/ferbachega/EasyHybrid3</property>
-    <property name="website_label" translatable="yes">EasyHybrid3 - Github page</property>
-    <property name="authors">Fernando Bachega 
-Luis Fernando Timmers 
-Igor Barden
-Martin Field
-
-</property>
-    <property name="documenters">Fernando Bachega </property>
+    <property name="website_label" translatable="yes">EasyHybrid3 - page on github</property>
+    <property name="authors">Fernando Bachega (main developer)
+Carlos Cerqueiros
+Martin John Field
+Igor Barden</property>
     <property name="logo">../icons/easyhybrid_solo_100x100.png</property>
-    <property name="license_type">lgpl-3-0</property>
+    <property name="license_type">gpl-3-0</property>
     <child type="titlebar">
       <placeholder/>
     </child>

@@ -74,10 +74,15 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkComboBox" id="combobox_starting_coordinates1">
+                              <object class="GtkBox" id="box_coordinates1">
+                                <property name="name">box_coordinates1</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
                                 <property name="hexpand">True</property>
+                                <property name="orientation">vertical</property>
+                                <child>
+                                  <placeholder/>
+                                </child>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
@@ -85,9 +90,14 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkComboBox" id="combobox_starting_coordinates2">
+                              <object class="GtkBox" id="box_coordinates2">
+                                <property name="name">box_coordinates2</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
+                                <property name="orientation">vertical</property>
+                                <child>
+                                  <placeholder/>
+                                </child>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>

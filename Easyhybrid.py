@@ -28,6 +28,24 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
 from gi.repository import GdkPixbuf
 
+
+#intro window -  nothing important. 
+'''
+class ImageWindow(Gtk.Window):
+    def __init__(self):
+        Gtk.Window.__init__(self, title="Image Example")
+        self.set_decorated(False)
+        image = Gtk.Image()
+        image.set_from_file("/home/fernando/Desktop/Screenshot from 2023-02-06 02-10-52.png")
+        
+        self.add(image)
+
+win = ImageWindow()
+win.connect("delete-event", Gtk.main_quit)
+win.show_all()
+Gtk.main()
+'''
+
 import os, sys, time
 
 
@@ -37,6 +55,8 @@ import vismol.utils.matrix_operations  as mop
 from gEngine.eSession import EasyHybridSession
 from gui.gtk_widgets import VismolSelectionTypeBox
 from gui.gtk_widgets import FileChooser
+from gui.gtk_widgets import get_colorful_square_pixel_buffer
+from gui.gtk_widgets import ReactionCoordinateBox
 
 from gui.windows.windows_and_dialogs import ImportANewSystemWindow
 from gui.windows.windows_and_dialogs import EasyHybridDialogSetQCAtoms
@@ -45,15 +65,18 @@ from gui.windows.windows_and_dialogs import EasyHybridGoToAtomWindow
 from gui.windows.windows_and_dialogs import PDynamoSelectionWindow
 from gui.windows.windows_and_dialogs import EasyHybridSelectionWindow
 from gui.windows.windows_and_dialogs import ExportDataWindow
-#from gui.windows.windows_and_dialogs import EnergyRefinementWindow
+
+from gui.windows.windows_and_dialogs import EnergyRefinementWindow
+from gui.windows.windows_and_dialogs import SinglePointwindow
+
 from gui.windows.windows_and_dialogs import ImportTrajectoryWindow
 from gui.windows.windows_and_dialogs import TrajectoryPlayerWindow
 from gui.windows.windows_and_dialogs import PotentialEnergyAnalysisWindow
 
 from gui.windows.easyhybrid_terminal import TerminalWindow
 from gui.windows.geometry_optimization_window import *
-from gui.windows.selection_list_window      import *
-from gui.windows.PES_scan_window            import PotentialEnergyScanWindow 
+from gui.windows.selection_list_window        import *
+from gui.windows.PES_scan_window              import PotentialEnergyScanWindow 
 
 from gui.windows.molecular_dynamics          import MolecularDynamicsWindow 
 from gui.windows.umbrella_sampling_window    import UmbrellaSamplingWindow 
@@ -190,13 +213,13 @@ class MainWindow:
 
             self.paned_V.add(self.paned_H)
             
-            self.bottom_notebook = BottonNoteBook(main = self)
+            self.bottom_notebook = BottomNoteBook(main = self)
             #self.paned_V.add(self.builder.get_object('notebook_text_and_logs'))
             self.paned_V.add(self.bottom_notebook.widget)
             self.paned_V_position = 400
             self.paned_V.set_position(self.paned_V_position)
 
-            self.bottom_notebook.status_teeview_add_new_item(message = 'This is EasyHybrid 3.0, have a happy simulation day!')
+            self.bottom_notebook.status_teeview_add_new_item(message = 'Welcome to EasyHybrid 3.0, have a happy simulation day!')
             
             #for i in range (10):
             #    self.bottom_notebook.status_teeview_add_new_items([str(i),str(i),str(i)])
@@ -215,13 +238,17 @@ class MainWindow:
         
         
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
-        self.system_liststore        = Gtk.ListStore(str, int)
-        #self.active_system_liststore = Gtk.ListStore(str, int)
+        self.system_liststore        = Gtk.ListStore(str, int, GdkPixbuf.Pixbuf)
+
         
-        self.vobject_liststore_dict  = { 
-                                       0 : Gtk.ListStore(str, int, int)  
-                                       # sys_id : GtkListiStore 
-                                       }
+        '''The "vobject_liststore_dict" is a dictionary where the access key is
+        the e_id, which is the index of the system of interest generated in 
+        "pDynamo2Easyhybrid/pDynamoSession/append_system_to_pdynamo_session". 
+        Each dictionary element contains a liststore that includes the respective 
+        vobjects.'''
+        self.vobject_liststore_dict  = {               
+                                       0 : Gtk.ListStore(str,  int, int, GdkPixbuf.Pixbuf)  # name, object_index, e_id, pixel_buffer
+                                       }                                 
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
 
 
@@ -262,7 +289,11 @@ class MainWindow:
         self.window_list.append(self.export_data_window)
 
         
-        #self.energy_refinement_window     = EnergyRefinementWindow       ( main = self)
+        self.energy_refinement_window     = EnergyRefinementWindow       ( main = self)
+        self.window_list.append(self.energy_refinement_window)
+        
+        self.single_point_window          = SinglePointwindow            ( main = self)
+        self.window_list.append(self.single_point_window)
         #self.window_list.append(self.energy_refinement_window)
 
         self.import_trajectory_window     = ImportTrajectoryWindow       (main = self)
@@ -277,13 +308,21 @@ class MainWindow:
         self.terminal_window           = TerminalWindow  (main = self)
         
         self.molecular_dynamics_window  = MolecularDynamicsWindow(main = self)
+        self.window_list.append(self.molecular_dynamics_window)
         
         self.umbrella_sampling_window   = UmbrellaSamplingWindow(main = self)
+        self.window_list.append(self.umbrella_sampling_window)
+        
         
         self.chain_of_states_opt_window = ChainOfStatesOptWindow(main = self)
+        self.window_list.append(self.chain_of_states_opt_window)
         
         self.normal_modes_analysis_window =   NormalModesAnalysisWindow (main = self)
+        
+        
         self.normal_modes_window          =   NormalModesWindow (main = self)
+        self.window_list.append(self.normal_modes_window)
+
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
 
         self.window.connect("destroy", Gtk.main_quit)
@@ -303,17 +342,23 @@ class MainWindow:
         #print ( a.get_size(), b, c)
     
     def add_vobject_to_vobject_liststore_dict (self, vismol_object):
-        """ Function doc """
-        e_id = vismol_object.e_id
+        """ Adds a vobject to the vobject liststore. """
+        e_id   = vismol_object.e_id
+        system = self.p_session.psystem[e_id]
+        
+        #--------------------------------------------------
+        #                  PIXEL BUFFER 
+        #--------------------------------------------------
+        sqr_color = get_colorful_square_pixel_buffer(system)
+        
+        
+        
         vismol_object.liststore_iter = self.vobject_liststore_dict[e_id].append([vismol_object.name, 
-                                                                              vismol_object.index, 
-                                                                              vismol_object.e_id])
-        '''
-        print('\n\n\n\n')
-        print(self.vobject_liststore_dict[e_id])
-        print(list(self.vobject_liststore_dict[e_id]))
-        print('\n\n\n\n')
-        '''
+                                                                                 vismol_object.index, 
+                                                                                 vismol_object.e_id,
+                                                                                 sqr_color]
+                                                                                 )
+
 
     def clear_vobject_liststore_dict (self, e_id = 'all'):
         """ Function doc """
@@ -371,8 +416,9 @@ class MainWindow:
             self.selection_list_window.OpenWindow()
 
         if button  == self.builder.get_object('toolbutton_energy'):
-            self.p_session.run_simulation (parameters = {'simulation_type' : 'Energy', 'system': self.p_session.psystem[self.p_session.active_id]})
-            self.energy_refinement_window.OpenWindow()
+            #self.p_session.run_simulation (parameters = {'simulation_type' : 'Energy', 'system': self.p_session.psystem[self.p_session.active_id]})
+            #self.energy_refinement_window.OpenWindow()
+            self.single_point_window.OpenWindow()
             
         if button  == self.builder.get_object('toolbutton_setup_QCModel'):
             self.setup_QCModel_window.OpenWindow()
@@ -446,10 +492,16 @@ class MainWindow:
             pass
         
         
+        elif menuitem == self.builder.get_object('menuitem_preferences'):
+            print(menuitem, 'menuitem_preferences', self.vm_session.vm_glcore.bckgrnd_color)
+            #self.vm_session.vm_glcore.bckgrnd_color = [1,1,1,1]
+            print(menuitem, 'menuitem_preferences', self.vm_session.vm_glcore.bckgrnd_color)
+            #self.vm_session.vm_config.gl_parameters["line_width"] =20
+            self.vm_session.vm_glcore.light_position = [0, 10, 100.0]
         
         
-        elif menuitem == self.builder.get_object('menuitem_energy'):
-            self.gtk_get_energy(button)
+        elif menuitem == self.builder.get_object('menuitem_energy'): 
+            self.single_point_window.OpenWindow()
             
         elif menuitem == self.builder.get_object('menuitem_geometry_optimization'):
             self.geometry_optimization_window.OpenWindow()
@@ -458,13 +510,13 @@ class MainWindow:
             self.molecular_dynamics_window.OpenWindow()
             
         elif menuitem == self.builder.get_object('menuitem_normal_modes'):
-            pass
+            self.normal_modes_window.OpenWindow()
             
         elif menuitem == self.builder.get_object('menuitem_rection_coordinate_scans'):
             self.PES_scan_window.OpenWindow()
             
         elif menuitem == self.builder.get_object('menuitem_nudged_elastic_band'):
-            pass
+            self.chain_of_states_opt_window.OpenWindow()
             
         elif menuitem == self.builder.get_object('menuitem_umbrella_sampling'):
             self.umbrella_sampling_window.OpenWindow()
@@ -485,26 +537,26 @@ class MainWindow:
         elif menuitem == self.builder.get_object('menuitem_energy_analysis'):
             self.PES_analysis_window.OpenWindow()
 
+        elif menuitem == self.builder.get_object('menuitem_mormal_modes_analysis'):
+            self.normal_modes_analysis_window.OpenWindow()
+
+
+        
+        elif menuitem == self.builder.get_object('menuitem_energy_refinement'):
+            self.energy_refinement_window.OpenWindow()
+        
+        
+        
+        
+        
         elif menuitem == self.builder.get_object('menuitem_about'):
-            about_dialog = Gtk.AboutDialog()
-            text = '''EasyHybrid is a free and open source graphical environment for the pDynamo3 package. It is developed using a combination of Python3, Cython3, GTK, and modern OpenGL. It utilizes the VisMol graphical engine to render 3D structures. EasyHybrid is a graphical extension of pDynamo that allows users to perform most of the basic pDynamo routines within its interface, as well as inspect, edit, and export pDynamo systems for further simulations using Python scripting in text mode. '''
-            # Set the properties of the about dialog
-            about_dialog.set_program_name("EasyHybrid")
-            about_dialog.set_version("3.0")
-            #about_dialog.set_copyright("Copyright 2022 My Company")
-            #about_dialog.set_comments("A simple program for demonstrating about dialogs")
-            about_dialog.set_comments(text)
-            about_dialog.set_website("https://github.com/ferbachega/EasyHybrid3")
-            about_dialog.set_website_label("Visit the EasyHybrid website")
-            about_dialog.set_authors(["Fernando Bachega", "Igor Barden", 'Luis Timmers', "Martin Field"])
-            about_dialog.set_documenters(["Fernando Bachega", "Igor Barden"])
+            builder = Gtk.Builder()
+            builder.add_from_file(os.path.join(self.home,'gui/windows/about_dialog_new.glade'))
 
-            # Connect the "response" signal to the hide() method of the about dialog,
-            # so that the dialog will be closed when the user clicks one of the buttons
-            about_dialog.connect("response", lambda d, r: d.hide())
+            dialog = builder.get_object('about_dialog')
+            dialog.run()
+            dialog.destroy()
 
-            # Show the about dialog
-            about_dialog.show()
 
 
     def gtk_load_files (self, button):
@@ -600,11 +652,11 @@ class MainWindow:
                                                                                                                  )
                 
             n_fixed_atoms = len(psystem.e_fixed_table)
-            string += 'fixed_atoms: {}    '.format(n_fixed_atoms)
+            string += 'fixed atoms: {}    '.format(n_fixed_atoms)
             
             if psystem.mmModel:
                 forceField = psystem.mmModel.forceField
-                string += 'forceField: {}    '.format(forceField)
+                string += 'force field: {}    '.format(forceField)
             
                 if psystem.nbModel:
                     nbmodel = psystem.mmModel.forceField
@@ -657,10 +709,31 @@ class MainWindow:
         if statusbar:
             self.refresh_main_statusbar()
     
-    
+
+    def print_btn (self, widget):
+        """ Function doc """
+        print(self.box_reac)
+        parm = self.box_reac.get_rc_data()
+        print(parm)
     def run_test (self, widget):
         """ Function doc """
-        self.p_session.run_simulation (parameters = {'simulation_type' : 'Energy', 'system': self.p_session.psystem[self.p_session.active_id]})
+        
+        window = Gtk.Window()
+        self.box_reac = ReactionCoordinateBox(main = self, mode = 1)
+        
+        btn = Gtk.Button()
+        btn.connect('clicked', self.print_btn)
+        
+        self.box_reac.pack_start(btn, False, False, 0)
+        window.add(self.box_reac)
+        
+        window.show_all()
+        self.box_reac.set_rc_type(0)
+        
+        
+        
+        #self.p_session.run_simulation (parameters = {'simulation_type' : 'Energy', 'system': self.p_session.psystem[self.p_session.active_id]})
+        
         #self.p_session.psystem[self.p_session.active_id].Energy()
         
         '''        
@@ -836,6 +909,8 @@ class EasyHybridMainTreeView(Gtk.TreeView):
                                        
                                        bool, #7 is the Frames visible?
                                        int , #8 Number of frames
+                                       
+                                       GdkPixbuf.Pixbuf #9 Color
                                        )
         
         
@@ -850,31 +925,44 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         self._create_treeview ()
         
 
+
     
     def add_new_system_to_treeview (self, system):
         """ Function doc """
+        sqr_color   = get_colorful_square_pixel_buffer(system)
+        #color      =  system.e_color_palette['C']
+        #res_color  = [int(color[0]*255),int(color[1]*255),int(color[2]*255)] 
+        #sqr_color  =  getColouredPixmap( res_color[0], res_color[1], res_color[2] )
         
         for row in self.treestore:
             row[4] = False
-        parent = self.treestore.append(None, [system.e_id, -1,str(system.e_id)+' - '+ system.label, True, True, False, False, False, 0])
+        parent = self.treestore.append(None, [system.e_id, -1,str(system.e_id)+' - '+ system.label, True, True, False, False, False, 0, sqr_color])
         system.e_treeview_iter = parent
         
         
         '''To improve organization and accessibility, we will add a GtkListStore 
         to a dictionary that will be accessed by all windows. Each GtkListStore 
         in the dictionary will contain the vobjects for a particular system or project'''
-        system.e_liststore_iter = self.main.system_liststore.append([str(system.e_id)+' - '+ system.label, system.e_id])
-        self.main.vobject_liststore_dict[system.e_id] = Gtk.ListStore(str, int, int)
+
+
+       
+        system.e_liststore_iter = self.main.system_liststore.append([str(system.e_id)+' - '+ system.label, system.e_id, sqr_color])
+        self.main.vobject_liststore_dict[system.e_id] = Gtk.ListStore(str, int, int,sqr_color)
         
     
     def add_vismol_object_to_treeview(self, vismol_object):
         """ Function doc """
         e_id   = vismol_object.e_id
         system = self.main.p_session.get_system(e_id)
+        sqr_color   = get_colorful_square_pixel_buffer (system)
+        #color      =  system.e_color_palette['C']
+        #res_color  = [int(color[0]*255),int(color[1]*255),int(color[2]*255)] 
+        #sqr_color  =  getColouredPixmap( res_color[0], res_color[1], res_color[2] )
+        
         parent = system.e_treeview_iter #self.tree_iters_dict[system.e_treeview_iter_parent_key]
         
         size   = len(vismol_object.frames)
-        _iter  = self.treestore.append(parent, [e_id,  vismol_object.index , vismol_object.name, False, False , True, vismol_object.active, True, size])
+        _iter  = self.treestore.append(parent, [e_id,  vismol_object.index , vismol_object.name, False, False , True, vismol_object.active, True, size, sqr_color])
         
         self.tree_iters.append(_iter)
         self.tree_iters_dict[self.tree_iters_counter] = parent
@@ -902,11 +990,24 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         self.append_column(column_radio)
 
         # column
+        
+        renderer_pixbuf = Gtk.CellRendererPixbuf()
         renderer_text = Gtk.CellRendererText()
         #renderer_text.connect("edited", self.text_edited, model, column)
-        column_text = Gtk.TreeViewColumn("System", renderer_text, text=2)
+        
+        #column_text = Gtk.TreeViewColumn("System", renderer_text, text=2)
+        column_text = Gtk.TreeViewColumn("System")#, renderer_text, text=2)
+        
+        column_text.pack_start(renderer_pixbuf, False)
+        column_text.add_attribute(renderer_pixbuf, "pixbuf", 9)
+        
+        column_text.pack_start(renderer_text, True)
+        column_text.add_attribute(renderer_text, "text", 2)
+        
         column_text.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
         column_text.set_resizable(True)
+        column_text.set_spacing(10)
+
         self.append_column(column_text)        
         
         # column
@@ -1103,7 +1204,7 @@ class TreeViewMenu:
                                 '_separator'            : ''      ,
 
                                 'Load Data Into System' : self.load_data_to_a_system ,
-                                'Change Color'  : self.change_system_color_palette ,
+                                #'Change Color'  : self.change_system_color_palette ,
                                 'Edit Parameters'       : self.f2 ,
                                 '_separator'            : ''      ,
 
@@ -1171,9 +1272,7 @@ class TreeViewMenu:
             new_color = False
         
         
-        
-        
-        
+    
         if new_color:
             self.colorchooserdialog.destroy()
 
@@ -1186,7 +1285,62 @@ class TreeViewMenu:
             print('self.selectedID',type(self.main.p_session.psystem[self.selectedID].e_color_palette ))
             
             self.main.p_session.psystem[self.selectedID].e_color_palette['C'] = new_color
+            
+            
+            #color      = self.main.p_session.psystem[self.selectedID].e_color_palette['C']
+            #res_color  = [int(color[0]*255),int(color[1]*255),int(color[2]*255)] 
+            #sqr_color  = getColouredPixmap( res_color[0], res_color[1], res_color[2] )
+            
+            
+            system = self.main.p_session.psystem[self.selectedID]
+            sqr_color   = get_colorful_square_pixel_buffer (system)
+            self.main.system_liststore[system.e_liststore_iter][2] = sqr_color 
+            
+            
+            self.treestore =  self.treeview.get_model() 
+            self.treestore[system.e_treeview_iter][9] = sqr_color
+            
+            
+            '''   
+            selection     = self.get_selection()
+            (model, iter) = selection.get_selected()
+            self.key      = model.get_value(iter, 0)
+            sys           = model.get_value(iter, 1)
 
+
+
+            old_name = model.get_value(iter, 2)
+            v_id     = model.get_value(iter, 1)
+            e_id     = model.get_value(iter, 0)
+            if v_id == -1:
+                #rename  system
+                self.treestore[iter][2] = str(e_id)+' - '+ name
+                self.main.p_session.psystem[e_id].label  = name
+                liststore_iter = self.main.p_session.psystem[e_id].e_liststore_iter
+                self.main.system_liststore[liststore_iter][0] = str(e_id)+' - '+ name
+
+            else:
+                self.treestore[iter][2] = name
+                self.main.vm_session.vm_objects_dic[v_id].name = name
+                self.main.vobject_liststore_dict[e_id][self.main.vm_session.vm_objects_dic[v_id].liststore_iter][0] = name
+            '''
+                
+                
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            #print (self.main.system_liststore[system.e_liststore_iter])# = sqr_color 
+            #print (list(self.main.system_liststore[system.e_liststore_iter]))# = sqr_color 
+            
+            #self.main.p_session.psystem[self.selectedID].e_liststore_iter[2] = sqr_color
             #self.set_color(color =new_color)
     
     def f2 (self, vobject = None):
@@ -1413,7 +1567,7 @@ class TreeViewMenu:
             self.tree_view_vobj_menu.popup(None, None, None, None, 0, 0)
                 
 
-class BottonNoteBook:
+class BottomNoteBook:
     
     def __init__ (self, main):
         """ Function doc """
@@ -1433,7 +1587,7 @@ class BottonNoteBook:
         self.status_liststore = Gtk.ListStore(str, # time 
                                               str, # message
                                               str, # logfile_path
-                                              
+                                              GdkPixbuf.Pixbuf,  
                                               )
         self.treeview.set_model(self.status_liststore)
         
@@ -1446,21 +1600,35 @@ class BottonNoteBook:
         self.treeview.append_column(column_text)        
         
 
+        
         # column
-        renderer_text = Gtk.CellRendererText()
-        column_text = Gtk.TreeViewColumn("message", renderer_text, text=1, visible = True)
-        self.treeview.append_column(column_text)        
+        renderer_pixbuf = Gtk.CellRendererPixbuf()
+        renderer_text   = Gtk.CellRendererText()
+        column_text     = Gtk.TreeViewColumn("message")#, renderer_text, text=2)
+        
+        column_text.pack_start(renderer_pixbuf, False)
+        column_text.add_attribute(renderer_pixbuf, "pixbuf", 3)
+        column_text.pack_start(renderer_text, True)
+        column_text.add_attribute(renderer_text, "text", 1)
+        self.treeview.append_column(column_text)
+        
+        
+        
+        #renderer_text = Gtk.CellRendererText()
+        #column_text = Gtk.TreeViewColumn("message", renderer_text, text=1, visible = True)
+        #self.treeview.append_column(column_text)        
                 
         #self.treeview.connect('row-activated', self.on_select)
         #self.treeview.connect('button-release-event', self.on_treeview_mouse_button_release_event )
         self.treeview.set_headers_visible(False)
 
-    def status_teeview_add_new_item (self, message = None , logfile = ''):
+    def status_teeview_add_new_item (self, message = None , logfile = '', system = None):
         """ Function doc """
+        sqr_color      = get_colorful_square_pixel_buffer(system)
         current_time   = time.time()
         formatted_time = time.strftime("%Y-%m-%d   %H:%M:%S", time.localtime(current_time))
-        
-        self.status_liststore.append([formatted_time, message, logfile])
+        #print(sqr_color)
+        self.status_liststore.append([formatted_time, message, logfile, sqr_color])
 
 
 

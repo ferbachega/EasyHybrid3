@@ -27,16 +27,23 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import GdkPixbuf
-#from GTKGUI.gtkWidgets.filechooser import FileChooser
-#from easyhybrid.pDynamoMethods.pDynamo2Vismol import *
+
+
 from gui.gtk_widgets import FolderChooserButton
 from gui.gtk_widgets import VismolTrajectoryFrame
-from gui.gtk_widgets import VismolTrajectoryFrame
+from gui.gtk_widgets import SystemComboBox
+from gui.gtk_widgets import CoordinatesComboBox
+from gui.gtk_widgets import get_colorful_square_pixel_buffer
+from gui.gtk_widgets import ReactionCoordinateBox
+from gui.gtk_widgets import get_distance
+
+
 import external.orca_qc_keywords as orca_keys
 
 from util.file_parser import get_file_type  
 from util.file_parser import read_MOL2  
-
+from pprint import pprint
+import numpy as np
 import gc
 import os
 
@@ -47,106 +54,466 @@ HOME        = os.environ.get('HOME')
 #from GTKGUI.gtkWidgets.main_treeview import GtkMainTreeView
 
 
+
+class AddHarmonicRestraintDialog:
+    """ Class doc """
+    
+    def __init__ (self, main =  None, atom1 =  None, atom2 = None, distance = 0.0 ):
+        """ Class initialiser """
+        self.main = main
+        self.home = main.home
+        
+        self.builder = Gtk.Builder()
+        self.builder.add_from_file(os.path.join(self.home,'gui/windows/add_harmonic_restraint_dialog.glade'))
+        self.builder.connect_signals(self)
+        self.builder.get_object('dialog').connect('destroy', self.CloseWindow)
+        
+        self.builder.get_object('entry_atom1_index_coord1').set_text(str(atom1.index-1))
+        self.builder.get_object('entry_atom2_index_coord1').set_text(str(atom2.index-1))
+        self.builder.get_object('entry_atom1_name_coord1').set_text(atom1.name)
+        self.builder.get_object('entry_atom2_name_coord1').set_text(atom2.name)
+        self.builder.get_object('entry_dmin_coord1').set_text(str(distance))
+
+        self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+        self.builder.get_object('button_add').connect('clicked', self.on_button_ok_clicked)
+
+        
+        #self.builder.get_object('dialog').destroy()
+        self.dist  = None
+        self.force = None
+        self.ok    = False
+        self.builder.get_object('dialog').run()
+    def on_button_ok_clicked (self, widget):
+        """ Function doc """
+        self.dist  = self.builder.get_object('entry_dmin_coord1').get_text()
+        self.force = self.builder.get_object('entry_FORCE_coord1').get_text()
+        self.ok    = True
+        #print(self.ok)
+        self.builder.get_object('dialog').destroy()
+        
+    def CloseWindow (self, button, data  = None):
+        """ Function doc """
+        self.builder.get_object('dialog').destroy()
+        self.Visible    =  False
+        #print(self.ok)
+
+
+
+class SinglePointwindow:
+    """ Class doc """
+    
+    def __init__(self, main = None):
+        """ Class initialiser """
+        self.main    = main
+        self.p_session    = main.p_session
+        self.home    = main.home
+        self.Visible =  False        
+        self.starting_coords_liststore = Gtk.ListStore(str, int)
+        self.is_single_frame  = True
+    
+    def OpenWindow (self, sys_selected = None):
+        """ Function doc """
+        if self.Visible  ==  False:
+            self.builder = Gtk.Builder()
+            self.builder.add_from_file(os.path.join(self.home,'gui/windows/single_point_window.glade'))
+            self.builder.connect_signals(self)
+            
+            
+            self.window = self.builder.get_object('window')
+            self.window.set_title('Single Point Window')
+            self.window.set_keep_above(True)
+            self.window.set_default_size(400, 200)
+            '''--------------------------------------------------------------------------------------------'''
+            
+            
+            '''--------------------------------------------------------------------------------------------'''     
+            self.folder_chooser_button = FolderChooserButton(main =  self.main, 
+                                                         sel_type = 'folder', 
+                                                             home =  self.home)
+                                                             
+            self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
+            system_id      = self.p_session.active_id
+            
+            #------------------------------------------------------------------------------------------------
+            if self.main.p_session.psystem[self.p_session.active_id]:
+                if self.main.p_session.psystem[self.p_session.active_id].e_working_folder == None:
+                    folder = HOME
+                else:
+                    folder = self.main.p_session.psystem[self.p_session.active_id].e_working_folder
+                self.folder_chooser_button.set_folder(folder = folder)
+                #self.update_working_folder_chooser(folder = folder)            
+            #------------------------------------------------------------------------------------------------
+            
+            
+            
+            # - - - - - - - - - - - - - Starting Coordinates ComboBox - - - - - - - - - - - - - - - - -
+            '''--------------------------------------------------------------------------------------------'''
+            #self.combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
+            ##---------------------------------------------------------------------------------------------
+            #self._starting_coordinates_model_update(init = True)
+            #renderer_text = Gtk.CellRendererText()
+            #self.combobox_starting_coordinates.pack_start(renderer_text, True)
+            #self.combobox_starting_coordinates.add_attribute(renderer_text, "text", 0)
+            #----------------------------------------------------------------------------------------------
+            
+            #----------------------------------------------------------------------------------------------
+            self.box_coordinates = self.builder.get_object('box_coordinates')
+            self.combobox_starting_coordinates = CoordinatesComboBox() #self.builder.get_object('coordinates_combobox')
+            #self.combobox_starting_coordinates.connect("changed", self.on_name_combo_changed)
+            self.box_coordinates.pack_start(self.combobox_starting_coordinates, False, False, 0)
+            self._starting_coordinates_model_update(init = True)
+            #----------------------------------------------------------------------------------------------
+            
+            
+            
+            
+            
+            self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+            self.builder.get_object('button_run').connect('clicked', self.on_button_run_clicked)
+            self.window.connect('destroy', self.CloseWindow)
+
+            self.window.show_all()
+            self.Visible  = True
+    
+        else:
+            self.window.present()
+    
+    def CloseWindow (self, button, data  = None):
+        """ Function doc """
+        self.window.destroy()
+        self.Visible    =  False
+
+    def on_button_run_clicked (self, button):
+        """ Function doc """
+        parameters={ "simulation_type":"Energy_Single_Point"   ,
+                     "filename"       : None            , 
+                     "folder"         : os.getcwd()     , 
+                     }
+        
+        frame = int(self.builder.get_object('entry_frame').get_text())
+        #----------------------------------------------------------------------------------
+        tree_iter = self.combobox_starting_coordinates.get_active_iter()
+        if tree_iter is not None:
+            
+            '''selecting the vismol object from the content that is in the combobox '''
+            model = self.combobox_starting_coordinates.get_model()
+            name, vobject_id = model[tree_iter][:2]
+            vobject = self.main.vm_session.vm_objects_dic[vobject_id]
+            
+            '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
+            self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject = vobject, frame = frame)
+        
+        
+        parameters["folder"]          = self.folder_chooser_button.get_folder()
+        parameters["filename"] = self.builder.get_object('entry_logfile_name').get_text()
+
+        
+        
+        #------------------------------------------------------------------#
+        #                      RUN ENERGY CALCULATION                      #
+        #------------------------------------------------------------------#
+        energy = self.p_session.run_simulation( parameters = parameters )
+        #------------------------------------------------------------------#
+        
+        
+        
+        #------------------------------------------------------------------#
+        #                          DIALOG MESSAGE                          #
+        #------------------------------------------------------------------#
+        dialog = Gtk.MessageDialog(
+            transient_for=None,
+            flags=0,
+            message_type=Gtk.MessageType.INFO,
+            buttons=Gtk.ButtonsType.OK,
+            text="Energy(kJ/mol): "+str(energy),
+        )
+        
+        
+
+        psystem = parameters['system']
+            
+        string = ''
+        name    = psystem.label
+        size    = len(psystem.atoms)
+        string = '\nsystem: {}    \natoms: {}    '.format(name, size)
+
+        if psystem.qcModel:
+            hamiltonian   = getattr(psystem.qcModel, 'hamiltonian', 'ORCA')
+            n_QC_atoms    = len(list(psystem.qcState.pureQCAtoms))
+            
+            
+            summary_items = psystem.electronicState.SummaryItems()
+            
+            string += '\nhamiltonian: {}    \nQC atoms: {}    \nQC charge: {}    \nspin multiplicity {}    '.format(  hamiltonian, 
+                                                                                                              n_QC_atoms,
+                                                                                                              summary_items[1][1],
+                                                                                                              summary_items[2][1],
+                                                                                                                 )
+                
+        n_fixed_atoms = len(psystem.e_fixed_table)
+        string += '\nfixed atoms: {}    '.format(n_fixed_atoms)
+            
+        if psystem.mmModel:
+            forceField = psystem.mmModel.forceField
+            string += '\nforceField: {}    '.format(forceField)
+        
+            if psystem.nbModel:
+                nbmodel = psystem.mmModel.forceField
+                string += 'nbModel: True    '
+                
+                summary_items = psystem.nbModel.SummaryItems()
+                
+            
+            else:
+                string += 'nbModel: False    '
+                
+                
+            if psystem.symmetry:
+                #nbmodel = psystem.mmModel.forceField
+                string += '\nsymmetry: {}    '.format( psystem.symmetry.crystalSystem.label)
+                print(psystem.symmetry)
+                print(psystem.symmetryParameters)
+                #summary_items = psystem.nbModel.SummaryItems()
+                    
+                
+            else:
+                string += ''
+            
+        
+        string += 'frame: {}'.format (frame)
+        string += '\n\nfile: {}'.format(os.path.join(parameters["folder"],parameters["filename"]+'.log' ))
+        
+        
+        dialog.format_secondary_text(
+            string
+        )
+        dialog.run()
+        dialog.destroy()
+        #--------------------------------------------------------------------
+    
+    
+    
+    def _starting_coordinates_model_update (self, init = False):
+        """ Function doc """
+        #------------------------------------------------------------------------------------
+        '''The combobox accesses, according to the id of the active system, 
+        listostore of the dictionary object_list state_dict'''
+        if self.Visible:
+
+            e_id = self.main.p_session.active_id 
+            self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[e_id])
+            #------------------------------------------------------------------------------------
+            size = len(self.main.vobject_liststore_dict[e_id])
+            self.combobox_starting_coordinates.set_active(size-1)
+            #------------------------------------------------------------------------------------
+        else:
+            if init:
+                e_id = self.main.p_session.active_id 
+                self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[e_id])
+                #------------------------------------------------------------------------------------
+                size = len(self.main.vobject_liststore_dict[e_id])
+                self.combobox_starting_coordinates.set_active(size-1)
+                #------------------------------------------------------------------------------------
+            else:
+                pass
+
+    def update (self, parameters = None):
+        """ Function doc """
+        self._starting_coordinates_model_update()
+        if self.Visible:
+            self.update_working_folder_chooser()
+
+
+    def update_working_folder_chooser (self, folder = None):
+        """ Function doc """
+        if folder:
+            #print('update_working_folder_chooser')
+            self.folder_chooser_button.set_folder(folder = folder)
+        else:
+            
+            folder = self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder
+            if folder:
+                self.folder_chooser_button.set_folder(folder = folder)
+            else:
+                pass
+
+
 class EnergyRefinementWindow():
 
     def __init__(self, main = None ):
         """ Class initialiser """
-        self.main     = main
-        self.home     = main.home
-        #self.p_session           = self.easyhybrid_main.p_session
-        #self.vm_session          = main.vm_session
-        self.Visible             =  False        
+        self.main       = main
+        self.home       = main.home
+        self.p_session  = main.p_session
+        self.vm_session = main.vm_session
+        self.Visible    =  False        
         
         self.vobject_liststore   = Gtk.ListStore(str, int)
         self.data_liststore      = Gtk.ListStore(str, int)
+        
+        
+        self.input_types_liststore = Gtk.ListStore(str)
+        self.input_types = {
+                        0:'Vobject'    , #  single file
+                        1:'pklfolder - pDynamo Trajectory'  , #  trajectory
+                        2:'pklfolder2D - pDynamo 2D Trajectory', #  2d trajectory  
+                      # 3:'pdbfile'    ,
+                      # 4:'pdbfolder'  ,
+                      # 5:'dcd',
+                      # 6:'crd',
+                      # 7:'xyz',
+                      # 8:'mol2',
+                      # 9:'netcdf',
+                      #10:'log_file'  
+                           }
+
 
     def OpenWindow (self, vobject = None):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
-            self.builder.add_from_file(os.path.join(self.home,'gui/windows/energy_refinement_window.glade'))
+            self.builder.add_from_file(os.path.join(self.home,'gui/windows/energy_refinement_window2.glade'))
             self.builder.connect_signals(self)
             #self.vobject = vobject
             self.window = self.builder.get_object('window')
             self.window.set_title('Energy Refinement Window')
             self.window.connect('destroy', self.CloseWindow)
             
+            
+            
+            
+            
+            
+            #---------------------------------------------------------------------------------
+            #                           INPUT TYPE COMBOBOX
+            #---------------------------------------------------------------------------------
+            self.comobobox_input_type = self.builder.get_object('comobobox_input_type')
+            for key, input_type in self.input_types.items():
+                self.input_types_liststore.append([input_type])
+            
+            self.comobobox_input_type.set_model(self.input_types_liststore)
+            self.comobobox_input_type.connect("changed", self.on_input_types_changed)
+            self.comobobox_input_type.set_model(self.input_types_liststore)
+            
+            renderer_text = Gtk.CellRendererText()
+            self.comobobox_input_type.pack_start(renderer_text, True)
+            self.comobobox_input_type.add_attribute(renderer_text, "text", 0)
+            #---------------------------------------------------------------------------------
+           
+           
+           
+            
+            #----------------------------------------------------------------------------------------------
+            #                                Starting Coordinates ComboBox  
+            #----------------------------------------------------------------------------------------------
+            self.box_coordinates = self.builder.get_object('box_coordinates')
+            self.combobox_starting_coordinates = CoordinatesComboBox() #self.builder.get_object('coordinates_combobox')
+            #self.combobox_starting_coordinates.connect("changed", self.on_name_combo_changed)
+            self.box_coordinates.pack_start(self.combobox_starting_coordinates, False, False, 0)
+            self._starting_coordinates_model_update(init = True)
+            #----------------------------------------------------------------------------------------------
+            
+            
+            
+            #----------------------------------------------------------------------------------------------
+            #                                    Reaction Coordinate Boxes  
+            ##'''--------------------------------------------------------------------------------------------'''
+            self.RC_box1 = ReactionCoordinateBox(self.main)
+            self.builder.get_object('rc1_aligment').add(self.RC_box1)
+            self.RC_box2 = ReactionCoordinateBox(self.main)
+            self.builder.get_object('rc2_aligment').add(self.RC_box2)
+            #'''--------------------------------------------------------------------------------------------'''
+            
+            
+            
+            
+            '''--------------------------------------------------------------------------------------------'''     
+            self.folder_chooser_button = FolderChooserButton(main =  self.main, sel_type = 'folder', home =  self.home)
+            self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
+            system_id      = self.p_session.active_id
+            
+            #------------------------------------------------------------------------------------------------
+            if self.main.p_session.psystem[self.p_session.active_id]:
+                if self.main.p_session.psystem[self.p_session.active_id].e_working_folder == None:
+                    folder = HOME
+                else:
+                    folder = self.main.p_session.psystem[self.p_session.active_id].e_working_folder
+                self.folder_chooser_button.set_folder(folder = folder)
+            #------------------------------------------------------------------------------------------------
+            
+            
+
+            self.window.show_all()
+            
+            self.RC_box1.set_hide_scan_parameters()
+            self.RC_box2.set_hide_scan_parameters()
+            
+            self.RC_box1.set_rc_type(0)
+            self.RC_box2.set_rc_type(0)            
+            
+            self.comobobox_input_type.set_active(0)
+           
             self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
             self.builder.get_object('button_run').connect('clicked', self.on_button_run_clicked)
             
-            '''--------------------------------------------------------------------------------------------''' 
-            self.combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
-            #self.starting_coords_liststore = self.main.active_system_liststore
-            self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[self.main.p_session.active_id])
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_starting_coordinates.pack_start(renderer_text, True)
-            self.combobox_starting_coordinates.add_attribute(renderer_text, "text", 0)
-            size = len(self.main.vobject_liststore_dict[self.main.p_session.active_id])
-            self.combobox_starting_coordinates.set_active(size-1)
-            '''--------------------------------------------------------------------------------------------''' 
-            
-            #'''--------------------------------------------------------------------------------------------------
-            self.folder_chooser_button2 = FolderChooserButton(main = self.main, sel_type = 'file')
-            self.builder.get_object('folder_chooser_box2').pack_start(self.folder_chooser_button2.btn, True, True, 0)
-            #'''--------------------------------------------------------------------------------------------------
-            
-            #'''--------------------------------------------------------------------------------------------------
-            self.folder_chooser_button1 = FolderChooserButton(main =  self.main)
-            self.builder.get_object('folder_chooser_box1').pack_start(self.folder_chooser_button1.btn, True, True, 0)
-            #'''--------------------------------------------------------------------------------------------------
-            
-            
-            
-            self.builder.get_object('combobox_coordinate_type').set_active(0)
-            #'''--------------------------------------------------------------------------------------------------
-            self.builder.get_object('box_reaction_coordinate').set_sensitive(False)
-            self.builder.get_object('label_CPUs').set_sensitive(False)
-            self.builder.get_object('n_CPUs_spinbutton').set_sensitive(False)
-            self.builder.get_object('label_input_logfile').set_sensitive(False)
-            self.builder.get_object('file_chooser_btn_logfile').set_sensitive(False)
-            self.builder.get_object('folder_chooser_box2').set_sensitive(False)
-            self.builder.get_object('combobox_coordinate_type').set_sensitive(False)
-            self.builder.get_object('label_coordinate_type').set_sensitive(False)
-            self.builder.get_object('label_file_or_folder').set_sensitive(False)
-            self.builder.get_object('label_input_logfile').set_sensitive(False)
-            self.builder.get_object('frame_output').set_sensitive(False)
-            #'''--------------------------------------------------------------------------------------------------
-            
-            self.on_combobox_coordinate_type_changed(None)
- 
-            self.window.show_all()
             self.Visible  = True
     
         else:
             pass
 
-    def on_combobox_coordinate_type_changed (self, widget):
-        """ Function doc """
-        if self.builder.get_object('combobox_coordinate_type').get_active() == 0:
-            
-            #self.builder.get_object('folder_chooser_box2').set_sensitive(False)
-            #self.builder.get_object('label_file_or_folder').set_sensitive(False)
-            #
-            #self.builder.get_object('combobox_starting_coordinates').set_sensitive(True)
-            #self.builder.get_object('label_coordinates').set_sensitive(True)
-            self.builder.get_object('folder_chooser_box2').hide()
-            self.builder.get_object('label_file_or_folder').hide()
 
-            self.builder.get_object('combobox_starting_coordinates').show()
-            self.builder.get_object('label_coordinates').show()
-        
+    def _starting_coordinates_model_update (self, init = False):
+        """ Function doc """
+        #------------------------------------------------------------------------------------
+        '''The combobox accesses, according to the id of the active system, 
+        listostore of the dictionary object_list state_dict'''
+        if self.Visible:
+
+            e_id = self.main.p_session.active_id 
+            self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[e_id])
+            #------------------------------------------------------------------------------------
+            size = len(self.main.vobject_liststore_dict[e_id])
+            self.combobox_starting_coordinates.set_active(size-1)
+            #------------------------------------------------------------------------------------
         else:
-            #self.builder.get_object('combobox_starting_coordinates').set_sensitive(False)
-            #self.builder.get_object('label_coordinates').set_sensitive(False)
-            #
-            #self.builder.get_object('folder_chooser_box2').set_sensitive(True)
-            #self.builder.get_object('label_file_or_folder').set_sensitive(True)
+            if init:
+                e_id = self.main.p_session.active_id 
+                self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[e_id])
+                #------------------------------------------------------------------------------------
+                size = len(self.main.vobject_liststore_dict[e_id])
+                self.combobox_starting_coordinates.set_active(size-1)
+                #------------------------------------------------------------------------------------
+            else:
+                pass
+
+
+    def on_input_types_changed(self, widget):
+        """ Function doc """
+        _id = self.comobobox_input_type.get_active()
+        print(_id)
+        
+        if _id == 0:
+            self.builder.get_object('label_coordinates').show()
+            self.combobox_starting_coordinates.show()
             
-            self.builder.get_object('combobox_starting_coordinates').hide()
+            self.builder.get_object('label_file_folder').hide()
+            self.builder.get_object('filechooser_file_folder').hide()
+            self.builder.get_object('box_reaction_coordinate2').set_sensitive(False)
+        
+        elif _id in [1,2]:
             self.builder.get_object('label_coordinates').hide()
+            self.combobox_starting_coordinates.hide()
             
-            self.builder.get_object('folder_chooser_box2').show()
-            self.builder.get_object('label_file_or_folder').show()
+            self.builder.get_object('label_file_folder').show()
+            self.builder.get_object('filechooser_file_folder').show()
+            
+            if _id ==1:
+                self.builder.get_object('box_reaction_coordinate2').set_sensitive(False)
+            elif _id ==2:
+                self.builder.get_object('box_reaction_coordinate2').set_sensitive(True)
+            else:
+                pass
+            
 
     def on_coordinates_combobox_change (self, widget):
         """ Function doc """
@@ -173,143 +540,106 @@ class EnergyRefinementWindow():
         
         self.data_combobox.set_active(0)
 
-    def on_data_combobox_change (self, widget):
-        """ Function doc """
-
-        _iter = self.data_combobox.get_active_iter()
-        if _iter is not None:
-            '''selecting the vismol object from the content that is in the combobox '''
-            model = self.data_combobox.get_model()
-            _name, index = model[_iter][:2]
-            #print ('\n\n\_name, index:', _name,  index, '\n\n')
-        
-        #self.vobject = self.main.vm_session.vm_objects_dic[vobject_index]
-        self.data = self.main.p_session.systems[self.vobject.easyhybrid_system_id]['logfile_data'][self.vobject.index][index] 
-        print(self.data)
-        self._draw_data(cla = True)
-
-    def radiobutton_single_point_toggled_cb (self, widget):
-        """ Function doc """
-        if self.builder.get_object('radiobutton_single_point').get_active():
-            self.builder.get_object('box_reaction_coordinate').set_sensitive(False)
-            self.builder.get_object('label_CPUs').set_sensitive(False)
-            self.builder.get_object('n_CPUs_spinbutton').set_sensitive(False)
-            self.builder.get_object('label_input_logfile').set_sensitive(False)
-            self.builder.get_object('file_chooser_btn_logfile').set_sensitive(False)
-            self.builder.get_object('folder_chooser_box2').set_sensitive(False)
-            self.builder.get_object('combobox_coordinate_type').set_sensitive(False)
-            self.builder.get_object('label_coordinate_type').set_sensitive(False)
-            self.builder.get_object('label_file_or_folder').set_sensitive(False)
-            self.builder.get_object('label_input_logfile').set_sensitive(False)
-            self.builder.get_object('frame_output').set_sensitive(False)
-            
-            self.builder.get_object('combobox_coordinate_type').set_active(0)
-            
-        else:
-            self.builder.get_object('box_reaction_coordinate').set_sensitive(True)
-            self.builder.get_object('label_CPUs').set_sensitive(True)
-            self.builder.get_object('n_CPUs_spinbutton').set_sensitive(True)
-            self.builder.get_object('label_input_logfile').set_sensitive(True)
-            self.builder.get_object('file_chooser_btn_logfile').set_sensitive(True)
-            self.builder.get_object('folder_chooser_box2').set_sensitive(True)
-            self.builder.get_object('combobox_coordinate_type').set_sensitive(True)
-            self.builder.get_object('label_coordinate_type').set_sensitive(True)
-            self.builder.get_object('label_file_or_folder').set_sensitive(True)
-            self.builder.get_object('label_input_logfile').set_sensitive(True)
-            self.builder.get_object('frame_output').set_sensitive(True)
-            
-            self.on_combobox_coordinate_type_changed (None)
-
-    def change_check_button_reaction_coordinate (self, widget):
-        """ Function doc """
-        #radiobutton_bidimensional = self.builder.get_object('radiobutton_bidimensional')
-        if self.builder.get_object('label_check_button_reaction_coordinate2').get_active():
-            self.box_reaction_coordinate2.set_sensitive(True)
-            self.builder.get_object('n_CPUs_spinbutton').set_sensitive(True)
-            self.builder.get_object('n_CPUs_label').set_sensitive(True)
-        else:
-            self.box_reaction_coordinate2.set_sensitive(False)
-            self.builder.get_object('n_CPUs_spinbutton').set_sensitive(False)
-            self.builder.get_object('n_CPUs_label')     .set_sensitive(False)
 
     def CloseWindow (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
 
+
     def on_button_run_clicked (self, button):
         """ Function doc """
+        parameters = {"simulation_type":"Energy_Refinement"                ,
+                      "dialog":True                                        ,                      
+                      "system"     : self.p_session.psystem[self.p_session.active_id],
+                      "system_name": self.p_session.psystem[self.p_session.active_id].label,
+                      "initial_coordinates": None                          ,                       
+                      "traj_type":'pklfolder'                              ,
+                      "NmaxThreads":1                                      ,
+                      "show":False                                         }
+
         
-        #----------------------------------------------------------------------------------------------
-        #                            S I N G L E    P O I N T 
-        if self.builder.get_object('radiobutton_single_point').get_active():
-            
-            combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
-            tree_iter = combobox_starting_coordinates.get_active_iter()
+        parameters['folder'] = self.folder_chooser_button.get_folder()
+        
+        input_type = self.comobobox_input_type.get_active()
+        print('_type: ',input_type)
+        #----------------------------------------------------------------------
+        if input_type == 0:
+            parameters["traj_type"] = 'vobject'
+                             
+            tree_iter = self.combobox_starting_coordinates.get_active_iter()
             if tree_iter is not None:
-                
                 '''selecting the vismol object from the content that is in the combobox '''
-                model = combobox_starting_coordinates.get_model()
+                model = self.combobox_starting_coordinates.get_model()
                 name, vobject_id = model[tree_iter][:2]
                 vobject = self.main.vm_session.vm_objects_dic[vobject_id]
-                
-                '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
-                print('vobject:', vobject.name, len(vobject.frames) )
-                self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
-
-            energy = self.main.p_session.get_energy()
+                parameters["trajectory"] = vobject.frames
             
-            self.CloseWindow ( button =None, data  = None)
+        
+        elif input_type in [1,2]:
+            if input_type == 1:
+                parameters["traj_type"]  = 'pklfolder'
+            else:
+                parameters["traj_type"]  = 'pklfolder2D'
             
-            dialog = EasyHybridDialogEnergy(parent = self.window, energy = energy, name = vobject.name)
-            response = dialog.run()
-            dialog.destroy()
-        #----------------------------------------------------------------------------------------------
+            
+            parameters["data_path"] = self.builder.get_object('filechooser_file_folder').get_filename()
+            parameters["filename"] = self.builder.get_object('entry_logfile').get_text()
+            files = os.listdir( parameters['data_path'])
+            pkl_files = []
+            
+            for _file in files:
+                # Check if the file is a text file
+                if _file.endswith('.pkl'):
+                    pkl_files.append(_file)
 
+            print ('pDynamo pkl folder:' , parameters['traj_type'])
+            print ('Number of pkl files:', len(pkl_files))
+            parameters["trajectory"] = pkl_files
+        
         else:
-            
-            
-            if self.builder.get_object('combobox_coordinate_type').get_active() == 0:
-                
-                #data = {
-                #   'name': "energy refinement",
-                #   'type': "plot2D",
-                #   'RC1' : RC1,
-                #   'RC2' : RC2,
-                #   'Z'   : Z
-                #   }
-                
-                
-                combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
-                tree_iter = combobox_starting_coordinates.get_active_iter()
-                if tree_iter is not None:
-                    
-                    '''selecting the vismol object from the content that is in the combobox '''
-                    model = combobox_starting_coordinates.get_model()
-                    name, vobject_id = model[tree_iter][:2]
-                    vobject = self.main.vm_session.vm_objects_dic[vobject_id]
-                    
-                
-                for frame_number in range(0, len(vobject.frames)):
-                    
-                    '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
-                    #print('vobject:', vobject.name, len(vobject.frames) )
-                
-                    self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject = vobject, system_id =  None, frame = frame_number)
+            pass
+        #----------------------------------------------------------------------
+        
+        parameters["RC1"] = self.RC_box1.get_rc_data()
+        
+        #if self.builder.get_object('label_check_button_reaction_coordinate2').get_active():
+        if parameters["traj_type"]  == 'pklfolder2D':
+            parameters["RC2"] = self.RC_box2.get_rc_data()
+            parameters["NmaxThreads"] =  int(self.builder.get_object('n_CPUs_spinbutton').get_value())
+            #parameters["traj_type"]   = 'pklfolder2D'
+        
+        else:
+            parameters["RC2"] = None
+            parameters["NmaxThreads"] = 1
+            #parameters["traj_type"]   = 'pklfolder'
+        
+        #----------------------------------------------------------------------
+        
+        pprint (parameters)
+        self.p_session.run_simulation( parameters = parameters )
 
-                    energy = self.main.p_session.get_energy(log = True)
-                    
-                    #print(vobject.idx_2D_xy, energy)
-                    #except:
-                    print(frame_number, energy)
-                
-                self.CloseWindow ( button =None, data  = None)
 
     def update (self):
         """ Function doc """
         #print('VismolGoToAtomWindow2 update')
-        pass
+        self._starting_coordinates_model_update()
+        if self.Visible:
+            self.update_working_folder_chooser()
 
+
+    def update_working_folder_chooser (self, folder = None):
+        """ Function doc """
+        if folder:
+            #print('update_working_folder_chooser')
+            self.folder_chooser_button.set_folder(folder = folder)
+        else:
+            
+            folder = self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder
+            if folder:
+                self.folder_chooser_button.set_folder(folder = folder)
+            else:
+                pass
 
 class ExportDataWindow:
     """ Class doc """
@@ -320,7 +650,15 @@ class ExportDataWindow:
         self.Visible =  False        
         self.starting_coords_liststore = Gtk.ListStore(str, int)
         self.is_single_frame  = True
-        
+    
+    def CloseWindow (self, button, data  = None):
+        """ Function doc """
+        self.window.destroy()
+        self.Visible    =  False
+
+
+
+
     def OpenWindow (self, sys_selected = None):
         """ Function doc """
         if self.Visible  ==  False:
@@ -350,9 +688,6 @@ class ExportDataWindow:
                 #print (format)
             self.combobox_fileformat = self.builder.get_object('combobox_fileformat')
             self.combobox_fileformat.set_model(self.format_store)
-            #self.formats_combo.connect("changed", self.on_name_combo_changed)
-            self.combobox_fileformat.set_model(self.format_store)
-            
             renderer_text = Gtk.CellRendererText()
             self.combobox_fileformat.pack_start(renderer_text, True)
             self.combobox_fileformat.add_attribute(renderer_text, "text", 0)
@@ -360,33 +695,23 @@ class ExportDataWindow:
             
             
             
+
+
             '''--------------------------------------------------------------------------------------------'''
-            #self.psystem_liststore = Gtk.ListStore(str,int)
-            #names = [ ]
-            #for key , system in self.main.p_session.psystem.items():
-            #    try:
-            #        name = system.label
-            #        print ([name, int(key)])
-            #        self.psystem_liststore.append([name, int(key)])
-            #    except:
-            #        print(system)
-            self.psystem_combo = self.builder.get_object('combobox_pdynamo_system')
-            self.psystem_combo.set_model(self.main.system_liststore)
-            #self.psystem_combo.connect("changed", self.on_name_combo_changed)
-            #self.psystem_combo.set_model(self.psystem_liststore)
-            
-            renderer_text = Gtk.CellRendererText()
-            self.psystem_combo.pack_start(renderer_text, True)
-            self.psystem_combo.add_attribute(renderer_text, "text", 0)
+            self.box = self.builder.get_object('box_system')
+            self.psystem_combo = SystemComboBox (self.main)
+            self.box.pack_start(self.psystem_combo, False, False, 0)
+            self.psystem_combo.connect("changed", self.combobox_pdynamo_system)
             if sys_selected:
-                self.psystem_combo.set_active(sys_selected)
+                self.psystem_combo.set_active_system(sys_selected)
             else:
-                #sys_selected = self.main
                 self.psystem_combo.set_active(0)
-                _, sys_selected = self.main.system_liststore[0]
-                #sys_selected = self.main.system_liststore
             '''--------------------------------------------------------------------------------------------'''
-            
+
+
+
+
+            sys_selected = self.psystem_combo.get_system_id()
             
             #'''--------------------------------------------------------------------------------------------------
             self.folder_chooser_button = FolderChooserButton(main =  self.main)
@@ -394,20 +719,18 @@ class ExportDataWindow:
             #'''--------------------------------------------------------------------------------------------------
 
             #------------------------------------------------------------------------------------
-            
-            self.combobox_starting_coordinates = self.builder.get_object('vobjects_combobox')
-            self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[sys_selected])
-            
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_starting_coordinates.pack_start(renderer_text, True)
-            self.combobox_starting_coordinates.add_attribute(renderer_text, "text", 0)
-            
+            self.box_coordinates = self.builder.get_object('box_coordinates')
+            self.combobox_starting_coordinates = CoordinatesComboBox(coordinates_liststore = self.main.vobject_liststore_dict[sys_selected]) #self.builder.get_object('coordinates_combobox')
+            self.box_coordinates.pack_start(self.combobox_starting_coordinates, False, False, 0)
             size = len(self.main.vobject_liststore_dict[sys_selected])
             self.combobox_starting_coordinates.set_active(size-1)
+
             #------------------------------------------------------------------------------------
         
             #------------------------------------------------------------------------------------
-            self.folder_chooser_button.set_folder(HOME)
+            folder = self.main.p_session.psystem[sys_selected].e_working_folder
+            if folder:
+                self.folder_chooser_button.set_folder(folder = folder)
             #------------------------------------------------------------------------------------
 
             self.combobox_fileformat.set_active(0)
@@ -418,16 +741,18 @@ class ExportDataWindow:
         """ Function doc """
         #print('combobox_pdynamo_system aqui')
         if self.Visible:
-            tree_iter = self.psystem_combo.get_active_iter()
-            if tree_iter is not None:
-                
-                '''selecting the vismol object from the content that is in the combobox '''
-                model = self.psystem_combo.get_model()
-                name, sys_id = model[tree_iter][:2]
-                print (name, sys_id)
-
+            sys_id = widget.get_system_id()
             self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[sys_id])
-            self.combobox_starting_coordinates.set_active(0)
+            
+            size = len(self.main.vobject_liststore_dict[sys_id])
+            self.combobox_starting_coordinates.set_active(size-1)
+        
+            folder = self.main.p_session.psystem[sys_id].e_working_folder
+            if folder:
+                self.folder_chooser_button.set_folder(folder = folder)
+
+    
+    
     
     def on_vobject_combo_changed (self, widget):
         '''this combobox has the reference to the starting coordinates of a simulation'''
@@ -506,7 +831,7 @@ class ExportDataWindow:
    
     def on_name_combo_changed (self, widget):
         """ Function doc """
-        if  self.combox.get_active() == 0:
+        if  widget.get_active() == 0:
             self.folder_chooser_button.sel_type = 'folder'
         else:
             self.folder_chooser_button.sel_type = 'file'
@@ -1149,12 +1474,6 @@ class SetupORCAWindow:
 
 
 
-
-
-
-
-
-            
             self.button_ok         = self.builder.get_object('orca_button_ok ') 
             self.button_cancel     = self.builder.get_object('orca_button_cancel ') 
             
@@ -1363,8 +1682,25 @@ class EasyHybridSetupQCModelWindow:
             
             self.window = self.builder.get_object('SetupQCModelWindow')
             self.window.set_keep_above(True)
+            
             #self.window.set_default_size(400, 150)
             self.vismol_object = vismol_object
+            
+            if self.vismol_object is not None:
+                system = self.main_session.p_session.psystem[self.vismol_object.e_id]
+            else:
+                system = self.main_session.p_session.psystem[self.main_session.p_session.active_id]
+                
+                
+                
+            self.window.set_title('Quantum Chemistry - '+ system.label)
+            
+            
+            
+            
+            pixbuf = get_colorful_square_pixel_buffer (system)
+            self.builder.get_object('system_sqr_image').set_from_pixbuf(pixbuf)
+            
             
             '''--------------------------------------------------------------------------------------------'''
             self.methods_type_store = Gtk.ListStore(str)
@@ -1505,8 +1841,8 @@ class EasyHybridSetupQCModelWindow:
         
         parameters = {
                     'qcmodel'          : 'mndo'           ,
-                    'charge'           : self.charge      ,
-                    'multiplicity'     : self.multiplicity,
+                    'charge'           : self.spinbutton_charge.get_value_as_int()      ,
+                    'multiplicity'     : self.spinbutton_multiplicity.get_value_as_int(),
                     'method'           : self.methods_id_dictionary[self.method_id]   ,
                     'isSpinRestricted' : self.restricted  ,
                      }
@@ -1535,7 +1871,7 @@ class EasyHybridSetupQCModelWindow:
     def update (self):
         """ Function doc """
         #print('VismolGoToAtomWindow2 update')
-        pass
+        #self._starting_coordinates_model_update()
 
 
 
@@ -1624,12 +1960,19 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             self.label1.set_text('System:')
             self.box_horizontal1.pack_start(self.label1, False, False, 0)
 
+            self.combobox_systems = SystemComboBox(self.main)
             
-            self.combobox_systems = Gtk.ComboBox.new_with_model(self.system_liststore)
+            #self.combobox_systems = Gtk.ComboBox.new_with_model(self.system_liststore)
             self.combobox_systems.connect("changed", self.on_combobox_systems_changed)
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_systems.pack_start(renderer_text, True)
-            self.combobox_systems.add_attribute(renderer_text, "text", 0)
+            #
+            #renderer_pixbuf = Gtk.CellRendererPixbuf()
+            #self.combobox_systems.pack_start(renderer_pixbuf, True)
+            #self.combobox_systems.add_attribute(renderer_pixbuf, "pixbuf", 2)
+            #
+            #
+            #renderer_text2 = Gtk.CellRendererText()
+            #self.combobox_systems.pack_start(renderer_text2, True)
+            #self.combobox_systems.add_attribute(renderer_text2, "text", 0)
             
             self.box_horizontal1.pack_start(self.combobox_systems, False, False, 0)
             #------------------------------------------------------------------#
@@ -1644,11 +1987,15 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             self.label1  = Gtk.Label()
             self.label1.set_text('Coordinates:')
             self.box_horizontal1.pack_start(self.label1, False, False, 0)
-            self.coordinates_combobox = Gtk.ComboBox.new_with_model(self.main.vobject_liststore_dict[self.main.p_session.active_id])
-            #self.coordinates_combobox.connect("changed", self.on_self.coordinates_combobox_changed)
-            renderer_text = Gtk.CellRendererText()
-            self.coordinates_combobox.pack_start(renderer_text, True)
-            self.coordinates_combobox.add_attribute(renderer_text, "text", 0)
+            self.coordinates_combobox = CoordinatesComboBox(self.main.vobject_liststore_dict[self.main.p_session.active_id])
+            
+            
+            #self.coordinates_combobox = Gtk.ComboBox.new_with_model(self.main.vobject_liststore_dict[self.main.p_session.active_id])
+            ##self.coordinates_combobox.connect("changed", self.on_self.coordinates_combobox_changed)
+            #renderer_text = Gtk.CellRendererText()
+            #self.coordinates_combobox.pack_start(renderer_text, True)
+            #self.coordinates_combobox.add_attribute(renderer_text, "text", 0)
+            
             self.box_horizontal1.pack_start(self.coordinates_combobox, False, False, 0)
             #------------------------------------------------------------------#
             
@@ -1858,7 +2205,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
                 '''_id = -1 means no item inside the combobox'''
                 return None
             else:    
-                _, system_id = self.system_liststore[_id]
+                _, system_id, pixbuf = self.system_liststore[_id]
             
             if system_names:
                 self.refresh_system_liststore ()
@@ -1879,38 +2226,22 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             
     def refresh_coordinates_liststore(self, system_id = None):
         """ Function doc """
-        cb_id =  self.coordinates_combobox.get_active()
-        if system_id:
-            pass
-        else:
-            _id = self.combobox_systems.get_active()
-            if _id == -1:
-                return False
-            else:
-                #print('_id', _id)
-                _, system_id = self.system_liststore[_id]
-        
-        self.coordinates_liststore.clear()
-        n = 0
-        for key , vobject in self.vm_session.vm_objects_dic.items():
-            if vobject.e_id == system_id:
-                self.coordinates_liststore.append([vobject.name, key])
-                n += 1
-        
-        self.coordinates_combobox.set_active(n-1)
+        system_id = self.combobox_systems.get_system_id()
+        print(2313, system_id,self.main.vobject_liststore_dict )
+        self.coordinates_combobox.set_model(self.main.vobject_liststore_dict[system_id])
+        self.coordinates_combobox.set_active_vobject(-1)
+        #self.coordinates_liststore.clear()
+        #n = 0
+        #for key , vobject in self.vm_session.vm_objects_dic.items():
+        #    if vobject.e_id == system_id:
+        #        self.coordinates_liststore.append([vobject.name, key])
+        #        n += 1
+        #
+        #self.coordinates_combobox.set_active(n-1)
         
     def refresh_system_liststore (self):
         """ Function doc """
-        self.main.refresh_system_liststore()
-        #self.system_liststore     .clear()
-        ##self.selection_liststore  .clear()
-        #'''--------------------------------------------------------------------------------------------'''
-        ##self.combobox_systems =self.builder.get_object('systems_combobox')
-        #for key, system  in self.p_session.systems.items():
-        #    try:
-        #        self.system_liststore.append([system['name'], key])
-        #    except:
-        #        print(system)
+        #self.main.refresh_system_liststore()
 
     def on_combobox_residues_changed (self, widget):
         """ Function doc """
@@ -1951,56 +2282,48 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         self.chain_filter.refilter()
     
     
+    def _build_chain_liststore (self):
+        """ Function doc """
+        self.liststore_chains = Gtk.ListStore(str)
+        self.liststore_chains.append(['all'])
+        chains = self.VObj.chains.keys()
+
+        #self.chain_liststore = Gtk.ListStore(str)
+
+        for chain in chains:
+            self.liststore_chains.append([chain])
+        self.combobox_chains.set_model(self.liststore_chains)
+        self.combobox_chains.set_active(0)
+    
+    def _build_res_liststore(self):
+        self.residue_liststore.clear() #= Gtk.ListStore(GdkPixbuf.Pixbuf, int, str, str, int)
+        for chain in self.VObj.chains:
+            for resi in self.VObj.chains[chain].residues:
+                #print(res.resi, res.resn, chain,  len(res.atoms) ) 
+                
+                #res_color = self.residues_dictionary[self.VObj.residues[resi].name]
+                color  =  self.VObj.color_palette['C']
+                res_color  = [int(color[0]*255),int(color[1]*255),int(color[2]*255)] 
+                swatch = self.getColouredPixmap( res_color[0], res_color[1], res_color[2] )
+                #print(swatch, self.VObj.residues[resi].index, self.VObj.residues[resi].name , chain,  len(self.VObj.residues[resi].atoms)) 
+                self.residue_liststore.append(list([swatch, self.VObj.residues[resi].index, self.VObj.residues[resi].name , chain,  len(self.VObj.residues[resi].atoms)]))
+
     def on_combobox_systems_changed (self, widget):
         """ Function doc """
-        #print(widget)
-        #print(widget.get_active())
+        cb_id = widget.get_system_id()
         
-        #print(widget.get_active_id())
-        #print(widget.get_active_iter())
-        
-        #self.vm_session.vm_objects_dic.items()
-        
-        #self.vm_session.vm_objects_dic.items()
-        cb_id = widget.get_active()
-        if cb_id == -1:
-            return None
-        else:
+        if cb_id is not None:
             
             self.update_window (coordinates = True)
             
-            cb_id =  self.coordinates_combobox.get_active()
-            _, key = self.coordinates_liststore[cb_id]
+            key =  self.coordinates_combobox.get_vobject_id()
+            #_, key = self.coordinates_liststore[cb_id]
             
             self.VObj = self.vm_session.vm_objects_dic[key]
+            self._build_chain_liststore()
+            self._build_res_liststore()
             
             
-            self.liststore_chains = Gtk.ListStore(str)
-            self.liststore_chains.append(['all'])
-            chains = self.VObj.chains.keys()
-            
-            #self.chain_liststore = Gtk.ListStore(str)
-            
-            for chain in chains:
-                self.liststore_chains.append([chain])
-            self.combobox_chains.set_model(self.liststore_chains)
-            self.combobox_chains.set_active(0)
-            
-            
-            self.residue_liststore.clear() #= Gtk.ListStore(GdkPixbuf.Pixbuf, int, str, str, int)
-            for chain in self.VObj.chains:
-                for resi in self.VObj.chains[chain].residues:
-                    #print(res.resi, res.resn, chain,  len(res.atoms) ) 
-                    
-                    #res_color = self.residues_dictionary[self.VObj.residues[resi].name]
-                    color  =  self.VObj.color_palette['C']
-                    res_color  = [int(color[0]*255),int(color[1]*255),int(color[2]*255)] 
-                    swatch = self.getColouredPixmap( res_color[0], res_color[1], res_color[2] )
-                    #self.colour_list.append( [ 'Sarcoline (literally mea…', 184, 134,  11, swatch ] )
-                    #self.colour_list.append( [ 'Sarcoline (literally meaning: "flesh coloured", so varies...)', 184, 134,  11, swatch ] )
-
-                    print(swatch, self.VObj.residues[resi].index, self.VObj.residues[resi].name , chain,  len(self.VObj.residues[resi].atoms)) 
-                    self.residue_liststore.append(list([swatch, self.VObj.residues[resi].index, self.VObj.residues[resi].name , chain,  len(self.VObj.residues[resi].atoms)]))
             #-----------------------------------------------------------------------------------------
             #                                      Chain filter
             #-----------------------------------------------------------------------------------------
@@ -2012,10 +2335,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             #-----------------------------------------------------------------------------------------
             
             
-            
-            
-            
-            
+
             #-----------------------------------------------------------------------------------------
             #                                      Residue combobox
             #-----------------------------------------------------------------------------------------
@@ -2044,9 +2364,6 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             self.residue_filter.set_visible_func(self.residue_filter_func)
             #-----------------------------------------------------------------------------------------        
             
-            
-            #self.treeview.set_model(self.residue_liststore)
-            #self.treeview.set_model(self.chain_filter)
             self.treeview.set_model(self.residue_filter)
             
         
@@ -2070,8 +2387,9 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         pickedID    = data[-1]
                 
                 
-        cb_id =  self.coordinates_combobox.get_active()
-        _, key = self.coordinates_liststore[cb_id]
+        #cb_id =  self.coordinates_combobox.get_active()
+        key =  self.coordinates_combobox.get_vobject_id()
+        #_, key = self.coordinates_liststore[cb_id]
         self.VObj = self.vm_session.vm_objects_dic[key]
                 
         atom_picked = self.VObj.atoms[pickedID]
@@ -2083,7 +2401,6 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         self.vm_session.selections[self.vm_session.current_selection]._build_selected_atoms_coords_and_selected_objects_from_selected_atoms()
         self.vm_session.vm_glcore.queue_draw()
 
-    
     def on_treeview_row_activated_event(self, tree, rowline , column ):
         #print (A,B,C)
         selection     = tree.get_selection()
@@ -2097,8 +2414,8 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         self.selectedObj = str(data[2])
         self.selectedChn = str(data[3])
         
-        cb_id =  self.coordinates_combobox.get_active()
-        _, key = self.coordinates_liststore[cb_id]
+        key =  self.coordinates_combobox.get_vobject_id()
+        #_, key = self.coordinates_liststore[cb_id]
         self.VObj = self.vm_session.vm_objects_dic[key]
         
         res = self.VObj.chains[self.selectedChn].residues[self.selectedID]
@@ -2123,15 +2440,6 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         
         self.vm_session.vm_glcore.queue_draw()
         
-        #self.atom_liststore.clear()
-        
-        #for atom in res.atoms.values():
-        #    #res_color = self.residues_dictionary[self.VObj.residues[resi].name]
-        #    color  =  self.VObj.color_palette[atom.symbol]
-        #    swatch = self.getColouredPixmap( int(color[0]*255), int(color[1]*255), int(color[2]*255) )
-        #    self.atom_liststore.append(list([swatch, int(atom.index), atom.name, atom.symbol ,  charges[atom.index-1] , int(atom.atom_id) ]))
-
-        #self.treeview_atom.set_model(self.atom_liststore)
     def on_treeview_Objects_button_release_event(self, tree, event):
         #print ( tree, event)
         
@@ -2332,6 +2640,14 @@ class EasyHybridDialogPrune:
         num_of_atoms = self.builder.get_object('entry_number_of_atoms').get_text( )
         self.name    = self.builder.get_object('entry_name').get_text( )
         self.tag     = self.builder.get_object('entry_tag').get_text( )
+
+        color        = self.builder.get_object('button_color').get_rgba()
+        #red   = color.red 
+        #green = color.green 
+        #blue  = color.blue 
+        self.color = [color.red, color.green, color.blue]
+
+        
         self.prune   = True
 
         self.dialog.destroy()
@@ -2611,14 +2927,21 @@ class ImportANewSystemWindow(Gtk.Window):
         self.files['prm_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()
         name =  self.builder.get_object('entry_system_name').get_text()
         tag  =  self.builder.get_object('entry_system_tag').get_text()
-        print(self.files, systemtype)
+        #color  =  self.builder.get_object('button_color').get_color()
+        color  =  self.builder.get_object('button_color').get_rgba()
+        red   = color.red 
+        green = color.green 
+        blue  = color.blue  
         
+        
+        print(self.files, systemtype, color, [red, green,blue ])
+
         #'''
         self.easyhybrid_main.p_session.load_a_new_pDynamo_system_from_dict(input_files = self.files, 
                                                                            system_type = systemtype, 
                                                                            name        = name      ,
-                                                                           tag         = tag
-                                                                           )
+                                                                           tag         = tag       ,
+                                                                           color       = [red, green,blue ])
         #'''
         #if systemtype == 2:
         #    self.files['prm_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()
@@ -2676,47 +2999,54 @@ class ImportTrajectoryWindow:
             self.window.set_title('Import Trajectory Window')
             self.window.set_keep_above(True)
             '''--------------------------------------------------------------------------------------------'''
-
-            #------------------------------------------------------------------------------------
-            self.combobox_pdynamo_system = self.builder.get_object('combobox_pdynamo_system')
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_pdynamo_system.add_attribute(renderer_text, "text", 0)
-            
-
-            
-            #------------------------------------------------------------------------------------
-            """This block of instructions is used to organize the system combobox. 
-            The menu function provides the system ID, but the position in the combobox 
-            list must be calculated dynamically, as the index of items will not match 
-            the system ID when a system has been deleted."""
-            #self._define_system_liststore()
-            #self.system_liststore = Gtk.ListStore(str, int)
-            #names      = [ ]
-            
-            counter    = 0
-            set_active = 0
-            for key , system in self.p_session.psystem.items():
-                if system:
-                    #name = system.label
-                    #self.system_liststore.append([name, int(key)])
-                    if sys_selected == int(key):
-                        set_active = counter
-                        counter += 1
-                    else:
-                        counter += 1
-                else:
-                    pass
+            self.box = self.builder.get_object('box_system')
             #------------------------------------------------------------------------------------
             
-            
-            #self.combobox_pdynamo_system.set_model(self.system_liststore)
-            self.combobox_pdynamo_system.set_model(self.main.system_liststore)
-
+            self.combobox_pdynamo_system = SystemComboBox (self.main)
+            self.box.pack_start(self.combobox_pdynamo_system, False, False, 0)
             if sys_selected:
-                self.combobox_pdynamo_system.set_active(set_active)
+                self.combobox_pdynamo_system.set_active_system(sys_selected)
             else:
-                self.combobox_pdynamo_system.set_active(set_active)
-            #------------------------------------------------------------------------------------
+                self.combobox_pdynamo_system.set_active(0)
+            #self.combobox_pdynamo_system = self.builder.get_object('combobox_pdynamo_system')
+            #renderer_text = Gtk.CellRendererText()
+            #self.combobox_pdynamo_system.add_attribute(renderer_text, "text", 0)
+            #
+            #
+            #
+            ##------------------------------------------------------------------------------------
+            #"""This block of instructions is used to organize the system combobox. 
+            #The menu function provides the system ID, but the position in the combobox 
+            #list must be calculated dynamically, as the index of items will not match 
+            #the system ID when a system has been deleted."""
+            ##self._define_system_liststore()
+            ##self.system_liststore = Gtk.ListStore(str, int)
+            ##names      = [ ]
+            #
+            #counter    = 0
+            #set_active = 0
+            #for key , system in self.p_session.psystem.items():
+            #    if system:
+            #        #name = system.label
+            #        #self.system_liststore.append([name, int(key)])
+            #        if sys_selected == int(key):
+            #            set_active = counter
+            #            counter += 1
+            #        else:
+            #            counter += 1
+            #    else:
+            #        pass
+            ##------------------------------------------------------------------------------------
+            #
+            #
+            ##self.combobox_pdynamo_system.set_model(self.system_liststore)
+            #self.combobox_pdynamo_system.set_model(self.main.system_liststore)
+            #
+            #if sys_selected:
+            #    self.combobox_pdynamo_system.set_active(set_active)
+            #else:
+            #    self.combobox_pdynamo_system.set_active(set_active)
+            ##------------------------------------------------------------------------------------
             
             
             
@@ -3002,18 +3332,372 @@ class TrajectoryPlayerWindow:
 
 
 
-from matplotlib.backends.backend_gtk3agg import FigureCanvas  # or gtk3cairo.
-from matplotlib.figure import Figure
-import numpy as np
+#from matplotlib.backends.backend_gtk3agg import FigureCanvas  # or gtk3cairo.
+#from matplotlib.figure import Figure
+#import numpy as np
 
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-import copy as cp
-import gc
-import os
+#import matplotlib.pyplot as plt
+#import matplotlib.colors as colors
+#import copy as cp
+#import gc
+#import os
+from util.easyplot import ImagePlot, XYPlot 
+import math
 
 
-class PotentialEnergyAnalysisWindow():
+
+class PotentialEnergyAnalysisWindow:
+
+    def __init__(self, main = None ):
+        """ Class initialiser """
+        self.main                = main
+        self.p_session           = self.main.p_session
+        self.vm_session          = self.main.vm_session
+        self.Visible             =  False  
+
+        self.vobject_liststore = Gtk.ListStore(str,              # name
+                                               int,              # vobj_id
+                                               int,              # sys_id
+                                               GdkPixbuf.Pixbuf) # PixBuf
+        
+        self.data_liststore    = Gtk.ListStore(str, int)
+        
+        # plotting attributes
+        self.interpolate = True
+        
+        
+
+    def OpenWindow (self, vobject = None):
+        """ Function doc """
+        if self.Visible  ==  False:
+
+            self.builder = Gtk.Builder()
+            self.builder.add_from_file(os.path.join(self.main.home,'gui/windows/PES_analysis_window.glade'))
+            self.builder.connect_signals(self)
+
+            self.vobject = vobject
+
+            self.window = self.builder.get_object('window')
+            self.window.set_title('PES Analysis Window')
+            self.window.set_keep_above(True)            
+            self.window.set_default_size(700, 450)
+            
+            
+            self.grid = self.builder.get_object('grid_setup')
+            self.hbox = self.builder.get_object('hbox_plotting')
+            
+            
+            
+            '''-------------------------------------------------------------'''
+            self.plot = ImagePlot()
+            #t = np.linspace(0, 2 * np.pi, 40)
+            #data2d = np.sin(t)[:, np.newaxis] * np.cos(t)[np.newaxis, :]
+            self.hbox.pack_start(self.plot, True, True, 0)
+            #self.plot.data = data2d
+            self.plot.connect("button_press_event", self.on_mouse_button_press)
+            '''-------------------------------------------------------------'''
+
+            
+            
+            '''-------------------------------------------------------------'''
+            self.plot2 = XYPlot()
+            ##'''
+            #x1    = []
+            #y1 = []
+            #for i in range( -100 , 100, 1 ):
+            #    x1.append(i/10)
+            #    y1.append(math.sin(i/10 ))
+            ##'''
+            #
+            #self.plot2.add( X = x1, Y = y1, symbol = 'dot', line = 'solid', sym_color = [1,0,1], line_color = [1,0,1])
+            ##'''
+            #self.raw_X    = []
+            #self.raw_data = []
+            #for i in range( -100 , 100, 1 ):
+            #    self.raw_X.append(i/10)
+            #    self.raw_data.append(2*math.cos(i/10 ))
+            #
+            #self.plot2.add( X = self.raw_X, Y = self.raw_data, symbol = 'dot', sym_fill = False, sym_color = [0,1,1], line = 'solid', line_color = [0,1,1] )
+            #'''
+            self.plot2.x_minor_ticks = 1
+            self.plot2.x_major_ticks = 5
+            self.plot2.y_minor_ticks = 6
+            self.plot2.y_major_ticks = 5
+            self.plot2.decimal = 0
+            self.hbox.pack_start(self.plot2, True, True, 0)
+            '''-------------------------------------------------------------'''
+
+            self.coordinates_combobox = CoordinatesComboBox(coordinates_liststore = self.vobject_liststore)
+            self.coordinates_combobox.connect('changed', self.on_coordinates_combobox_change)
+            self.grid.attach (self.coordinates_combobox, 1, 0, 1, 1)
+            self.refresh_vobject_liststore ()
+
+
+
+
+
+
+
+
+            #------------------------------------------------------------------------------------
+            self.data_combobox = Gtk.ComboBox()
+            renderer_text = Gtk.CellRendererText()
+            self.data_combobox.pack_start(renderer_text, True)
+            self.data_combobox.add_attribute(renderer_text, "text", 0)
+            self.data_combobox.set_model(self.data_liststore)
+            self.data_combobox.connect('changed', self.on_data_combobox_change)
+            self.grid.attach (self.data_combobox, 3, 0, 1, 1)
+            #------------------------------------------------------------------------------------
+
+
+
+
+
+            #------------------------------------------------------------------------------------
+            self.scale_traj = self.builder.get_object('scale_trajectory_from_PES')
+            self.scale_traj.connect('change-value', self.on_scaler_frame_value_changed )
+            self.adjustment     = Gtk.Adjustment(value         = 0,
+                                                 lower         = 0,
+                                                 upper         = 100,
+                                                 step_increment= 1,
+                                                 page_increment= 1,
+                                                 page_size     = 1)
+
+            self.scale_traj.set_adjustment ( self.adjustment)
+            self.scale_traj.set_digits(0)
+            #------------------------------------------------------------------------------------
+
+
+
+
+
+
+            self.window.show_all()
+            self.Visible  = True
+            self.coordinates_combobox.set_active(0)
+
+    def CloseWindow (self, button, data  = None):
+        """ Function doc """
+        self.window.destroy()
+        self.Visible    =  False
+
+
+    def refresh_vobject_liststore (self):
+        """ Function doc """       
+        self.vobject_liststore.clear()
+        for system_id , system in self.p_session.psystem.items():
+            
+            logfile_data = getattr ( system, "e_logfile_data", None )
+            if logfile_data is not None:
+                for vobject_id in system.e_logfile_data.keys():
+                    _vobject = self.vm_session.vm_objects_dic[vobject_id]
+                    
+                    pixbuf  = self.main.vobject_liststore_dict[system_id][_vobject.liststore_iter][3]
+                    
+                    self.vobject_liststore.append([_vobject.name, 
+                                                    vobject_id  , 
+                                                    system_id   , 
+                                                    pixbuf     ])
+            
+            else:
+                pass
+
+
+    def on_coordinates_combobox_change (self, widget):
+        """ Function doc """
+        vobject_index = self.coordinates_combobox.get_vobject_id()
+        self.vobject  = self.main.vm_session.vm_objects_dic[vobject_index]
+        
+        self.data_liststore.clear()
+        for index , data in enumerate(self.p_session.psystem[self.vobject.e_id].e_logfile_data[vobject_index]):
+            self.data_liststore.append([data['name'], index])
+
+        self.data_combobox.set_active(0)
+        print( self.vobject.idx_2D_xy)
+    
+    def on_data_combobox_change (self, widget):
+        """ Function doc """
+        _iter = self.data_combobox.get_active_iter()
+        if _iter is not None:
+            '''selecting the vismol object from the content that is in the combobox '''
+            model = self.data_combobox.get_model()
+            _name, index = model[_iter][:2]
+        
+        self.data = self.p_session.psystem[self.vobject.e_id].e_logfile_data[self.vobject.index][index] 
+        print('data: ', self.data)
+        
+        minlist = []
+        for line in self.data['Z']:
+            minlist.append(min(line))
+        
+        _min = min(minlist)
+        
+        for i in range(0, len(self.data['Z'])):
+            for j in range(0, len(self.data['Z'][i])):
+                self.data['Z'][i][j] = self.data['Z'][i][j]-_min 
+        
+        
+        self.plot.data = self.data['Z']
+        
+        
+        
+        
+        self.plot.queue_draw()
+
+
+    def on_mouse_button_press (self, widget, event):
+        """ Function doc """
+        
+        
+        '''get the points on the graph where the click was made'''
+        i_on_plot, j_on_plot, x, y = widget.get_i_and_j_from_click_event(event)
+        
+        
+        '''
+        checks if the place where click happened is outside the graphic or not. 
+        If not, the function returns Flase and the click points are erased.
+        '''
+        if widget.check_clicked_points( i_on_plot, j_on_plot):
+            
+            '''
+            Interpolation takes the intermediate points between two 
+            successive clicks.
+            '''
+            if self.interpolate:
+                if len(widget.points) > 0 :
+                    print([widget.points[-1],[i_on_plot, j_on_plot] ])
+                    
+                    xy_list = build_chain_of_states( [widget.points[-1], [i_on_plot, j_on_plot]])
+                
+                else:
+                    xy_list = [[i_on_plot, j_on_plot]]
+            
+            
+            for xy in xy_list:
+                widget.points.append(xy)
+            
+            
+            self.plot2.data = []
+
+            self.plot2.Xmin_list = []
+            self.plot2.Ymin_list = []
+            self.plot2.Xmax_list = []
+            self.plot2.Ymax_list = []
+
+
+            
+            
+            
+        
+            x = []
+            y = []
+            for i, point in enumerate(widget.points):
+                x.append(i)
+                y.append(widget.data[point[0]][point[1]])
+            
+            self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [0,1,1], line = 'solid', line_color = [0,1,1] )
+            
+            
+            
+            if len(x)-1 == 0:
+                self.plot2.x_major_ticks = 1
+            else:
+                x_major_ticks = len(x)-1  
+                self.plot2.x_major_ticks = x_major_ticks
+            self.plot2.Xmax   = 10 
+            #self.plot2.x_major_ticks = 10
+            print("Mouse clicker at:",  x, y, 
+                                        int(i_on_plot), int(j_on_plot), 
+                                        widget.data[int(i_on_plot)][int(j_on_plot)] )
+        
+        self.scale_traj_new_definitions()
+        self.plot2.queue_draw()
+        widget.queue_draw()
+        #print('coco', data)
+
+    def scale_traj_new_definitions(self):
+        #self.scale_traj
+        self.scale_traj.set_range(0, len(self.plot.points))
+        #self.scale_traj.set_value(self.vm_session.get_frame())
+    
+    def on_scaler_frame_value_changed (self, hscale, text= None,  data=None):
+        """ Function doc """
+        value = self.scale_traj.get_value()
+        pos   = self.scale_traj.get_value_pos ()
+        
+        #self.plot.points
+        
+        #print(self.xy_traj[int(value)])
+        xy = self.plot.points[int(value)]
+        #print(xy, self.zdata[int(value)])
+        print(xy, self.plot.data[xy[0]][xy[1]])
+        
+        if len(self.plot2.data) > 1:
+            self.plot2.data.pop(-1)
+        
+        x = [value]
+        y = [  self.plot.data[xy[0]][xy[1]]   ]
+        self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = True, sym_color = [1,0,0], line = 'solid', line_color = [0,1,1] )
+        
+        self.plot2.queue_draw()
+        
+        if self.vobject:
+            frame = self.vobject.idx_2D_xy[(xy[1], xy[0])]
+            self.main.vm_session.frame = int(frame)
+            self.main.vm_session.vm_glcore.updated_coords = True
+            self.main.vm_session.vm_widget.queue_draw()
+        
+        '''
+        self.ax2.cla()
+        self.ax3.cla()
+        self.ax2.plot(range(0, len(self.zdata)), self.zdata, '-ob')
+        self.ax3.plot( [int(value)], [self.zdata[int(value)]], '-or')
+        
+        if self.vobject:
+            frame = self.vobject.idx_2D_xy[(xy[0], xy[1])]
+            self.main.vm_session.frame = int(frame)
+            #self.main.vm_session.set_frame(int(frame)) 
+            self.main.vm_session.vm_glcore.updated_coords = True
+            self.main.vm_session.vm_widget.queue_draw()
+        self.canvas2.draw()
+        #self.scale_traj.set_value(int(value))
+        '''
+
+
+    def on_button_export_trajectory (self, widget):
+        """ Function doc """
+        #print ('\nexport_trajectory: \n',
+        #self.xdata   ,
+        #self.ydata   ,
+        #self.zdata   ,
+        #self.xy_traj ,
+        #self.vobject ,
+        #)
+        
+
+        active_id = self.main.p_session.active_id
+        
+        new_vismol_object = self.main.p_session.generate_new_empty_vismol_object(system_id = self.vobject.e_id , 
+                                                                                 name      = 'new_coordinates' )
+
+        for xy in self.plot.points:
+            frame_number = self.vobject.idx_2D_xy[(xy[1], xy[0])]
+            #print(self.vobject.frames[frame_number])
+            new_vismol_object.frames = np.vstack((new_vismol_object.frames, 
+                                                  [self.vobject.frames[frame_number]]))
+        
+        #self.traj_export_index += 1
+        self.vm_session.main.main_treeview.refresh_number_of_frames()
+
+
+
+
+    def  update (self):
+        """ Function doc """
+        pass
+
+
+class PotentialEnergyAnalysisWindow_old():
 
     def __init__(self, main = None ):
         """ Class initialiser """
@@ -3073,28 +3757,55 @@ class PotentialEnergyAnalysisWindow():
             
             
             '''-------------------------------------------------------------'''
-            self.fig = Figure(figsize=(6, 4))#,constrained_layout=True)
-            self.canvas = FigureCanvas(self.fig)  # a Gtk.DrawingArea
-            self.canvas.mpl_connect('button_press_event', self.on_pick)
-            self.canvas.mpl_connect('motion_notify_event', self.on_motion_notify_event)
+            self.plot = ImagePlot()
+            t = np.linspace(0, 2 * np.pi, 40)
+            data2d = np.sin(t)[:, np.newaxis] * np.cos(t)[np.newaxis, :]
+            #plot = ImagePlot(data2d)
 
-            self.hbox.pack_start(self.canvas, True, True, 0)
-            self.ax = self.fig.add_subplot(1,1,1)
-            '''-------------------------------------------------------------'''
-
-
-
-
-            '''-------------------------------------------------------------'''
-            self.fig2 = Figure(figsize=(6, 4), dpi=100)
-            self.ax2 = self.fig2.add_subplot(1,1,1)
-            self.ax3 = self.fig2.add_subplot(1,1,1)
+            #window.add(plot)
             
-            #self.line2, = self.ax2.plot([], [], '-o')
-            #self.secax = self.ax2.secondary_xaxis('top', functions=(self.seconday_xaxis_function))
+            #self.fig = Figure(figsize=(6, 4))#,constrained_layout=True)
+            #self.canvas = FigureCanvas(self.fig)  # a Gtk.DrawingArea
+            #self.canvas.mpl_connect('button_press_event', self.on_pick)
+            #self.canvas.mpl_connect('motion_notify_event', self.on_motion_notify_event)
 
-            self.canvas2 = FigureCanvas(self.fig2)  # a Gtk.DrawingArea
-            self.hbox.pack_start(self.canvas2, True, True, 0)        
+            self.hbox.pack_start(self.plot, True, True, 0)
+            self.plot.data = data2d
+            #self.ax = self.fig.add_subplot(1,1,1)
+            '''-------------------------------------------------------------'''
+
+
+
+
+            '''-------------------------------------------------------------'''
+            
+            self.plot2 = XYPlot()
+            #'''
+            x1    = []
+            y1 = []
+            for i in range( -100 , 100, 1 ):
+                x1.append(i/10)
+                y1.append(math.sin(i/10 ))
+            #'''
+            
+            self.plot2.add( X = x1, Y = y1, symbol = 'dot', line = 'solid', sym_color = [1,0,1], line_color = [1,0,1])
+            
+            #'''
+            self.raw_X    = []
+            self.raw_data = []
+            for i in range( -100 , 100, 1 ):
+                self.raw_X.append(i/10)
+                self.raw_data.append(2*math.cos(i/10 ))
+            
+            self.plot2.add( X = self.raw_X, Y = self.raw_data, symbol = 'dot', sym_fill = False, sym_color = [0,1,1], line = 'solid', line_color = [0,1,1] )
+            #'''
+            
+            self.plot2.x_minor_ticks = 6
+            self.plot2.x_major_ticks = 5
+            self.plot2.y_minor_ticks = 6
+            self.plot2.y_major_ticks = 5
+            self.hbox.pack_start(self.plot2, True, True, 0)
+       
             '''-------------------------------------------------------------'''
 
 
@@ -3111,37 +3822,24 @@ class PotentialEnergyAnalysisWindow():
             #'''------------------------------------------------------------------------------------
             self.vobject_liststore = Gtk.ListStore(str, int, int) # name, vobj_id, sys_id
             names = [ ]
-            
-            for system_id , system in self.p_session.psystem.items():
-                for vobject_id in system.e_logfile_data.keys():
-                    _vobject = self.vm_session.vm_objects_dic[vobject_id]
-                    self.vobject_liststore.append([_vobject.name, vobject_id, system_id])
-            
-            
-            #for key , system in self.p_session.psystem.items():
-            #    #print ()
-            #    try:
-            #        print("system data", system.e_logfile_data)
-            #        if system.e_logfile_data:
-            #            for vobject_id in  system.e_logfile_data.keys():
-            #                print(['vobject_id:', vobject_id ,systeme_logfile_data.keys()])
-            #                
-            #                try:
-            #                    _vobject = self.main.vm_session.vm_objects_dic[vobject_id]
-            #                    print(['_vobject:', _vobject.name,_vobject.index])
-            #                    self.vobject_liststore.append([_vobject.name, _vobject.index])
-            #                except:
-            #                    print('self.vobject_liststore.append([_vobject.name, _vobject.index])', 'failed!')
-            #    except:
-            #        pass
-            #self.vobject_liststore.append(['all', _vobject.index])
+            try:
+                for system_id , system in self.p_session.psystem.items():
+                    for vobject_id in system.e_logfile_data.keys():
+                        _vobject = self.vm_session.vm_objects_dic[vobject_id]
+                        self.vobject_liststore.append([_vobject.name, vobject_id, system_id])
+            except:
+                print('failed 3540')
 
-            self.coordinates_combobox = Gtk.ComboBox()
-            renderer_text = Gtk.CellRendererText()
-            self.coordinates_combobox.pack_start(renderer_text, True)
-            self.coordinates_combobox.add_attribute(renderer_text, "text", 0)
+
             
-            self.coordinates_combobox.set_model(self.vobject_liststore)
+            
+            #self.coordinates_combobox = Gtk.ComboBox()
+            #renderer_text = Gtk.CellRendererText()
+            #self.coordinates_combobox.pack_start(renderer_text, True)
+            #self.coordinates_combobox.add_attribute(renderer_text, "text", 0)
+            #self.coordinates_combobox.set_model(self.vobject_liststore)
+            self.coordinates_combobox = CoordinatesComboBox() 
+            
             
             self.coordinates_combobox.connect('changed', self.on_coordinates_combobox_change)
             self.grid.attach (self.coordinates_combobox, 1, 0, 1, 1)
@@ -3207,10 +3905,7 @@ class PotentialEnergyAnalysisWindow():
         self.window.destroy()
         self.Visible    =  False
 
-    def seconday_xaxis_function (self):
-        """ Function doc """
-        pass
-
+    '''
     def _draw_data (self, cla = True, refresh = True):
         """ Function doc """
         #print('self.pcm.cla()')
@@ -3239,6 +3934,7 @@ class PotentialEnergyAnalysisWindow():
             self.color_bar.remove() 
         self.color_bar = self.fig.colorbar(self.pcm,  ax=self.ax)#, extend='both')
         self.fig.canvas.draw()
+    '''
     
     def on_coordinates_combobox_change (self, widget):
         """ Function doc """
@@ -3278,7 +3974,8 @@ class PotentialEnergyAnalysisWindow():
         #self.vobject = self.main.vm_session.vm_objects_dic[vobject_index]
         self.data = self.p_session.psystem[self.vobject.e_id].e_logfile_data[self.vobject.index][index] 
         print('data: ', self.data)
-        self._draw_data(cla = True)
+        self.plot.data = self.data['Z']
+        #self._draw_data(cla = True)
         
     def on_motion_notify_event (self, event):
         """ Function doc """
@@ -3552,7 +4249,6 @@ def build_chain_of_states( input_coord):
                 a = True
                 #print input_coord
     return input_coord[1:]
-
 
 def check_distance (coord1 , coord2):
 	""" Function doc """

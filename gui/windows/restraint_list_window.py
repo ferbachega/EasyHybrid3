@@ -37,7 +37,7 @@ VISMOL_HOME = os.environ.get('VISMOL_HOME')
 HOME        = os.environ.get('HOME')
 
 
-class SelectionListWindow(Gtk.Window):
+class RestraintListWindow(Gtk.Window):
     """ Class doc """
     def __init__(self, main = None, system_liststore = None ):
         """ Class initialiser """
@@ -46,44 +46,22 @@ class SelectionListWindow(Gtk.Window):
         self.visible               = False        
         self.p_session             = main.p_session
         self.vm_session            = main.vm_session
-        
 
-        
         self.selection_liststore       = Gtk.ListStore(str, int)
         self.selection_liststore_dict  =   {
                                            # system_e_id : Gtk.ListStore(str, int)
                                            }
     
-        #-------------------------------------------
-        # - - - - - - - - Restraints - - - - - - - - 
-        #-------------------------------------------
-        self.restraint_types = {0 : 'distance',
-                                #1 : 'angle',
-                                #2 : 'dihedral',
-                                3 : 'all'
-                                }
-        self.rest_type_liststore = Gtk.ListStore(str)
-        
-        self.restraint_liststore       = Gtk.ListStore(bool, # True  - / False toggle
-                                                        str, # name
-                                                        str, # type  -  distance / angle / dihedral
-                                                        str, # atoms -
-                                                        str, # values
-                                                        str, # force constant
-                                                        int,) # e_id) 
-        #--------------------------------------------
-        
-        
     def OpenWindow (self):
         """ Function doc /home/fernando/programs/VisMol/easyhybrid/gui/selection_list.glade"""
         if self.visible  ==  False:
             self.builder = Gtk.Builder()
-            self.builder.add_from_file(os.path.join(self.home,'gui/windows/selection_and_restraint_list.glade'))
+            self.builder.add_from_file(os.path.join(self.home,'gui/windows/restraint_list.glade'))
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('window')
             self.window.set_default_size(200, 600)  
-            self.window.set_title('Selections')  
+            self.window.set_title('Restraints')  
             self.window.set_keep_above(True)
             
             # - - - - - - - systems combobox - - - - - - -
@@ -101,6 +79,10 @@ class SelectionListWindow(Gtk.Window):
             self.box_coordinates = self.builder.get_object('box_coordinates')
             self.coordinates_combobox = CoordinatesComboBox() #self.builder.get_object('coordinates_combobox')
             self.box_coordinates.pack_start(self.coordinates_combobox, False, False, 0)
+            
+            #renderer_text2 = Gtk.CellRendererText()
+            #self.coordinates_combobox.pack_start(renderer_text2, True)
+            #self.coordinates_combobox.add_attribute(renderer_text2, "text", 0)
             '''--------------------------------------------------------------------------------------------'''
 
 
@@ -122,47 +104,6 @@ class SelectionListWindow(Gtk.Window):
             self.treeview.connect('button-release-event', self.on_treeview_Objects_button_release_event )
             '''--------------------------------------------------------------------------------------------'''
 
-            
-            
-            #---------------------------------------------------------------------------------
-            #                - - - - - - - Restraint Treeview - - - - - - -
-            #---------------------------------------------------------------------------------
-            self.restraint_treeview = self.builder.get_object('restraint_treeview')
-            
-            renderer_toggle = Gtk.CellRendererToggle()
-            renderer_toggle.connect("toggled", self._on_cell_visible_toggled)
-            column_toggle = Gtk.TreeViewColumn("A", renderer_toggle, active=0)#, visible = True)
-            self.restraint_treeview.append_column(column_toggle)
-            
-            for i, column_title in enumerate(["Index", 'Type', 'Atoms', "Dist/Angle", "Force Constant"]):
-                renderer = Gtk.CellRendererText()
-                column = Gtk.TreeViewColumn(column_title, renderer, text=i+1)
-                self.restraint_treeview.append_column(column)
-            self.restraint_treeview.set_model(self.restraint_liststore)
-            #---------------------------------------------------------------------------------
-            
-            
-            
-            
-            self.rest_type_liststore.clear()
-            #---------------------------------------------------------------------------------
-            #                           Restraints COMBOBOX
-            #---------------------------------------------------------------------------------
-            self.comobobox_restraints = self.builder.get_object('combobox_restraints')
-            for key, rest_type in self.restraint_types.items():
-                self.rest_type_liststore.append([rest_type])
-            
-            self.comobobox_restraints.set_model(self.rest_type_liststore)
-            self.comobobox_restraints.connect("changed", self._on_rest_types_changed)
-            renderer_text = Gtk.CellRendererText()
-            self.comobobox_restraints.pack_start(renderer_text, True)
-            self.comobobox_restraints.add_attribute(renderer_text, "text", 0)
-            self.comobobox_restraints.set_active(0)
-            #self.restraint_treeview.connect('row_activated', self.on_treeview_Objects_row_activated )
-            #self.restraint_treeview.connect('button-release-event', self.on_treeview_Objects_button_release_event )
-            '''--------------------------------------------------------------------------------------------'''
-
-
 
             #self.refresh_system_liststore()
             self.treeview_menu         = TreeViewMenu(self)
@@ -170,7 +111,7 @@ class SelectionListWindow(Gtk.Window):
             #self.combobox_systems.set_active(0)
             self.visible    =  True
             '''--------------------------------------------------------------------------------------------'''
-            self.update_window()
+
         else:
             self.window.present()
             
@@ -180,11 +121,6 @@ class SelectionListWindow(Gtk.Window):
         self.window.destroy()
         self.visible    =  False
         #print('self.visible',self.visible)
-    
-    def _on_rest_types_changed (self, widget):
-        """ Function doc """
-        print(self.comobobox_restraints.get_active())
-    
     
     def _coordinates_model_update (self, e_id):
         """ Function doc """
@@ -201,24 +137,8 @@ class SelectionListWindow(Gtk.Window):
         else:
             pass
     
-        
-    def _on_cell_visible_toggled (self, widget, path):
-        """ Function doc """
-        #print(widget)
-        ##print(list(path))
-        self.restraint_liststore[path][0] = not self.restraint_liststore[path][0]
-        
-        print(list(self.restraint_liststore[path]))
-        e_id = self.restraint_liststore[path][6]
-        name = self.restraint_liststore[path][1]
-        system = self.main_session.p_session.psystem[e_id]
-        system.e_restraints_dict[name][0] =  self.restraint_liststore[path][0]
-        #self.selectedID  = int(self.restraint_liststore[path][1])
-        #vismol_object = self.main.vm_session.vm_objects_dic[self.selectedID]
-        #vismol_object.active = self.treestore[path][6]
-        #self.main.vm_session.vm_glcore.queue_draw()
-        
-    def update_window (self, system_names = True, coordinates = False,  selections = True, restraints = True):
+    
+    def update_window (self, system_names = True, coordinates = False,  selections = True):
         """ Function doc """
         if self.visible:
             
@@ -226,8 +146,6 @@ class SelectionListWindow(Gtk.Window):
             if system_id is not None:
                 if selections:
                     self.refresh_selection_liststore(system_id)
-                if restraints:
-                    self.refresh_restraint_liststore(system_id)
         else:
             pass
     
@@ -264,24 +182,6 @@ class SelectionListWindow(Gtk.Window):
     def refresh_system_liststore (self):
         """ Function doc """
         self.main_session.refresh_system_liststore()
-    
-    
-    def refresh_restraint_liststore (self, system_id = None):
-        """ Function doc """
-        self.restraint_liststore.clear()
-        
-        for name, restraint in self.p_session.psystem[system_id].e_restraints_dict.items():
-            _bool = restraint[0]
-            name  = restraint[1]
-            _type = restraint[2]
-            if _type == 'distance':
-                atons = '{} / {}'.format(restraint[3][0],restraint[3][1]) 
-            dist_or_angle = '{:.4f}'.format(restraint[4])
-            force_const   = str(restraint[5])
-            e_id          =  restraint[6] 
-                                           #(bool,  str,   str,   str,          str,       str    , int    )
-            self.restraint_liststore.append([_bool, name, _type, atons, dist_or_angle, force_const, e_id   ])
-    
     
     def refresh_selection_liststore (self, system_id = None ):
         """ Function doc """
@@ -336,8 +236,7 @@ class SelectionListWindow(Gtk.Window):
             self.refresh_selection_liststore (system_id)            
             size  =  len(list(self.main_session.vobject_liststore_dict[system_id]))
             self.coordinates_combobox.set_active(size-1)
-            
-            self.update_window ( selections = False, restraints = True)
+
         
     def on_treeview_Objects_row_activated(self, tree, event, data):
         

@@ -32,6 +32,10 @@ import os
 import threading
 import time
 
+from gui.gtk_widgets import SystemComboBox
+from gui.gtk_widgets import CoordinatesComboBox
+
+
 VISMOL_HOME = os.environ.get('VISMOL_HOME')
 HOME        = os.environ.get('HOME')
 
@@ -75,15 +79,17 @@ class NormalModesAnalysisWindow(Gtk.Window):
             
             # - - - - - - - systems combobox - - - - - - -
             '''--------------------------------------------------------------------------------------------'''
-            self.system_names_combo =self.builder.get_object('systems_combobox')
-            self.system_names_combo.set_model(self.main.system_liststore)
+            self.box1 = self.builder.get_object('box_system')
+            self.system_names_combo = SystemComboBox (self.main)
+            #self.system_names_combo =self.builder.get_object('systems_combobox')
+            #self.system_names_combo.set_model(self.main.system_liststore)
 
             self.system_names_combo.connect("changed", self.on_system_names_combobox_changed)
-            renderer_text = Gtk.CellRendererText()
-            self.system_names_combo.pack_start(renderer_text, True)
-            self.system_names_combo.add_attribute(renderer_text, "text", 0)
+            #renderer_text = Gtk.CellRendererText()
+            #self.system_names_combo.pack_start(renderer_text, True)
+            #self.system_names_combo.add_attribute(renderer_text, "text", 0)
             '''--------------------------------------------------------------------------------------------'''
-
+            self.box1.pack_start(self.system_names_combo, False, False, 0)
 
 
             self.coordinates_liststore = Gtk.ListStore(str, int, int) 
@@ -377,14 +383,14 @@ class NormalModesAnalysisWindow(Gtk.Window):
     
     def on_system_names_combobox_changed (self, widget):
         """ Function doc """
-        index = self.system_names_combo.get_active()
+        index = self.system_names_combo.get_system_id()
        
-        if index == -1:
-            '''_id = -1 means no item inside the combobox'''
-            return None
-        
-        else:    
-            _, system_id = self.main.system_liststore[index]
+        #if index == -1:
+        #    '''_id = -1 means no item inside the combobox'''
+        #    return None
+        #
+        #else:    
+        #    _, system_id = self.main.system_liststore[index]
         
     
     def on_coordinates_combobox_changed(self, widget):

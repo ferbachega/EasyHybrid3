@@ -3,12 +3,38 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 from gi.repository import Gdk
+from gi.repository import GdkPixbuf
 import os
 
 import threading
 import time
 
+from util.periodic_table import atomic_dic 
+
 HOME        = os.environ.get('HOME')
+
+
+def getColouredPixmap( r, g, b, a=255 ):
+    """ Given components, return a colour swatch pixmap """
+    CHANNEL_BITS=8
+    WIDTH=10
+    HEIGHT=10
+    swatch = GdkPixbuf.Pixbuf.new( GdkPixbuf.Colorspace.RGB, True, CHANNEL_BITS, WIDTH, HEIGHT ) 
+    swatch.fill( (r<<24) | (g<<16) | (b<<8) | a ) # RGBA
+    return swatch
+
+
+def get_colorful_square_pixel_buffer (system = None,  atomic_symbol = 'C'):
+    """ Function doc """
+    if system is not None:
+        color        =  system.e_color_palette[atomic_symbol]
+        res_color    = [int(color[0]*255),int(color[1]*255),int(color[2]*255)] 
+        pixelbuffer  =  getColouredPixmap( res_color[0], res_color[1], res_color[2] )
+    
+    else:
+        res_color    = [255,255,255] 
+        pixelbuffer  =  getColouredPixmap( res_color[0], res_color[1], res_color[2] )
+    return pixelbuffer
 
 
 class VismolSelectionTypeBox(Gtk.Box):
@@ -217,654 +243,6 @@ class VismolSelectionTypeBox(Gtk.Box):
     def update (self):
         """ Function doc """
         print('VismolSelectionTypeBox update')
-
-
-
-class EasyHybridGoToAtomWindow(Gtk.Window):
-    def OpenWindow (self):
-        """ Function doc """
-        if self.visible  ==  False:
-            
-            #self.vm_session.Vismol_Objects_ListStore
-            
-            #------------------------------------------------------------------#
-            #                  SYSTEM combobox and Label
-            #------------------------------------------------------------------#
-            self.box_vertical    = Gtk.Box(orientation = Gtk.Orientation.VERTICAL,   spacing = 10)
-            self.box_horizontal1 = Gtk.Box(orientation = Gtk.Orientation.HORIZONTAL, spacing = 10)
-             
-
-            
-            self.label1  = Gtk.Label()
-            self.label1.set_text('System:')
-            self.box_horizontal1.pack_start(self.label1, False, False, 0)
-
-            
-            self.combobox_systems = Gtk.ComboBox.new_with_model(self.system_liststore)
-            self.combobox_systems.connect("changed", self.on_combobox_systems_changed)
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_systems.pack_start(renderer_text, True)
-            self.combobox_systems.add_attribute(renderer_text, "text", 0)
-            
-            self.box_horizontal1.pack_start(self.combobox_systems, False, False, 0)
-            #------------------------------------------------------------------#
-            
-            
-            
-            
-            
-            #------------------------------------------------------------------#
-            #                  COORDINATES combobox and Label
-            #------------------------------------------------------------------#
-            self.label1  = Gtk.Label()
-            self.label1.set_text('Coordinates:')
-            self.box_horizontal1.pack_start(self.label1, False, False, 0)
-            self.coordinates_combobox = Gtk.ComboBox.new_with_model(self.coordinates_liststore)
-            #self.coordinates_combobox.connect("changed", self.on_self.coordinates_combobox_changed)
-            renderer_text = Gtk.CellRendererText()
-            self.coordinates_combobox.pack_start(renderer_text, True)
-            self.coordinates_combobox.add_attribute(renderer_text, "text", 0)
-            self.box_horizontal1.pack_start(self.coordinates_combobox, False, False, 0)
-            #------------------------------------------------------------------#
-            
-            
-
-
-            
-            #------------------------------------------------------------------#
-            #                  CHAIN combobox and Label
-            #------------------------------------------------------------------#
-            self.box_horizontal2 = Gtk.Box(orientation = Gtk.Orientation.HORIZONTAL, spacing = 6)
-            
-            
-            self.label2  = Gtk.Label()
-            self.label2.set_text('Chain:')
-            self.box_horizontal2.pack_start(self.label2, False, False, 0)
-
-            self.liststore_chains = Gtk.ListStore(str)
-            
-            self.combobox_chains = Gtk.ComboBox.new_with_model(self.liststore_chains)
-            self.combobox_chains.connect("changed", self.on_combobox_chains_changed)
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_chains.pack_start(renderer_text, True)
-            self.combobox_chains.add_attribute(renderer_text, "text", 0)
-            #vbox.pack_start(self.combobox_chains, False, False, True)
-            self.box_horizontal2.pack_start(self.combobox_chains, False, False, 0)
-            
-            
-            
-            
-            #------------------------------------------------------------------#
-            #                  RESIDUES combobox and Label
-            #------------------------------------------------------------------#
-            
-            self.label3  = Gtk.Label()
-            self.label3.set_text('Residue type:')
-            self.box_horizontal2.pack_start(self.label3, False, False, 0)
-
-            self.liststore_residues = Gtk.ListStore(str)
-            
-            self.combobox_residues = Gtk.ComboBox.new_with_model(self.liststore_residues)
-            self.combobox_residues.connect("changed", self.on_combobox_residues_changed)
-            renderer_text = Gtk.CellRendererText()
-            self.combobox_residues.pack_start(renderer_text, True)
-            self.combobox_residues.add_attribute(renderer_text, "text", 0)
-            #vbox.pack_start(self.combobox_chains, False, False, True)
-            self.box_horizontal2.pack_start(self.combobox_residues, False, False, 0)
-            
-            
-            #------------------------------------------------------------------#
-            
-            
-            
-            
-            
-            self.treeviewbox_horizontal = Gtk.Box(orientation = Gtk.Orientation.HORIZONTAL, spacing = 6)
-            
-            #------------------------------------------------------------------------------------------
-            #self.treeview = Gtk.TreeView(model =self.residue_liststore)
-            
-            
-            #-----------------------------------------------------------------------------------------
-            #                                      Chain filter
-            #-----------------------------------------------------------------------------------------
-            self.current_filter_chain = None
-            # Creating the filter, feeding it with the liststore model
-            self.chain_filter = self.residue_liststore.filter_new()
-            # setting the filter function, note that we're not using the
-            self.chain_filter.set_visible_func(self.chain_filter_func)
-            #-----------------------------------------------------------------------------------------
-            
-            
-            self.treeview = Gtk.TreeView(model = self.chain_filter)
-            self.treeview.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
-            
-            self.treeview.connect("button-release-event", self.on_treeview_Objects_button_release_event)
-            self.treeview.connect("row-activated", self.on_treeview_row_activated_event)
-            
-            for i, column_title in enumerate(
-                ['', "index", "Residue",  "Chain", 'size']
-            ):
-                if i == 0:
-                    cell = Gtk.CellRendererToggle()
-                    cell.set_property('activatable', True)
-                    cell.connect('toggled', self.on_chk_renderer_toggled, self.residue_liststore)
-                    column = Gtk.TreeViewColumn(column_title, cell )
-                    column.add_attribute(cell, 'active', 0)
-                    self.treeview.append_column(column)
-                    #print ('aqui')
-                else:
-                    renderer = Gtk.CellRendererText()
-                    #renderer.connect('toggled', self.on_chk_renderer_toggled, self.residue_liststore)
-                    column = Gtk.TreeViewColumn(column_title, renderer, text=i)
-                    self.treeview.append_column(column)
-
-            
-            self.current_filter_chain = None
-            
-
-            self.scrollable_treelist = Gtk.ScrolledWindow()
-            self.scrollable_treelist.set_vexpand(True)
-            self.scrollable_treelist.add(self.treeview)
-            #------------------------------------------------------------------------------------------
-            
-
-
-            
-            
-            #------------------------------------------------------------------------------------------
-            self.treeview_atom = Gtk.TreeView(model =self.atom_liststore)
-            self.treeview_atom.connect("button-release-event", self.on_treeview_atom_button_release_event)
-            self.treeview_atom.connect("row-activated", self.on_treeview_atom_row_activated_event)
-
-            for i, column_title in enumerate(
-                ['', "index", "name", "MM atom", 'MM charge']
-            ):
-                if i == 0:
-                    cell = Gtk.CellRendererToggle()
-                    cell.set_property('activatable', True)
-                    cell.connect('toggled', self.on_chk_renderer_toggled, self.atom_liststore)
-                    column = Gtk.TreeViewColumn(column_title, cell )
-                    column.add_attribute(cell, 'active', 0)
-                    self.treeview_atom.append_column(column)
-                    #print ('aqui')
-                else:
-                    renderer = Gtk.CellRendererText()
-                    column = Gtk.TreeViewColumn(column_title, renderer, text=i)
-                    self.treeview_atom.append_column(column)
-
-            self.scrollable_treelist2 = Gtk.ScrolledWindow()
-            self.scrollable_treelist2.set_vexpand(True)
-            self.scrollable_treelist2.add(self.treeview_atom)
-            #------------------------------------------------------------------------------------------
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            self.box_vertical.pack_start(self.box_horizontal1, False, True, 0)
-            self.box_vertical.pack_start(self.box_horizontal2, False, True, 0)
-            self.treeviewbox_horizontal.pack_start(self.scrollable_treelist, True, True, 0)
-            self.treeviewbox_horizontal.pack_start(self.scrollable_treelist2, True, True, 0)
-            
-            self.box_vertical.pack_start(self.treeviewbox_horizontal, False, True, 0)
-            
-            self.refresh_system_liststore()
-            self.update_window (system_names = True, coordinates = True)
-            
-            self.combobox_systems.set_active(0)
-            self.window =  Gtk.Window()
-            self.window.set_border_width(10)
-            self.window.set_default_size(600, 600)  
-            self.window.add(self.box_vertical)
-            self.window.connect("destroy", self.CloseWindow)
-            self.window.set_title('Go to Atom Window') 
-            self.window.show_all() 
-                                                          
-            #                                                                
-            #self.builder.connect_signals(self)                                   
-            
-            self.visible  =  True
-            #self.PutBackUpWindowData()
-            #gtk.main()
-            #----------------------------------------------------------------
-
-    def CloseWindow (self, button):
-        """ Function doc """
-        #self.BackUpWindowData()
-        self.window.destroy()
-        self.visible    =  False
-        #print('self.visible',self.visible)
-    
-    def __init__(self, main = None, system_liststore = None):
-        """ Class initialiser """
-        
-        self.main_session  = main
-        self.vm_session    = self.main_session.vm_session
-        self.p_session     = self.main_session.p_session
-        self.system_liststore      = system_liststore
-        self.coordinates_liststore = Gtk.ListStore(str, int)
-        
-        
-        self.residue_liststore = Gtk.ListStore(bool, int, str, str, int)
-        self.atom_liststore    = Gtk.ListStore(bool, int, str, str, float, int, )
-        self.residue_filter    = False
-        self.visible           = False
-
-    
-    def update_window (self, system_names = False, coordinates = True,  selections = False ):
-        """ Function doc """
-
-        if self.visible:
-            
-            _id = self.combobox_systems.get_active()
-            if _id == -1:
-                '''_id = -1 means no item inside the combobox'''
-                return None
-            else:    
-                _, system_id = self.system_liststore[_id]
-            
-            if system_names:
-                self.refresh_system_liststore ()
-                self.combobox_systems.set_active(_id)
-            
-            if coordinates:
-                self.refresh_coordinates_liststore ()
-                
-            
-            #if selections:
-            #    _, system_id = self.system_liststore[_id]
-            #    self.refresh_selection_liststore(system_id)
-        else:
-            if system_names:
-                self.refresh_system_liststore ()
-            if coordinates:
-                self.refresh_coordinates_liststore ()
-            
-    
-    def refresh_coordinates_liststore(self, system_id = None):
-        """ Function doc """
-        cb_id =  self.coordinates_combobox.get_active()
-        if system_id:
-            pass
-        else:
-            _id = self.combobox_systems.get_active()
-            if _id == -1:
-                return False
-            else:
-                #print('_id', _id)
-                _, system_id = self.system_liststore[_id]
-        
-        self.coordinates_liststore.clear()
-        n = 0
-        for key , vobject in self.vm_session.vobjects_dic.items():
-            if vobject.easyhybrid_system_id == system_id:
-                self.coordinates_liststore.append([vobject.name, key])
-                n += 1
-        
-        self.coordinates_combobox.set_active(n-1)
-        
-    def refresh_system_liststore (self):
-        """ Function doc """
-        self.main_session.refresh_system_liststore()
-        #self.system_liststore     .clear()
-        ##self.selection_liststore  .clear()
-        #'''--------------------------------------------------------------------------------------------'''
-        ##self.combobox_systems =self.builder.get_object('systems_combobox')
-        #for key, system  in self.p_session.systems.items():
-        #    try:
-        #        self.system_liststore.append([system['name'], key])
-        #    except:
-        #        print(system)
-
-    def on_combobox_residues_changed (self, widget):
-        """ Function doc """
-        tree_iter = widget.get_active_iter()
-        if tree_iter is not None:
-            model = widget.get_model()
-            residue = model[tree_iter][0]
-            #print("Selected: country=%s" % country)
-        
-            self.current_filter_residue = residue
-            
-            #print("%s Chain selected!" % self.current_filter_residue)
-            
-            # we update the filter, which updates in turn the view
-            if self.residue_filter:
-                self.residue_filter.refilter()
-        
-        
-    def on_combobox_chains_changed (self, widget):
-        """ Function doc """
-        ##---------------------------------------------------------------
-        #self.current_filter_chain = None
-        ## Creating the filter, feeding it with the liststore model
-        #self.chain_filter = self.residue_liststore.filter_new()
-        ## setting the filter function, note that we're not using the
-        #self.chain_filter.set_visible_func(self.chain_filter_func)
-        ##---------------------------------------------------------------
-        
-        tree_iter = self.combobox_chains.get_active_iter()
-        if tree_iter is not None:
-            model = self.combobox_chains.get_model()
-            chain = model[tree_iter][0]
-            #print("Selected: country=%s" % country)
-        
-        self.current_filter_chain = chain
-        #print("%s Chain selected!" % self.current_filter_chain)
-        # we update the filter, which updates in turn the view
-        self.chain_filter.refilter()
-    
-    
-    def on_combobox_systems_changed (self, widget):
-        """ Function doc """
-        #print(widget)
-        #print(widget.get_active())
-        
-        #print(widget.get_active_id())
-        #print(widget.get_active_iter())
-        
-        #self.vm_session.vobjects_dic.items()
-        
-        #self.vm_session.vobjects_dic.items()
-        cb_id = widget.get_active()
-        if cb_id == -1:
-            return None
-        else:
-            
-            self.update_window (coordinates = True)
-            
-            cb_id =  self.coordinates_combobox.get_active()
-            _, key = self.coordinates_liststore[cb_id]
-            
-            self.VObj = self.vm_session.vobjects_dic[key]
-            
-            
-            self.liststore_chains = Gtk.ListStore(str)
-            self.liststore_chains.append(['all'])
-            chains = self.VObj.chains.keys()
-            
-            #self.chain_liststore = Gtk.ListStore(str)
-            
-            for chain in chains:
-                self.liststore_chains.append([chain])
-            self.combobox_chains.set_model(self.liststore_chains)
-            self.combobox_chains.set_active(0)
-            
-            
-            self.residue_liststore = Gtk.ListStore(bool, int, str, str, int)
-            for chain in self.VObj.chains:
-                for res in self.VObj.chains[chain].residues:
-                    #print(res.resi, res.resn, chain,  len(res.atoms) ) 
-                    
-                    self.residue_liststore.append(list([True, res.resi, res.resn, chain,  len(res.atoms)]))
-            #-----------------------------------------------------------------------------------------
-            #                                      Chain filter
-            #-----------------------------------------------------------------------------------------
-            self.current_filter_chain = None
-            # Creating the filter, feeding it with the liststore model
-            self.chain_filter = self.residue_liststore.filter_new()
-            # setting the filter function, note that we're not using the
-            self.chain_filter.set_visible_func(self.chain_filter_func)
-            #-----------------------------------------------------------------------------------------
-            
-            
-            
-            
-            
-            
-            #-----------------------------------------------------------------------------------------
-            #                                      Residue combobox
-            #-----------------------------------------------------------------------------------------
-            self.liststore_residues = Gtk.ListStore(str)
-            self.liststore_residues.append(['all'])
-            
-            resn_labels = {}
-            
-            for residue in self.VObj.residues:
-                resn_labels[residue.resn] = True
-            
-            for resn in resn_labels.keys():
-                #print (resn)
-                self.liststore_residues.append([resn])
-            
-            self.combobox_residues.set_model(self.liststore_residues)
-            self.combobox_residues.set_active(0)
-            
-            #-----------------------------------------------------------------------------------------
-            #                                      Residue filter
-            #-----------------------------------------------------------------------------------------
-            self.current_filter_residue = None
-            # Creating the filter, feeding it with the liststore model
-            self.residue_filter = self.chain_filter.filter_new()
-            # setting the filter function, note that we're not using the
-            self.residue_filter.set_visible_func(self.residue_filter_func)
-            #-----------------------------------------------------------------------------------------        
-            
-            
-            #self.treeview.set_model(self.residue_liststore)
-            #self.treeview.set_model(self.chain_filter)
-            self.treeview.set_model(self.residue_filter)
-            
-        
-    def on_treeview_atom_button_release_event(self, tree, event):
-        if event.button == 2:
-            selection     = tree.get_selection()
-            model         = tree.get_model()
-            (model, iter) = selection.get_selected()
-            
-            
-            if iter != None:
-                self.selectedID  = int(model.get_value(iter, 1))-1  # @+
-                atom = self.VObj.atoms[self.selectedID]
-                self.vm_session.glwidget.vm_widget.center_on_atom(atom)
-       
-    def on_treeview_atom_row_activated_event (self, tree, rowline , column):
-        """ Function doc """
-        #print (A,B,C)
-        selection     = tree.get_selection()
-        model         = tree.get_model()
-        
-        #print(model)
-        #print(rowline, list(model[rowline]))
-        
-        data  = list(model[rowline])
-        #print(data)
-        #self.selectedID  = int(data[1])  # @+
-        #self.selectedObj = str(data[2])
-        pickedID = data[-1]
-        
-        atom_picked = self.vm_session.atom_dic_id[pickedID]
-        
-        
-        #res = self.VObj.chains[self.selectedChn].residues_by_index[self.selectedID]
-        #
-        ##print('Selecting by doble click')
-        ##self.vm_session.selections[self.vm_session.current_selection].selecting_by_residue (res.atoms[0])
-        ##self.vm_session.selections[self.vm_session.current_selection].selection_function_viewing (res.atoms[0])
-       
-        self.vm_session._selection_function (atom_picked, _type = 'atom')
-        self.vm_session.glwidget.queue_draw()
-        #
-        #self.atom_liststore.clear()
-        #for atom in res.atoms:
-        #    self.atom_liststore.append(list([True, int(atom.index), atom.name, atom.symbol, atom.charge]))
-    
-    
-    def on_treeview_row_activated_event(self, tree, rowline , column ):
-        #print (A,B,C)
-        selection     = tree.get_selection()
-        model         = tree.get_model()
-        
-        #print(model)
-        #print(rowline, list(model[rowline]))
-        
-        data  = list(model[rowline])
-        self.selectedID  = int(data[1])  # @+
-        self.selectedObj = str(data[2])
-        self.selectedChn = str(data[3])
-        
-        cb_id =  self.coordinates_combobox.get_active()
-        _, key = self.coordinates_liststore[cb_id]
-        self.VObj = self.vm_session.vobjects_dic[key]
-        
-        res = self.VObj.chains[self.selectedChn].residues_by_index[self.selectedID]
-        
-        
-        '''centering and selecting'''
-        frame = self.vm_session.get_frame ()
-        res.get_center_of_mass(frame = frame)
-        self.vm_session.glwidget.vm_widget.center_on_coordinates(res.vobject, res.mass_center)
-        
-        self.vm_session._selection_function (res.atoms[0], _type = 'residue')
-        self.vm_session.glwidget.queue_draw()
-        
-        self.atom_liststore.clear()
-        
-        for atom in res.atoms:
-            self.atom_liststore.append(list([True, int(atom.index), atom.name, atom.symbol, atom.charge, atom.atom_id ]))
-
-        #self.treeview_atom.set_model(self.atom_liststore)
-  
-    
-    def on_treeview_Objects_button_release_event(self, tree, event):
-        #print ( tree, event)
-        
-        if event.button == 3:
-            print ("button 3")
-            #selection     = tree.get_selection()
-            #model         = tree.get_model()
-            #(model, iter) = selection.get_selected()
-            #
-            #
-            #
-            #if iter != None:
-            #    self.selectedID  = int(model.get_value(iter, 1))  # @+
-            #    self.selectedObj = str(model.get_value(iter, 2))
-            #    print(self.selectedID, self.selectedObj, self.VObj.residues[self.selectedID])
-            #    #self.builder.get_object('TreeViewObjLabel').set_label('- ' +self.selectedObj+' -' )
-            #
-            #    #widget = self.builder.get_object('treeview_menu')
-            #    #widget.popup(None, None, None, None, event.button, event.time)
-            #    #print ('button == 3')
-
-
-        if event.button == 2:
-            #print ('button == 2')
-            self.treeview.get_selection().set_mode(Gtk.SelectionMode.SINGLE)
-
-            
-            selection     = tree.get_selection()
-            model         = tree.get_model()
-            (model, iter) = selection.get_selected()
-
-            if iter != None:
-                self.selectedID  = int(model.get_value(iter, 1))  # @+
-                self.selectedObj = str(model.get_value(iter, 2))
-                self.selectedChn = str(model.get_value(iter, 3))
-                res = self.VObj.chains[self.selectedChn].residues_by_index[self.selectedID]
-                frame = self.vm_session.get_frame ()
-                res.get_center_of_mass(frame = frame)
-                
-                self.vm_session.glwidget.vm_widget.center_on_coordinates(res.vobject, res.mass_center)
-        
-                self.atom_liststore.clear()
-                for atom in res.atoms:
-                     self.atom_liststore.append(list([True, int(atom.index), atom.name, atom.symbol, atom.charge, atom.atom_id ]))
-            
-            
-            
-            self.treeview.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
-
-        
-        if event.button == 1:
-            self.treeview.get_selection().set_mode(Gtk.SelectionMode.SINGLE)
-
-            selection     = tree.get_selection()
-            model         = tree.get_model()
-            (model, iter) = selection.get_selected()
-            
-            
-            if iter != None:
-                self.selectedID  = int(model.get_value(iter, 1))  # @+
-                self.selectedObj = str(model.get_value(iter, 2))
-                self.selectedChn = str(model.get_value(iter, 3))
-                res = self.VObj.chains[self.selectedChn].residues_by_index[self.selectedID]
-                
-                
-                self.atom_liststore.clear()
-                #self.atom_liststore = Gtk.ListStore(bool, int, str, str, float)
-                try:
-                    #charges = list(self.p_session.systems[self.VObj.easyhybrid_system_id]['system'].AtomicCharges())
-                    charges         = list(self.p_session.systems[self.VObj.easyhybrid_system_id]['system'].mmState.charges)
-                    atomTypes       = self.p_session.systems[self.VObj.easyhybrid_system_id]['system'].mmState.atomTypes
-                    atomTypeIndices = list(self.p_session.systems[self.VObj.easyhybrid_system_id]['system'].mmState.atomTypeIndices)
-
-                    for atom in res.atoms:
-                         #self.atom_liststore.append(list([True, int(atom.index), atom.name, atom.symbol,  charges[atom.index-1] , int(atom.atom_id)]))
-                         self.atom_liststore.append(list([True, int(atom.index), atom.name, atomTypes[atomTypeIndices[atom.index-1]] ,  charges[atom.index-1] , int(atom.atom_id)]))
-                except:
-                    charges = [0]*len(self.VObj.atoms)
-                    for atom in res.atoms:
-                         self.atom_liststore.append(list([True, int(atom.index), atom.name, 'UNK',  charges[atom.index-1] , int(atom.atom_id)]))
-                
-                
-                
-                #self.treeview_atom.set_model(self.atom_liststore)
-            self.treeview.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
-
-        
-      
-    
-    def on_chk_renderer_toggled(self, cell, path, model):
-        print(model[path][0])
-
-   
-   
-    def residue_filter_func(self, model, iter, data):
-        """Tests if the language in the row is the one in the filter"""
-        if (
-            self.current_filter_residue is None
-            or self.current_filter_residue == "all"
-        ):
-            return True
-        else:
-            return model[iter][2] == self.current_filter_residue
-   
-            
-    def chain_filter_func(self, model, iter, data):
-        """Tests if the language in the row is the one in the filter"""
-        if (
-            self.current_filter_chain is None
-            or self.current_filter_chain == "all"
-        ):
-            return True
-        else:
-            return model[iter][3] == self.current_filter_chain
-
-    #def on_selection_button_clicked(self, widget):
-    #    """Called on any of the button clicks"""
-    #    # we set the current language filter to the button's label
-    #    self.current_filter_language = widget.get_label()
-    #    print("%s language selected!" % self.current_filter_language)
-    #    # we update the filter, which updates in turn the view
-    #    self.language_filter.refilter()
-    #
-    #def on_button1_clicked(self, widget):
-    #    print("Hello")
-    #
-    #def on_button2_clicked(self, widget):
-    #    print("Goodbye")
-    def update (self):
-        """ Function doc """
-        print('VismolGoToAtomWindow2 update')
-        pass
 
 
 
@@ -1328,3 +706,1354 @@ class VismolTrajectoryFrame(Gtk.Frame):
         self.scale.set_adjustment ( self.adjustment)
         self.scale.set_digits(0)
         self.upper = upper
+
+
+
+class SystemComboBox(Gtk.ComboBox):
+    """ Class doc """
+    
+    def __init__ (self, main):
+        """ Class initialiser """
+        Gtk.ComboBox.__init__(self)
+        
+        self.main = main
+        
+        self.system_liststore = self.main.system_liststore
+        self.set_model(self.system_liststore)
+        
+        #self.combobox_systems.connect("changed", self.on_combobox_systems_changed)
+        
+        renderer_pixbuf = Gtk.CellRendererPixbuf()
+        self.pack_start(renderer_pixbuf, True)
+        self.add_attribute(renderer_pixbuf, "pixbuf", 2)
+        
+        renderer_text2 = Gtk.CellRendererText()
+        self.pack_start(renderer_text2, True)
+        self.add_attribute(renderer_text2, "text", 0)
+
+    
+    def get_system_id(self, widget = None):
+        _, system_id, pixbuf = self._get_system()
+        return system_id
+    
+    def get_system_name(self, widget = None):
+        name, system_id, pixbuf = self._get_system()
+        return name
+        
+        
+    def _get_system(self, widget = None):
+        """ Function doc """
+        index = self.get_active()
+        
+        if index == -1:
+            '''_id = -1 means no item inside the combobox'''
+            return None, None, None
+        
+        else:    
+            _, system_id, pixbuf = self.system_liststore[index]
+            #print(_, system_id, pixbuf)
+            return _, system_id, pixbuf
+
+
+    def set_active_system (self, e_id = 0):
+        """ Function doc """
+        
+        counter    = 0
+        set_active = 0
+        for key , system in self.main.p_session.psystem.items():
+            if system:
+                if e_id == int(key):
+                    set_active = counter
+                    counter += 1
+                else:
+                    counter += 1
+            else:
+                pass
+        
+        self.set_active(set_active)
+
+
+class CoordinatesComboBox(Gtk.ComboBox):
+    """ Class doc """
+    
+    def __init__ (self, coordinates_liststore = None, system_combobox = None, pixbuf = True):
+        """ Class initialiser """
+        Gtk.ComboBox.__init__(self)
+        
+        self.coordinates_liststore = coordinates_liststore
+        self.set_model(self.coordinates_liststore)
+        #self.coordinates_combobox.connect("changed", self.on_self.coordinates_combobox_changed)
+        
+        if pixbuf:
+            renderer_pixbuf = Gtk.CellRendererPixbuf()
+            self.pack_start(renderer_pixbuf, True)
+            self.add_attribute(renderer_pixbuf, "pixbuf", 3)
+        
+        renderer_text = Gtk.CellRendererText()
+        self.pack_start(renderer_text, True)
+        self.add_attribute(renderer_text, "text", 0)
+
+    def get_vobject (self):
+        """ Function doc """
+        name, key1,  key2, pixbuf = self._get_coordinates_info()
+        
+        #self.vobject  = self.main.vm_session.vm_objects_dic[vobject_index]
+     
+        
+    def get_vobject_id (self):
+        """ Returns the id of the vobject (id number of the vobject - 
+        generated in eSession.py / self._add_vismol_object() ) """
+        name, key1,  key2, pixbuf  = self._get_coordinates_info ()
+        return key1
+
+    
+    def get_system_id (self):
+        """ Returns the id of the vobject (id number of the vobject - 
+        generated in eSession.py / self._add_vismol_object() ) """
+        name, key1,  key2, pixbuf  = self._get_coordinates_info ()
+        return key2
+        
+        
+    def _get_coordinates_info (self):
+        """ Function doc """
+        cb_id =  self.get_active()
+        model = self.get_model()
+        name, key1,  key2, pixbuf = model[cb_id]
+        #print (name, key1,  key2)
+        return name, key1,  key2, pixbuf
+
+
+    def set_active_vobject (self, pos = 0):
+        """ Function doc """
+        #self.coordinates_liststore[cb_id]
+        if pos ==-1:
+            n = len(self.get_model())
+            #print(776, n)
+            self.set_active(n-1)
+        else:
+            self.set_active(pos)
+
+    
+    
+    def _starting_coordinates_model_update (self, init = False):
+        """ Function doc """
+        #------------------------------------------------------------------------------------
+        '''The combobox accesses, according to the id of the active system, 
+        listostore of the dictionary object_list state_dict'''
+        if self.Visible:
+
+            e_id = self.main.p_session.active_id 
+            self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[e_id])
+            #------------------------------------------------------------------------------------
+            size = len(self.main.vobject_liststore_dict[e_id])
+            self.combobox_starting_coordinates.set_active(size-1)
+            #------------------------------------------------------------------------------------
+        else:
+            if init:
+                e_id = self.main.p_session.active_id 
+                self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[e_id])
+                #------------------------------------------------------------------------------------
+                size = len(self.main.vobject_liststore_dict[e_id])
+                self.combobox_starting_coordinates.set_active(size-1)
+                #------------------------------------------------------------------------------------
+            else:
+                pass
+
+
+
+
+def get_distance (vobject, index1, index2):
+    """ Function doc """
+    print( index1, index2)
+    atom1 = vobject.atoms[index1]
+    atom2 = vobject.atoms[index2]
+    a1_coord = atom1.coords()
+    a2_coord = atom2.coords()
+    
+    dx = a1_coord[0] - a2_coord[0]
+    dy = a1_coord[1] - a2_coord[1]
+    dz = a1_coord[2] - a2_coord[2]
+    dist = (dx**2+dy**2+dz**2)**0.5
+    print('distance a1 - a2:', dist)
+    return dist
+#===========================================================
+def get_angle (vobject, index1, index2, index3):
+    """ Function doc """
+#===========================================================
+def get_dihedral (vobject, index1, index2, index3, index4):
+    """ Function doc """
+#===========================================================
+def compute_sigma_a1_a3 (vobject, index1, index3):
+
+    """ example:
+        pk1 ---> pk2 ---> pk3
+         N  ---   H  ---  O	    
+         
+         where H is the moving atom
+         calculation only includes N and O ! 
+    """
+    atom1 = vobject.atoms[index1]
+    atom3 = vobject.atoms[index3]
+    
+    symbol1 = atom1.symbol
+    symbol3 = atom3.symbol    
+    
+    mass1 = atomic_dic[symbol1][4]
+    mass3 = atomic_dic[symbol3][4]
+    print(atom1.name, symbol1, mass1)
+    print(atom3.name, symbol3, mass3)
+
+    ##pk1_name
+    ##pk3_name
+    #mass1 = atomic_dic[pk1_name][4]
+    #mass3 = atomic_dic[pk3_name][4]
+    #
+    sigma_pk1_pk3 =  mass1/(mass1+mass3)
+    print ("sigma_pk1_pk3: ",sigma_pk1_pk3)
+    #
+    sigma_pk3_pk1 =  mass3/(mass1+mass3)
+    sigma_pk3_pk1 = sigma_pk3_pk1*-1
+    #
+    print ("sigma_pk3_pk1: ", sigma_pk3_pk1)
+    return(sigma_pk1_pk3, sigma_pk3_pk1)
+
+
+texto_d1   = "\n\n                       -- simple-distance --\n\nFor simple-distance, select two atoms in pymol using the editing mode\nfollowing the diagram:\n\n   R                    R\n    \                  /\n     A1--A2  . . . . A3\n    /                  \ \n   R                    R\n         ^            ^\n         |            |\n        pk1  . . . . pk2\n                d1\n"
+texto_d2d1 = "\n                       -- multiple-distance --\n\nFor multiple-distance, select three atoms in pymol using the editing mode\nfollowing the diagram:\n\n   R                    R\n    \                  /\n     A1--A2  . . . . A3\n    /                  \ \n   R                    R\n     ^   ^            ^\n     |   |            |\n    pk1-pk2  . . . . pk3\n       d1       d2\n"
+
+
+class ReactionCoordinateBox(Gtk.Box):
+    """ Class doc """
+    
+    def __init__ (self, main = None, mode = 0 ):
+        """ Class initialiser """
+        Gtk.Box.__init__(self)
+        
+        
+        if mode == 0:
+            xml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.22.2 -->
+<interface>
+  <requires lib="gtk+" version="3.20"/>
+  <object class="GtkBox" id="reaction_coordinate_box">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="orientation">vertical</property>
+    <property name="spacing">4</property>
+    <child>
+      <object class="GtkBox">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="spacing">6</property>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Coordinate Type:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkComboBox" id="combobox_reaction_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkGrid">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="row_spacing">5</property>
+        <property name="column_spacing">10</property>
+        <child>
+          <object class="GtkLabel" id="label_atom4_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Atom 4(index):</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom3_index_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_atom2_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Atom 2(index):</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_atom1_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Atom 1(index):</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_atom3_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Atom 3(index):</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_name3_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Name:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">2</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_name4_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Name:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">2</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_name2_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Name:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">2</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_name1_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Name:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">2</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom3_name_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">3</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom2_index_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom1_index_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom4_index_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom4_name_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">3</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom2_name_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">3</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom1_name_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">3</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">True</property>
+        <property name="fill">True</property>
+        <property name="position">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkButton" id="import_picking_selection_button">
+        <property name="label" translatable="yes">Import from Picking Selection</property>
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="receives_default">True</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">2</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkCheckButton" id="mass_restraints1">
+        <property name="label" translatable="yes">Apply Mass Weighted Restraints</property>
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="receives_default">False</property>
+        <property name="draw_indicator">True</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">3</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkAlignment" id="rc_aligment">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="top_padding">5</property>
+        <property name="bottom_padding">5</property>
+        <property name="left_padding">10</property>
+        <property name="right_padding">10</property>
+        <child>
+          <object class="GtkSeparator">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+          </object>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">4</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkGrid" id="rc_grid">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="halign">end</property>
+        <property name="row_spacing">1</property>
+        <property name="column_spacing">10</property>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Force Constante:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Initial Distance:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_FORCE_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="text" translatable="yes">4000</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_dmin_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Number of Steps:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Step Size:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_nsteps1">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="text" translatable="yes">10</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_step_size1">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="text" translatable="yes">0.1</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">5</property>
+      </packing>
+    </child>
+  </object>
+</interface>
+
+'''
+
+        elif mode == 1:
+            xml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.22.2 -->
+<interface>
+  <requires lib="gtk+" version="3.20"/>
+  <object class="GtkBox" id="reaction_coordinate_box">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="orientation">vertical</property>
+    <property name="spacing">4</property>
+    <child>
+      <object class="GtkBox">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="spacing">6</property>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Coordinate Type:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkComboBox" id="combobox_reaction_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkGrid">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="row_spacing">5</property>
+        <property name="column_spacing">10</property>
+        <child>
+          <object class="GtkLabel" id="label_atom4_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Atom 4(index):</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom3_index_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_atom2_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Atom 2(index):</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_atom1_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Atom 1(index):</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_atom3_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Atom 3(index):</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_name3_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Name:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">2</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_name4_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Name:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">2</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_name2_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Name:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">2</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_name1_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Name:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">2</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom3_name_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">3</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom2_index_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom1_index_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom4_index_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom4_name_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">3</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom2_name_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">3</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom1_name_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">3</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Step Size:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">4</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Number of Steps:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">4</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Force Constante:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">4</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Initial Distance:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">4</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_step_size1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">5</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_nsteps1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+            <property name="text" translatable="yes">10</property>
+          </object>
+          <packing>
+            <property name="left_attach">5</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_FORCE_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+            <property name="text" translatable="yes">4000</property>
+          </object>
+          <packing>
+            <property name="left_attach">5</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_dmin_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">5</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">True</property>
+        <property name="fill">True</property>
+        <property name="position">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkButton" id="import_picking_selection_button">
+        <property name="label" translatable="yes">Import from Picking Selection</property>
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="receives_default">True</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">2</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkCheckButton" id="mass_restraints1">
+        <property name="label" translatable="yes">Apply Mass Weighted Restraints</property>
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="receives_default">False</property>
+        <property name="draw_indicator">True</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">3</property>
+      </packing>
+    </child>
+  </object>
+</interface>
+
+'''
+        
+        self.main = main
+        self.vm_session = main.vm_session
+        self.p_session  = main.p_session
+        
+        #scan mode ON
+        self.scan = True
+        
+        self.builder = Gtk.Builder()
+        self.builder.add_from_string(xml)
+        #self.builder.connect_signals(self)
+        #self.glWidget = glWidget
+        box = self.builder.get_object('reaction_coordinate_box')
+        self.pack_start(box, False, False, 0)
+        
+        self.import_picking_selection_button = self.builder.get_object('import_picking_selection_button')
+        self.import_picking_selection_button.connect( 'clicked',  self.import_picking_selection_data )
+        
+        
+        self.mass_restraints1 = self.builder.get_object('mass_restraints1')
+        self.mass_restraints1.connect( 'toggled',  self.toggle_mass_restraint1 )
+
+
+
+        #-----------------------------------------------------------------------------------
+        self.method_store = Gtk.ListStore(str)
+        methods = ["simple distance", "multiple distance", 'dihedral']
+
+        for method in methods:
+            self.method_store.append([method])
+        self.combobox_reaction_coord1 = self.builder.get_object('combobox_reaction_coord1')
+        self.combobox_reaction_coord1.set_model(self.method_store)
+        renderer_text = Gtk.CellRendererText()
+        self.combobox_reaction_coord1.pack_start(renderer_text, True)
+        self.combobox_reaction_coord1.add_attribute(renderer_text, "text", 0)
+        self.combobox_reaction_coord1.connect('changed', self.change_cb_coordType1)
+        #-----------------------------------------------------------------------------------
+
+    def toggle_mass_restraint1 (self, widget):
+        """ Function doc """
+        self.refresh_dmininum(coord1 =  True)
+   
+    
+    def refresh_dmininum (self, coord1 =  False, coord2 = False):
+        """ Function doc """
+        _type = self.combobox_reaction_coord1.get_active()
+        if _type == 0:
+            index1 = int(self.builder.get_object('entry_atom1_index_coord1').get_text() )
+            index2 = int(self.builder.get_object('entry_atom2_index_coord1').get_text() )
+
+            dist1 = get_distance(self.vobject, index1, index2 )
+            self.builder.get_object('entry_dmin_coord1').set_text(str(dist1))
+        
+        elif _type == 1:
+            index1 = int(self.builder.get_object('entry_atom1_index_coord1').get_text() )
+            index2 = int(self.builder.get_object('entry_atom2_index_coord1').get_text() )
+            index3 = int(self.builder.get_object('entry_atom3_index_coord1').get_text() )
+            
+            dist1 = get_distance(self.vobject, index1, index2 )
+            dist2 = get_distance(self.vobject, index2, index3 )
+            
+            if self.builder.get_object('mass_restraints1').get_active():
+                self.sigma_pk1_pk3, self.sigma_pk3_pk1  = compute_sigma_a1_a3(self.vobject, index1, index3)
+                #print('distance a1 - a2:', dist1 - dist2)
+                DMINIMUM =  (self.sigma_pk1_pk3 * dist1) -(self.sigma_pk3_pk1 * dist2*-1)
+                self.builder.get_object('entry_dmin_coord1').set_text(str(DMINIMUM))
+            else:
+                DMINIMUM =  dist1- dist2
+                self.builder.get_object('entry_dmin_coord1').set_text(str(DMINIMUM))
+        else:
+            pass    
+              
+
+    def import_picking_selection_data (self, widget):
+        """  
+                   R                    R
+                    \                  /
+                     A1--A2  . . . . A3
+                    /                  \ 
+                   R                    R
+                     ^   ^            ^
+                     |   |            |
+                    pk1-pk2  . . . . pk3
+                       d1       d2	
+
+                q1 =  1 / (mpk1 + mpk3)  =  [ mpk1 * r (pk3_pk2)  -   mpk3 * r (pk1_pk2) ]
+              
+          mpk1 = mass of pk1 atom  
+          mpk2 = mass of pk2 atom  
+          mpk3 = mass of pk3 atom  
+                
+        """       
+        atom1 = self.vm_session.picking_selections.picking_selections_list[0]
+        atom2 = self.vm_session.picking_selections.picking_selections_list[1]
+        atom3 = self.vm_session.picking_selections.picking_selections_list[2]
+        atom4 = self.vm_session.picking_selections.picking_selections_list[3]
+        if atom1:
+            self.vobject = atom1.vm_object
+        else:
+            return None
+                
+
+        if atom1:
+            self.builder.get_object('entry_atom1_index_coord1').set_text(str(atom1.index-1) )
+            self.builder.get_object('entry_atom1_name_coord1' ).set_text(str(atom1.name) )
+        else: print('use picking selection to chose the central atom')            
+        #-------
+        if atom2:
+            self.builder.get_object('entry_atom2_index_coord1').set_text(str(atom2.index-1) )
+            self.builder.get_object('entry_atom2_name_coord1' ).set_text(str(atom2.name) )
+        else: print('use picking selection to chose the central atom')
+        #-------
+        if atom3:
+            self.builder.get_object('entry_atom3_index_coord1').set_text(str(atom3.index-1) )
+            self.builder.get_object('entry_atom3_name_coord1' ).set_text(str(atom3.name) )
+            
+            if atom3.symbol == atom1.symbol:
+                self.builder.get_object('mass_restraints1').set_active(False)
+            else:
+                self.builder.get_object('mass_restraints1').set_active(True)
+            
+        else: print('use picking selection to chose the central atom')
+         #-------
+        if atom4:
+            self.builder.get_object('entry_atom4_index_coord1').set_text(str(atom4.index-1) )
+            self.builder.get_object('entry_atom4_name_coord1' ).set_text(str(atom4.name) )
+        else: print('use picking selection to chose the central atom')
+            
+        self.refresh_dmininum( coord1 =  True)
+            
+        
+    def change_cb_coordType1 (self, combo_box):
+        """ Function doc """
+        
+        _type = self.combobox_reaction_coord1.get_active()        
+        
+        if _type == 0:
+            self.builder.get_object('label_atom3_coord1').hide()
+            self.builder.get_object('entry_atom3_index_coord1').hide()
+            self.builder.get_object('label_name3_coord1').hide()
+            self.builder.get_object('entry_atom3_name_coord1').hide()
+            
+            self.builder.get_object('label_atom4_coord1').hide()
+            self.builder.get_object('entry_atom4_index_coord1').hide()
+            self.builder.get_object('label_name4_coord1').hide()
+            self.builder.get_object('entry_atom4_name_coord1').hide()
+            self.builder.get_object('mass_restraints1').set_sensitive(False)
+
+        if _type == 1:
+            self.builder.get_object('label_atom3_coord1').show()
+            self.builder.get_object('entry_atom3_index_coord1').show()
+            self.builder.get_object('label_name3_coord1').show()
+            self.builder.get_object('entry_atom3_name_coord1').show()
+            
+            self.builder.get_object('label_atom4_coord1').hide()
+            self.builder.get_object('entry_atom4_index_coord1').hide()
+            self.builder.get_object('label_name4_coord1').hide()
+            self.builder.get_object('entry_atom4_name_coord1').hide()
+            self.builder.get_object('mass_restraints1').set_sensitive(True)
+
+        if _type == 2:
+            self.builder.get_object('label_atom3_coord1').show()
+            self.builder.get_object('entry_atom3_index_coord1').show()
+            self.builder.get_object('label_name3_coord1').show()
+            self.builder.get_object('entry_atom3_name_coord1').show()
+            
+            self.builder.get_object('label_atom4_coord1').show()
+            self.builder.get_object('entry_atom4_index_coord1').show()
+            self.builder.get_object('label_name4_coord1').show()
+            self.builder.get_object('entry_atom4_name_coord1').show()
+            self.builder.get_object('mass_restraints1').set_sensitive(False)
+        
+        if self.scan:
+            try:
+                self.refresh_dmininum ( coord1 = True)
+            except:
+                print(texto_d1)
+                print(texto_d2d1)
+
+    
+    def set_rc_type (self, rc_type = 0):
+        """ Function doc """
+        self.combobox_reaction_coord1.set_active(rc_type)
+        #print('aqui')
+
+
+    def set_hide_scan_parameters (self):
+        """ Function doc """
+        self.builder.get_object('rc_grid').hide()
+        self.builder.get_object('mass_restraints1').hide()
+        self.builder.get_object('rc_aligment').hide()
+        self.scan = False
+
+    def get_rc_data (self):
+        """ Function doc """
+        parameters = { }
+        
+        _type = self.combobox_reaction_coord1.get_active()
+        if _type == 0:
+            parameters["rc_type"]     = "simple_distance"
+            index1 = int( self.builder.get_object('entry_atom1_index_coord1').get_text() )
+            index2 = int( self.builder.get_object('entry_atom2_index_coord1').get_text() )
+            
+            name1 = self.builder.get_object('entry_atom1_name_coord1').get_text()
+            name2 = self.builder.get_object('entry_atom2_name_coord1').get_text()
+            
+            dmin   = float( self.builder.get_object('entry_dmin_coord1').get_text( ))
+            parameters["ATOMS"]       = [ index1, index2 ] 
+            parameters["ATOMS_NAMES"] = [ name1 ,  name2 ] 
+            parameters["dminimum"]  = dmin 
+            parameters["sigma_pk1pk3"] = None
+            parameters["sigma_pk3pk1"] = None
+            
+        elif _type == 1:
+            parameters["rc_type"]     = "multiple_distance"
+            index1 = int( self.builder.get_object('entry_atom1_index_coord1').get_text() )
+            index2 = int( self.builder.get_object('entry_atom2_index_coord1').get_text() )
+            index3 = int( self.builder.get_object('entry_atom3_index_coord1').get_text() )
+            
+            name1 = self.builder.get_object('entry_atom1_name_coord1').get_text() 
+            name2 = self.builder.get_object('entry_atom2_name_coord1').get_text() 
+            name3 = self.builder.get_object('entry_atom3_name_coord1').get_text() 
+            
+            dmin   = float( self.builder.get_object('entry_dmin_coord1').get_text( ))
+            parameters["ATOMS"]       = [ index1, index2, index3 ] 
+            parameters["ATOMS_NAMES"] = [ name1,  name2,  name3 ] 
+            parameters["dminimum"]  = dmin  
+            
+            if self.builder.get_object('mass_restraints1').get_active():
+                parameters["MC"] = True
+                parameters["sigma_pk1pk3"] = self.sigma_pk1_pk3 
+                parameters["sigma_pk3pk1"] = self.sigma_pk3_pk1 
+            else:
+                parameters["sigma_pk1pk3"] =  1.0 
+                parameters["sigma_pk3pk1"] = -1.0 
+
+
+        elif _type == 2:
+            index1 = int( self.builder.get_object('entry_atom1_index_coord1').get_text() )
+            index2 = int( self.builder.get_object('entry_atom2_index_coord1').get_text() )
+            index3 = int( self.builder.get_object('entry_atom3_index_coord1').get_text() )
+            index4 = int( self.builder.get_object('entry_atom4_index_coord1').get_text() )
+            dmin   = float( self.builder.get_object('entry_dmin_coord1').get_text() )
+            parameters["ATOMS"]     = [ index1,index2,index3,index4] 
+            parameters["dminimum"]  = dmin 
+            parameters["rc_type"]     = "dihedral"
+            parameters["sigma_pk1pk3"] = None
+            parameters["sigma_pk3pk1"] = None
+        
+        parameters["nsteps"]         = int( self.builder.get_object('entry_nsteps1').get_text() )
+        parameters["force_constant"] = float( self.builder.get_object('entry_FORCE_coord1').get_text() )
+        parameters["dincre"]         = float( self.builder.get_object('entry_step_size1').get_text() )
+        
+        return (parameters)
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+
