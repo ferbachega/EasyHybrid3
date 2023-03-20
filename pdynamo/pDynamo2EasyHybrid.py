@@ -907,11 +907,9 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         
         if working_folder is None:
             is_wf_already_set = getattr ( system, "e_working_folder", False )            
-            #print ('is_wf_already_set = getattr ( system, "e_working_folder", False', is_wf_already_set )
             if is_wf_already_set is False:
                 try:  
                     system.e_working_folder = os.environ.get('PDYNAMO3_SCRATCH')
-                    #print (system.e_working_folder)
                 except:
                     system.e_working_folder =  os.environ.get('HOME')
             else:
@@ -940,14 +938,19 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         
         is_color_palette = getattr(system, 'e_color_palette', None)
         
-        if is_color_palette is not None:
-            pass
+        if type(is_color_palette) is not dict:
+            system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter]
+            '''When the number of available colors runs out, we have to reset the counter'''
+            self.color_palette_counter        += 1
+            if self.color_palette_counter > len(COLOR_PALETTE.keys())-1:
+                self.color_palette_counter = 0
+            else:
+                pass
+        
         else:
             if color is not None:
                 system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
-                print(system.e_color_palette['C'])
                 system.e_color_palette['C']       = color
-                print(system.e_color_palette['C'])
 
             else:
                 system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict

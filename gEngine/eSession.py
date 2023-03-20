@@ -123,6 +123,7 @@ class GLMenu:
             def menu_show_sticks (_):
                 """ Function doc """
                 self.show_or_hide( rep_type = 'sticks', show = True)
+                #self.show_or_hide( rep_type = 'dash', show = True)
             
             def menu_show_nonbonded (_):
                 """ Function doc """
@@ -830,6 +831,7 @@ class EasyHybridSession(VismolSession, GLMenu):
         
         if show_molecule:
             vismol_object.create_representation(rep_type="lines")
+            #vismol_object.create_representation(rep_type="dash")
             vismol_object.create_representation(rep_type="nonbonded")
             #vismol_object.create_representation(reprep_type="sticks")
             if autocenter:

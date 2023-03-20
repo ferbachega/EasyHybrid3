@@ -623,6 +623,26 @@ class MainWindow:
             window.update()
         
 
+    def change_reference_color (self, system, new_color):
+        """ Function doc """
+        system.e_color_palette['C'] = new_color
+        sqr_color                   = get_colorful_square_pixel_buffer (system)
+        
+        
+        self.system_liststore[system.e_liststore_iter][2] = sqr_color 
+
+        self.main_treeview =  self.main_treeview.get_model() 
+        self.main_treeview[system.e_treeview_iter][9] = sqr_color
+        
+        for index, vobject in self.vm_session.vm_objects_dic.items():
+            treeview_iter = vobject.e_treeview_iter
+            if self.main_treeview[treeview_iter][0] == system.e_id:
+                self.main_treeview[treeview_iter][9] = sqr_color
+                self.vobject_liststore_dict[system.e_id][vobject.liststore_iter][3]=sqr_color
+            else:
+                pass
+
+
     def refresh_main_statusbar(self, message = None, psystem = None):
         """ Function doc """
         psystem = self.p_session.psystem[self.p_session.active_id]
@@ -708,13 +728,15 @@ class MainWindow:
         """ Function doc """
         if statusbar:
             self.refresh_main_statusbar()
-    
+
 
     def print_btn (self, widget):
         """ Function doc """
         print(self.box_reac)
         parm = self.box_reac.get_rc_data()
         print(parm)
+    
+    
     def run_test (self, widget):
         """ Function doc """
         
@@ -1281,67 +1303,35 @@ class TreeViewMenu:
             (model, iter) = selection.get_selected()
             self.selectedID  = int(model.get_value(iter, 0))  # @+
             #----------------------------------------------------------------------
-            #print('self.selectedID',self.selectedID)
-            print('self.selectedID',type(self.main.p_session.psystem[self.selectedID].e_color_palette ))
-            
-            self.main.p_session.psystem[self.selectedID].e_color_palette['C'] = new_color
-            
-            
-            #color      = self.main.p_session.psystem[self.selectedID].e_color_palette['C']
-            #res_color  = [int(color[0]*255),int(color[1]*255),int(color[2]*255)] 
-            #sqr_color  = getColouredPixmap( res_color[0], res_color[1], res_color[2] )
-            
             
             system = self.main.p_session.psystem[self.selectedID]
-            sqr_color   = get_colorful_square_pixel_buffer (system)
-            self.main.system_liststore[system.e_liststore_iter][2] = sqr_color 
             
-            
-            self.treestore =  self.treeview.get_model() 
-            self.treestore[system.e_treeview_iter][9] = sqr_color
-            
-            
-            '''   
-            selection     = self.get_selection()
-            (model, iter) = selection.get_selected()
-            self.key      = model.get_value(iter, 0)
-            sys           = model.get_value(iter, 1)
+            self.main.change_reference_color(system, new_color)
+            #print('self.selectedID',self.selectedID)
+            #print('self.selectedID',type(self.main.p_session.psystem[self.selectedID].e_color_palette ))
+            #
+            #self.main.p_session.psystem[self.selectedID].e_color_palette['C'] = new_color
+            #
+            #
+            #
+            #
+            #
+            #system = self.main.p_session.psystem[self.selectedID]
+            #sqr_color   = get_colorful_square_pixel_buffer (system)
+            #self.main.system_liststore[system.e_liststore_iter][2] = sqr_color 
+            #
+            #
+            #self.treestore =  self.treeview.get_model() 
+            #self.treestore[system.e_treeview_iter][9] = sqr_color
+            #
+            #for index, vobject in self.main.vm_session.vm_objects_dic.items():
+            #    treeview_iter = vobject.e_treeview_iter
+            #    if self.treestore[treeview_iter][0] == self.selectedID:
+            #        self.treestore[treeview_iter][9] = sqr_color
+            #        self.main.vobject_liststore_dict[self.selectedID][vobject.liststore_iter][3]=sqr_color
+            #    else:
+            #        pass
 
-
-
-            old_name = model.get_value(iter, 2)
-            v_id     = model.get_value(iter, 1)
-            e_id     = model.get_value(iter, 0)
-            if v_id == -1:
-                #rename  system
-                self.treestore[iter][2] = str(e_id)+' - '+ name
-                self.main.p_session.psystem[e_id].label  = name
-                liststore_iter = self.main.p_session.psystem[e_id].e_liststore_iter
-                self.main.system_liststore[liststore_iter][0] = str(e_id)+' - '+ name
-
-            else:
-                self.treestore[iter][2] = name
-                self.main.vm_session.vm_objects_dic[v_id].name = name
-                self.main.vobject_liststore_dict[e_id][self.main.vm_session.vm_objects_dic[v_id].liststore_iter][0] = name
-            '''
-                
-                
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            #print (self.main.system_liststore[system.e_liststore_iter])# = sqr_color 
-            #print (list(self.main.system_liststore[system.e_liststore_iter]))# = sqr_color 
-            
-            #self.main.p_session.psystem[self.selectedID].e_liststore_iter[2] = sqr_color
-            #self.set_color(color =new_color)
     
     def f2 (self, vobject = None):
         """ Function doc """
