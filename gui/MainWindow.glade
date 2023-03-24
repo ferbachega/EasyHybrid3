@@ -623,6 +623,15 @@
                         <property name="can_focus">False</property>
                       </object>
                     </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menuitem_WHAM">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="label" translatable="yes">WHAM</property>
+                        <property name="use_underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
                   </object>
                 </child>
               </object>

@@ -2941,7 +2941,7 @@ class ImportANewSystemWindow(Gtk.Window):
                                                                            system_type = systemtype, 
                                                                            name        = name      ,
                                                                            tag         = tag       ,
-                                                                           color       = [red, green,blue ])
+                                                                           color       = [red, green, blue])
         #'''
         #if systemtype == 2:
         #    self.files['prm_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()

@@ -936,22 +936,15 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         system.e_date                     = date.today()               # Time     
         
         
-        is_color_palette = getattr(system, 'e_color_palette', None)
-        
-        if type(is_color_palette) is not dict:
-            system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter]
-            '''When the number of available colors runs out, we have to reset the counter'''
-            self.color_palette_counter        += 1
-            if self.color_palette_counter > len(COLOR_PALETTE.keys())-1:
-                self.color_palette_counter = 0
-            else:
-                pass
-        
+        e_color_palette = getattr(system, 'e_color_palette', None)
+        if color is not None:
+            system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
+            system.e_color_palette['C']       = color
         else:
-            if color is not None:
-                system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
-                system.e_color_palette['C']       = color
-
+            
+            e_color_palette = getattr(system, 'e_color_palette', None)
+            if type(e_color_palette) == dict:
+                pass
             else:
                 system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
                 '''When the number of available colors runs out, we have to reset the counter'''
@@ -960,6 +953,35 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
                     self.color_palette_counter = 0
                 else:
                     pass
+        
+        #if e_color_palette is not None:
+        #
+        #    
+        #
+        #
+        #
+        #if type(is_color_palette) is not dict:
+        #    system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter]
+        #    '''When the number of available colors runs out, we have to reset the counter'''
+        #    self.color_palette_counter        += 1
+        #    if self.color_palette_counter > len(COLOR_PALETTE.keys())-1:
+        #        self.color_palette_counter = 0
+        #    else:
+        #        pass
+        #
+        #else:
+        #    if color is not None:
+        #        system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
+        #        system.e_color_palette['C']       = color
+        #
+        #    else:
+        #        system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
+        #        '''When the number of available colors runs out, we have to reset the counter'''
+        #        self.color_palette_counter        += 1
+        #        if self.color_palette_counter > len(COLOR_PALETTE.keys())-1:
+        #            self.color_palette_counter = 0
+        #        else:
+        #            pass
         
         #system.e_vobject                  = None            # Vismol object associated with the system -> is the object that will 
 
@@ -1300,7 +1322,9 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         system.label  = name        
         if summary:
             system.Summary ( )
-            
+        
+        print('color', color)
+        print('color', color)
         system = self.append_system_to_pdynamo_session ( 
                                                         system = system,  name = name, tag = tag, color = color )
         
@@ -1309,8 +1333,8 @@ class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybr
         self.main.main_treeview.add_new_system_to_treeview (system)
         
         self._add_vismol_object_to_easyhybrid_session (system, True)
-        self.main.refresh_active_system_liststore()
-        self.main.refresh_system_liststore ()
+        #self.main.refresh_active_system_liststore()
+        #self.main.refresh_system_liststore ()
 
 
     def add_a_new_item_to_selection_list (self, system_id = None, indexes = [], name  = None):

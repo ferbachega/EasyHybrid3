@@ -83,6 +83,7 @@ from gui.windows.umbrella_sampling_window    import UmbrellaSamplingWindow
 from gui.windows.chain_of_states_opt_window  import ChainOfStatesOptWindow 
 from gui.windows.normal_modes_analysis       import NormalModesAnalysisWindow 
 from gui.windows.normal_modes_window         import NormalModesWindow 
+from gui.windows.WHAM_window                 import WHAMWindow 
 
 
 from pdynamo.pDynamo2EasyHybrid import pDynamoSession
@@ -323,6 +324,10 @@ class MainWindow:
         self.normal_modes_window          =   NormalModesWindow (main = self)
         self.window_list.append(self.normal_modes_window)
 
+        
+        self.WHAM_window =  WHAMWindow(main = self)
+        self.window_list.append(self.WHAM_window)
+
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
 
         self.window.connect("destroy", Gtk.main_quit)
@@ -546,6 +551,8 @@ class MainWindow:
             self.energy_refinement_window.OpenWindow()
         
         
+        elif menuitem == self.builder.get_object('menuitem_WHAM'):
+            self.WHAM_window.OpenWindow()
         
         
         
@@ -631,13 +638,13 @@ class MainWindow:
         
         self.system_liststore[system.e_liststore_iter][2] = sqr_color 
 
-        self.main_treeview =  self.main_treeview.get_model() 
-        self.main_treeview[system.e_treeview_iter][9] = sqr_color
+        self.main_treeview_model =  self.main_treeview.get_model() 
+        self.main_treeview_model[system.e_treeview_iter][9] = sqr_color
         
         for index, vobject in self.vm_session.vm_objects_dic.items():
             treeview_iter = vobject.e_treeview_iter
-            if self.main_treeview[treeview_iter][0] == system.e_id:
-                self.main_treeview[treeview_iter][9] = sqr_color
+            if self.main_treeview_model[treeview_iter][0] == system.e_id:
+                self.main_treeview_model[treeview_iter][9] = sqr_color
                 self.vobject_liststore_dict[system.e_id][vobject.liststore_iter][3]=sqr_color
             else:
                 pass
@@ -739,18 +746,14 @@ class MainWindow:
     
     def run_test (self, widget):
         """ Function doc """
-        
-        window = Gtk.Window()
-        self.box_reac = ReactionCoordinateBox(main = self, mode = 1)
-        
-        btn = Gtk.Button()
-        btn.connect('clicked', self.print_btn)
-        
-        self.box_reac.pack_start(btn, False, False, 0)
-        window.add(self.box_reac)
-        
-        window.show_all()
-        self.box_reac.set_rc_type(0)
+        self.WHAM_window.OpenWindow()
+        #window = Gtk.Window()
+        #builder = Gtk.Builder()
+        #builder.add_from_file(os.path.join(self.home,'gui/windows/WHAM_analysis_window.glade'))
+        #
+        #window = builder.get_object('window')
+        #window.show_all()
+        #self.box_reac.set_rc_type(0)
         
         
         

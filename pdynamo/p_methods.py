@@ -1803,15 +1803,6 @@ def _run_parallel_umbrella_sampling_1D (job):
     parameters['system'].DefineRestraintModel(None)
 
 
-
-
-
-
-
-
-
-
-
 def _us_geo_opt (system, parameters):
     """ Function doc """
     parameters['log_frequency'] = 50
@@ -1964,8 +1955,30 @@ def _us_langevin_dynamics (system, trajectory, parameters):
 
 
 
+class WHAMAnalysis:
+    """ Class doc """
+    
+    def __init__ (self):
+        """ Class initialiser """
+        pass
+
+    def run (self, parameters, interface = False):
+        """ Function doc """
+        
 
 
+        # . Calculate the PMF.
+        state = WHAM_ConjugateGradientMinimize ( parameters['fileNames']                                  ,
+                                                 bins                 = parameters['bins'                 ],
+                                                 logFrequency         = parameters['logFrequency'         ],
+                                                 maximumIterations    = parameters['maximumIterations'    ],
+                                                 rmsGradientTolerance = parameters['rmsGradientTolerance' ],
+                                                 temperature          = parameters['temperature'          ])
+
+        # . Write the PMF to a file.
+        histogram = state["Histogram"]
+        pmf       = state["PMF"      ]
+        #histogram.ToTextFileWithData ( os.path.join ( outPath, tagL + "PMF.dat" ), [ pmf ], format = "{:20.3f} {:20.3f}\n" )
 
 
 

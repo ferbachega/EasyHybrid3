@@ -296,7 +296,8 @@ class GLMenu:
                         #for row in self.treestore:
                         #    #row[2] = row.path == selected_path
                         #    row[3] =  False
-                        #
+                        print('color', color)
+
                         self.main.p_session.prune_system (selection = atomlist, name = name, summary = True, tag = tag, color = color)
             
             def set_as_fixed_atoms (_):
