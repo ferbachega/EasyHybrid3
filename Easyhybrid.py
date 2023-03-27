@@ -1290,7 +1290,7 @@ class TreeViewMenu:
         
         if self.colorchooserdialog.run() == Gtk.ResponseType.OK:
             color = self.colorchooserdialog.get_rgba()
-            #print(color.red,color.green, color.blue )
+            print(color.red,color.green, color.blue )
             new_color = [color.red, color.green, color.blue]
 
         else:

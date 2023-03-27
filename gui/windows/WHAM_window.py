@@ -46,7 +46,7 @@ class WHAMWindow(Gtk.Window):
         self.home     = main.home 
         self.p_session= main.p_session 
         self.Visible  =  False        
-
+        self.liststore= Gtk.ListStore(bool, str)
 
     
     def OpenWindow (self):
@@ -65,6 +65,30 @@ class WHAMWindow(Gtk.Window):
             
             
             
+            
+            self.treeview = self.builder.get_object('treeview_trajectory_blocks')
+            self.treeview.set_model(self.liststore)
+            
+
+            renderer_radio = Gtk.CellRendererToggle()
+            renderer_radio.connect("toggled", self.on_cell_active_toggled)
+            column_radio = Gtk.TreeViewColumn("", renderer_radio, active=0 )
+            self.treeview.append_column(column_radio)
+                
+            
+            
+            
+            renderer_pixbuf = Gtk.CellRendererPixbuf()
+            renderer_text = Gtk.CellRendererText()
+
+            column_text = Gtk.TreeViewColumn("Block")#, renderer_text, text=2)
+            column_text.pack_start(renderer_text, True)
+            column_text.add_attribute(renderer_text, "text", 1)
+            self.treeview.append_column(column_text)
+            
+            
+            
+            
             # - - - - - - - systems combobox - - - - - - -
             '''--------------------------------------------------------------------------------------------'''
             self.box = self.builder.get_object('box_system')
@@ -73,7 +97,7 @@ class WHAMWindow(Gtk.Window):
             '''--------------------------------------------------------------------------------------------'''
             self.box.pack_start(self.combobox_systems, False, False, 0)
             '''--------------------------------------------------------------------------------------------'''
-
+            
             
             '''--------------------------------------------------------------------------------------------'''
             self.method_store = Gtk.ListStore(str)
@@ -94,7 +118,22 @@ class WHAMWindow(Gtk.Window):
             self.methods_combo.add_attribute(renderer_text, "text", 0)
             self.methods_combo.set_active(0)            
             
+            
+            
+            
+            '''--------------------------------------------------------------------------------------------'''     
+            self.folder_chooser_button = FolderChooserButton(main =  self.main, sel_type = 'folder', home =  self.home)
+            self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
+            
+            
+            
+            
+            
+            
             self.builder.get_object('button_add_trajectory_blocks').connect("clicked", self.button_add_trajectories)
+            
+            self.button_cancel = self.builder.get_object('button_cancel')
+            self.button_cancel.connect("clicked", self.clear_treeview)
             
             self.window.connect("destroy", self.CloseWindow)
             self.window.show_all()
@@ -112,10 +151,11 @@ class WHAMWindow(Gtk.Window):
     def run (self, button):
         """ Function doc """
         
-        
-        e_id = self.combobox_systems.get_system_id()
-        system = self.p_session.psystem[e_id]
-        
+        try:
+            e_id   = self.combobox_systems.get_system_id()
+            system = self.p_session.psystem[e_id]
+        except:
+            system = None
         
         _type     = self.methods_combo.get_active()
 
@@ -128,58 +168,65 @@ class WHAMWindow(Gtk.Window):
         
         
         #fileNames = glob.glob ( os.path.join ( outPath, "bAla_phi_*_psi_*.ptRes" ) )
-        fileNames = None
+        fileNames = []
+        for item in self.liststore:
+            if item[0]:
+                fileNames.append(item[1])
+            else:
+                pass
+                
         fileNames.sort ( )
         
-        parameters = {
+        parameters = {'analysis_type'        : 'wham'    , 
                       'system'               : system    ,
                       'fileNames'            : fileNames ,
                       'type'                 : _type     ,
-                      'logFrequency'         : frequency ,
-                      'maximumIterations'    : max_int   ,
-                      'rmsGradientTolerance' : RMS_grad  ,
-                      'temperature'          : temp       
+                      'logFrequency'         : int(frequency) ,
+                      'maximumIterations'    : int(max_int  ) ,
+                      'rmsGradientTolerance' : float(RMS_grad ) ,
+                      'temperature'          : int(temp     )  
                       }
 
 
         
         if _type ==1:
-            parameters['bins'] = [bins, bins] 
+            parameters['bins'] = [int(bins), int(bins)] 
 
         else:
-            parameters['bins'] = [bins] 
-
+            parameters['bins'] = [int(bins)] 
+        
+        parameters["folder"]  = self.folder_chooser_button.get_folder()
+        
+        
+        #----------------------------------------------------------------------
+        if parameters["folder"]:
+            pass
+        else:
+            print('folder: ', parameters["folder"] )
+        #----------------------------------------------------------------------
+        
+        #----------------------------------------------------------------------
+        parameters["logfile"] = self.builder.get_object('log_name').get_text() 
+        #----------------------------------------------------------------------
+        
         
         print(parameters)
-        
+        self.p_session.run_analysis(parameters)
         self.window.destroy()
         self.Visible    =  False
 
-    
-    def _starting_coordinates_model_update (self, init = False):
+
+
+
+    def on_cell_active_toggled (self, widget, path):
         """ Function doc """
-        #------------------------------------------------------------------------------------
-        '''The combobox accesses, according to the id of the active system, 
-        listostore of the dictionary object_list state_dict'''
-        if self.Visible:
-
-            e_id = self.main.p_session.active_id 
-            self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[e_id])
-            #------------------------------------------------------------------------------------
-            size = len(self.main.vobject_liststore_dict[e_id])
-            self.combobox_starting_coordinates.set_active(size-1)
-            #------------------------------------------------------------------------------------
-        else:
-            if init:
-                e_id = self.main.p_session.active_id 
-                self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[e_id])
-                #------------------------------------------------------------------------------------
-                size = len(self.main.vobject_liststore_dict[e_id])
-                self.combobox_starting_coordinates.set_active(size-1)
-                #------------------------------------------------------------------------------------
-            else:
-                pass
-
+        self.liststore[path][0] = not self.liststore[path][0]
+    
+    def clear_treeview (self, widget):
+        """ Function doc """
+        print('clear_treeview')
+        self.liststore.clear()
+    
     
     def button_add_trajectories (self, button):
         """ Function doc """
@@ -197,6 +244,12 @@ class WHAMWindow(Gtk.Window):
             folder_paths = dialog.get_filenames()
             print(folder_paths)
             
+            liststore = self.builder.get_object('liststore1')
+            
+            for data in folder_paths:
+                self.liststore.append([True, data])
+
+        dialog.destroy()
             
     def on_name_combo_changed(self, widget):
         """ Function doc """
@@ -242,6 +295,7 @@ class WHAMWindow(Gtk.Window):
     def on_combobox_systemsbox_changed(self, widget):
         """ Function doc """
         system_id = self.combobox_systems.get_system_id()
-       
-            
+        
+        working_folder = self.p_session.psystem[system_id].e_working_folder
+        self.folder_chooser_button.set_folder(working_folder)    
         #self.update_window ( selections = False, restraints = True)

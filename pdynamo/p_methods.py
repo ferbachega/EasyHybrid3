@@ -1964,21 +1964,31 @@ class WHAMAnalysis:
 
     def run (self, parameters, interface = False):
         """ Function doc """
-        
-
-
+        self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(parameters['folder'], parameters['logfile']+'.log') )
+        #self.logFile2 = TextLogFileWriter.WithOptions ( path =  'output.log'  )
         # . Calculate the PMF.
+        
+        if parameters['system']:
+            parameters['system'].Summary(log = self.logFile2)
+        else:
+            pass
+        
         state = WHAM_ConjugateGradientMinimize ( parameters['fileNames']                                  ,
                                                  bins                 = parameters['bins'                 ],
                                                  logFrequency         = parameters['logFrequency'         ],
                                                  maximumIterations    = parameters['maximumIterations'    ],
                                                  rmsGradientTolerance = parameters['rmsGradientTolerance' ],
-                                                 temperature          = parameters['temperature'          ])
+                                                 temperature          = parameters['temperature'          ],
+                                                 
+                                                 log = self.logFile2
+                                                 )
 
         # . Write the PMF to a file.
         histogram = state["Histogram"]
         pmf       = state["PMF"      ]
-        #histogram.ToTextFileWithData ( os.path.join ( outPath, tagL + "PMF.dat" ), [ pmf ], format = "{:20.3f} {:20.3f}\n" )
+        
+        PMF_file = os.path.join(parameters['folder'], parameters['logfile']+'_pmf.log')
+        histogram.ToTextFileWithData (  PMF_file , [ pmf ], format = "{:20.3f} {:20.3f}\n" )
 
 
 

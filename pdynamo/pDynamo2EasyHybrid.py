@@ -61,7 +61,8 @@ from pSimulation               import*
 
 import numpy as np
 from vismol.model.molecular_properties import ATOM_TYPES
-from vismol.model.molecular_properties import COLOR_PALETTE
+#from vismol.model.molecular_properties import COLOR_PALETTE
+from util.colorpalette import COLOR_PALETTE
 
 from pdynamo.p_methods import GeometryOptimization
 from pdynamo.p_methods import RelaxedSurfaceScan
@@ -71,6 +72,8 @@ from pdynamo.p_methods import NormalModes
 from pdynamo.p_methods import EnergyCalculation
 from pdynamo.p_methods import EnergyRefinement
 from pdynamo.p_methods import UmbrellaSampling
+
+from pdynamo.p_methods import WHAMAnalysis
 from pdynamo.LogFileWriter import LogFileReader
 
 '''
@@ -587,6 +590,20 @@ class pSimulations:
         return energy
         
         
+class pAnalysis:
+    """ Class doc """
+    
+    def __init__ (self):
+        """ Class initialiser """
+        pass
+    
+    def run_analysis (self, parameters):
+        """ Function doc """
+        if parameters['analysis_type'] == 'wham':
+            wham_analysis = WHAMAnalysis()
+            wham_analysis.run ( parameters )
+            
+        
 class ModifyRepInVismol:
     """ Class doc """
     
@@ -737,7 +754,7 @@ class Restraints:
         parameters['system'].DefineRestraintModel(None)
 
 
-class pDynamoSession (pSimulations, ModifyRepInVismol, LoadAndSaveData, EasyHybridImportTrajectory, Restraints):
+class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveData, EasyHybridImportTrajectory, Restraints):
     """ Class doc """
     
     def __init__ (self, vm_session = None):
@@ -1998,6 +2015,8 @@ class Atom:
                 if name[1] == "a":
                     symbol = "Ca"
                 elif name[1] =="l":
+                    symbol = "Cl"
+                elif name[1] =="L":
                     symbol = "Cl"
                 elif name[1] =="d":
                     symbol = "Cd"
