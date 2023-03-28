@@ -866,8 +866,10 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         
         '''-----------------------------------------------------------------'''
-        
-        name =  self._check_name(name)
+        name = getattr (system, 'label', None)
+        tag  = getattr (system,'e_tag', None)
+        print(name, tag)
+        #name =  self._check_name(name)
         
         system.e_input_files = input_files
         system = self.append_system_to_pdynamo_session ( 
@@ -906,7 +908,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
     def append_system_to_pdynamo_session (self, 
                                           system         = None            ,
                                           name           = 'pDynamo system',
-                                          tag            = 'molsys'        ,
+                                          tag            = None            ,
                                           working_folder = None            ,
                                           color          = None            ):
         """ Function doc """

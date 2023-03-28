@@ -1254,7 +1254,7 @@ class ReactionCoordinateBox(Gtk.Box):
         <property name="row_spacing">1</property>
         <property name="column_spacing">10</property>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_force_constant">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Force Constante:</property>
@@ -1266,7 +1266,7 @@ class ReactionCoordinateBox(Gtk.Box):
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_dmin">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Initial Distance:</property>
@@ -1618,7 +1618,7 @@ class ReactionCoordinateBox(Gtk.Box):
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_step_size">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Step Size:</property>
@@ -1630,7 +1630,7 @@ class ReactionCoordinateBox(Gtk.Box):
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_nsteps">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Number of Steps:</property>
@@ -1642,7 +1642,7 @@ class ReactionCoordinateBox(Gtk.Box):
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_force_constant">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Force Constante:</property>
@@ -1654,7 +1654,7 @@ class ReactionCoordinateBox(Gtk.Box):
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_dmin">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Initial Distance:</property>
@@ -1673,6 +1673,7 @@ class ReactionCoordinateBox(Gtk.Box):
             <property name="halign">start</property>
             <property name="valign">start</property>
             <property name="width_chars">8</property>
+            <property name="text" translatable="yes">0.1</property>
           </object>
           <packing>
             <property name="left_attach">5</property>
@@ -1717,6 +1718,7 @@ class ReactionCoordinateBox(Gtk.Box):
             <property name="halign">start</property>
             <property name="valign">start</property>
             <property name="width_chars">8</property>
+            <property name="text" translatable="yes">0.0</property>
           </object>
           <packing>
             <property name="left_attach">5</property>
@@ -1799,6 +1801,18 @@ class ReactionCoordinateBox(Gtk.Box):
         self.combobox_reaction_coord1.connect('changed', self.change_cb_coordType1)
         #-----------------------------------------------------------------------------------
 
+
+        self.entry_step_size = self.builder.get_object('entry_step_size1')
+        self.entry_nsteps    = self.builder.get_object('entry_nsteps1')
+        self.entry_dmin_coord= self.builder.get_object('entry_dmin_coord1')
+        
+        self.label_step_size      = self.builder.get_object('label_step_size')
+        self.label_nsteps         = self.builder.get_object('label_nsteps')
+        self.label_force_constant = self.builder.get_object('label_force_constant')
+        self.label_dmin           = self.builder.get_object('label_dmin')
+        
+        
+        
     def toggle_mass_restraint1 (self, widget):
         """ Function doc """
         self.refresh_dmininum(coord1 =  True)
@@ -2010,7 +2024,7 @@ class ReactionCoordinateBox(Gtk.Box):
             parameters["sigma_pk1pk3"] = None
             parameters["sigma_pk3pk1"] = None
         
-        parameters["nsteps"]         = int( self.builder.get_object('entry_nsteps1').get_text() )
+        parameters["nsteps"]         = int(self.builder.get_object('entry_nsteps1').get_text() )
         parameters["force_constant"] = float( self.builder.get_object('entry_FORCE_coord1').get_text() )
         parameters["dincre"]         = float( self.builder.get_object('entry_step_size1').get_text() )
         

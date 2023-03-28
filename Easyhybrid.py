@@ -1181,6 +1181,13 @@ class EasyHybridMainTreeView(Gtk.TreeView):
             vismol_object = self.main.vm_session.vm_objects_dic[v_obj_index]
             self.add_vismol_object_to_treeview(vismol_object)
 
+    def tag_rename (self, tag):
+        """ Function doc """
+        selection     = self.get_selection()
+        (model, iter) = selection.get_selected()
+        e_id     = model.get_value(iter, 0)
+        self.main.p_session.psystem[e_id].e_tag = tag
+        
     def rename (self, name):
         selection     = self.get_selection()
         (model, iter) = selection.get_selected()
@@ -1250,6 +1257,7 @@ class TreeViewMenu:
                                 'header'                : None    ,
                                 '_separator'            : ''      ,
                                 'Rename System'        : self.menu_rename ,
+                                #'Rename Tag'           : self.menu_rename_tag ,
                                 '_separator'            : ''      ,
                                 'Info'                  : self.f2 ,
                                 'Load Data Into System' : self.load_data_to_a_system ,
@@ -1371,6 +1379,23 @@ class TreeViewMenu:
         self.treeview.vm_session.glwidget.queue_draw()
 
     
+    def menu_rename_tag (self, menu_item = None ):
+        """ Function doc """
+        if self.rename_window_visible:
+            pass
+        else:          
+            #print(self.key, self.e_id)
+            self.window = Gtk.Window()
+            self.window.connect('destroy', self.destroy)
+            self.window.set_keep_above(True)
+            self.entry  = Gtk.Entry()
+            
+            #self.entry.set_text()
+            
+            self.entry.connect('activate', self.get_new_tag)
+            self.window.add(self.entry)
+            self.rename_window_visible = True
+            self.window.show_all()
     
     def menu_rename (self, menu_item = None ):
         """  
@@ -1380,23 +1405,54 @@ class TreeViewMenu:
         if self.rename_window_visible:
             pass
         else:
+            
+            self.preferences = PreferencesWindow(main = self.main )
+            
+            ##
+            ##self.e_id     = self.sele_window.system_names_combo.get_active()
+            ##self.e_id     = system_e_id
             #
-            #self.e_id     = self.sele_window.system_names_combo.get_active()
-            #self.e_id     = system_e_id
-            
+            #
+            #
+            ##print(self.key, self.e_id)
+            #self.window = Gtk.Window()
+            #self.window.connect('destroy', self.destroy)
+            #self.window.set_keep_above(True)
+            #
+            #grid = Gtk.Grid()
+            #self.window.add(grid)
+            #
+            ## Create the first label and entry
+            #label1 = Gtk.Label(label="Label 1")
+            #entry1 = Gtk.Entry()
+            #grid.attach(label1, 0, 0, 1, 1)
+            #grid.attach(entry1, 1, 0, 1, 1)
+            #
+            ## Create the second label and entry
+            #label2 = Gtk.Label(label="Label 2")
+            #entry2 = Gtk.Entry()
+            #grid.attach(label2, 0, 1, 1, 1)
+            #grid.attach(entry2, 1, 1, 1, 1)
+            #
+            #
+            #
+            ##self.entry  = Gtk.Entry()
+            ##self.entry.connect('activate', self.get_new_name)
+            ##self.window.add(self.entry)
+            ##self.rename_window_visible = True
+            #self.window.show_all()
+            ###print(menu_item)
 
-            
-            #print(self.key, self.e_id)
-            self.window = Gtk.Window()
-            self.window.connect('destroy', self.destroy)
-            self.window.set_keep_above(True)
-            self.entry  = Gtk.Entry()
-            
-            self.entry.connect('activate', self.get_new_name)
-            self.window.add(self.entry)
-            self.rename_window_visible = True
-            self.window.show_all()
-            #print(menu_item)
+    def get_new_tag (self, menu_item):
+        """ Function doc """
+        print('New tag: ', self.entry.get_text())
+        
+        new_name = self.entry.get_text()
+        self.treeview.tag_rename(new_name)
+    
+        self.window.destroy()
+        self.rename_window_visible = False
+    
 
     def get_new_name (self, menu_item):
         """ Function doc """
@@ -1624,6 +1680,212 @@ class BottomNoteBook:
         self.status_liststore.append([formatted_time, message, logfile, sqr_color])
 
 
+
+class PreferencesWindow:
+    """ Class doc """
+    
+    def __init__ (self, main = None, system = None):
+        """ Class initialiser """
+        
+        self.xml='''
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.22.2 -->
+<interface>
+  <requires lib="gtk+" version="3.20"/>
+  <object class="GtkWindow" id="window">
+    <property name="can_focus">False</property>
+    <property name="default_width">300</property>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child>
+      <object class="GtkAlignment">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="top_padding">5</property>
+        <property name="bottom_padding">5</property>
+        <property name="left_padding">5</property>
+        <property name="right_padding">5</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <property name="spacing">5</property>
+            <child>
+              <object class="GtkGrid">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="row_spacing">5</property>
+                <property name="column_spacing">5</property>
+                <child>
+                  <object class="GtkEntry" id="entry_name">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="hexpand">True</property>
+                    <property name="text" translatable="yes">new pDynamo system</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="top_attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label_name">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="halign">end</property>
+                    <property name="label" translatable="yes">Name:</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label_tag">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="halign">end</property>
+                    <property name="label" translatable="yes">Tag: </property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkEntry" id="entry_tag">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="max_length">15</property>
+                    <property name="width_chars">10</property>
+                    <property name="text" translatable="yes">molsys</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="top_attach">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label_color">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">Color:</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkColorButton" id="button_color">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <property name="rgba">rgb(138,226,52)</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="top_attach">2</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButtonBox" id="dialog-action_area2">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="layout_style">end</property>
+                <child>
+                  <object class="GtkButton" id="button_cancel">
+                    <property name="label" translatable="yes">Cancel</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="button_apply">
+                    <property name="label" translatable="yes">Apply</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>
+'''        
+        
+        self.main       = main
+        self.vm_session = main.vm_session
+        self.p_session  = main.p_session
+        
+        
+        self.builder = Gtk.Builder()
+        self.builder.add_from_string(self.xml)
+
+        self.window = self.builder.get_object('window')
+
+        self.entry_name   = self.builder.get_object('entry_name')
+        self.entry_tag    = self.builder.get_object('entry_tag')
+        self.button_color = self.builder.get_object('button_color')
+        
+        self.button_cancel = self.builder.get_object('button_cancel')
+        self.button_apply  = self.builder.get_object('button_apply')
+        
+        self.button_apply.connect('clicked', self.on_button_apply )
+        self.button_cancel.connect('clicked', self.on_button_cancel )
+        self.main.main_treeview.treeview_menu.rename_window_visible = True
+        
+        self.window.connect("destroy", self.on_button_cancel)
+        
+        self.window.set_resizable(False)
+        self.window.show_all()
+        self.button_color.hide()
+        self.builder.get_object('label_color').hide()
+        
+    def on_button_apply (self, button):
+        """ Function doc """
+        name  = self.entry_name.get_text()
+        tag   = self.entry_tag .get_text()
+    
+        self.rename_window_visible = False
+        self.main.main_treeview.tag_rename(tag)
+        self.main.main_treeview.rename(name)
+        self.window.destroy()
+        self.main.main_treeview.treeview_menu.rename_window_visible = False
+    
+    def on_button_cancel (self, button):
+        """ Function doc """
+        self.window.destroy()
+        self.main.main_treeview.treeview_menu.rename_window_visible = False
 
 def main():
     logging.basicConfig(format="%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",

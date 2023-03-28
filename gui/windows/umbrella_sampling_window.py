@@ -247,6 +247,25 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.builder.get_object('label_starting_coordinates').show()
             self.combobox_starting_coordinates.show()
         
+            self.RC_box1.entry_step_size .set_sensitive(True)
+            self.RC_box1.entry_nsteps    .set_sensitive(True)
+            self.RC_box1.entry_dmin_coord.set_sensitive(True)
+            self.RC_box2.entry_step_size .set_sensitive(True)
+            self.RC_box2.entry_nsteps    .set_sensitive(True)
+            self.RC_box2.entry_dmin_coord.set_sensitive(True)
+        
+            self.RC_box1.label_step_size     .set_sensitive(True)
+            self.RC_box1.label_nsteps        .set_sensitive(True)        
+            #self.RC_box1.label_force_constant.set_sensitive(True)        
+            self.RC_box1.label_dmin          .set_sensitive(True)        
+            
+            self.RC_box2.label_step_size     .set_sensitive(True)
+            self.RC_box2.label_nsteps        .set_sensitive(True)        
+            #self.RC_box2.label_force_constant.set_sensitive(True)        
+            self.RC_box2.label_dmin          .set_sensitive(True)        
+        
+        
+        
         if _type == 1:
             self.builder.get_object('label_input_trajectory').show()
             self.builder.get_object('folder_chooser_box').show()
@@ -255,6 +274,24 @@ class UmbrellaSamplingWindow(Gtk.Window):
             
             self.builder.get_object('label_starting_coordinates').hide()
             self.combobox_starting_coordinates.hide()
+            
+            self.RC_box1.entry_step_size .set_sensitive(False)
+            self.RC_box1.entry_nsteps    .set_sensitive(False)
+            self.RC_box1.entry_dmin_coord.set_sensitive(False)
+            self.RC_box2.entry_step_size .set_sensitive(False)
+            self.RC_box2.entry_nsteps    .set_sensitive(False)
+            self.RC_box2.entry_dmin_coord.set_sensitive(False)
+
+
+            self.RC_box1.label_step_size.set_sensitive(False)
+            self.RC_box1.label_nsteps   .set_sensitive(False)        
+            self.RC_box1.label_dmin     .set_sensitive(False)        
+            
+            self.RC_box2.label_step_size.set_sensitive(False)
+            self.RC_box2.label_nsteps   .set_sensitive(False)        
+            self.RC_box2.label_dmin     .set_sensitive(False)
+
+
 
 
     def on_md_integrator_combobox (self, widget = None):
@@ -394,12 +431,14 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.folder_chooser_button.set_folder(folder = folder)
         else:
             
-            folder = self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder
-            if folder:
-                self.folder_chooser_button2.set_folder(folder = folder)
-            else:
-                pass
-
+            try:
+                folder = self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder
+                if folder:
+                    self.folder_chooser_button2.set_folder(folder = folder)
+                else:
+                    pass
+            except:
+                self.folder_chooser_button2.set_folder(folder = self.home )
    
     def on_checkbox_reaction_coordinate2 (self, widget):
         """ Function doc """

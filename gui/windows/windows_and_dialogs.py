@@ -3080,7 +3080,7 @@ class ImportTrajectoryWindow:
             self.combox = self.builder.get_object('combobox_coordinate_type')
             self.combox.connect("changed", self.on_combobox_coordinate_type)
     
-            #self.folder_chooser_button.btn.connect('clicked', self.print_test)
+            self.folder_chooser_button.btn.connect('clicked', self.print_test)
             self.on_combobox_pdynamo_system(None)
             self.combox.set_active(0)
             self.window.show_all()
@@ -3097,16 +3097,27 @@ class ImportTrajectoryWindow:
     def print_test (self, widget):
         """ Function doc """
         #print(self.folder_chooser_button.folder)
-        trajfolder  = self.folder_chooser_button.folder
-        basename  = os.path.basename(trajfolder)
-        logfile   = basename[:-5]+'log'
+        trajfolder  = self.folder_chooser_button.get_folder()
+        print(trajfolder)
+        files = os.listdir(trajfolder)
         
-        logfile   = os.path.join(trajfolder, logfile)
-        
-        if exists(logfile):
-            self.builder.get_object('file_chooser_btn_logfile').set_filename(logfile)
-        else:
-            pass
+        logfiles = []
+        for file_name in files:
+            if file_name.endswith("log"):
+                logfiles.append(file_name)
+
+
+        #basename  = os.path.basename(trajfolder)
+        #logfile   = basename[:-5]+'log'
+        #
+        #logfile   = os.path.join(trajfolder, logfile)
+        #
+        #if exists(logfiles[0]):
+        if len(logfiles):
+            fullpath = os.path.join(trajfolder, logfiles[0])
+            self.builder.get_object('file_chooser_btn_logfile').set_filename(fullpath)
+        #else:
+        #    pass
         
     def on_combobox_pdynamo_system (self, widget):
         """ Function doc """
@@ -3122,7 +3133,9 @@ class ImportTrajectoryWindow:
 
         self.combobox_starting_coordinates = self.builder.get_object('vobjects_combobox')
         self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[sys_id])
-
+        self.folder_chooser_button.folder = self.main.p_session.psystem[sys_id].e_working_folder
+        
+        
     def on_combobox_coordinate_type (self, widget):
         """ Function doc """
         data_type = self.builder.get_object('combobox_coordinate_type').get_active() 
