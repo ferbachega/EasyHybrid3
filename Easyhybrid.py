@@ -72,6 +72,7 @@ from gui.windows.windows_and_dialogs import SinglePointwindow
 from gui.windows.windows_and_dialogs import ImportTrajectoryWindow
 from gui.windows.windows_and_dialogs import TrajectoryPlayerWindow
 from gui.windows.windows_and_dialogs import PotentialEnergyAnalysisWindow
+from gui.windows.windows_and_dialogs import InfoWindow
 
 from gui.windows.easyhybrid_terminal import TerminalWindow
 from gui.windows.geometry_optimization_window import *
@@ -365,29 +366,29 @@ class MainWindow:
                                                                                  )
 
 
-    def clear_vobject_liststore_dict (self, e_id = 'all'):
-        """ Function doc """
-        if e_id == 'all':
-            for e_id, liststore in self.vobject_liststore_dict.items(): 
-                liststore.clear()
-            else:
-                self.vobject_liststore_dict[e_id].clear()
-    
-    
-    def refresh_vobject_liststore_dict  (self, e_id = 'all'):
-        """ Function doc """
-        if e_id == 'all':
-            self.clear_vobject_liststore_dict()
-            for index, vobject in self.vm_session.vm_objects_dic.items():
-                self.add_vobject_to_vobject_liststore_dict(vobject)
-        
-        else:
-            self.clear_vobject_liststore_dict(e_id = e_id)
-            for index, vobject in self.vm_session.vm_objects_dic.items:
-                if e_id == index:
-                    self.add_vobject_to_vobject_liststore_dict(vobject)
-                else:
-                    pass
+    #def clear_vobject_liststore_dict (self, e_id = 'all'):
+    #    """ Function doc """
+    #    if e_id == 'all':
+    #        for e_id, liststore in self.vobject_liststore_dict.items(): 
+    #            liststore.clear()
+    #        else:
+    #            self.vobject_liststore_dict[e_id].clear()
+    #
+    #
+    #def refresh_vobject_liststore_dict  (self, e_id = 'all'):
+    #    """ Function doc """
+    #    if e_id == 'all':
+    #        self.clear_vobject_liststore_dict()
+    #        for index, vobject in self.vm_session.vm_objects_dic.items():
+    #            self.add_vobject_to_vobject_liststore_dict(vobject)
+    #    
+    #    else:
+    #        self.clear_vobject_liststore_dict(e_id = e_id)
+    #        for index, vobject in self.vm_session.vm_objects_dic.items:
+    #            if e_id == index:
+    #                self.add_vobject_to_vobject_liststore_dict(vobject)
+    #            else:
+    #                pass
 
 
     def on_main_toolbar_clicked (self, button):
@@ -481,7 +482,7 @@ class MainWindow:
             self.NewSystemWindow.OpenWindow()
         
         elif menuitem == self.builder.get_object('menuitem_open'):
-            self.gtk_load_files (menuitem)
+            self.open_gtk_load_files (menuitem)
             
         elif menuitem == self.builder.get_object('menuitem_save'):
             self.gtk_save_file (menuitem)
@@ -565,8 +566,7 @@ class MainWindow:
             dialog.destroy()
 
 
-
-    def gtk_load_files (self, button):
+    def open_gtk_load_files (self, button):
         '''Easyhybrid and pkl pdynamo file search '''
         filters = []        
         ''' - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
@@ -648,6 +648,102 @@ class MainWindow:
                 self.vobject_liststore_dict[system.e_id][vobject.liststore_iter][3]=sqr_color
             else:
                 pass
+
+
+    def rename_tag (self, e_id, tag):
+        """ Function doc """
+        #selection     = self.get_selection()
+        #(model, iter) = selection.get_selected()
+        #e_id     = model.get_value(iter, 0)
+        self.p_session.psystem[e_id].e_tag = tag
+
+        
+    def rename (self, e_id = None, v_id = -1, name = None):
+        if v_id == -1:
+            _iter = self.p_session.psystem[e_id].e_treeview_iter
+            self.main_treeview.treestore[_iter][2] = str(e_id)+' - '+ name
+            self.p_session.psystem[e_id].label  = name
+            liststore_iter = self.p_session.psystem[e_id].e_liststore_iter
+            self.system_liststore[liststore_iter][0] = str(e_id)+' - '+ name
+        
+        else:
+            _iter = self.vm_session.vm_objects_dic[v_id].e_treeview_iter
+            self.main_treeview.treestore[_iter][2] = name
+            self.vm_session.vm_objects_dic[v_id].name = name
+            self.vobject_liststore_dict[e_id][self.vm_session.vm_objects_dic[v_id].liststore_iter][0] = name
+            
+
+    def delete_system (self, system_e_id = None ):
+        """ 
+        system_e_id = is the access key to the object. You can get it from vobject.e_id
+
+        1) remove vobjects from vm_object_dic (self.vm_object_dic in vm_session object)
+        2) remove vobjects from vobject_liststore_dict (self.vobject_liststore_dict in main object)
+        
+        3) remove system from system_liststore (self.system_liststore in main object)
+        4) remove system from treestore (system.e_treeview_iter)
+        
+        5) remove system from p_session (p_session.psystem[sys_e_id] in p_session object)
+        """
+        #print(system_e_id)
+        #parent_key = self.treeview.main.p_session.psystem[system_e_id].e_treeview_iter_parent_key       
+        
+        if system_e_id != None:
+            
+            '''organizing the list of vobjects that should be removed from vm_object_dic'''
+            pop_list = []
+            for index, vobject in self.vm_session.vm_objects_dic.items():
+                if vobject.e_id == system_e_id:                   
+                    self.main_treeview.treestore.remove(vobject.e_treeview_iter)
+                    pop_list.append(index)
+            '''removing from vm_object_dic'''
+            for index in pop_list:
+                self.vm_session.vm_objects_dic.pop(index)
+            
+            '''removing vobject from vobject_liststore_dict'''
+            self.vobject_liststore_dict.pop(system_e_id)
+            
+            
+            #  - - - - - - - - removing system treeview items - - - - - - - - - - -
+            system = self.p_session.get_system(index = system_e_id)
+            self.system_liststore.remove(system.e_liststore_iter)
+            self.main_treeview.treestore.remove(system.e_treeview_iter)
+            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            
+            a = self.p_session.delete_system(system_e_id)
+            self.vm_session.vm_glcore.queue_draw()
+
+
+    def delete_vm_object (self, vm_object_index = None):
+        """ 
+        
+        vm_object_index = is the access key to the object. You can get it from vobject.index
+        
+        '''When an object is removed it has to be removed from the treeview and 
+        vobject_liststore_dict, in addition to the vm_object_dic in the .vm_session.'''
+        
+        """
+        if vm_object_index != None:
+            #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            vobject = self.vm_session.vm_objects_dic[vm_object_index]
+            #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            
+            
+            #  - - - - - - REMOVING vobj FROM  vobject_liststore_dict - - - - - - -
+            self.vobject_liststore_dict[vobject.e_id].remove(vobject.liststore_iter)
+            #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            
+            #  - - - - - - REMOVING vobj FROM  treestore - - - - - - -
+            self.main_treeview.treestore.remove(vobject.e_treeview_iter)
+            #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            
+            #  - - - - - - - - REMOVING vobj FROM vm_object_dic - - - - - - - - - -
+            self.vm_session.vm_objects_dic[vm_object_index] = None
+            self.vm_session.vm_objects_dic.pop(vm_object_index)# = None
+            #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+            self.vm_session.vm_glcore.queue_draw()
+        
 
 
     def refresh_main_statusbar(self, message = None, psystem = None):
@@ -1080,12 +1176,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         self.main.refresh_main_statusbar ()
         self.main.uptade_interface_windows_and_dialogs()
 
-
-
-
-    #def text_edited( self, w, row, new_text, model, column):
-    #  model[row][column] = new_text
-
+    
     def on_select(self, tree, path, selection):
         '''---------------------- Row information ---------------------'''
         # Get the current selected row and the model.
@@ -1121,8 +1212,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
                 self.treestore[treeview_iter][8] = size
                 print(vobj_id, self.treestore[treeview_iter][2], 'frames', len(vobj.frames))
         #'''
-        
-        
+
     def on_treeview_mouse_button_release_event (self, tree, event):
         """ Function doc """
         
@@ -1181,39 +1271,6 @@ class EasyHybridMainTreeView(Gtk.TreeView):
             vismol_object = self.main.vm_session.vm_objects_dic[v_obj_index]
             self.add_vismol_object_to_treeview(vismol_object)
 
-    def tag_rename (self, tag):
-        """ Function doc """
-        selection     = self.get_selection()
-        (model, iter) = selection.get_selected()
-        e_id     = model.get_value(iter, 0)
-        self.main.p_session.psystem[e_id].e_tag = tag
-        
-    def rename (self, name):
-        selection     = self.get_selection()
-        (model, iter) = selection.get_selected()
-        self.key      = model.get_value(iter, 0)
-        sys           = model.get_value(iter, 1)
-        
-        
-
-        old_name = model.get_value(iter, 2)
-        v_id     = model.get_value(iter, 1)
-        e_id     = model.get_value(iter, 0)
-        if v_id == -1:
-            #rename  system
-            self.treestore[iter][2] = str(e_id)+' - '+ name
-            self.main.p_session.psystem[e_id].label  = name
-            liststore_iter = self.main.p_session.psystem[e_id].e_liststore_iter
-            self.main.system_liststore[liststore_iter][0] = str(e_id)+' - '+ name
-        
-        else:
-            self.treestore[iter][2] = name
-            self.main.vm_session.vm_objects_dic[v_id].name = name
-            self.main.vobject_liststore_dict[e_id][self.main.vm_session.vm_objects_dic[v_id].liststore_iter][0] = name
-            
-        #self.p_session.psystem[self.e_id].e_selections[new_name] = self.p_session.psystem[self.e_id].e_selections[self.key]
-        #self.p_session.psystem[self.e_id].e_selections.pop(self.key)
-        #self.sele_window.update_window()
 
 
 class TreeViewMenu:
@@ -1223,7 +1280,6 @@ class TreeViewMenu:
         """ Class initialiser """
         self.treeview = treeview
         self.main     = treeview.main 
-        #self.main     = self.treeview.main
         self.filechooser   = FileChooser()
         self.rename_window_visible =  False
         
@@ -1232,15 +1288,15 @@ class TreeViewMenu:
 
                                 '_separator'            : ''      ,
                                 'Info'                  : self.f2 ,
-                                'Rename Object'                : self.menu_rename ,
+                                'Rename Object'         : self._menu_rename ,
                                 '_separator'            : ''      ,
 
-                                'Load Data Into System' : self.load_data_to_a_system ,
+                                'Load Data Into System' : self._menu_load_data_to_system,
                                 #'Change Color'  : self.change_system_color_palette ,
                                 'Edit Parameters'       : self.f2 ,
                                 '_separator'            : ''      ,
 
-                                'Export As...'          : self.menu_export_data_window ,
+                                'Export As...'          : self._menu_export_data_window ,
                                 'Merge System With...'  : self.f3 ,
                                 '_separator'            : ''      ,
 
@@ -1254,18 +1310,21 @@ class TreeViewMenu:
 
         system_menu_items = {
                                 
-                                'header'                : None    ,
-                                '_separator'            : ''      ,
-                                'Rename System'        : self.menu_rename ,
-                                #'Rename Tag'           : self.menu_rename_tag ,
-                                '_separator'            : ''      ,
-                                'Info'                  : self.f2 ,
-                                'Load Data Into System' : self.load_data_to_a_system ,
-                                'Change Color '  : self.change_system_color_palette ,
-                                'Edit Parameters'       : self.f2 ,
-                                'Export As...'          : self.menu_export_data_window ,
-                                'Merge System With...'  : self.f3 ,
-                                'Delete'                : self._menu_delete_system ,
+                                'header'                : None                            ,
+                                
+                                '_separator'            : ''                              ,
+                                
+                                'Info'                  : self._show_info                  ,
+                                
+                                '_separator'            : ''                              ,
+                                
+                                'Rename System'         : self._menu_rename               ,
+                                'Load Data Into System' : self._menu_load_data_to_system  ,
+                                'Change Color '         : self._menu_change_color_palette ,
+                                'Edit Parameters'       : self.f2                         ,
+                                'Export As...'          : self._menu_export_data_window    ,
+                                'Merge System With...'  : self.f3                         ,
+                                'Delete'                : self._menu_delete_system        ,
                                 #'test'  : self.f1 ,
                                 #'f1'    : self.f1 ,
                                 #'f2'    : self.f2 ,
@@ -1279,19 +1338,30 @@ class TreeViewMenu:
         self.tree_view_sys_menu   , self.tree_header_sys_menu     = self.build_tree_view_menu(system_menu_items)
 
 
-    def menu_export_data_window (self,vobject = None ):
+    def _show_info (self, widget):
+        """ Function doc """
+        selection     = self.treeview.get_selection()
+        (model, iter) = selection.get_selected()
+        e_id          = int(model.get_value(iter, 0))  # @+
+        #----------------------------------------------------------------------        
+        system = self.main.p_session.psystem[e_id]
+        window = InfoWindow(system)
+    
+
+    def _menu_export_data_window (self,vobject = None ):
         """ Function doc """
         self.treeview.main.export_data_window.OpenWindow()
     
     
-    def load_data_to_a_system (self, vobject = None ):
+    def _menu_load_data_to_system (self, vobject = None ):
         """ Function doc """
         selection        = self.treeview.get_selection()
         model, iter      = selection.get_selected()
         #print (list(model))
-        self.treeview.main.import_trajectory_window.OpenWindow(sys_selected = model.get_value(iter, 0))
+        self.main.import_trajectory_window.OpenWindow(sys_selected = model.get_value(iter, 0))
 
-    def change_system_color_palette (self, widget):
+
+    def _menu_change_color_palette (self, widget):
         """ Function doc """
         #selection               = self.selections[self.current_selection]
         self.colorchooserdialog = Gtk.ColorChooserDialog()
@@ -1318,30 +1388,6 @@ class TreeViewMenu:
             system = self.main.p_session.psystem[self.selectedID]
             
             self.main.change_reference_color(system, new_color)
-            #print('self.selectedID',self.selectedID)
-            #print('self.selectedID',type(self.main.p_session.psystem[self.selectedID].e_color_palette ))
-            #
-            #self.main.p_session.psystem[self.selectedID].e_color_palette['C'] = new_color
-            #
-            #
-            #
-            #
-            #
-            #system = self.main.p_session.psystem[self.selectedID]
-            #sqr_color   = get_colorful_square_pixel_buffer (system)
-            #self.main.system_liststore[system.e_liststore_iter][2] = sqr_color 
-            #
-            #
-            #self.treestore =  self.treeview.get_model() 
-            #self.treestore[system.e_treeview_iter][9] = sqr_color
-            #
-            #for index, vobject in self.main.vm_session.vm_objects_dic.items():
-            #    treeview_iter = vobject.e_treeview_iter
-            #    if self.treestore[treeview_iter][0] == self.selectedID:
-            #        self.treestore[treeview_iter][9] = sqr_color
-            #        self.main.vobject_liststore_dict[self.selectedID][vobject.liststore_iter][3]=sqr_color
-            #    else:
-            #        pass
 
     
     def f2 (self, vobject = None):
@@ -1379,190 +1425,40 @@ class TreeViewMenu:
         self.treeview.vm_session.glwidget.queue_draw()
 
     
-    def menu_rename_tag (self, menu_item = None ):
-        """ Function doc """
-        if self.rename_window_visible:
-            pass
-        else:          
-            #print(self.key, self.e_id)
-            self.window = Gtk.Window()
-            self.window.connect('destroy', self.destroy)
-            self.window.set_keep_above(True)
-            self.entry  = Gtk.Entry()
-            
-            #self.entry.set_text()
-            
-            self.entry.connect('activate', self.get_new_tag)
-            self.window.add(self.entry)
-            self.rename_window_visible = True
-            self.window.show_all()
-    
-    def menu_rename (self, menu_item = None ):
+    def _menu_rename (self, menu_item = None ):
         """  
         menu_item = Gtk.MenuItem object at 0x7fbdcc035700 (GtkMenuItem at 0x37cf6c0)
         
         """
+        selection     = self.treeview.get_selection()
+        (model, iter) = selection.get_selected()
+
+        old_name = model.get_value(iter, 2)
+        v_id     = model.get_value(iter, 1)
+        e_id     = model.get_value(iter, 0)
+
+        
         if self.rename_window_visible:
             pass
         else:
             
-            self.preferences = PreferencesWindow(main = self.main )
+            self.preferences = PreferencesWindow(main = self.main, 
+                                                 e_id = e_id     ,
+                                                 v_id = v_id     )
             
-            ##
-            ##self.e_id     = self.sele_window.system_names_combo.get_active()
-            ##self.e_id     = system_e_id
-            #
-            #
-            #
-            ##print(self.key, self.e_id)
-            #self.window = Gtk.Window()
-            #self.window.connect('destroy', self.destroy)
-            #self.window.set_keep_above(True)
-            #
-            #grid = Gtk.Grid()
-            #self.window.add(grid)
-            #
-            ## Create the first label and entry
-            #label1 = Gtk.Label(label="Label 1")
-            #entry1 = Gtk.Entry()
-            #grid.attach(label1, 0, 0, 1, 1)
-            #grid.attach(entry1, 1, 0, 1, 1)
-            #
-            ## Create the second label and entry
-            #label2 = Gtk.Label(label="Label 2")
-            #entry2 = Gtk.Entry()
-            #grid.attach(label2, 0, 1, 1, 1)
-            #grid.attach(entry2, 1, 1, 1, 1)
-            #
-            #
-            #
-            ##self.entry  = Gtk.Entry()
-            ##self.entry.connect('activate', self.get_new_name)
-            ##self.window.add(self.entry)
-            ##self.rename_window_visible = True
-            #self.window.show_all()
-            ###print(menu_item)
 
-    def get_new_tag (self, menu_item):
-        """ Function doc """
-        print('New tag: ', self.entry.get_text())
-        
-        new_name = self.entry.get_text()
-        self.treeview.tag_rename(new_name)
-    
-        self.window.destroy()
-        self.rename_window_visible = False
-    
-
-    def get_new_name (self, menu_item):
-        """ Function doc """
-        print('New name: ', self.entry.get_text())
-        
-        new_name = self.entry.get_text()
-        self.treeview.rename(new_name)
-    
-        self.window.destroy()
-        self.rename_window_visible = False
-    
     def destroy (self, widget):
         """ Function doc """
         self.rename_window_visible = False
     
     def _menu_delete_vm_object (self, widget):
         """ Function doc """
-        self.delete_vm_object ( vm_object_index = self.vobject_index)
+        self.main.delete_vm_object ( vm_object_index = self.vobject_index)
     
     
     def _menu_delete_system (self, widget):
         """ Function doc """
-        self.delete_system (system_e_id = self.system_e_id )
-    
-    
-    def delete_vm_object (self, vm_object_index = None):
-        """ 
-        
-        vm_object_index = is the access key to the object. You can get it from vobject.index
-        
-        '''When an object is removed it has to be removed from the treeview and 
-        vobject_liststore_dict, in addition to the vm_object_dic in the .vm_session.'''
-        
-        """
-        if vm_object_index != None:
-            #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            vobject = self.treeview.main.vm_session.vm_objects_dic[vm_object_index]
-            #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            
-            
-            #  - - - - - - REMOVING vobj FROM  vobject_liststore_dict - - - - - - -
-            self.treeview.main.vobject_liststore_dict[vobject.e_id].remove(vobject.liststore_iter)
-            #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            
-            #  - - - - - - REMOVING vobj FROM  treestore - - - - - - -
-            self.treeview.treestore.remove(vobject.e_treeview_iter)
-            #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            
-            #  - - - - - - - - REMOVING vobj FROM vm_object_dic - - - - - - - - - -
-            self.treeview.main.vm_session.vm_objects_dic[vm_object_index] = None
-            self.treeview.main.vm_session.vm_objects_dic.pop(vm_object_index)# = None
-            #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-            self.treeview.main.vm_session.vm_glcore.queue_draw()
-            
-        #self.treeview.main.refresh_active_system_liststore()
-        
-        #if self.treeview.main.selection_list_window.visible:
-        #    self.treeview.main.selection_list_window.update_window(system_names = True, coordinates = True,  selections = True)
-    
-    
-    def delete_system (self, system_e_id = None ):
-        """ 
-        system_e_id = is the access key to the object. You can get it from vobject.index
-
-        1) remove vobjects from vm_object_dic (self.vm_object_dic in vm_session object)
-        2) remove vobjects from vobject_liststore_dict (self.vobject_liststore_dict in main object)
-        
-        3) remove system from system_liststore (self.system_liststore in main object)
-        4) remove system from treestore (system.e_treeview_iter)
-        
-        5) remove system from p_session (p_session.psystem[sys_e_id] in p_session object)
-        """
-        #print(system_e_id)
-        #parent_key = self.treeview.main.p_session.psystem[system_e_id].e_treeview_iter_parent_key       
-        
-        
-        
-        if system_e_id != None:
-            
-            '''organizing the list of vobjects that should be removed from vm_object_dic'''
-            pop_list = []
-            for index, vobject in self.treeview.main.vm_session.vm_objects_dic.items():
-                if vobject.e_id == system_e_id:                   
-                    self.treeview.treestore.remove(vobject.e_treeview_iter)
-                    pop_list.append(index)
-            '''removing from vm_object_dic'''
-            for index in pop_list:
-                self.treeview.main.vm_session.vm_objects_dic.pop(index)
-            
-            '''removing vobject from vobject_liststore_dict'''
-            self.treeview.main.vobject_liststore_dict.pop(system_e_id)
-            
-            
-            #  - - - - - - - - removing system treeview items - - - - - - - - - - -
-            system = self.treeview.main.p_session.get_system(index = system_e_id)
-            self.treeview.main.system_liststore.remove(system.e_liststore_iter)
-            self.treeview.treestore.remove(system.e_treeview_iter)
-            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            
-            a = self.treeview.main.p_session.delete_system(system_e_id)
-            self.treeview.main.vm_session.vm_glcore.queue_draw()
-            
-        
-        #self.treeview.refresh()
-        #self.treeview.main.refresh_vobject_liststore_dict()
-        
-        #if self.treeview.main.selection_list_window.visible:
-        #    self.treeview.main.selection_list_window.update_window(system_names = True, coordinates = True,  selections = True)
-
+        self.main.delete_system (system_e_id = self.system_e_id )
 
     def build_tree_view_menu (self, menu_items = None):
         """ Function doc """
@@ -1684,7 +1580,7 @@ class BottomNoteBook:
 class PreferencesWindow:
     """ Class doc """
     
-    def __init__ (self, main = None, system = None):
+    def __init__ (self, main = None, e_id = None , v_id = None):
         """ Class initialiser """
         
         self.xml='''
@@ -1847,6 +1743,9 @@ class PreferencesWindow:
         self.vm_session = main.vm_session
         self.p_session  = main.p_session
         
+        self.e_id  = e_id 
+        self.v_id  = v_id 
+         
         
         self.builder = Gtk.Builder()
         self.builder.add_from_string(self.xml)
@@ -1877,8 +1776,10 @@ class PreferencesWindow:
         tag   = self.entry_tag .get_text()
     
         self.rename_window_visible = False
-        self.main.main_treeview.tag_rename(tag)
-        self.main.main_treeview.rename(name)
+        self.main.rename_tag(e_id = self.e_id, tag = tag)
+        self.main.rename(e_id  = self.e_id, 
+                         v_id  = self.v_id, 
+                         name  = name)
         self.window.destroy()
         self.main.main_treeview.treeview_menu.rename_window_visible = False
     

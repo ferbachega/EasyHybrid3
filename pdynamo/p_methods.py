@@ -98,11 +98,13 @@ HEADER ='''
 class LogFile:
     """ Class doc """
     
-    def __init__ (self, parameters):
+    def __init__ (self, system):
         """ Class initialiser """
-        pass
-
-
+        self.path = os.path.join(os.environ.get('PDYNAMO3_SCRATCH'), 'summary_temp.log')
+        self.logFile2 = TextLogFileWriter.WithOptions ( path = self.path )
+        system.Summary(log = self.logFile2)
+        self.logFile2.Close()
+        #return path
 
 class EnergyCalculation:
     """ Class doc """

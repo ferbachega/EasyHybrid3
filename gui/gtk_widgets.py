@@ -508,6 +508,7 @@ class FileChooser:
             return filename
 
 
+
 class VismolTrajectoryFrame(Gtk.Frame):
     """ Class doc """
     
@@ -858,7 +859,6 @@ class CoordinatesComboBox(Gtk.ComboBox):
                 #------------------------------------------------------------------------------------
             else:
                 pass
-
 
 
 

@@ -272,7 +272,7 @@ class WHAMWindow(Gtk.Window):
 
     def update (self, parameters = None):
         """ Function doc """
-        self._starting_coordinates_model_update()
+        #self._starting_coordinates_model_update()
         if self.Visible:
             self.update_working_folder_chooser()
             

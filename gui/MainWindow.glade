@@ -202,6 +202,14 @@
                       </object>
                     </child>
                     <child>
+                      <object class="GtkMenuItem">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="label" translatable="yes">Import Data...</property>
+                        <property name="use_underline">True</property>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkSeparatorMenuItem" id="separatormenuitem1">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
@@ -700,7 +708,7 @@
                     <property name="label" translatable="yes">open</property>
                     <property name="use_underline">True</property>
                     <property name="icon_widget">image2</property>
-                    <signal name="clicked" handler="gtk_load_files" swapped="no"/>
+                    <signal name="clicked" handler="open_gtk_load_files" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>

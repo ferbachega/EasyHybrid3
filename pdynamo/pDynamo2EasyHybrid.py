@@ -76,6 +76,9 @@ from pdynamo.p_methods import UmbrellaSampling
 from pdynamo.p_methods import WHAMAnalysis
 from pdynamo.LogFileWriter import LogFileReader
 
+from gui.windows.windows_and_dialogs import call_message_dialog
+
+
 '''
 #import our core lib
 from SimulationsPreset import Simulation 
@@ -825,7 +828,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
     def load_a_new_pDynamo_system_from_dict (self, input_files = {}, system_type = 0, name = None, tag = None, color = None):
         """ Function doc """
-
+        print('\n\n\ init - load_a_new_pDynamo_system_from_dict')
+        #for index , psystem in self.psystem.items():
+        #    if psystem:
+        #        print(' in load_a_new_pDynamo_system_from_dict', index, psystem.e_color_palette['C'])
+        #    else:
+        #        print(' in load_a_new_pDynamo_system_from_dict', index, None)
+        
         #psystem = self.generate_pSystem_dictionary()
         
         system = None 
@@ -871,10 +880,58 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         print(name, tag)
         #name =  self._check_name(name)
         
-        system.e_input_files = input_files
-        system = self.append_system_to_pdynamo_session ( 
-                                                        system = system,  name = name, tag = tag, color = color )
+        # Ateh aqui as cores estao corretas
+        #-------------------------------------------------------------------------------------------------
+        for index , psystem in self.psystem.items():
+            if psystem:
+                print(' in load_a_new_pDynamo_system_from_dict2', index, psystem.e_color_palette['C'])
+            else:
+                print(' in load_a_new_pDynamo_system_from_dict2', index, None)
+        #-------------------------------------------------------------------------------------------------
         
+        
+        system.e_input_files = input_files
+        
+        
+        
+        
+        
+
+        
+        
+        # Ateh aqui as cores estao corretas
+        #-------------------------------------------------------------------------------------------------
+        for index , psystem in self.psystem.items():
+            if psystem:
+                print(' in load_a_new_pDynamo_system_from_dict 3', index, psystem.e_color_palette['C'])
+            else:
+                print(' in load_a_new_pDynamo_system_from_dict 3', index, None)
+        #-------------------------------------------------------------------------------------------------
+        
+        
+        
+        
+        
+        
+        
+        system = self.append_system_to_pdynamo_session (system = system,  name = name, tag = tag, color = color )
+
+        #for index , psystem in self.psystem.items():
+        #    print(' in load_a_new_pDynamo_system_from_dict', index, psystem.e_color_palette['C'])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         '''-----------------------------------------------------------------'''
         
         #system
@@ -911,8 +968,10 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                           tag            = None            ,
                                           working_folder = None            ,
                                           color          = None            ):
-        """ Function doc """
+        """ Function doc """  
+    
         
+        # - - - - - - - Name and Tag - - - - - - - -
         if name:
             system.label = name
         else:
@@ -922,8 +981,14 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             system.e_tag = tag
         else:
             system.e_tag ='MolSys'
+        # - - - - - - - - - - - - - - - - - - - - - -
         
         
+        
+        
+        
+        
+        # - - - - - - - - - - - - - Working Folder - - - - - - - - - - - - - 
         if working_folder is None:
             is_wf_already_set = getattr ( system, "e_working_folder", False )            
             if is_wf_already_set is False:
@@ -935,75 +1000,56 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 pass
         else:
             system.e_working_folder           = working_folder
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         
         
-        
+
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        #                            CHARGES
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         try:
             system.e_charges_backup           = list(system.AtomicCharges()).copy()
         except:
             system.e_charges_backup           = []
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        
 
         
-        system.e_id                      =  self.counter
-        self.psystem[system.e_id]        =  system 
-        
-        self.active_id   = self.counter  
-        self.counter    += 1
-        
-        
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         system.e_active                   = False
         system.e_date                     = date.today()               # Time     
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         
         
-        e_color_palette = getattr(system, 'e_color_palette', None)
+
+        
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        #                                  COLORS
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         if color is not None:
-            system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
+            system.e_color_palette            = COLOR_PALETTE[0].copy() 
             system.e_color_palette['C']       = color
+        #'''
         else:
-            
             e_color_palette = getattr(system, 'e_color_palette', None)
             if type(e_color_palette) == dict:
                 pass
             else:
-                system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
-                '''When the number of available colors runs out, we have to reset the counter'''
+                system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter].copy() 
+                #When the number of available colors runs out, we have to reset the counter 
                 self.color_palette_counter        += 1
                 if self.color_palette_counter > len(COLOR_PALETTE.keys())-1:
                     self.color_palette_counter = 0
                 else:
                     pass
+        #'''
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         
-        #if e_color_palette is not None:
-        #
-        #    
-        #
-        #
-        #
-        #if type(is_color_palette) is not dict:
-        #    system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter]
-        #    '''When the number of available colors runs out, we have to reset the counter'''
-        #    self.color_palette_counter        += 1
-        #    if self.color_palette_counter > len(COLOR_PALETTE.keys())-1:
-        #        self.color_palette_counter = 0
-        #    else:
-        #        pass
-        #
-        #else:
-        #    if color is not None:
-        #        system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
-        #        system.e_color_palette['C']       = color
-        #
-        #    else:
-        #        system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter] # will be replaced by a dict
-        #        '''When the number of available colors runs out, we have to reset the counter'''
-        #        self.color_palette_counter        += 1
-        #        if self.color_palette_counter > len(COLOR_PALETTE.keys())-1:
-        #            self.color_palette_counter = 0
-        #        else:
-        #            pass
         
-        #system.e_vobject                  = None            # Vismol object associated with the system -> is the object that will 
-
+        
+        
+        
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         system.e_active                   = False          
         system.e_bonds                    = None           
         system.e_sequence                 = None           
@@ -1029,11 +1075,12 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                               # parameters['force_constant']] 
                                             
                                             }
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         
         
         
-        
-        '''Now each pdynamo system object and vismol object has a 
+        '''
+        Now each pdynamo system object and vismol object has a 
         "treeview_iter" attribute, which is a reference to access 
         the treeview elements
         
@@ -1043,19 +1090,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         system.e_treeview_iter            = None  #the method "add_new_system_to_treeview" modify this attribute 
         system.e_liststore_iter           = None  #the method "add_new_system_to_treeview" modify this attribute
         
+        system.e_id                      =  self.counter
+        self.psystem[system.e_id]        =  system 
         
-        
+        self.active_id   = self.counter  
+        self.counter    += 1
         return system
-        
-        
-        # obtaing the color palette
-        '''
-        if self.color_palette_counter >= len(COLOR_PALETTE)-1:
-            self.color_palette_counter = 0
-        else:
-            self.color_palette_counter += 1
-        '''
-        
+
 
     def _get_sequence_from_pDynamo_system (self, system = None):
         """ Function doc """
@@ -1402,7 +1443,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         else:
             #system = self.psystem[self.active_id]
             system = self.psystem[vismol_object.e_id]
-        
+            
         electronicState = ElectronicState.WithOptions ( charge = parameters['charge'], 
                                                   multiplicity = parameters['multiplicity'], 
                                               isSpinRestricted =  parameters['isSpinRestricted'])
@@ -1435,8 +1476,12 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             sum of the charges in the MM region must be an integer value!'''
             self.check_charge_fragmentation(vismol_object = vismol_object)
             '''----------------------------------------------------------------'''
-            system.DefineQCModel (qcModel, qcSelection = Selection.FromIterable ( system.e_qc_table) )          
-            
+            try:
+                system.DefineQCModel (qcModel, qcSelection = Selection.FromIterable ( system.e_qc_table) )          
+            except MMModelError:
+                print('\n\n\n MMModelError. Total active MM charge is neither integral nor zero', MMModelError)
+                call_message_dialog(text1 = 'MMModelError', text2 = 'Total active MM charge is neither integral nor zero', transient_for =  None)
+                return None
             if system.mmModel:
                 if parameters['method'] == 'ab initio - ORCA':
                     system.DefineNBModel (NBModelORCA.WithDefaults ( ))

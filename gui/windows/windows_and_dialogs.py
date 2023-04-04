@@ -24,7 +24,7 @@
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gtk, Pango
 from gi.repository import Gdk
 from gi.repository import GdkPixbuf
 
@@ -36,6 +36,9 @@ from gui.gtk_widgets import CoordinatesComboBox
 from gui.gtk_widgets import get_colorful_square_pixel_buffer
 from gui.gtk_widgets import ReactionCoordinateBox
 from gui.gtk_widgets import get_distance
+
+
+from pdynamo.p_methods import LogFile
 
 
 import external.orca_qc_keywords as orca_keys
@@ -52,9 +55,69 @@ HOME        = os.environ.get('HOME')
 
 
 #from GTKGUI.gtkWidgets.main_treeview import GtkMainTreeView
+def call_message_dialog (text1 = '', text2 = '', transient_for = None):
+    """ Function doc """
+    dialog = Gtk.MessageDialog(
+                transient_for = transient_for,
+                flags=0,
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK,
+                text= text1, #"MMModelError",
+                )
+    dialog.format_secondary_text(text2)#"""Total active MM charge is neither integral nor zero.""")
+    dialog.run()
+    #print("INFO dialog closed")
+    dialog.destroy()
 
 
 
+
+class InfoWindow:
+    """ Class doc """
+    
+    def __init__ (self, system):
+        """ Class initialiser """
+        
+        log  = LogFile(system)
+        path = log.path
+        with open(path, "r") as f:
+            text = f.read()
+        
+        
+        self.window = Gtk.Window(title="System Summary")
+        self.window.set_default_size(1100, 600)
+
+        self.textview = Gtk.TextView()
+        self.textbuffer = self.textview.get_buffer()
+        self.textbuffer.set_text(text)
+
+
+        # Create a Pango font description with the desired font family and size
+        fontdesc = Pango.FontDescription()
+        fontdesc.set_family("Monospace")
+        fontdesc.set_size(12 * Pango.SCALE)  # 12 point size
+
+        # Apply the font description to the text view
+        self.textview.modify_font(fontdesc)
+
+        # Set the text color to black
+        style = self.textview.get_style_context()
+        style.add_class("text-black")
+
+
+
+
+
+        scrolledwindow = Gtk.ScrolledWindow()
+        scrolledwindow.set_hexpand(True)
+        scrolledwindow.set_vexpand(True)
+        scrolledwindow.add(self.textview)
+
+        self.window.add(scrolledwindow)
+        #self.window.connect("destroy", Gtk.main_quit)
+        self.window.show_all()
+        
+        
 class AddHarmonicRestraintDialog:
     """ Class doc """
     
@@ -96,8 +159,6 @@ class AddHarmonicRestraintDialog:
         self.builder.get_object('dialog').destroy()
         self.Visible    =  False
         #print(self.ok)
-
-
 
 class SinglePointwindow:
     """ Class doc """
@@ -641,6 +702,7 @@ class EnergyRefinementWindow():
             else:
                 pass
 
+
 class ExportDataWindow:
     """ Class doc """
     def __init__(self, main = None):
@@ -1061,12 +1123,6 @@ class EasyHybridSelectionWindow:
                                                grid_size     = _radius)
 
         
-
-    
-       
-
-
-
 class PDynamoSelectionWindow:
     """ Class doc """
     def __init__(self, main = None):
@@ -1256,12 +1312,6 @@ class PDynamoSelectionWindow:
         #print('VismolGoToAtomWindow2 update')
         pass
     
-
-
-
-
-
-
 
 class SetupORCAWindow:
     """ Class doc """
@@ -1619,10 +1669,6 @@ class SetupORCAWindow:
         textbuffer.set_text(new_text)
         #print(new_text)
         #print('!',self.restrited_label,  method, basis, scf_conv, e_states, )
-
-
-    
-    
 class EasyHybridSetupQCModelWindow:
     """ Class doc """
     
@@ -1872,15 +1918,6 @@ class EasyHybridSetupQCModelWindow:
         """ Function doc """
         #print('VismolGoToAtomWindow2 update')
         #self._starting_coordinates_model_update()
-
-
-
-
-
-
-
-
-
 class EasyHybridGoToAtomWindow(Gtk.Window):
     def __init__(self, main = None, system_liststore = None):
         """ Class initialiser """
@@ -2903,16 +2940,16 @@ class ImportANewSystemWindow(Gtk.Window):
         self.files['prm_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()
         #print(self.files)
 
-    def on_button_import_a_new_system_clicked (self, button):
-        """ Function doc """
-        
-        if button == self.builder.get_object('ok_button_import_a_new_system'):
-            print('ok_button_import_a_new_system')
-            #self.on_button1_clicked_create_new_project(button)
-            #self.dialog.hide()
-        if button == self.builder.get_object('cancel_button_import_a_new_system'):
-            print('cancel_button_import_a_new_system')
-            self.dialog.hide()
+    #def on_button_import_a_new_system_clicked (self, button):
+    #    """ Function doc """
+    #    
+    #    if button == self.builder.get_object('ok_button_import_a_new_system'):
+    #        print('ok_button_import_a_new_system')
+    #        #self.on_button1_clicked_create_new_project(button)
+    #        #self.dialog.hide()
+    #    if button == self.builder.get_object('cancel_button_import_a_new_system'):
+    #        print('cancel_button_import_a_new_system')
+    #        self.dialog.hide()
             
     def on_button_import_system_clicked (self, button):
         #print('ok_button_import_a_new_system')
@@ -2943,23 +2980,12 @@ class ImportANewSystemWindow(Gtk.Window):
                                                                            tag         = tag       ,
                                                                            color       = [red, green, blue])
         #'''
-        #if systemtype == 2:
-        #    self.files['prm_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()
-        
-        #print ('systemtype',systemtype, self.files )
-        ##self.easyhybrid_main.p_session.get_bonds_from_pDynamo_system()
-        #
-        #vobject = self.easyhybrid_main.p_session.build_vobject_from_pDynamo_system (name = name)
         self.CloseWindow(button, data  = None)
 
     def update (self):
         """ Function doc """
         #print('VismolGoToAtomWindow2 update')
         pass
-
-
-
-
 
 
 class ImportTrajectoryWindow:
@@ -3287,7 +3313,6 @@ class ImportTrajectoryWindow:
         """ Function doc """
         #print('VismolGoToAtomWindow2 update')
         pass
-
 
 
 class TrajectoryPlayerWindow:
