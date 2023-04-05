@@ -161,7 +161,39 @@ class GLMenu:
                 """ Function doc """
                 self.show_or_hide( rep_type = 'dots', show = False)
             
-            
+            def menu_hide_hydrogens (_):
+                """ Function doc """
+                #if selection is None:
+                selection = self.selections[self.current_selection]
+                #for a
+                
+                vobjects = {}
+                for atom in selection.selected_atoms:
+                    # is atom a hydrogen
+                    if atom.symbol == 'H':
+                        if atom.vm_object.index in vobjects.keys():
+                            vobjects[atom.vm_object.index].append(atom.index-1)
+                        else:
+                            vobjects[atom.vm_object.index] = []
+                            vobjects[atom.vm_object.index].append(atom.index-1)
+                
+                #print(vobjects)
+                
+                self.selections[self.current_selection]= VMSele(self)
+                
+                for vobj_id, indexes in vobjects.items():
+                    '''----------------------------- Applying the selection ------------------------------------'''
+                    vobject = self.vm_objects_dic[vobj_id]
+                    print ('1 - ',self.selections[self.current_selection].selected_atoms)
+                    self.selections[self.current_selection].selecting_by_indexes (vismol_object = vobject, indexes = indexes, clear = True)
+                    self.selections[self.current_selection].active = True
+                    '''-----------------------------------------------------------------------------------------'''
+                    print ('2 - ',self.selections[self.current_selection].selected_atoms)
+
+                    self.show_or_hide( rep_type = 'lines', show = False)
+                    self.show_or_hide( rep_type = 'sticks', show = False)
+                    self.show_or_hide( rep_type = 'spheres', show = False)
+
             
             def menu_set_color_grey (_):
                 """ Function doc """
@@ -462,6 +494,9 @@ class GLMenu:
 
                                             'separator3'    : ['separator', None],
                                             'nonbonded'     : ['MenuItem', menu_hide_nonbonded],
+                                            'separator4'    : ['separator', None],
+                                            'hydrogens'     : ['MenuItem', menu_hide_hydrogens],
+
                                             }
                                 ],
                     
