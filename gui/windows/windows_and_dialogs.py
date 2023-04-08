@@ -786,8 +786,13 @@ class ExportDataWindow:
             self.box_coordinates.pack_start(self.combobox_starting_coordinates, False, False, 0)
             size = len(self.main.vobject_liststore_dict[sys_selected])
             self.combobox_starting_coordinates.set_active(size-1)
-
             #------------------------------------------------------------------------------------
+            
+            
+            #------------------------------------------------------------------------------------
+            self.checkbox_keep_window = self.builder.get_object('checkbox_keep_window_open')
+            #------------------------------------------------------------------------------------
+
         
             #------------------------------------------------------------------------------------
             folder = self.main.p_session.psystem[sys_selected].e_working_folder
@@ -976,10 +981,43 @@ class ExportDataWindow:
         parameters['last']   = int(self.builder.get_object('entry_last').get_text()  )
         parameters['stride'] = int(self.builder.get_object('entry_stride').get_text())
         '''-------------------------------------------------------------------------------'''
-
+        parameters['system'] = self.main.p_session.psystem[parameters['system_id']]
         print(parameters)
         '''------------------------------------------------------------------------------'''
-        self.main.p_session.export_system (parameters)
+        
+        format_dict = {
+            0 : 'pkl'  ,
+            1 : 'pkl'  ,
+            2 : 'pdb'  ,
+            3 : 'xyz'  ,
+            4 : 'mol'  ,
+            5 : 'mol2' ,
+            }
+        
+        if parameters['is_single_file']:
+            _format = '.'+format_dict[parameters['format']]
+        else:
+            _format = '.ptGeo'
+        
+        
+        
+        
+        try:
+            self.main.p_session.export_system (parameters)
+            self.main.bottom_notebook.status_teeview_add_new_item(message = ':  {}  saved'.format(os.path.join ( 
+                                                                                        parameters['folder'], 
+                                                                                        parameters['filename']+_format)
+                                                                                        ), 
+                                                                  system = parameters['system'])
+        except:
+            print('Failed when trying to export system data: ', parameters['system'].label)
+        
+        if self.checkbox_keep_window.get_active():
+            pass
+        else:
+            self.window.destroy()
+            self.Visible    =  False
+        
         '''------------------------------------------------------------------------------'''
     
     def CloseWindow (self, button, data  = None):
@@ -3528,15 +3566,17 @@ class PotentialEnergyAnalysisWindow:
             logfile_data = getattr ( system, "e_logfile_data", None )
             if logfile_data is not None:
                 for vobject_id in system.e_logfile_data.keys():
-                    _vobject = self.vm_session.vm_objects_dic[vobject_id]
-                    
-                    pixbuf  = self.main.vobject_liststore_dict[system_id][_vobject.liststore_iter][3]
-                    
-                    self.vobject_liststore.append([_vobject.name, 
-                                                    vobject_id  , 
-                                                    system_id   , 
-                                                    pixbuf     ])
-            
+                    try:
+                        _vobject = self.vm_session.vm_objects_dic[vobject_id]
+                        
+                        pixbuf  = self.main.vobject_liststore_dict[system_id][_vobject.liststore_iter][3]
+                        
+                        self.vobject_liststore.append([_vobject.name, 
+                                                        vobject_id  , 
+                                                        system_id   , 
+                                                        pixbuf     ])
+                    except:
+                        print('Log data not found!')
             else:
                 pass
 
@@ -3551,7 +3591,7 @@ class PotentialEnergyAnalysisWindow:
             self.data_liststore.append([data['name'], index])
 
         self.data_combobox.set_active(0)
-        print( self.vobject.idx_2D_xy)
+        #print( self.vobject.idx_2D_xy)
     
     def on_data_combobox_change (self, widget):
         """ Function doc """
@@ -3564,18 +3604,31 @@ class PotentialEnergyAnalysisWindow:
         self.data = self.p_session.psystem[self.vobject.e_id].e_logfile_data[self.vobject.index][index] 
         print('data: ', self.data)
         
-        minlist = []
-        for line in self.data['Z']:
-            minlist.append(min(line))
+        if self.data['type'] == 'plot1D':
+            pass
+            self.plot2.data = []
+
+            self.plot2.Xmin_list = []
+            self.plot2.Ymin_list = []
+            self.plot2.Xmax_list = []
+            self.plot2.Ymax_list = []
+            self.plot2.add( X = range(0, len(self.data['Z'])), Y = self.data['Z'], symbol = 'dot', sym_fill = False, sym_color = [0,1,1], line = 'solid', line_color = [0,1,1] )
+            self.plot.hide()
+            self.scale_traj_new_definitions(set_range = len(self.data['Z']))
+        elif self.data['type'] == 'plot2D':
         
-        _min = min(minlist)
-        
-        for i in range(0, len(self.data['Z'])):
-            for j in range(0, len(self.data['Z'][i])):
-                self.data['Z'][i][j] = self.data['Z'][i][j]-_min 
-        
-        
-        self.plot.data = self.data['Z']
+            minlist = []
+            for line in self.data['Z']:
+                minlist.append(min(line))
+            
+            _min = min(minlist)
+            
+            for i in range(0, len(self.data['Z'])):
+                for j in range(0, len(self.data['Z'][i])):
+                    self.data['Z'][i][j] = self.data['Z'][i][j]-_min 
+            
+            self.plot.show()
+            self.plot.data = self.data['Z']
         
         
         
@@ -3653,9 +3706,12 @@ class PotentialEnergyAnalysisWindow:
         widget.queue_draw()
         #print('coco', data)
 
-    def scale_traj_new_definitions(self):
+    def scale_traj_new_definitions(self, set_range = None ):
         #self.scale_traj
-        self.scale_traj.set_range(0, len(self.plot.points))
+        if set_range:
+            self.scale_traj.set_range(0, set_range)
+        else:    
+            self.scale_traj.set_range(0, len(self.plot.points))
         #self.scale_traj.set_value(self.vm_session.get_frame())
     
     def on_scaler_frame_value_changed (self, hscale, text= None,  data=None):
@@ -3665,22 +3721,31 @@ class PotentialEnergyAnalysisWindow:
         
         #self.plot.points
         
-        #print(self.xy_traj[int(value)])
-        xy = self.plot.points[int(value)]
-        #print(xy, self.zdata[int(value)])
-        print(xy, self.plot.data[xy[0]][xy[1]])
+        if self.data['type'] == 'plot2D':
+
+            #print(self.xy_traj[int(value)])
+            xy = self.plot.points[int(value)]
+            #print(xy, self.zdata[int(value)])
+            print(xy, self.plot.data[xy[0]][xy[1]])
+            x = [value]
+            y = [  self.plot.data[xy[0]][xy[1]]   ]
+            frame = self.vobject.idx_2D_xy[(xy[1], xy[0])]
+        else:
+            x = [int(value)]
+            y = [self.data['Z'][int(value)]]
+            frame = int(value)
+        
+        
+        
         
         if len(self.plot2.data) > 1:
             self.plot2.data.pop(-1)
         
-        x = [value]
-        y = [  self.plot.data[xy[0]][xy[1]]   ]
         self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = True, sym_color = [1,0,0], line = 'solid', line_color = [0,1,1] )
-        
         self.plot2.queue_draw()
+
         
         if self.vobject:
-            frame = self.vobject.idx_2D_xy[(xy[1], xy[0])]
             self.main.vm_session.frame = int(frame)
             self.main.vm_session.vm_glcore.updated_coords = True
             self.main.vm_session.vm_widget.queue_draw()

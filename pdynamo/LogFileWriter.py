@@ -271,19 +271,20 @@ class LogFileReader:
         elif self.type == 'EasyHybrid-SCAN':
             datalines = []
             
+            n = 0
             for line in self.data:
                 if "DATA" in line:
                     line2 = line.split()
                     datalines.append(line2[1:])
-            
+                    n += 1
             lastline = datalines[-1]
-            x_size = int(lastline[0])
+            x_size   = n
              
             Z       = []
             RC1     = []
             RC2     = []
             
-            for line in datalines[1:]:
+            for line in datalines:
                 Z.append(float(line[-1])) 
                 RC1.append(float(line[1])) 
             data = {

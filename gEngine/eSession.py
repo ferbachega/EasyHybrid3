@@ -35,6 +35,7 @@ from gui.windows.windows_and_dialogs import EasyHybridDialogPrune
 from gui.windows.windows_and_dialogs import AddHarmonicRestraintDialog
 
 from vismol.core.vismol_selections import VismolViewingSelection as VMSele
+from vismol.core.vismol_selections import VismolPickingSelection as VMPick
 import numpy as np
 logger = logging.getLogger(__name__)
 
@@ -830,6 +831,21 @@ class EasyHybridSession(VismolSession, GLMenu):
         ##print('\n\n\n',a, '\n\n\n')
         self.selection_box_frane = None
     
+    
+    def restart (self):
+        """ Function doc """
+        self.picking_selection_mode = False # True/False  - interchange between viewing  and picking mode
+        self.selections = {"sel_00": VMSele(self)}
+        self.current_selection = "sel_00"
+        self.picking_selections = VMPick(self)
+        
+        for key, vobject in self.vm_objects_dic.items():
+            vobject.active = False
+        
+        self.vm_objects_dic = {}
+        self.vm_glcore.queue_draw()  
+        
+          
     def _selection_function (self, selected, _type = None, disable = True):
         #"""     P I C K I N G     S E L E C T I O N S     """
         ##print('_selection_function')

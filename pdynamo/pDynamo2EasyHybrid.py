@@ -106,37 +106,128 @@ class LoadAndSaveData:
     def save_easyhybrid_session (self, filename = 'session.easy'):
         """ Function doc """
         easyhybrid_session_data = {}
-        
+        backup = {}
         
         '''- - - - - - - - - - pDynamo systems - - - - - - - - - - - '''
-        easyhybrid_session_data['psystem'] = self.psystem
+        #easyhybrid_session_data['psystem'] = self.psystem
         '''- - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
+        easyhybrid_session_data['systems'] = [ ]
         
-        
-        
-        '''- - - - - - - - - - - - vismol obejcts - - - - - - - - - - - '''
-        vobjects = {}
-        for key, vobject in self.vm_session.vm_objects_dic.items():
-            parameters = {
-                          'index'             : vobject.index            ,
-                          'name'              : vobject.name             ,
-                          'active'            : vobject.active           ,
-                          'frames'            : vobject.frames           ,
-                          'color_palette'     : vobject.color_palette    ,
-                          'mass_center'       : vobject.mass_center      ,
-                          'selected_atom_ids' : vobject.selected_atom_ids,
-                          'index_bonds'       : vobject.index_bonds      ,
-                                                
-                          'colors'            : vobject.colors           ,
-                          'color_indexes'     : vobject.color_indexes    ,
-                         }
-            vobjects[key] = parameters
-        easyhybrid_session_data['vobjects'] = vobjects
-        '''- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
+        for e_id, system in self.psystem.items():
+            
+            data   = {}
 
+            backup[e_id] = []
+            backup[e_id].append(system.e_treeview_iter)
+            backup[e_id].append(system.e_liststore_iter)
+
+            system.e_treeview_iter   = None
+            system.e_liststore_iter  = None
+            
+            data['system'] = system
+            data['vobjects'] = []
+            for key, vobject in self.vm_session.vm_objects_dic.items():
+                if system.e_id == vobject.e_id:
+                    #data['frames'] = vobject.frames
+                    #data['color_palette'] = vobject.color_palette
+                    vobj_data = {}
+                    vobj_data['frames']        = vobject.frames
+                    vobj_data['color_palette'] = vobject.color_palette
+                    vobj_data['name']          = vobject.name
+                    vobj_data['active']        = vobject.active
+                    
+                    
+                    if key in system.e_logfile_data.keys():
+                        vobj_data['logfile_data'] = system.e_logfile_data[key]
+                    
+                    if getattr (vobject, 'idx_2D_xy', False):
+                        vobj_data['idx_2D_xy'] = vobject.idx_2D_xy
+                    
+                    data['vobjects'].append(vobj_data)
+                        
+            easyhybrid_session_data['systems'].append(data)
         
         with open(filename,'wb') as outfile:
             pickle.dump(easyhybrid_session_data, outfile)
+            
+            
+        for e_id, data in backup.items():
+            self.psystem[e_id]
+            self.psystem[e_id].e_treeview_iter   = data[0]
+            self.psystem[e_id].e_liststore_iter  = data[1]
+        
+        self.main.session_filename = filename
+        
+        
+        self.main.bottom_notebook.status_teeview_add_new_item(message = ':  {}  saved'.format(filename), 
+                                                               system =  system )
+        
+        #'''- - - - - - - - - - - - vismol obejcts - - - - - - - - - - - '''
+        #vobjects = {}
+        #for key, vobject in self.vm_session.vm_objects_dic.items():
+        #    parameters = {
+        #                  'index'             : vobject.index            ,
+        #                  'name'              : vobject.name             ,
+        #                  'active'            : vobject.active           ,
+        #                  'frames'            : vobject.frames           ,
+        #                  'color_palette'     : vobject.color_palette    ,
+        #                  'mass_center'       : vobject.mass_center      ,
+        #                  'selected_atom_ids' : vobject.selected_atom_ids,
+        #                  'index_bonds'       : vobject.index_bonds      ,
+        #                                        
+        #                  'colors'            : vobject.colors           ,
+        #                  'color_indexes'     : vobject.color_indexes    ,
+        #                 }
+        #    vobjects[key] = parameters
+        #easyhybrid_session_data['vobjects'] = vobjects
+        #'''- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
+
+    def load_easyhybrid_serialization_file (self, filename = None):
+        self.main.restart() 
+        self.main.bottom_notebook.status_teeview_add_new_item(message = ':  {}  loaded'.format(filename), 
+                                                               system =  None )
+        if filename is None:
+            return None
+        with open(filename, "rb") as f:
+            # Load the object from the file
+            easyhybrid_session_data = pickle.load(f)
+        #print(easyhybrid_session_data)
+        
+        for data  in easyhybrid_session_data['systems']:
+            system = data['system']
+            #print('\n\n\n\n',system)
+            self.append_system_to_pdynamo_session (system = system)
+            self.main.main_treeview.add_new_system_to_treeview (system)
+            ff  =  getattr(system.mmModel, 'forceField', "None")
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system = system)
+            
+            for vobj  in data['vobjects']:
+                frames = vobj['frames']
+                name   = vobj['name']
+                
+                
+                vm_object = self._build_vobject_from_pDynamo_system ( system = system, name = name ) 
+                vm_object.frames = frames
+                vm_object.active = vobj['active']
+                self.vm_session._add_vismol_object(vm_object, show_molecule = True)
+                
+                self.main.main_treeview.add_vismol_object_to_treeview(vm_object)
+                
+                self.main.add_vobject_to_vobject_liststore_dict(vm_object)
+                
+                self._apply_fixed_representation_to_vobject(vismol_object =vm_object)
+                self._apply_QC_representation_to_vobject(vismol_object =vm_object)
+                
+                self.main.refresh_widgets()
+                
+                if 'logfile_data' in vobj.keys():
+                    system.e_logfile_data[vm_object.index] = vobj['logfile_data']
+                if 'idx_2D_xy' in vobj.keys():
+                    vm_object.idx_2D_xy  = vobj['idx_2D_xy']
+        
+        self.main.session_filename = filename
+
+
 
 
 class EasyHybridImportTrajectory:
@@ -939,8 +1030,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         #sys_type = {0: 'AMBER', 1:'CHARMM'}
         ff  =  getattr(system.mmModel, 'forceField', "None")
-        self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff))
-
+        
+        self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system =system)
         self._add_vismol_object_to_easyhybrid_session (system, True) #, name = 'olha o  coco')
         #self.main.refresh_active_system_liststore()
         #self.main.refresh_system_liststore ()
@@ -1058,23 +1149,44 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         system.e_qc_table                 = []           
         system.e_qc_residue_table         = {}             #yes, it's a dict           
         system.e_fixed_table              = []             
-        system.e_selections               = {}             
-        system.e_selections_counter       = 0             
-
-        system.e_vm_objects               = {}                  
-        system.e_logfile_data             = {}             # <--- vobject_id : [data0, data1, data2], ...]  obs: each "data" is a dictionary 
-        system.e_step_counter             = 0              
         
-        system.e_restraint_counter        = 0
-        system.e_restraints_dict          = {
-                                              #[True, 
-                                              # rest_name ,
-                                              # 'distance', 
-                                              # [parameters['atom1'],parameters['atom2']], 
-                                              # parameters['distance'],  
-                                              # parameters['force_constant']] 
-                                            
-                                            }
+        if getattr ( system, "e_selections", False ):
+            pass
+            #system.e_selections               = {}             
+        else:
+            system.e_selections               = {}             
+        
+        
+        system.e_selections_counter       = 0             
+        system.e_vm_objects               = {}                  
+        
+        
+        if getattr ( system, "e_logfile_data", False ):
+            pass
+        else:
+            system.e_logfile_data             = {}             # <--- vobject_id : [data0, data1, data2], ...]  obs: each "data" is a dictionary 
+        
+        
+        if getattr ( system, "e_step_counter", False ):
+            pass
+        else:
+            system.e_step_counter             = 0              
+        
+        
+        
+        if getattr ( system, "e_restraints_dict", False ):
+            pass
+        else:
+            system.e_restraint_counter        = 0
+            system.e_restraints_dict          = {
+                                                  #[True, 
+                                                  # rest_name ,
+                                                  # 'distance', 
+                                                  # [parameters['atom1'],parameters['atom2']], 
+                                                  # parameters['distance'],  
+                                                  # parameters['force_constant']] 
+                                                
+                                                }
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         
         

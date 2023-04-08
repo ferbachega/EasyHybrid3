@@ -254,8 +254,10 @@ class MainWindow:
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
 
 
-
-
+        #             EASYHYBRID SESSION FILE
+        self.session_filename = None
+        
+        
         '''#- - - - - - - - - - - -  pDynamo - - - - - - - - - - - - - - -#'''
         self.p_session = pDynamoSession(vm_session = vm_session)
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
@@ -339,6 +341,16 @@ class MainWindow:
         
         self.window.show_all()
 
+    def restart (self):
+        """ Function doc """
+        self.main_treeview.treestore.clear()
+        self.system_liststore.clear()      
+        self.vobject_liststore_dict.clear()
+        #self.bottom_notebook.treeview.clear()
+        self.session_filename = None
+        self.vm_session.restart()
+
+    
     def window_resize (self, a, b =None, c=None):
         """ Function doc """
         w, h = a.get_size()
@@ -397,7 +409,12 @@ class MainWindow:
             self.NewSystemWindow.OpenWindow()
         
         if button  == self.builder.get_object('toolbutton_save'):
-            self.p_session.save_easyhybrid_session( filename = 'session.easy')
+            
+            if self.session_filename == None:
+                self.gtk_save_as_file(button)
+                
+            else:
+                self.p_session.save_easyhybrid_session( filename = self.session_filename)
         
         if button  == self.builder.get_object('toolbutton_save_as'):
             self.gtk_save_as_file (button)
@@ -565,13 +582,61 @@ class MainWindow:
             dialog.run()
             dialog.destroy()
 
+    def gtk_save_as_file (self, button):
+        """ Function doc """
+        dialog = Gtk.FileChooserDialog(
+            title="Save File", 
+            parent=self.window, 
+            action=Gtk.FileChooserAction.SAVE, 
+            #buttons=(
+            #    Gtk.STOCK_CANCEL, 
+            #    Gtk.ResponseType.CANCEL, 
+            #    Gtk.STOCK_SAVE, 
+            #    Gtk.ResponseType.OK
+            #)
+            )
+        
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_SAVE, Gtk.ResponseType.OK
+            )
+        
+        '''
+        # Add file filters to limit file types
+        filter_text = Gtk.FileFilter()
+        filter_text.set_name("Text files")
+        filter_text.add_mime_type("text/plain")
+        dialog.add_filter(filter_text)
 
+        filter_py = Gtk.FileFilter()
+        filter_py.set_name("Python files")
+        filter_py.add_mime_type("text/x-python")
+        dialog.add_filter(filter_py)
+        '''
+        
+        # Set default filename and directory
+        dialog.set_current_name("untitled.easy")
+        dialog.set_current_folder("~/Documents")
+        response = dialog.run()
+
+        if response == Gtk.ResponseType.OK:
+            print("File selected: " + dialog.get_filename())
+            self.p_session.save_easyhybrid_session( filename = dialog.get_filename())
+            dialog.destroy()
+            # Save file here...
+        elif response == Gtk.ResponseType.CANCEL:
+            print("Save operation canceled.")
+            dialog.destroy()
+
+        
+        
+                
     def open_gtk_load_files (self, button):
         '''Easyhybrid and pkl pdynamo file search '''
         filters = []        
         ''' - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
         
-        '''
+        #'''
         filter = Gtk.FileFilter()  
         filter.set_name("EasyHybrid3 files - *.easy")
         filter.add_mime_type("Easy files files")
@@ -599,8 +664,8 @@ class MainWindow:
         if filename:
             if filename[-4:] == 'easy':
                 #print('ehf file')            
-                self.save_vismol_file = filename
-                self.vm_session.load_easyhybrid_serialization_file(filename)            
+                #self.save_vismol_file = filename
+                self.p_session.load_easyhybrid_serialization_file(filename)            
             else:
                 files = {'coordinates': filename}
                 systemtype = 3
@@ -1573,7 +1638,17 @@ class BottomNoteBook:
         current_time   = time.time()
         formatted_time = time.strftime("%Y-%m-%d   %H:%M:%S", time.localtime(current_time))
         #print(sqr_color)
+        
+        # Add a new row to the ListStore model
         self.status_liststore.append([formatted_time, message, logfile, sqr_color])
+        
+        # Get the path of the newly added row
+        path = Gtk.TreePath.new_from_indices([len(self.status_liststore)-1])
+
+        # Scroll the TreeView to the newly added row
+        self.treeview.scroll_to_cell(path, None, True, 0.5, 0.5)
+
+
 
 
 
