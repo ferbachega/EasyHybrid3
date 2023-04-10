@@ -18,6 +18,7 @@ from datetime import date
 import time
 
 import numpy as np
+import copy
 
 from pprint import pprint
 
@@ -1480,6 +1481,73 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self.main.refresh_widgets()
         #self.refresh_qc_and_fixed_representations(QC_atoms = False)
         return True
+
+
+    
+    def clone_system (self, e_id = None):
+        if e_id:
+            system = self.psystem[e_id]
+        else:
+            system = self.psystem[self.active_id]
+        
+        backup = []
+        backup.append(system.e_treeview_iter)
+        backup.append(system.e_liststore_iter)
+        
+        system.e_treeview_iter   = None
+        system.e_liststore_iter  = None
+
+        new_system = copy.deepcopy(system)
+        system.e_treeview_iter   = backup[0]
+        system.e_liststore_iter  = backup[1]
+        
+        print('menuitem_clone')
+
+        new_system = self.append_system_to_pdynamo_session (system = new_system)
+        self.main.main_treeview.add_new_system_to_treeview (new_system)
+        ff  =  getattr(new_system.mmModel, 'forceField', "None")
+
+        self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(new_system.label, new_system.e_tag, ff), system = new_system)
+        self._add_vismol_object_to_easyhybrid_session (new_system, True) #, name = 'olha o  coco')
+   
+    
+
+    def merge_system (self,  e_id1   = None , 
+                             e_id2   = None , 
+                             vob_id1 = None ,
+                             vob_id2 = None ,
+                             name    = 'NoName', 
+                             tag     = 'NoTag', 
+                             color   = [0,1,1]):
+        """ Function doc """
+        
+        print (e_id1,e_id2,vob_id1,vob_id2,name,tag,color)
+        
+        system1 = self.psystem[e_id1]
+        vob1 = self.vm_session.vm_objects_dic[vob_id1]
+        self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vob1, 
+                                                            system_id = e_id1)
+        
+        system2 = self.psystem[e_id2]        
+        vob2    = self.vm_session.vm_objects_dic[vob_id2]        
+        self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vob2, 
+                                                            system_id = e_id2)
+        
+        system2.Energy()
+        system1.Energy()
+        
+        system = MergeByAtom( system1, system2 )
+        self.define_NBModel ( system = system  )
+        system.Summary ( )
+        system = self.append_system_to_pdynamo_session (system = system,  
+                                                        name   = name  , 
+                                                        tag    = tag   , 
+                                                        color  = color )
+
+        self.main.main_treeview.add_new_system_to_treeview (system)
+        ff  =  getattr(system.mmModel, 'forceField', "None")
+        self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system =system)
+        self._add_vismol_object_to_easyhybrid_session (system, True) #, name = 'olha o  coco')
 
 
     def prune_system (self, selection = None, name = 'Pruned System', summary = True, tag = "molsys", color = None):

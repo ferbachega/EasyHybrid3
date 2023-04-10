@@ -501,23 +501,23 @@ class GLMenu:
                                             }
                                 ],
                     
-                    'Color'   : [
-                                'submenu',  {
-                                            'grey'          : ['MenuItem', menu_set_color_grey],
-                                            'yellow'        : ['MenuItem', menu_set_color_yellow],
-                                            'green'         : ['MenuItem', menu_set_color_green],
-                                            'light_blue'    : ['MenuItem', menu_set_color_light_blue],
-                                            'light_red'     : ['MenuItem', menu_set_color_light_red],
-                                            'purple'        : ['MenuItem', menu_set_color_purple],
-                                            'orange'        : ['MenuItem', menu_set_color_orange],
-                                            'separator1'    : ['separator', None],
-
-                                            'custon'        : ['MenuItem', menu_color_change],
-                                            'separator2'    : ['separator', None],
-
-                                            #'dotted_lines'  : ['MenuItem', menu_hide_dotted_lines],
-                                            }
-                                ],
+                    'Color'   : ['MenuItem', menu_color_change],
+                                #['submenu',  {
+                                #            'grey'          : ['MenuItem', menu_set_color_grey],
+                                #            'yellow'        : ['MenuItem', menu_set_color_yellow],
+                                #            'green'         : ['MenuItem', menu_set_color_green],
+                                #            'light_blue'    : ['MenuItem', menu_set_color_light_blue],
+                                #            'light_red'     : ['MenuItem', menu_set_color_light_red],
+                                #            'purple'        : ['MenuItem', menu_set_color_purple],
+                                #            'orange'        : ['MenuItem', menu_set_color_orange],
+                                #            'separator1'    : ['separator', None],
+                                #
+                                #            'custon'        : ['MenuItem', menu_color_change],
+                                #            'separator2'    : ['separator', None],
+                                #
+                                #            #'dotted_lines'  : ['MenuItem', menu_hide_dotted_lines],
+                                #            }
+                                #],
                     
 
                     

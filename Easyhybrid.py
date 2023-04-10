@@ -28,6 +28,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
 from gi.repository import GdkPixbuf
 
+import copy
 
 #intro window -  nothing important. 
 '''
@@ -73,6 +74,7 @@ from gui.windows.windows_and_dialogs import ImportTrajectoryWindow
 from gui.windows.windows_and_dialogs import TrajectoryPlayerWindow
 from gui.windows.windows_and_dialogs import PotentialEnergyAnalysisWindow
 from gui.windows.windows_and_dialogs import InfoWindow
+from gui.windows.windows_and_dialogs import MergeSystemWindow
 
 from gui.windows.easyhybrid_terminal import TerminalWindow
 from gui.windows.geometry_optimization_window import *
@@ -331,6 +333,10 @@ class MainWindow:
         self.WHAM_window =  WHAMWindow(main = self)
         self.window_list.append(self.WHAM_window)
 
+    
+        self.merge_system_window = MergeSystemWindow(main = self)
+
+
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
 
         self.window.connect("destroy", Gtk.main_quit)
@@ -511,6 +517,7 @@ class MainWindow:
             self.export_data_window.OpenWindow()
             
         elif menuitem == self.builder.get_object('menuitem_quit'):
+            Gtk.main_quit()
             ##print(menuitem, 'menu_item_merge_system')
             pass
         
@@ -521,6 +528,197 @@ class MainWindow:
             print(menuitem, 'menuitem_preferences', self.vm_session.vm_glcore.bckgrnd_color)
             #self.vm_session.vm_config.gl_parameters["line_width"] =20
             self.vm_session.vm_glcore.light_position = [0, 10, 100.0]
+        
+        
+        
+        #----------------------------------------------------------------------
+        #                            V I E W     M E N U
+        #----------------------------------------------------------------------
+        elif menuitem == self.builder.get_object('menuitem_file_tools'):
+            if menuitem.get_active():
+                self.builder.get_object('toolbar1').show()
+            else:
+                self.builder.get_object('toolbar1').hide()
+        
+
+        elif menuitem == self.builder.get_object('menuitem_seltype_box'):
+            if menuitem.get_active():
+                self.builder.get_object('toolbutton_selection_box').show()
+            else:
+                self.builder.get_object('toolbutton_selection_box').hide()
+
+        
+        
+        elif menuitem == self.builder.get_object('menuitem_check_selection_toolbar'):
+            if menuitem.get_active():
+                self.builder.get_object('toolbar2_selections').show()
+            else:
+                self.builder.get_object('toolbar2_selections').hide()
+        
+        
+        elif menuitem == self.builder.get_object('menuitem_check_pDynamo_tools_bar'):
+            if menuitem.get_active():
+                self.builder.get_object('toolbar4_pdynamo_tools').show()
+            else:
+                self.builder.get_object('toolbar4_pdynamo_tools').hide()
+        
+        elif menuitem == self.builder.get_object('menuitem_message_window'):
+            if menuitem.get_active():
+                self.bottom_notebook.widget.show()
+            else:
+                self.bottom_notebook.widget.hide()
+        
+        #----------------------------------------------------------------------
+        elif menuitem == self.builder.get_object('menuitem_check_xyz_axes'):
+            if menuitem.get_active():
+                self.vm_session.show_axes()
+            else:
+                self.vm_session.hide_axes()
+        
+        
+        elif menuitem == self.builder.get_object('menuitem_bg_color'):
+            self.colorchooserdialog = Gtk.ColorChooserDialog() 
+            
+            if self.colorchooserdialog.run() == Gtk.ResponseType.OK:
+                color = self.colorchooserdialog.get_rgba()
+                new_color = [color.red, color.green, color.blue, 1]
+            else:
+                new_color = False
+                self.colorchooserdialog.destroy()
+        
+            if new_color:
+                self.vm_session.vm_glcore.bckgrnd_color = new_color
+                self.colorchooserdialog.destroy()
+                #system = self.p_session.psystem[self.p_session.active_id]
+                #self.change_reference_color(system, new_color)
+        #----------------------------------------------------------------------
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        #----------------------------------------------------------------------
+        elif menuitem == self.builder.get_object('menuitem_info'):
+            system = self.p_session.psystem[self.p_session.active_id]
+            window = InfoWindow(system)
+        
+        elif menuitem == self.builder.get_object('menuitem_rename'):
+            e_id = self.p_session.active_id
+            v_id = -1
+            self.preferences = PreferencesWindow(main = self , 
+                                         e_id = e_id     ,
+                                         v_id = v_id     )
+        
+        
+        elif menuitem == self.builder.get_object('menuitem_qc_setup'):
+            self.setup_QCModel_window.OpenWindow()
+            
+        elif menuitem == self.builder.get_object('menuitem_cell_and_symmetry'):
+            print ('menuitem_cell_and_symmetry')
+            
+        elif menuitem == self.builder.get_object('menuitem_change_color'):
+            #selection               = self.selections[self.current_selection]
+            self.colorchooserdialog = Gtk.ColorChooserDialog()
+            
+            if self.colorchooserdialog.run() == Gtk.ResponseType.OK:
+                color = self.colorchooserdialog.get_rgba()
+                new_color = [color.red, color.green, color.blue]
+            else:
+                new_color = False
+                self.colorchooserdialog.destroy()
+        
+            if new_color:
+                self.colorchooserdialog.destroy()
+                system = self.p_session.psystem[self.p_session.active_id]
+                self.change_reference_color(system, new_color)
+        
+        elif menuitem == self.builder.get_object('menuitem_remove_restraints'): 
+            #print('menuitem_remove_restraints')
+            system = self.p_session.psystem[self.p_session.active_id]
+            system.e_restraint_counter = 0
+            system.e_restraints_dict   = {}
+        
+        elif menuitem == self.builder.get_object('menuitem_remove_fixed'): 
+            system = self.p_session.psystem[self.p_session.active_id]
+            
+            for key, vobject in self.vm_session.vm_objects_dic.items():
+                if vobject.e_id == self.p_session.active_id:
+                    for index, atom in vobject.atoms.items():
+                        atom.color = atom._init_color()
+                    
+                    #for index in system.e_fixed_table:
+                    #    atom = vobject.atoms[index] 
+                    #    atom.color = atom._init_color()
+                    #    #print(atom, index, atom.index)
+                    self.p_session._apply_fixed_representation_to_vobject(system_id = None, vismol_object = vobject)
+                    self.p_session._apply_QC_representation_to_vobject   (system_id = None, vismol_object = vobject)                    
+            
+            self.vm_session.vm_glcore.queue_draw()
+            system.e_fixed_table = []
+            system.freeAtoms = None            
+            self.refresh_widgets()
+
+
+
+
+
+        elif menuitem == self.builder.get_object('menuitem_remove_qc'): 
+            system = self.p_session.psystem[self.p_session.active_id]
+            system.qcModel = None
+            for vismol_object in self.vm_session.vm_objects_dic.values():
+                if vismol_object.e_id == system.e_id:
+                    
+                    for atom in vismol_object.atoms.values():
+                        atom.spheres = False
+                        atom.sticks = False
+                    
+                    vismol_object.representations['spheres'] = None
+                    vismol_object.representations['sticks'] = None
+                    self.p_session._apply_QC_representation_to_vobject   (system_id = None, vismol_object = vismol_object)                   
+            
+            self.vm_session.vm_glcore.queue_draw()
+            self.refresh_widgets()
+
+        
+        elif menuitem == self.builder.get_object('menuitem_merge'): 
+            """ Function doc """
+            system = self.p_session.psystem[self.p_session.active_id]
+            e_id = system.e_id
+            self.merge_system_window.selected_system_id = e_id
+            self.merge_system_window.OpenWindow()
+            
+        
+        
+        
+        elif menuitem == self.builder.get_object('menuitem_clone'): 
+            system = self.p_session.psystem[self.p_session.active_id]
+            
+            backup = []
+            backup.append(system.e_treeview_iter)
+            backup.append(system.e_liststore_iter)
+            system.e_treeview_iter   = None
+            system.e_liststore_iter  = None
+            
+            new_system = copy.deepcopy(system)
+            system.e_treeview_iter   = backup[0]
+            system.e_liststore_iter  = backup[1]
+            print('menuitem_clone')
+            
+            new_system = self.p_session.append_system_to_pdynamo_session (system = new_system)
+            self.main_treeview.add_new_system_to_treeview (new_system)
+            ff  =  getattr(new_system.mmModel, 'forceField', "None")
+        
+            self.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(new_system.label, new_system.e_tag, ff), system = new_system)
+            self.p_session._add_vismol_object_to_easyhybrid_session (new_system, True) #, name = 'olha o  coco')
+            #----------------------------------------------------------------------
+    
         
         
         elif menuitem == self.builder.get_object('menuitem_energy'): 
@@ -544,18 +742,7 @@ class MainWindow:
         elif menuitem == self.builder.get_object('menuitem_umbrella_sampling'):
             self.umbrella_sampling_window.OpenWindow()
         
-        elif menuitem == self.builder.get_object('menuitem_check_pDynamo_tools_bar'):
-            if menuitem.get_active():
-                self.builder.get_object('toolbar4_pdynamo_tools').show()
-            else:
-                self.builder.get_object('toolbar4_pdynamo_tools').hide()
-        
-        
-        elif menuitem == self.builder.get_object('menuitem_check_selection_toolbar'):
-            if menuitem.get_active():
-                self.builder.get_object('toolbar2_selections').show()
-            else:
-                self.builder.get_object('toolbar2_selections').hide()
+
 
         elif menuitem == self.builder.get_object('menuitem_energy_analysis'):
             self.PES_analysis_window.OpenWindow()
@@ -1077,7 +1264,6 @@ class MainWindow:
         '''
         
         
-
 class EasyHybridMainTreeView(Gtk.TreeView):
     
     def __init__(self):
@@ -1337,7 +1523,6 @@ class EasyHybridMainTreeView(Gtk.TreeView):
             self.add_vismol_object_to_treeview(vismol_object)
 
 
-
 class TreeViewMenu:
     """ Class doc """
     
@@ -1352,17 +1537,17 @@ class TreeViewMenu:
                                 'header'                : None    ,
 
                                 '_separator'            : ''      ,
-                                'Info'                  : self.f2 ,
-                                'Rename Object'         : self._menu_rename ,
+                                #'Info'                  : self.f2 ,
+                                'Rename'                : self._menu_rename ,
                                 '_separator'            : ''      ,
 
-                                'Load Data Into System' : self._menu_load_data_to_system,
+                                #'Load Data Into System' : self._menu_load_data_to_system,
                                 #'Change Color'  : self.change_system_color_palette ,
-                                'Edit Parameters'       : self.f2 ,
+                                'Go To Atom'            : self._menu_go_to_atom ,
                                 '_separator'            : ''      ,
 
                                 'Export As...'          : self._menu_export_data_window ,
-                                'Merge System With...'  : self.f3 ,
+                                #'Merge System With...'  : self.f3 ,
                                 '_separator'            : ''      ,
 
                                 'Delete'                : self._menu_delete_vm_object ,
@@ -1375,21 +1560,27 @@ class TreeViewMenu:
 
         system_menu_items = {
                                 
-                                'header'                : None                            ,
+                                'header'                  : None                            ,
+                                                          
+                                '_separator'              : ''                              ,
+                                                          
+                                'Info'                    : self._show_info                  ,
+                                                          
+                                '_separator'              : ''                              ,
+                                                          
+                                'Rename'                  : self._menu_rename               ,
+                                'Import Data...'          : self._menu_load_data_to_system  ,
+                                'Change Color '           : self._menu_change_color_palette ,
+                                #'Edit Parameters'         : self.f2                         ,
+                                'Export As...'            : self._menu_export_data_window    ,
                                 
-                                '_separator'            : ''                              ,
+                                '_separator'              : ''                              ,
+                                'Merge With...'           : self._menu_merge_system         ,
+                                'Clone'                   : self._menu_clone_system         ,
                                 
-                                'Info'                  : self._show_info                  ,
+                                '_separator'              : ''                              ,
                                 
-                                '_separator'            : ''                              ,
-                                
-                                'Rename System'         : self._menu_rename               ,
-                                'Load Data Into System' : self._menu_load_data_to_system  ,
-                                'Change Color '         : self._menu_change_color_palette ,
-                                'Edit Parameters'       : self.f2                         ,
-                                'Export As...'          : self._menu_export_data_window    ,
-                                'Merge System With...'  : self.f3                         ,
-                                'Delete'                : self._menu_delete_system        ,
+                                'Delete'                  : self._menu_delete_system        ,
                                 #'test'  : self.f1 ,
                                 #'f1'    : self.f1 ,
                                 #'f2'    : self.f2 ,
@@ -1455,7 +1646,24 @@ class TreeViewMenu:
             self.main.change_reference_color(system, new_color)
 
     
-    def f2 (self, vobject = None):
+    def _menu_merge_system (self, widget):
+        """ Function doc """
+        selection     = self.treeview.get_selection()
+        (model, iter) = selection.get_selected()
+        e_id          = int(model.get_value(iter, 0)) 
+        self.main.merge_system_window.selected_system_id = e_id
+        self.main.merge_system_window.OpenWindow()
+    
+    
+    def _menu_clone_system (self, widget):
+        """ Function doc """
+        selection     = self.treeview.get_selection()
+        (model, iter) = selection.get_selected()
+        e_id          = int(model.get_value(iter, 0))
+        self.main.p_session.clone_system(e_id)
+    
+    
+    def _menu_go_to_atom (self, vobject = None):
         """ Function doc """
         ##print('f2')
         #self._show_lines(vobject = self.vobjects[0], indices = [0,1,2,3,4] )
@@ -1871,6 +2079,15 @@ def main():
     vm_session.vm_widget.insert_glmenu()
     
     main_window = MainWindow(vm_session = vm_session)
+    main_window.window.connect('destroy', Gtk.main_quit)
+    
+    
+    main_window.builder.get_object('toolbutton_monte_carlo').hide()
+    main_window.builder.get_object('button_test')           .hide()
+    
+    
+    
+    
     #window = Gtk.Window(title="Vismol window")
     #container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
     #container.pack_start(vm_session.vm_widget, True, True, 0)

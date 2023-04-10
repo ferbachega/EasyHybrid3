@@ -3401,13 +3401,145 @@ class TrajectoryPlayerWindow:
             self.vm_traj_obj.change_range (upper = upper)
         
 
+class MergeSystemWindow(Gtk.Window):
+    """ Class doc """
+    
+    def __init__(self, main = None ):
+        """ Class initialiser """
+        self.main     = main
+        self.home     = main.home 
+        self.p_session= main.p_session 
+        self.Visible  =  False        
+        self.liststore= Gtk.ListStore(bool, str)
+        self.selected_system_id = None
+    
+    def OpenWindow (self, system_id = None):
+        """ Function doc """
+        if self.Visible  ==  False:
+            self.builder = self.main.builder #Gtk.Builder()
+            
+            self.builder = Gtk.Builder()
+            self.builder.add_from_file(os.path.join(self.home,'gui/windows/merge_system.glade'))
+            self.builder.connect_signals(self)
+
+            self.window = self.builder.get_object('window')
+            self.window.set_title('Merge System')
+            self.window.set_keep_above(True)
+            
+            
+            # - - - - - - - systems combobox - - - - - - -
+            '''--------------------------------------------------------------------------------------------'''
+            self.box1 = self.builder.get_object('box_system1')
+            self.combobox_systems1 = SystemComboBox(self.main)
+            self.combobox_systems1.index = 1
+            '''--------------------------------------------------------------------------------------------'''
+            self.box1.pack_start(self.combobox_systems1, False, False, 0)
+            '''--------------------------------------------------------------------------------------------'''
+            if self.selected_system_id:
+                self.combobox_systems1.set_active_system (e_id = self.selected_system_id)
+            self.combobox_systems1.connect("changed", self.on_combobox_systems_changed)        
+            
+            
+            # - - - - - - - systems combobox - - - - - - -
+            '''--------------------------------------------------------------------------------------------'''
+            self.box2 = self.builder.get_object('box_system2')
+            self.combobox_systems2 = SystemComboBox(self.main)
+            self.combobox_systems2.index = 2
+            '''--------------------------------------------------------------------------------------------'''
+            self.box2.pack_start(self.combobox_systems2, False, False, 0)
+            '''--------------------------------------------------------------------------------------------'''
+            self.combobox_systems2.connect("changed", self.on_combobox_systems_changed)        
+            
+            
+            
+            
+            
+            
+            
+            #------------------------------------------------------------------#
+            self.box_coordinates1 = self.builder.get_object('box_coordinates1')
+            self.coordinates_combobox1 = CoordinatesComboBox(self.main.vobject_liststore_dict[self.selected_system_id])            
+            self.box_coordinates1.pack_start(self.coordinates_combobox1, False, False, 0)
+            #------------------------------------------------------------------#
+            self.coordinates_combobox1.index = 1
+            
+            
+            
+            #------------------------------------------------------------------#
+            self.box_coordinates2 = self.builder.get_object('box_coordinates2')
+            self.coordinates_combobox2 = CoordinatesComboBox(self.main.vobject_liststore_dict[self.selected_system_id])            
+            self.box_coordinates2.pack_start(self.coordinates_combobox2, False, False, 0)
+            #------------------------------------------------------------------#
+            self.coordinates_combobox2.index2 = 2
+
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            self.button_ok     = self.builder.get_object('button_merge')
+            self.button_ok.connect("clicked", self.merge)
+
+            self.button_cancel = self.builder.get_object('button_cancel')
+            self.button_cancel.connect("clicked", self.CloseWindow)
+
+            self.window.connect("destroy", self.CloseWindow)
+            self.window.show_all()
+            self.Visible  = True   
+        
+        else:
+            self.window.present()
+    
+    def CloseWindow (self, button, data  = None):
+        """ Function doc """
+        self.window.destroy()
+        self.Visible    =  False
+
+    def on_combobox_systems_changed (self, widget):
+        """ Function doc """
+        e_id = widget.get_system_id()
+        if widget.index == 1:
+            self.coordinates_combobox1.set_model(self.main.vobject_liststore_dict[e_id])
+            self.coordinates_combobox1.set_active_vobject(-1)
+        
+        elif widget.index == 2:
+            self.coordinates_combobox2.set_model(self.main.vobject_liststore_dict[e_id])
+            self.coordinates_combobox2.set_active_vobject(-1)
+        
+        
 
 
 
+    def merge (self, widget):
+        """ Function doc """
+        system1_e_id = self.combobox_systems1.get_system_id()
+        system2_e_id = self.combobox_systems2.get_system_id()
+        
+        vobject1_id = self.coordinates_combobox1.get_vobject_id()
+        vobject2_id = self.coordinates_combobox2.get_vobject_id()
+        
+        name   =  self.builder.get_object('entry_name').get_text()
+        tag   =  self.builder.get_object('entry_tag').get_text()
+        color  =  self.builder.get_object('button_color').get_rgba()
+        red    = color.red 
+        green  = color.green 
+        blue   = color.blue 
 
-
-
-
+        self.p_session.merge_system (e_id1   = system1_e_id      , 
+                                     e_id2   = system2_e_id      , 
+                                     vob_id1 = vobject1_id       ,
+                                     vob_id2 = vobject2_id       ,
+                                     name    = name              , 
+                                     tag     = tag               , 
+                                     color   = [red, green, blue])
+        self.Visible    =  False
+        self.window.destroy()
 #from matplotlib.backends.backend_gtk3agg import FigureCanvas  # or gtk3cairo.
 #from matplotlib.figure import Figure
 #import numpy as np
@@ -3612,6 +3744,21 @@ class PotentialEnergyAnalysisWindow:
             self.plot2.Ymin_list = []
             self.plot2.Xmax_list = []
             self.plot2.Ymax_list = []
+           
+            _min = None  
+            for value in self.data['Z']:
+                if _min == None:
+                    _min = value
+                else:
+                    if value < _min:
+                        _min = value
+                    else:
+                        pass
+            
+            for index, value in enumerate(self.data['Z']):
+                self.data['Z'][index] = value-_min
+            
+            
             self.plot2.add( X = range(0, len(self.data['Z'])), Y = self.data['Z'], symbol = 'dot', sym_fill = False, sym_color = [0,1,1], line = 'solid', line_color = [0,1,1] )
             self.plot.hide()
             self.scale_traj_new_definitions(set_range = len(self.data['Z']))
