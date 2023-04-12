@@ -445,7 +445,7 @@ class XYPlot(Gtk.DrawingArea):
 
 
 
-        self.Y_space = 20
+        self.Y_space = 10
 
 
         #self.set_bg_color (bg_color[0], bg_color[1], bg_color[2])
@@ -739,7 +739,7 @@ class XYPlot(Gtk.DrawingArea):
 
 
 
-        self.bx = 100 
+        self.bx = 80
         self.by = 50 
 
         self.x_box_size = self.width  - (self.bx*1.5)

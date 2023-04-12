@@ -62,19 +62,28 @@ class GLMenu:
         def _viewing_selection_mode_chain (_):
             """ Function doc """
             self.viewing_selection_mode(sel_type = 'chain')
+        
+        def _viewing_selection_mode_molecule (_):
+            """ Function doc """
+            self.viewing_selection_mode(sel_type = 'molecule')
+        
 
-        def _selection_type_picking(self, widget):
+
+        #def _selection_type_picking(self, widget):
+        def _selection_type_picking(_):
+            
             if self.selection_box_frame:
                 self.selection_box_frame.change_toggle_button_selecting_mode_status(True)
             else:
-                self.vm_session.picking_selection_mode = True
+                self.picking_selection_mode = True
             self.vm_glcore.queue_draw()
         
-        def _selection_type_viewing(self, widget):
+        #def _selection_type_viewing(self, widget):
+        def _selection_type_viewing(_):
             if self.selection_box_frame:
                 self.selection_box_frame.change_toggle_button_selecting_mode_status(False)
             else:
-                self.vm_session.picking_selection_mode = False
+                self.picking_selection_mode = False
             self.vm_glcore.queue_draw()
 
         if sele_menu is None:
@@ -501,7 +510,7 @@ class GLMenu:
                                             }
                                 ],
                     
-                    'Color'   : ['MenuItem', menu_color_change],
+                    'Change Color'   : ['MenuItem', menu_color_change],
                                 #['submenu',  {
                                 #            'grey'          : ['MenuItem', menu_set_color_grey],
                                 #            'yellow'        : ['MenuItem', menu_set_color_yellow],
@@ -530,20 +539,21 @@ class GLMenu:
                     'Selection Type'   : [
                                 'submenu' ,{
                                             
-                                            'viewing'   :  ['MenuItem', _selection_type_viewing],
-                                            'picking'   :  ['MenuItem', _selection_type_picking],
+                                            'Viewing'   :  ['MenuItem', _selection_type_viewing],
+                                            'Picking'   :  ['MenuItem', _selection_type_picking],
                                             #'separator2':['separator', None],
                                             #'nonbonded' : ['MenuItem', None],
                     
                                            }
                                         ],
                     
-                    'Selection Mode'   : [
+                    'Selecting By:'   : [
                                 'submenu' ,{
                                             
                                             'Atoms'     :  ['MenuItem', _viewing_selection_mode_atom],
                                             'Residue'   :  ['MenuItem', _viewing_selection_mode_residue],
                                             'Chain'     :  ['MenuItem', _viewing_selection_mode_chain],
+                                            'Molecule'  :  ['MenuItem', _viewing_selection_mode_molecule],
                                             #'separator2':['separator', None],
                                             #'nonbonded' : ['MenuItem', None],
                     
@@ -617,7 +627,7 @@ class GLMenu:
                     #'funcao teste2': ['MenuItem', self.teste2], 
 
                     'separator1':['separator', None],
-                    'Selection type'   : [
+                    'Selection Type'   : [
                                 'submenu' ,{
                                             
                                             'viewing'   :  ['MenuItem', _selection_type_viewing],
@@ -628,12 +638,14 @@ class GLMenu:
                                            }
                                         ],
                     
-                    'Selection Mode'   : [
+                    'Selecting By:'   : [
                                 'submenu' ,{
                                             
                                             'atoms'     :  ['MenuItem', _viewing_selection_mode_atom],
                                             'residue'   :  ['MenuItem', _viewing_selection_mode_residue],
                                             'chain'     :  ['MenuItem', _viewing_selection_mode_chain],
+                                            'molecule'  :  ['MenuItem',_viewing_selection_mode_molecule],
+
                                             #'separator2':['separator', None],
                                             #'nonbonded' : ['MenuItem', None],
                     
@@ -829,7 +841,7 @@ class EasyHybridSession(VismolSession, GLMenu):
         """ Class initialiser """
         super().__init__(toolkit="Gtk_3.0")
         ##print('\n\n\n',a, '\n\n\n')
-        self.selection_box_frane = None
+        self.selection_box_frame = None
     
     
     def restart (self):
@@ -859,11 +871,11 @@ class EasyHybridSession(VismolSession, GLMenu):
     
     def viewing_selection_mode(self, sel_type="atom"):
         """ Function doc """
-        ##print(self.selection_box_frane)
+        ##print(self.selection_box_frame)
         
-        if self.selection_box_frane:
+        if self.selection_box_frame:
             #print('Selection mode:', sel_type)
-            self.selection_box_frane.change_sel_type_in_combobox(sel_type)
+            self.selection_box_frame.change_sel_type_in_combobox(sel_type)
         self.selections[self.current_selection].selection_mode = sel_type
 
     
@@ -884,6 +896,7 @@ class EasyHybridSession(VismolSession, GLMenu):
         if show_molecule:
             vismol_object.create_representation(rep_type="lines")
             #vismol_object.create_representation(rep_type="dash")
+            #vismol_object.create_representation(rep_type="sticks")
             vismol_object.create_representation(rep_type="nonbonded")
             #vismol_object.create_representation(reprep_type="sticks")
             if autocenter:

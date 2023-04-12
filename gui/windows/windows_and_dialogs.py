@@ -1312,8 +1312,8 @@ class PDynamoSelectionWindow:
         self.main.vm_session.selections[self.vm_session.current_selection].selecting_by_indexes(self.atom1.vm_object, 
                                                            indexes, 
                                                            clear=True)
-        if self.main.vm_session.selection_box_frane:
-            self.main.vm_session.selection_box_frane.change_toggle_button_selecting_mode_status(False)
+        if self.main.vm_session.selection_box_frame:
+            self.main.vm_session.selection_box_frame.change_toggle_button_selecting_mode_status(False)
         else:
             self.main.vm_session._picking_selection_mode = False
         

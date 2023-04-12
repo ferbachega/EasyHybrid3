@@ -66,6 +66,7 @@ from gui.windows.windows_and_dialogs import EasyHybridGoToAtomWindow
 from gui.windows.windows_and_dialogs import PDynamoSelectionWindow
 from gui.windows.windows_and_dialogs import EasyHybridSelectionWindow
 from gui.windows.windows_and_dialogs import ExportDataWindow
+from gui.windows.windows_and_dialogs import EasyHybridDialogPrune
 
 from gui.windows.windows_and_dialogs import EnergyRefinementWindow
 from gui.windows.windows_and_dialogs import SinglePointwindow
@@ -134,9 +135,10 @@ class MainWindow:
         self.box2 = self.builder.get_object('box2')
         
         #self.selection_box = self.vm_session.selection_box
-        self.selection_box_frane = VismolSelectionTypeBox(vm_session = self.vm_session)
-        self.vm_session.selection_box_frane = self.selection_box_frane 
-        self.menu_box.add(self.selection_box_frane.box)
+        self.selection_box_frame = VismolSelectionTypeBox(vm_session = self.vm_session)
+        self.vm_session.selection_box_frame = self.selection_box_frame 
+        #print('\n\n\n',self.selection_box_frame,self.vm_session.selection_box_frame ,'\n\n')
+        self.menu_box.add(self.selection_box_frame.box)
 
         '''This gtk list is declared in the VismolGLWidget file 
            (it does not depend on the creation of Treeview)'''
@@ -522,18 +524,157 @@ class MainWindow:
             pass
         
         
+        #----------------------------------------------------------------------
+        #                           E D I T 
+        #----------------------------------------------------------------------
+        elif menuitem == self.builder.get_object('menuitem_go_to_atom'):
+            self.go_to_atom_window.OpenWindow()
+        
         elif menuitem == self.builder.get_object('menuitem_preferences'):
             print(menuitem, 'menuitem_preferences', self.vm_session.vm_glcore.bckgrnd_color)
             #self.vm_session.vm_glcore.bckgrnd_color = [1,1,1,1]
             print(menuitem, 'menuitem_preferences', self.vm_session.vm_glcore.bckgrnd_color)
             #self.vm_session.vm_config.gl_parameters["line_width"] =20
             self.vm_session.vm_glcore.light_position = [0, 10, 100.0]
+        #----------------------------------------------------------------------
+        
+        
+        #----------------------------------------------------------------------
+        #                           S E L E C T I N G
+        #----------------------------------------------------------------------
+        elif menuitem == self.builder.get_object('menuitem_list'):
+            self.selection_list_window.OpenWindow()
+
+        elif menuitem == self.builder.get_object('menuitem_seltype_viewing'):
+            if self.selection_box_frame:
+                self.selection_box_frame.change_toggle_button_selecting_mode_status(False)
+            else:
+                self.picking_selection_mode = False
+            self.vm_session.vm_glcore.queue_draw()
+            
+        elif menuitem == self.builder.get_object('menuitem_seltype_picking'):
+            if self.selection_box_frame:
+                self.selection_box_frame.change_toggle_button_selecting_mode_status(True)
+            else:
+                self.picking_selection_mode = True
+            self.vm_session.vm_glcore.queue_draw()
+        
+        
+        
+
+
+        
+        elif menuitem == self.builder.get_object('menuitem_send_to_sel_list'):
+            sel_list, sel_resi_table = self.vm_session.build_index_list_from_atom_selection()
+            if sel_list:
+                
+                self.p_session.add_a_new_item_to_selection_list (system_id = self.p_session.active_id, 
+                                                                                   indexes = sel_list, 
+                                                                                    )
+            
+            
+        elif menuitem == self.builder.get_object('menuitem_extend_selection'):
+            self.pDynamo_selection_window.OpenWindow()
+        
+        elif menuitem == self.builder.get_object('menuitem_by_atom'):
+            self.vm_session.viewing_selection_mode(sel_type = 'atom')
+        
+        elif menuitem == self.builder.get_object('menuitem_by_residue'):
+            self.vm_session.viewing_selection_mode(sel_type = 'residue')
+        
+        elif menuitem == self.builder.get_object('menuitem_by_chain'):
+            self.vm_session.viewing_selection_mode(sel_type = 'chain')
+        
+        elif menuitem == self.builder.get_object('menuitem_by_molecule'):
+            self.vm_session.viewing_selection_mode(sel_type = 'molecule')
+        
+        elif menuitem == self.builder.get_object('menuitem_color'):
+            selection               = self.vm_session.selections[self.vm_session.current_selection]
+            self.colorchooserdialog = Gtk.ColorChooserDialog()
+            
+            if self.colorchooserdialog.run() == Gtk.ResponseType.OK:
+                color = self.colorchooserdialog.get_rgba()
+                #print(color.red,color.green, color.blue )
+                new_color = [color.red, color.green, color.blue]
+
+            self.colorchooserdialog.destroy()
+            self.vm_session.set_color(color =new_color)
+        
+        elif menuitem == self.builder.get_object('menuitem_set_as_qc'):
+            active_id = self.p_session.active_id
+            qc_list, residue_dict, vismol_object = self.vm_session.build_index_list_from_atom_selection(return_vobject = True )
+            if qc_list:
+                self.p_session.psystem[active_id].e_qc_residue_table = residue_dict
+                self.p_session.psystem[active_id].e_qc_table = qc_list
+                self.run_dialog_set_QC_atoms(vismol_object = vismol_object)
+            
+        elif menuitem == self.builder.get_object('menuitem_set_as_fixed'):
+            self.vm_session.set_as_fixed_atoms()
+        
+        elif menuitem == self.builder.get_object('menuitem_set_as_free'):
+            self.vm_session.set_as_free_atoms()
+        
+        elif menuitem == self.builder.get_object('menuitem_prune'):
+            #self.vm_session.prune_atoms()
+            atomlist, resi_table = self.vm_session.build_index_list_from_atom_selection()
+
+            if atomlist:
+                atomlist = list(set(atomlist))
+                
+                num_of_atoms = len(atomlist)
+                name = self.p_session.psystem[self.p_session.active_id].label
+                tag  = self.p_session.psystem[self.p_session.active_id].e_tag
+                
+                dialog =  EasyHybridDialogPrune(self.home ,num_of_atoms, name, tag)
+
+                if dialog.prune:
+                    name         = dialog.name        
+                    tag          = dialog.tag  
+                    color        = dialog.color 
+                    print('color', color)
+                    self.p_session.prune_system (selection = atomlist, name = name, summary = True, tag = tag, color = color)
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         
         
         #----------------------------------------------------------------------
         #                            V I E W     M E N U
         #----------------------------------------------------------------------
+        elif menuitem == self.builder.get_object('menuitem_terminal'):
+            button = self.builder.get_object('toolbutton_terminal') 
+            self.terminal_window.OpenWindow()
+            if self.terminal_window.visible:
+                button.set_active (True) 
+            else:
+                self.terminal_window.CloseWindow(button = None)
+
+
+
+        elif menuitem == self.builder.get_object('menuitem_trajectory_tool'):
+            button = self.builder.get_object('toolbutton_trajectory_tool1') 
+            
+            self.trajectory_player_window.OpenWindow()
+            if self.trajectory_player_window.Visible:
+                button.set_active(True)
+            else:
+                self.trajectory_player_window.CloseWindow(button = None)
+
         elif menuitem == self.builder.get_object('menuitem_file_tools'):
             if menuitem.get_active():
                 self.builder.get_object('toolbar1').show()
@@ -1570,7 +1711,7 @@ class TreeViewMenu:
                                                           
                                 'Rename'                  : self._menu_rename               ,
                                 'Import Data...'          : self._menu_load_data_to_system  ,
-                                'Change Color '           : self._menu_change_color_palette ,
+                                'Reference Color'           : self._menu_change_color_palette ,
                                 #'Edit Parameters'         : self.f2                         ,
                                 'Export As...'            : self._menu_export_data_window    ,
                                 

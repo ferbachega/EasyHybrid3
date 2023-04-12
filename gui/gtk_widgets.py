@@ -187,7 +187,7 @@ class VismolSelectionTypeBox(Gtk.Box):
         elif sel_type == 'chain':
             self.combobox_selection_type.set_active(2)
         
-        elif sel_type == 'protein':
+        elif sel_type == 'molecule':
             self.combobox_selection_type.set_active(3)
         
         elif sel_type == 'C alpha':
