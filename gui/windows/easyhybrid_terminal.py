@@ -117,7 +117,9 @@ class TerminalWindow():
         text  = '\n'+cmd
         end_iter = self.textbuffer.get_end_iter ()
         self.textbuffer.insert(end_iter, text)
-        print(self.cmd_history)
+        
+        self.vm_session.cmd.run_command(cmd)
+        #print(self.cmd_history)
     
     def on_entry_terminal (self, widget):
         """ Function doc """

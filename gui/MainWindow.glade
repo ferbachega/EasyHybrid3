@@ -250,6 +250,15 @@
                       </object>
                     </child>
                     <child>
+                      <object class="GtkMenuItem" id="menuitem_make_solvent_box">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="label" translatable="yes">Make Solvent Box</property>
+                        <property name="use_underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkMenuItem">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
@@ -663,6 +672,15 @@
                       </object>
                     </child>
                     <child>
+                      <object class="GtkMenuItem" id="menuitem_charge_inspection">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="label" translatable="yes">Charge Inspection</property>
+                        <property name="use_underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkMenuItem">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
@@ -685,7 +703,7 @@
                               <object class="GtkMenuItem" id="menuitem_remove_fixed">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Fixed Region</property>
+                                <property name="label" translatable="yes">Fixed Atoms</property>
                                 <property name="use_underline">True</property>
                                 <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                               </object>
@@ -694,7 +712,39 @@
                               <object class="GtkMenuItem" id="menuitem_remove_qc">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">QC Region</property>
+                                <property name="label" translatable="yes">QC Atoms</property>
+                                <property name="use_underline">True</property>
+                                <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkMenuItem" id="menuitem_nb_model">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="label" translatable="yes">NB Model</property>
+                                <property name="use_underline">True</property>
+                                <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menuitem_add">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="label" translatable="yes">Add</property>
+                        <property name="use_underline">True</property>
+                        <child type="submenu">
+                          <object class="GtkMenu">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <child>
+                              <object class="GtkMenuItem" id="menuitem_new_nb_model">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="label" translatable="yes">NB Model</property>
                                 <property name="use_underline">True</property>
                                 <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                               </object>

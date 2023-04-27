@@ -703,6 +703,7 @@ class EnergyRefinementWindow():
                 pass
 
 
+
 class ExportDataWindow:
     """ Class doc """
     def __init__(self, main = None):
@@ -1160,7 +1161,102 @@ class EasyHybridSelectionWindow:
                                                radius        = _radius,  
                                                grid_size     = _radius)
 
+      
+class MakeSolventBoxWindow:
+    """ Class doc """
+    
+    def __init__(self, main = None):
+        """ Class initialiser """
+        self.main = main
+        self.vm_session      = main.vm_session
+        self.Visible         = False        
+        self.home            = main.home
+        self.p_session       = main.p_session
         
+    def OpenWindow (self):
+        """ Function doc """
+        if self.Visible  ==  False:
+            self.builder = Gtk.Builder()
+            self.builder.add_from_file(os.path.join(self.home, 'gui/windows/make_solvent_box_window.glade'))
+            self.builder.connect_signals(self)
+            
+            self.window = self.builder.get_object('window')
+            self.window.set_title('Make Solvent Box Window')
+            self.window.set_keep_above(True)
+            
+            # - - - - - - - systems combobox - - - - - - -
+            '''--------------------------------------------------------------------------------------------'''
+            self.box = self.builder.get_object('box_system')
+            self.combobox_systems = SystemComboBox(self.main )
+            self.combobox_systems.connect("changed", self.on_combobox_systemsbox_changed)
+            '''--------------------------------------------------------------------------------------------'''
+            self.box.pack_start(self.combobox_systems, False, False, 0)
+
+
+
+            # - - - - - - - coordinates combobox - - - - - - -
+            '''--------------------------------------------------------------------------------------------'''
+            self.box_coordinates = self.builder.get_object('box_coordinates')
+            self.coordinates_combobox = CoordinatesComboBox() #self.builder.get_object('coordinates_combobox')
+            self.box_coordinates.pack_start(self.coordinates_combobox, False, False, 0)
+            '''--------------------------------------------------------------------------------------------'''
+        
+            
+            self.btn_run = self.builder.get_object('button_run')
+            self.btn_run.connect('clicked', self.run)
+            system  = self.main.p_session.get_system()
+            self.combobox_systems.set_active_iter(system.e_liststore_iter)
+            
+            self.window.show_all()                                               
+            self.window.connect('destroy', self.CloseWindow)                                               
+            #self.combobox_systems.set_active(0)
+            self.visible    =  True
+            '''--------------------------------------------------------------------------------------------'''
+        
+        #print(idnum, text )
+    def CloseWindow (self, button, data  = None):
+        """ Function doc """
+        self.window.destroy()
+        self.Visible    =  False
+        
+    def on_combobox_systemsbox_changed(self, widget):
+        """ Function doc """
+        system_id = self.combobox_systems.get_system_id()
+       
+        if system_id is not None:
+            self.coordinates_combobox.set_model(self.main.vobject_liststore_dict[system_id])
+            #self.refresh_selection_liststore (system_id)            
+            size  =  len(list(self.main.vobject_liststore_dict[system_id]))
+            self.coordinates_combobox.set_active(size-1)
+            
+            #self.update_window ( selections = False, restraints = True)
+        
+
+    def run (self, widget):
+        """ Function doc """
+        
+        parameters = {}
+        
+        parameters['_Density'] = int(self.builder.get_object('entry_density').get_text())
+        parameters['_Steps']   = int(self.builder.get_object('entry_number_of_steps').get_text())
+        parameters['_XBox']    = int(self.builder.get_object('entry_size_X').get_text())
+        parameters['_YBox']    = int(self.builder.get_object('entry_size_Y').get_text())
+        parameters['_ZBox']    = int(self.builder.get_object('entry_size_Z').get_text())
+        parameters['_Refine']  = True
+        
+        system_id = self.combobox_systems.get_system_id()
+        '''selecting the vismol object from the content that is in the combobox '''
+        vobject_id = self.coordinates_combobox.get_vobject_id()
+        vobject    = self.main.vm_session.vm_objects_dic[vobject_id]
+        
+        '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
+        self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
+                                                                           system_id = system_id )
+        
+        parameters['molecule'] = self.main.p_session.psystem[system_id]
+        self.p_session.make_solvent_box(parameters)
+        self.CloseWindow(None)
+
 class PDynamoSelectionWindow:
     """ Class doc """
     def __init__(self, main = None):

@@ -40,6 +40,82 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
+
+class CommandLine:
+    """ Class doc """
+    
+    def __init__ (self, vm_session):
+        """ Class initialiser """
+        pass
+        self.vm_session  = vm_session
+        #self.main        = self.vm_session.main
+        #self.p_session   = self.vm_session.main.p_session
+        
+        
+        
+        
+    def command_line_parser (self, cmd_text):
+        """ Function doc """
+        data = cmd_text.split()
+        func = data[0]
+        args = data[1:]     
+        
+        return func, args
+        
+    
+    def run_command(self, cmd ):
+        """ Function doc"""
+        
+        func, args = self.command_line_parser(cmd)
+        print(func, args)
+        _func = getattr(self, func)
+        print(_func)
+        try:
+            _func(args)
+        except AttributeError as ae:
+            logger.error("Command '{}' not implemented".format(func))
+            logger.error(ae)
+
+    
+    def list (self, args = None):
+        """ Function doc """
+        
+        if args == []:
+            for e_id, system in self.vm_session.main.p_session.psystem.items():
+                print('system {} {}:'.format(e_id, system.label))               
+                for index,  vobject in self.vm_session.vm_objects_dic.items():
+                    if vobject.e_id == e_id:
+                        print('     {} {}:'.format(index, vobject.name))
+        
+        else:
+            pass
+            
+            
+            
+        
+        '''
+        #if system_id:
+        #    
+        #    print('system {} {}:'.format(system_id, self.vm_session.main.p_session.psystem[system_id].label))
+        #    for index,  vobject in self.vm_session.vm_objects_dic.items():
+        #        if vobject.e_id == system_id:
+        #            print('     {} {}:'.format(index, vobject.name))
+        #        
+        else:
+            for e_id, system in self.vm_session.main.p_session.psystem.items():
+                
+                print('system {} {}:'.format(e_id, system.label))
+                
+                for index,  vobject in self.vm_session.vm_objects_dic.items():
+                    if vobject.e_id == e_id:
+                        print('     {} {}:'.format(index, vobject.name))
+        '''
+
+
+    def show (self, args):
+        """ Function doc """
+        print('show', args)
+
 class GLMenu:
     """ Class doc """
     def insert_glmenu (self, bg_menu  = None, 
@@ -832,8 +908,6 @@ class GLMenu:
                                      pick_menu = pick_menu)
 
 
-
-
 class EasyHybridSession(VismolSession, GLMenu):
     """ Class doc """
     
@@ -842,7 +916,7 @@ class EasyHybridSession(VismolSession, GLMenu):
         super().__init__(toolkit="Gtk_3.0")
         ##print('\n\n\n',a, '\n\n\n')
         self.selection_box_frame = None
-    
+        self.cmd = CommandLine(self)
     
     def restart (self):
         """ Function doc """

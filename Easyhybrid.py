@@ -67,6 +67,7 @@ from gui.windows.windows_and_dialogs import PDynamoSelectionWindow
 from gui.windows.windows_and_dialogs import EasyHybridSelectionWindow
 from gui.windows.windows_and_dialogs import ExportDataWindow
 from gui.windows.windows_and_dialogs import EasyHybridDialogPrune
+from gui.windows.windows_and_dialogs import MakeSolventBoxWindow
 
 from gui.windows.windows_and_dialogs import EnergyRefinementWindow
 from gui.windows.windows_and_dialogs import SinglePointwindow
@@ -338,7 +339,7 @@ class MainWindow:
     
         self.merge_system_window = MergeSystemWindow(main = self)
 
-
+        self.make_solvent_box_window = MakeSolventBoxWindow(main = self)
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
 
         self.window.connect("destroy", Gtk.main_quit)
@@ -527,6 +528,8 @@ class MainWindow:
         #----------------------------------------------------------------------
         #                           E D I T 
         #----------------------------------------------------------------------
+        elif menuitem == self.builder.get_object('menuitem_make_solvent_box'):
+            self.make_solvent_box_window.OpenWindow()
         elif menuitem == self.builder.get_object('menuitem_go_to_atom'):
             self.go_to_atom_window.OpenWindow()
         
@@ -743,8 +746,8 @@ class MainWindow:
         
         
         
-        
-        
+        #----------------------------------------------------------------------
+        #                            S Y S T E M 
         #----------------------------------------------------------------------
         elif menuitem == self.builder.get_object('menuitem_info'):
             system = self.p_session.psystem[self.p_session.active_id]
@@ -808,8 +811,22 @@ class MainWindow:
 
 
 
-
-
+        elif menuitem == self.builder.get_object('menuitem_charge_inspection'): 
+            true_or_false = self.p_session.check_for_fragmented_charges()
+            if true_or_false:
+                print ('Charge inspection done!')
+        
+        
+        elif menuitem == self.builder.get_object('menuitem_nb_model'): 
+            self.p_session.remove_NBModel()
+            self.refresh_main_statusbar()
+        
+        elif menuitem == self.builder.get_object('menuitem_new_nb_model'): 
+            self.p_session.define_NBModel()
+            self.refresh_main_statusbar()
+            
+            
+            
         elif menuitem == self.builder.get_object('menuitem_remove_qc'): 
             system = self.p_session.psystem[self.p_session.active_id]
             system.qcModel = None
@@ -1235,7 +1252,28 @@ class MainWindow:
     
     def run_test (self, widget):
         """ Function doc """
-        self.WHAM_window.OpenWindow()
+        true_or_false = self.p_session.check_for_fragmented_charges()
+        if true_or_false:
+            print ('')
+        
+        
+        #self.make_solvent_box_window.OpenWindow()
+        #parameters = {}
+        #parameters['_Density']=  1000.0 # . Density of water (kg m^-3).
+        #parameters['_Refine'] =  True
+        #parameters['_Steps']  = 10000
+        #
+        ## . Box sizes.
+        #parameters['_XBox'] = 28.0
+        #parameters['_YBox'] = 28.0
+        #parameters['_ZBox'] = 28.0
+        #
+        #parameters['molecule'] = self.p_session.psystem[self.p_session.active_id]
+        #
+        #self.p_session.make_solvent_box(parameters)
+        
+        
+        #self.WHAM_window.OpenWindow()
         #window = Gtk.Window()
         #builder = Gtk.Builder()
         #builder.add_from_file(os.path.join(self.home,'gui/windows/WHAM_analysis_window.glade'))
@@ -2224,7 +2262,7 @@ def main():
     
     
     main_window.builder.get_object('toolbutton_monte_carlo').hide()
-    main_window.builder.get_object('button_test')           .hide()
+    #main_window.builder.get_object('button_test')           .hide()
     
     
     

@@ -1483,6 +1483,99 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         return True
 
 
+    def make_solvent_box (self, parameters):
+        """ Function doc """
+        # . Parameters.
+        _Density = parameters['_Density']# 1000.0 # . Density of water (kg m^-3).
+        _Refine  = parameters['_Refine']# True
+        _Steps   = parameters['_Steps']#10000
+
+        # . Box sizes.
+        _XBox = parameters['_XBox'] #28.0
+        _YBox = parameters['_YBox'] #28.0
+        _ZBox = parameters['_ZBox'] #28.0
+        
+        molecule = parameters['molecule']
+        
+        # . Define the solvent MM and NB models.
+        #mmModel = MMModelOPLS.WithParameterSet ( "bookSmallExamples" )
+        #nbModel = NBModelCutOff.WithDefaults ( )
+        #
+        ## . Define the solvent molecule.
+        #molecule = ImportSystem ( os.path.join ( dataPath, "water.mol" ) )
+        #molecule.Summary ( )
+
+        # . Create a symmetry parameters instance with the correct dimensions.
+        symmetryParameters = SymmetryParameters ( )
+        symmetryParameters.SetCrystalParameters ( _XBox, _YBox, _ZBox, 90.0, 90.0, 90.0 )
+
+        # . Create the basic solvent box.
+        solvent = BuildSolventBox ( CrystalSystemCubic ( ), symmetryParameters, molecule, _Density )
+        solvent.label = "Solvent Box"
+        solvent.DefineMMModel ( molecule.mmModel )
+        solvent.DefineNBModel ( molecule.nbModel )
+        if _Refine:
+            ConjugateGradientMinimize_SystemGeometry(solvent                    ,                
+                                                     logFrequency           = 10,
+                                                     maximumIterations      = parameters['_Steps'],
+                                                     rmsGradientTolerance   = 0.01)
+
+
+        new_system = self.append_system_to_pdynamo_session (system = solvent)
+        self.main.main_treeview.add_new_system_to_treeview (new_system)
+        ff  =  getattr(new_system.mmModel, 'forceField', "None")
+
+        self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(new_system.label, new_system.e_tag, ff), system = new_system)
+        self._add_vismol_object_to_easyhybrid_session (new_system, True) #, name = 'olha o  coco')
+        return solvent
+
+
+
+    def solvate_system (self, e_id = None, parameters = None):
+        """ Function doc """
+        # . Retrieve the system.
+        _XBox      =  parameters['XBox']
+        _YBox      =  parameters['YBox']
+        _ZBox      =  parameters['ZBox']
+        
+        _NPositive =  parameters['NPositive']
+        cation     =  parameters['cation']
+        _NNegative =  parameters['NNegative']
+        anion      =  parameters['anion']
+        
+        system     =  self.psystem[e_id]
+        system.Summary ( )
+        
+        if parameters['reorient']: masses = Array.FromIterable ( [ atom.mass for atom in system.atoms ] )
+        
+        # . Reorient the system if necessary (see the results of GetSolvationInformation.py).
+        if parameters['reorient']: system.coordinates3.ToPrincipalAxes ( weights = masses )
+    
+        # . Add the counterions.
+        solute = AddCounterIons ( system, 
+                                  _NNegative, anion, 
+                                  _NPositive, cation, 
+                                  ( _XBox, _YBox, _ZBox )
+                                  )
+        solute.Summary ( )
+    
+        # . Create the solvated system.
+        solution       = SolvateSystemBySuperposition ( solute, solvent, reorientSolute = False )
+        solution.label = "Solvated {:s}".format ( system.label )
+        
+        
+        #solution.DefineNBModel  ( nbModel )
+        #solution.Summary ( )
+        new_system = self.append_system_to_pdynamo_session (system = solution)
+        self.main.main_treeview.add_new_system_to_treeview (new_system)
+        ff  =  getattr(new_system.mmModel, 'forceField', "None")
+
+        self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(new_system.label, new_system.e_tag, ff), system = new_system)
+        self._add_vismol_object_to_easyhybrid_session (new_system, True) #, name = 'olha o  coco')
+   
+    
+
+
     
     def clone_system (self, e_id = None):
         if e_id:
@@ -1822,6 +1915,16 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         return core
 
 
+    def remove_NBModel (self, system = None ):
+        """ Function doc """
+        if system:
+            system.nbModel = None
+            #system.Summary ( )
+        else:
+            self.psystem[self.active_id].nbModel = None
+            #self.psystem[self.active_id].Summary ( )
+        return True
+
     def define_NBModel (self, _type = 1 , parameters =  None, system = None):
         """ Function doc """
         
@@ -2107,6 +2210,37 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         text += '--------------------------------------------------------------------------------\n'
 
 
+    def check_for_fragmented_charges (self, system_id = None):
+        """ Function doc """
+        system = self.psystem[self.active_id]
+        total = sum(system.mmState.charges)
+        print('total charge =', total)
+
+        vobj_tmp = self._build_vobject_from_pDynamo_system (system = system)
+        
+       
+        for res_index, residue in vobj_tmp.residues.items():
+            n = 0.0
+            res_charge = 0.0
+            for atom_index, atom in residue.atoms.items():
+                res_charge += system.mmState.charges[atom_index]
+                n += 1
+            
+            
+            difference = res_charge - float(round(res_charge))
+            fraction = difference/n
+
+            res_charge2 = 0.0
+            for atom_index, atom in residue.atoms.items():
+                system.mmState.charges[atom_index] -= fraction
+                res_charge2 += system.mmState.charges[atom_index]
+            
+            
+            #print('Initial charge: {}, Differente{} {}'.format(res_charge, difference, res_charge2))
+
+        system.e_charges_backup = list(system.AtomicCharges()).copy()
+        return True
+
     def generate_new_empty_vismol_object (self, system_id = None, name = 'new_coordinates' ):
         """  
         This method creates a new vismol object (without coordinates). 
@@ -2249,6 +2383,8 @@ class Atom:
                     symbol = "Cd"
                 elif name[1] =="u":
                     symbol = "Cu"
+                elif name[1] =="U":
+                    symbol = "Cu"
                 else:
                     symbol = "C"
             
@@ -2287,6 +2423,14 @@ class Atom:
                     symbol = "Po"
                 else:
                     symbol = "P" 
+            
+            elif name[0] == "F":
+                if name[1] == "E":
+                    symbol = "Fe"
+                elif  name[1] == "e":
+                    symbol = "Fe"
+                else:
+                    symbol = "F" 
             
             elif name[0] == "M":
                 if name[1] == "n":
