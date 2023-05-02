@@ -27,6 +27,7 @@ from gi.repository import Gtk
 from gi.repository import Gdk
 
 import os
+import inspect
 
 VISMOL_HOME = os.environ.get('VISMOL_HOME')
 HOME        = os.environ.get('HOME')
@@ -99,26 +100,26 @@ class TerminalWindow():
         
         self.cmd_history = []
         self.cmd_history_counter = 0
-        self.textbuffer          = Gtk.TextBuffer()
-        self.command_list= {
-                          'list'   : True,
-                          'show'   : True,
-                          'hide'   : True,
-                          'bond'   : True,
-                          'unbond' : True,
-                          'rename' : True,
-                          'delete' : True,
-                          'save'   : True,
-                          }
-    
-    
+        self.textbuffer = self.main.terminal_text_buffer
+        #self.command_list= (dir(self.vm_session.cmd))
+        self.command_list = []
+        self.methods = inspect.getmembers(self.vm_session.cmd, predicate=inspect.ismethod)
+        for method in self.methods:
+            self.command_list.append(method[0])
+        print(self.command_list)
+        
+        
+        
+        
     def run_cmd (self, cmd):
         """ Function doc """
-        text  = '\n'+cmd
+        text  = '\n>'+cmd
         end_iter = self.textbuffer.get_end_iter ()
         self.textbuffer.insert(end_iter, text)
         
-        self.vm_session.cmd.run_command(cmd)
+        log = self.vm_session.cmd.run(cmd)
+        if log is not None:
+            self.textbuffer.insert(end_iter, log)
         #print(self.cmd_history)
     
     def on_entry_terminal (self, widget):
@@ -189,6 +190,8 @@ class TerminalWindow():
 
         elif k_name =='Tab' :
             text = self.entry_terminal.get_text()
+            
+            
             for key in self.command_list:
                 if  text in key:
                     print(key)

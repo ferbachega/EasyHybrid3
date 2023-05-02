@@ -50,7 +50,7 @@ class CommandLine:
         self.vm_session  = vm_session
         #self.main        = self.vm_session.main
         #self.p_session   = self.vm_session.main.p_session
-        
+         
         
         
         
@@ -63,7 +63,7 @@ class CommandLine:
         return func, args
         
     
-    def run_command(self, cmd ):
+    def run(self, cmd ):
         """ Function doc"""
         
         func, args = self.command_line_parser(cmd)
@@ -71,26 +71,30 @@ class CommandLine:
         _func = getattr(self, func)
         print(_func)
         try:
-            _func(args)
+            log = _func(args)
         except AttributeError as ae:
             logger.error("Command '{}' not implemented".format(func))
             logger.error(ae)
-
-    
+            log = "Command '{}' not implemented".format(func)
+        return log
+            
     def list (self, args = None):
         """ Function doc """
-        
+        text = ''
         if args == []:
             for e_id, system in self.vm_session.main.p_session.psystem.items():
-                print('system {} {}:'.format(e_id, system.label))               
+                print('system: {} - {}'.format(e_id, system.label))               
+                
+                text += '\nsystem: {} - {}'.format(e_id, system.label)
                 for index,  vobject in self.vm_session.vm_objects_dic.items():
                     if vobject.e_id == e_id:
-                        print('     {} {}:'.format(index, vobject.name))
-        
+                        print('          {} - {}'.format(index, vobject.name))
+                        text += '\n         {} - {}'.format(index, vobject.name)
         else:
             pass
             
-            
+        
+        return text
             
         
         '''
@@ -115,6 +119,14 @@ class CommandLine:
     def show (self, args):
         """ Function doc """
         print('show', args)
+
+
+    def clear (self, args = None):
+        """ Function doc """
+        self.vm_session.main.terminal_text_buffer.set_text("")
+    
+    
+
 
 class GLMenu:
     """ Class doc """

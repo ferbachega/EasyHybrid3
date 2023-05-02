@@ -240,7 +240,16 @@ class MainWindow:
         #self.player_frame = self.vm_session.player_frame
         #self.player_frame.show_all()
         ''' - - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - - - - - - - - - - - - '''
-
+        
+        
+        '''Text buffer associated with the command terminal (cmd) output
+           
+           used in:
+                self.terminal_window           = TerminalWindow  (main = self)
+            
+        '''
+        self.terminal_text_buffer          = Gtk.TextBuffer()
+        
         
         
         
