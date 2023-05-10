@@ -2389,7 +2389,7 @@ class Atom:
                     symbol = "C"
             
             elif name[0] == "N":
-                if name[1] == "i":
+                if name[1] == "i" or name[1] == "I":
                     symbol = "Ni"
                 elif name[1] == "a":
                     symbol = "Na"

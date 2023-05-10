@@ -4011,7 +4011,10 @@ class PotentialEnergyAnalysisWindow:
 
 
     def on_button_export_trajectory (self, widget):
-        """ Function doc """
+        """ Function doc 
+       
+        
+        """
         #print ('\nexport_trajectory: \n',
         #self.xdata   ,
         #self.ydata   ,
@@ -4025,13 +4028,22 @@ class PotentialEnergyAnalysisWindow:
         
         new_vismol_object = self.main.p_session.generate_new_empty_vismol_object(system_id = self.vobject.e_id , 
                                                                                  name      = 'new_coordinates' )
-
+        print('\n\n')
+        print('  (i)   (j)   RC1       RC2       ENERGY(kJ/mol)')
         for xy in self.plot.points:
             frame_number = self.vobject.idx_2D_xy[(xy[1], xy[0])]
             #print(self.vobject.frames[frame_number])
             new_vismol_object.frames = np.vstack((new_vismol_object.frames, 
                                                   [self.vobject.frames[frame_number]]))
         
+            
+            
+            text = ' {:3d}   {:3d}    {:3.4f}    {:3.4f}    {:3.6f}'.format(xy[1], xy[0], self.data['RC1'][xy[0]][xy[1]],self.data['RC2'][xy[0]][xy[1]], self.data['Z'][xy[0]][xy[1]] )
+            print(text)
+        print('\n\n')
+
+        
+        #print(self.data)
         #self.traj_export_index += 1
         self.vm_session.main.main_treeview.refresh_number_of_frames()
 
