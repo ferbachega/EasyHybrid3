@@ -4012,7 +4012,7 @@ class PotentialEnergyAnalysisWindow:
 
     def on_button_export_trajectory (self, widget):
         """ Function doc 
-       
+            RC1 and RC2 refer to the coordinates of reactions 1 and 2, respectively, defined to obtain the PES. In the case of a simple reaction coordinate, the RC is simply the value of the distance between atoms 1 and 2 defined. In the case of the multiple distance based reaction coordinate defined by three (3) atoms, the RC is defined as the distance between atoms 1 and 2 minus the distance between atoms 2 and 3.
         
         """
         #print ('\nexport_trajectory: \n',
@@ -4029,6 +4029,15 @@ class PotentialEnergyAnalysisWindow:
         new_vismol_object = self.main.p_session.generate_new_empty_vismol_object(system_id = self.vobject.e_id , 
                                                                                  name      = 'new_coordinates' )
         print('\n\n')
+        print('''
+RC1 and RC2 refer to the coordinates of reactions 1 and 2, 
+respectively, defined to obtain the PES. In the case of a 
+simple reaction coordinate, the RC is simply the value of 
+the distance between atoms 1 and 2 defined. In the case of 
+the multiple distance based reaction coordinate defined by 
+three (3) atoms, the RC is defined as the distance between 
+atoms 1 and 2 minus the distance between atoms 2 and 3.
+        ''')
         print('  (i)   (j)   RC1       RC2       ENERGY(kJ/mol)')
         for xy in self.plot.points:
             frame_number = self.vobject.idx_2D_xy[(xy[1], xy[0])]

@@ -1543,6 +1543,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         _NNegative =  parameters['NNegative']
         anion      =  parameters['anion']
         
+        solvent    =  Unpickle ( parameters['solvent'])
+        
+        
         system     =  self.psystem[e_id]
         system.Summary ( )
         
@@ -1552,11 +1555,15 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         if parameters['reorient']: system.coordinates3.ToPrincipalAxes ( weights = masses )
     
         # . Add the counterions.
-        solute = AddCounterIons ( system, 
-                                  _NNegative, anion, 
-                                  _NPositive, cation, 
-                                  ( _XBox, _YBox, _ZBox )
-                                  )
+        
+        if anion is None and cation is None:
+            solute = system
+        else:
+            solute = AddCounterIons ( system, 
+                                      _NNegative, anion, 
+                                      _NPositive, cation, 
+                                      ( _XBox, _YBox, _ZBox )
+                                      )
         solute.Summary ( )
     
         # . Create the solvated system.

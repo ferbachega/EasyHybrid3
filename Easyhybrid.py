@@ -1261,10 +1261,41 @@ class MainWindow:
     
     def run_test (self, widget):
         """ Function doc """
+        parameters = {}
+        parameters['XBox'] = 30
+        parameters['YBox'] = 30
+        parameters['ZBox'] = 30
+        
+        parameters['NPositive'] = 0
+        parameters['cation']    = None
+        parameters['NNegative'] = 0
+        parameters['anion']     = None
+        
+        parameters['solvent']   = "/home/fernando/programs/EasyHybrid3/examples/waterBox.pkl" 
+        parameters['reorient']  = True
+        
+        e_id = self.p_session.active_id
+        self.p_session.solvate_system (e_id = e_id, parameters = parameters)
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        '''
         true_or_false = self.p_session.check_for_fragmented_charges()
         if true_or_false:
             print ('')
-        
+        '''
         
         #self.make_solvent_box_window.OpenWindow()
         #parameters = {}
