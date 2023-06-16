@@ -732,6 +732,8 @@ class SystemComboBox(Gtk.ComboBox):
         self.pack_start(renderer_text2, True)
         self.add_attribute(renderer_text2, "text", 0)
 
+        #self.set_popup_fixed_width(100)
+
     
     def get_system_id(self, widget = None):
         _, system_id, pixbuf = self._get_system()

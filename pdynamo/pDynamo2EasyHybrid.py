@@ -696,9 +696,35 @@ class pAnalysis:
         """ Function doc """
         if parameters['analysis_type'] == 'wham':
             wham_analysis = WHAMAnalysis()
-            wham_analysis.run ( parameters )
+            TrueFalse, msg = wham_analysis.run ( parameters )
             
-        
+            
+            if TrueFalse:
+                self.main.simple_dialog.info(msg = msg )
+                #dialog = Gtk.MessageDialog(
+                #        parent=self.main.window,
+                #        flags=Gtk.DialogFlags.MODAL,
+                #        type=Gtk.MessageType.INFO,
+                #        buttons=Gtk.ButtonsType.OK,
+                #        message_format=msg
+                #    )
+                #dialog.run()
+                #dialog.destroy()
+            else:
+                self.main.simple_dialog.error(msg = msg )
+                #dialog = Gtk.MessageDialog(
+                #        parent=self.main.window,
+                #        flags=Gtk.DialogFlags.MODAL,
+                #        type=Gtk.MessageType.ERROR,
+                #        buttons=Gtk.ButtonsType.OK,
+                #        message_format=msg
+                #    )
+                #dialog.run()
+                #dialog.destroy()
+
+            
+            print (TrueFalse,msg )
+            return TrueFalse
 class ModifyRepInVismol:
     """ Class doc """
     
@@ -966,66 +992,26 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         
         
-        '''-----------------------------------------------------------------'''
-        name = getattr (system, 'label', None)
-        tag  = getattr (system,'e_tag', None)
-        print(name, tag)
-        #name =  self._check_name(name)
-        
-        # Ateh aqui as cores estao corretas
-        #-------------------------------------------------------------------------------------------------
-        for index , psystem in self.psystem.items():
-            if psystem:
-                print(' in load_a_new_pDynamo_system_from_dict2', index, psystem.e_color_palette['C'])
-            else:
-                print(' in load_a_new_pDynamo_system_from_dict2', index, None)
-        #-------------------------------------------------------------------------------------------------
-        
-        
-        system.e_input_files = input_files
-        
-        
-        
+       
+        ''''
+        If the name is too long we have problems with the "system 
+        comboboxes", they get huge and the use of the interface is impaired.
+        '''
+        if name == None:
+            name = getattr (system, 'label', None)
+            tag  = getattr (system,'e_tag', None)
+        if len(name) > 70:
+            name = name[-70:]
         
         
 
         
-        
-        # Ateh aqui as cores estao corretas
-        #-------------------------------------------------------------------------------------------------
-        for index , psystem in self.psystem.items():
-            if psystem:
-                print(' in load_a_new_pDynamo_system_from_dict 3', index, psystem.e_color_palette['C'])
-            else:
-                print(' in load_a_new_pDynamo_system_from_dict 3', index, None)
-        #-------------------------------------------------------------------------------------------------
-        
-        
-        
-        
-        
-        
-        
+        '''Storing the system source files'''
+        system.e_input_files = input_files
         system = self.append_system_to_pdynamo_session (system = system,  name = name, tag = tag, color = color )
 
-        #for index , psystem in self.psystem.items():
-        #    print(' in load_a_new_pDynamo_system_from_dict', index, psystem.e_color_palette['C'])
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         '''-----------------------------------------------------------------'''
-        
+
         #system
         self.main.main_treeview.add_new_system_to_treeview (system)
         

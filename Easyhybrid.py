@@ -77,6 +77,7 @@ from gui.windows.windows_and_dialogs import TrajectoryPlayerWindow
 from gui.windows.windows_and_dialogs import PotentialEnergyAnalysisWindow
 from gui.windows.windows_and_dialogs import InfoWindow
 from gui.windows.windows_and_dialogs import MergeSystemWindow
+from gui.windows.windows_and_dialogs import SimpleDialog
 
 from gui.windows.easyhybrid_terminal import TerminalWindow
 from gui.windows.geometry_optimization_window import *
@@ -342,10 +343,12 @@ class MainWindow:
         self.window_list.append(self.normal_modes_window)
 
         
-        self.WHAM_window =  WHAMWindow(main = self)
+        self.WHAM_window   =  WHAMWindow(main = self)
         self.window_list.append(self.WHAM_window)
 
-    
+        self.simple_dialog =  SimpleDialog(main = self)
+
+
         self.merge_system_window = MergeSystemWindow(main = self)
 
         self.make_solvent_box_window = MakeSolventBoxWindow(main = self)
@@ -2302,7 +2305,7 @@ def main():
     
     
     main_window.builder.get_object('toolbutton_monte_carlo').hide()
-    #main_window.builder.get_object('button_test')           .hide()
+    main_window.builder.get_object('button_test')           .hide()
     
     
     

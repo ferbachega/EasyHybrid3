@@ -61,7 +61,7 @@ class WHAMWindow(Gtk.Window):
 
             self.window = self.builder.get_object('window')
             self.window.set_title('WHAM Analysis')
-            self.window.set_keep_above(True)
+            #self.window.set_keep_above(True)
             
             
             
@@ -211,12 +211,15 @@ class WHAMWindow(Gtk.Window):
         
         
         print(parameters)
-        self.p_session.run_analysis(parameters)
-        self.window.destroy()
-        self.Visible    =  False
+        TrueFalse = self.p_session.run_analysis(parameters)
+        
+        if TrueFalse:
+            self.window.destroy()
+            self.Visible    =  False
 
-
-
+        else:
+            pass
+            self.window.present()
 
     def on_cell_active_toggled (self, widget, path):
         """ Function doc """

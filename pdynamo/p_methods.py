@@ -1966,37 +1966,63 @@ class WHAMAnalysis:
 
     def run (self, parameters, interface = False):
         """ Function doc """
-        self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(parameters['folder'], parameters['logfile']+'.log') )
-        #self.logFile2 = TextLogFileWriter.WithOptions ( path =  'output.log'  )
-        # . Calculate the PMF.
         
+        try:
+            self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(parameters['folder'], parameters['logfile']+'.log') )
+        except TypeError:
+            return False, 'Error generating log file! \n\nPlease, check your working folder and output logfile name'
+        
+        
+        
+        # . Calculate the PMF.
         if parameters['system']:
             parameters['system'].Summary(log = self.logFile2)
         else:
             pass
+
         
-        state = WHAM_ConjugateGradientMinimize ( parameters['fileNames']                                  ,
-                                                 bins                 = parameters['bins'                 ],
-                                                 logFrequency         = parameters['logFrequency'         ],
-                                                 maximumIterations    = parameters['maximumIterations'    ],
-                                                 rmsGradientTolerance = parameters['rmsGradientTolerance' ],
-                                                 temperature          = parameters['temperature'          ],
-                                                 
-                                                 log = self.logFile2
-                                                 )
-
-        # . Write the PMF to a file.
-        histogram = state["Histogram"]
-        pmf       = state["PMF"      ]
         
-        PMF_file = os.path.join(parameters['folder'], parameters['logfile']+'_pmf.log')
-        histogram.ToTextFileWithData (  PMF_file , [ pmf ], format = "{:20.3f} {:20.3f}\n" )
+        try:
+            state = WHAM_ConjugateGradientMinimize ( parameters['fileNames']                                  ,
+                                                     bins                 = parameters['bins'                 ],
+                                                     logFrequency         = parameters['logFrequency'         ],
+                                                     maximumIterations    = parameters['maximumIterations'    ],
+                                                     rmsGradientTolerance = parameters['rmsGradientTolerance' ],
+                                                     temperature          = parameters['temperature'          ],
+                                                     
+                                                     log = self.logFile2
+                                                     )
+        except TypeError:
+            return False, 'Error on pDynamo WHAM_ConjugateGradientMinimize! \n\nPlease, check your input data.'
+        
+        
+        
+        try:
+            # . Write the PMF to a file.
+            histogram = state["Histogram"]
+            pmf       = state["PMF"      ]
+            
+            PMF_file = os.path.join(parameters['folder'], parameters['logfile']+'_pmf.log')
+            histogram.ToTextFileWithData (  PMF_file , [ pmf ], format = "{:20.3f} {:20.3f}\n" )
+        
+        except TypeError:
+            return False, 'Error on Write the PMF to a file!\n\n Please, check your input data.'
+
+        msg = 'WHAM calculation performed successfully! \n\nPlease check:'
+        return True, msg+PMF_file
 
 
-
-
-
-
+'''
+try:
+    num1 = int(input("Enter a number: "))
+    num2 = int(input("Enter another number: "))
+    result = num1 / num2
+    print("Result:", result)
+except ValueError:
+    print("Invalid input. Please enter a valid integer.")
+except ZeroDivisionError:
+    print("Cannot divide by zero.")
+'''
 
 
 

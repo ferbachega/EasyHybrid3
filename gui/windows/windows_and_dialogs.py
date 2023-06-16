@@ -116,7 +116,64 @@ class InfoWindow:
         self.window.add(scrolledwindow)
         #self.window.connect("destroy", Gtk.main_quit)
         self.window.show_all()
+
+
+class SimpleDialog:
+    """ Class doc """
+    
+    def __init__ (self, main):
+        """ Class initialiser """
+        self.main = main
+
+
+    def info(self, msg):
+        """ Function doc """
+        dialog = Gtk.MessageDialog(
+                parent=self.main.window,
+                flags=Gtk.DialogFlags.MODAL,
+                type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK,
+                message_format=msg
+            )
+        dialog.run()
+        dialog.destroy()
+        return None
+    
+    def error(self, msg):
+        """ Function doc """
         
+        dialog = Gtk.MessageDialog(
+                    parent=self.main.window,
+                    flags=Gtk.DialogFlags.MODAL,
+                    type=Gtk.MessageType.ERROR,
+                    buttons=Gtk.ButtonsType.OK,
+                    message_format=msg
+                )
+        dialog.run()
+        dialog.destroy()
+        return None
+
+    def question (self, msg):
+        """ Function doc """
+        dialog = Gtk.MessageDialog(
+            parent=self.main.window,
+            flags=Gtk.DialogFlags.MODAL,
+            type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.YES_NO,
+            message_format=msg
+        )
+        response = dialog.run()
+        dialog.destroy()
+        if response == Gtk.ResponseType.YES:
+            # Perform the desired action for Yes
+            return True
+        elif response == Gtk.ResponseType.NO:
+            # Perform the desired action for No
+            return False
+        
+        
+
+
         
 class AddHarmonicRestraintDialog:
     """ Class doc """
@@ -701,7 +758,6 @@ class EnergyRefinementWindow():
                 self.folder_chooser_button.set_folder(folder = folder)
             else:
                 pass
-
 
 
 class ExportDataWindow:
@@ -2132,19 +2188,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             self.box_horizontal1.pack_start(self.label1, False, False, 0)
 
             self.combobox_systems = SystemComboBox(self.main)
-            
-            #self.combobox_systems = Gtk.ComboBox.new_with_model(self.system_liststore)
             self.combobox_systems.connect("changed", self.on_combobox_systems_changed)
-            #
-            #renderer_pixbuf = Gtk.CellRendererPixbuf()
-            #self.combobox_systems.pack_start(renderer_pixbuf, True)
-            #self.combobox_systems.add_attribute(renderer_pixbuf, "pixbuf", 2)
-            #
-            #
-            #renderer_text2 = Gtk.CellRendererText()
-            #self.combobox_systems.pack_start(renderer_text2, True)
-            #self.combobox_systems.add_attribute(renderer_text2, "text", 0)
-            
             self.box_horizontal1.pack_start(self.combobox_systems, False, False, 0)
             #------------------------------------------------------------------#
             
