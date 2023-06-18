@@ -983,6 +983,16 @@ class EasyHybridSession(VismolSession, GLMenu):
             vismol_object.create_representation(rep_type="lines")
             #vismol_object.create_representation(rep_type="dash")
             #vismol_object.create_representation(rep_type="sticks")
+            
+            
+            #from vismol.libgl.representations import DashedLinesRepresentation
+            #vismol_object.representations["restraints"] = DashedLinesRepresentation(vismol_object, self.vm_glcore,
+            #                                                                  active=True, indexes= [5, 17])
+            #
+            #vismol_object.representations["restraints"].define_new_indexes_to_vbo([5, 17 ])
+            #
+            
+            self.main.p_session.update_restaint_representation(vismol_object.e_id)
             vismol_object.create_representation(rep_type="nonbonded")
             #vismol_object.create_representation(reprep_type="sticks")
             if autocenter:
@@ -1419,8 +1429,10 @@ button position in the main treeview (active column).""".format(name,self.main.p
         else:
             pass        
         
-        vobjects, grid_min, grid_max, selected_indexes_dict = self._define_inner_box(selection, grid_size)       
-        
+        try:
+            vobjects, grid_min, grid_max, selected_indexes_dict = self._define_inner_box(selection, grid_size)       
+        except:
+            return False, 'Selection error!\n\nThe initial selection must contain at least one selected atom.'
         
         self._selection_function_set(None)
 
@@ -1489,7 +1501,8 @@ button position in the main treeview (active column).""".format(name,self.main.p
             self.selections[self.current_selection].active = True
             self.vm_glcore.queue_draw()
 
-
+        return True, 'Selection done!'
+    
     def _complement_by_residue (self, new_selected_indexes, vobject ):
         """ Function doc """
         # - - - - - - - - - - selecting all the residues! - - - - - - - - - - - - - - - - - - - -  

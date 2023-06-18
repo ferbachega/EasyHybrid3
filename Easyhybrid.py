@@ -77,6 +77,7 @@ from gui.windows.windows_and_dialogs import TrajectoryPlayerWindow
 from gui.windows.windows_and_dialogs import PotentialEnergyAnalysisWindow
 from gui.windows.windows_and_dialogs import InfoWindow
 from gui.windows.windows_and_dialogs import MergeSystemWindow
+from gui.windows.windows_and_dialogs import SolvateSystemWindow
 from gui.windows.windows_and_dialogs import SimpleDialog
 
 from gui.windows.easyhybrid_terminal import TerminalWindow
@@ -350,6 +351,7 @@ class MainWindow:
 
 
         self.merge_system_window = MergeSystemWindow(main = self)
+        self.solvate_system_window = SolvateSystemWindow(main = self)
 
         self.make_solvent_box_window = MakeSolventBoxWindow(main = self)
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
@@ -824,9 +826,12 @@ class MainWindow:
 
 
         elif menuitem == self.builder.get_object('menuitem_charge_inspection'): 
-            true_or_false = self.p_session.check_for_fragmented_charges()
-            if true_or_false:
-                print ('Charge inspection done!')
+            TrueFalse, msg = self.p_session.check_for_fragmented_charges()
+            #if true_or_false:
+            if TrueFalse:
+                self.simple_dialog.info(msg = msg )
+            else:
+                self.simple_dialog.error(msg = msg )
         
         
         elif menuitem == self.builder.get_object('menuitem_nb_model'): 
@@ -856,6 +861,9 @@ class MainWindow:
             self.vm_session.vm_glcore.queue_draw()
             self.refresh_widgets()
 
+        
+        elif menuitem == self.builder.get_object('menuitem_solvate'): 
+            self.solvate_system_window.OpenWindow()
         
         elif menuitem == self.builder.get_object('menuitem_merge'): 
             """ Function doc """

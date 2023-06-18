@@ -1985,7 +1985,7 @@ class ReactionCoordinateBox(Gtk.Box):
             
             dmin   = float( self.builder.get_object('entry_dmin_coord1').get_text( ))
             parameters["ATOMS"]       = [ index1, index2 ] 
-            parameters["ATOMS_NAMES"] = [ name1 ,  name2 ] 
+            parameters["ATOM_NAMES"] = [ name1 ,  name2 ] 
             parameters["dminimum"]  = dmin 
             parameters["sigma_pk1pk3"] = None
             parameters["sigma_pk3pk1"] = None
@@ -2002,7 +2002,7 @@ class ReactionCoordinateBox(Gtk.Box):
             
             dmin   = float( self.builder.get_object('entry_dmin_coord1').get_text( ))
             parameters["ATOMS"]       = [ index1, index2, index3 ] 
-            parameters["ATOMS_NAMES"] = [ name1,  name2,  name3 ] 
+            parameters["ATOM_NAMES"] = [ name1,  name2,  name3 ] 
             parameters["dminimum"]  = dmin  
             
             if self.builder.get_object('mass_restraints1').get_active():

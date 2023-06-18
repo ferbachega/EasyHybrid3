@@ -32,7 +32,6 @@ import os
 
 from gui.gtk_widgets import SystemComboBox
 from gui.gtk_widgets import CoordinatesComboBox
-
 VISMOL_HOME = os.environ.get('VISMOL_HOME')
 HOME        = os.environ.get('HOME')
 
@@ -201,6 +200,14 @@ class SelectionListWindow(Gtk.Window):
         else:
             pass
     
+     
+    #def update_restraint_representation (_):
+    #    """ Function doc """
+
+
+
+
+     
         
     def _on_cell_visible_toggled (self, widget, path):
         """ Function doc """
@@ -213,10 +220,12 @@ class SelectionListWindow(Gtk.Window):
         name = self.restraint_liststore[path][1]
         system = self.main_session.p_session.psystem[e_id]
         system.e_restraints_dict[name][0] =  self.restraint_liststore[path][0]
-        #self.selectedID  = int(self.restraint_liststore[path][1])
-        #vismol_object = self.main.vm_session.vm_objects_dic[self.selectedID]
-        #vismol_object.active = self.treestore[path][6]
-        #self.main.vm_session.vm_glcore.queue_draw()
+        
+        self.p_session.update_restaint_representation(e_id)
+        
+
+            
+
         
     def update_window (self, system_names = True, coordinates = False,  selections = True, restraints = True):
         """ Function doc """
@@ -229,8 +238,7 @@ class SelectionListWindow(Gtk.Window):
                 if restraints:
                     self.refresh_restraint_liststore(system_id)
         else:
-            pass
-    
+            self.refresh_restraint_liststore(self.main_session.p_session.active_id)
     
     def update (self, system_names = True, coordinates = False,  selections = True ):
         """ Function doc """
@@ -270,6 +278,7 @@ class SelectionListWindow(Gtk.Window):
         """ Function doc """
         self.restraint_liststore.clear()
         
+
         for name, restraint in self.p_session.psystem[system_id].e_restraints_dict.items():
             _bool = restraint[0]
             name  = restraint[1]
@@ -281,7 +290,11 @@ class SelectionListWindow(Gtk.Window):
             e_id          =  restraint[6] 
                                            #(bool,  str,   str,   str,          str,       str    , int    )
             self.restraint_liststore.append([_bool, name, _type, atons, dist_or_angle, force_const, e_id   ])
-    
+            
+        self.p_session.update_restaint_representation(system_id)
+        self.main_session.vm_session.vm_glcore.queue_draw()
+
+                
     
     def refresh_selection_liststore (self, system_id = None ):
         """ Function doc """

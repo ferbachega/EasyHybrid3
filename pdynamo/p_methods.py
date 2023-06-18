@@ -38,9 +38,9 @@ import copy
 
 from pScientific.RandomNumbers import NormalDeviateGenerator                       , \
                                       RandomNumberGenerator
-
+import json
 from pprint import pprint
-import os, time
+import os, time, sys
 
 
 def backup_orca_files (system, output_folder = None, output_name = None):
@@ -302,17 +302,17 @@ class EnergyRefinement:
         if parameters['RC1']["rc_type"] == 'simple_distance':
             text = text + "\n"
             text = text + "\n----------------------- Coordinate 1 - Simple-Distance -------------------------"
-            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOMS_NAMES'][0] )
-            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOMS_NAMES'][1] )
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOM_NAMES'][0] )
+            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOM_NAMES'][1] )
             text = text + "\n--------------------------------------------------------------------------------"
 
         
         elif parameters['RC1']["rc_type"] == 'multiple_distance':
             text = text + "\n"
             text = text + "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"	
-            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOMS_NAMES'][0] )
-            text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOMS_NAMES'][1] )
-            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOMS_NAMES'][2] )
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOM_NAMES'][0] )
+            text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOM_NAMES'][1] )
+            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
             text = text + "\n--------------------------------------------------------------------------------"
         else:
             pass
@@ -328,17 +328,17 @@ class EnergyRefinement:
             if parameters['RC2']["rc_type"] == 'simple_distance':
                 text = text + "\n"
                 text = text + "\n----------------------- Coordinate 2 - Simple-Distance -------------------------"
-                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOMS_NAMES'][0] )
-                text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOMS_NAMES'][1] )
+                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOM_NAMES'][0] )
+                text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOM_NAMES'][1] )
                 text = text + "\n--------------------------------------------------------------------------------"
 
             
             elif parameters['RC2']["rc_type"] == 'multiple_distance':
                 text = text + "\n"
                 text = text + "\n---------------------- Coordinate 2 - multiple-Distance ------------------------"	
-                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOMS_NAMES'][0] )
-                text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOMS_NAMES'][1] )
-                text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOMS_NAMES'][2] )
+                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOM_NAMES'][0] )
+                text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOM_NAMES'][1] )
+                text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
                 text = text + "\n--------------------------------------------------------------------------------"
             else:
                 pass
@@ -829,8 +829,8 @@ class RelaxedSurfaceScan:
             #text = text + "\n--------------------------------------------------------------------------------"
             text = text + "\n"
             text = text + "\n----------------------- Coordinate 1 - Simple-Distance -------------------------"
-            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOMS_NAMES'][0] )
-            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOMS_NAMES'][1] )
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOM_NAMES'][0] )
+            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOM_NAMES'][1] )
             text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']  , parameters['RC1']['force_constant'] )
             text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum'], parameters['maxIterations']         )
             text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']  , parameters['rmsGradient']           )
@@ -840,9 +840,9 @@ class RelaxedSurfaceScan:
         elif parameters['RC1']["rc_type"] == 'multiple_distance':
             text = text + "\n"
             text = text + "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"	
-            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOMS_NAMES'][0] )
-            text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOMS_NAMES'][1] )
-            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOMS_NAMES'][2] )
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOM_NAMES'][0] )
+            text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOM_NAMES'][1] )
+            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
             text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']      , parameters['RC1']['force_constant'] ) 
             text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['maxIterations']         )
             text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['rmsGradient']           )
@@ -863,8 +863,8 @@ class RelaxedSurfaceScan:
             if parameters['RC2']["rc_type"] == 'simple_distance':
                 text = text + "\n"
                 text = text + "\n----------------------- Coordinate 2 - Simple-Distance -------------------------"
-                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOMS_NAMES'][0] )
-                text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOMS_NAMES'][1] )
+                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOM_NAMES'][0] )
+                text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOM_NAMES'][1] )
                 text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']  , parameters['RC2']['force_constant'] )
                 text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum'], parameters['maxIterations']         )
                 text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']  , parameters['rmsGradient']           )
@@ -874,9 +874,9 @@ class RelaxedSurfaceScan:
             elif parameters['RC2']["rc_type"] == 'multiple_distance':
                 text = text + "\n"
                 text = text + "\n---------------------- Coordinate 2 - multiple-Distance ------------------------"	
-                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOMS_NAMES'][0] )
-                text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOMS_NAMES'][1] )
-                text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOMS_NAMES'][2] )
+                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOM_NAMES'][0] )
+                text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOM_NAMES'][1] )
+                text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
                 text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']      , parameters['RC2']['force_constant'] )
                 text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maxIterations']         )
                 text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradient']           )
@@ -1434,8 +1434,8 @@ class UmbrellaSampling:
         if parameters['RC1']["rc_type"] == 'simple_distance':
             text = text + "\n"
             text = text + "\n----------------------- Coordinate 1 - Simple-Distance -------------------------"
-            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOMS_NAMES'][0] )
-            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOMS_NAMES'][1] )
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOM_NAMES'][0] )
+            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOM_NAMES'][1] )
             text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']  , parameters['RC1']['force_constant'] )
             text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum'], parameters['OPT_parm']['maxIterations']         )
             text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']  , parameters['OPT_parm']['rmsGradient']           )
@@ -1445,9 +1445,9 @@ class UmbrellaSampling:
         elif parameters['RC1']["rc_type"] == 'multiple_distance':
             text = text + "\n"
             text = text + "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"	
-            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOMS_NAMES'][0] )
-            text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOMS_NAMES'][1] )
-            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOMS_NAMES'][2] )
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOM_NAMES'][0] )
+            text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOM_NAMES'][1] )
+            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
             text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']      , parameters['RC1']['force_constant'] ) 
             text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['OPT_parm']['maxIterations']         )
             text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['OPT_parm']['rmsGradient']           )
@@ -1468,8 +1468,8 @@ class UmbrellaSampling:
         #    if parameters['RC2']["rc_type"] == 'simple_distance':
         #        text = text + "\n"
         #        text = text + "\n----------------------- Coordinate 2 - Simple-Distance -------------------------"
-        #        text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOMS_NAMES'][0] )
-        #        text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOMS_NAMES'][1] )
+        #        text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOM_NAMES'][0] )
+        #        text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOM_NAMES'][1] )
         #        text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']  , parameters['RC2']['force_constant'] )
         #        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum'], parameters['maxIterations']         )
         #        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']  , parameters['rmsGradient']           )
@@ -1479,9 +1479,9 @@ class UmbrellaSampling:
         #    elif parameters['RC2']["rc_type"] == 'multiple_distance':
         #        text = text + "\n"
         #        text = text + "\n---------------------- Coordinate 2 - multiple-Distance ------------------------"	
-        #        text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOMS_NAMES'][0] )
-        #        text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOMS_NAMES'][1] )
-        #        text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOMS_NAMES'][2] )
+        #        text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOM_NAMES'][0] )
+        #        text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOM_NAMES'][1] )
+        #        text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
         #        text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']      , parameters['RC2']['force_constant'] )
         #        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maxIterations']         )
         #        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradient']           )
@@ -1533,7 +1533,24 @@ class UmbrellaSampling:
         arq.write(text)
         return arq
 
-    
+    def write_parameters (self, parameters, logfile = None):
+        """ Function doc """
+        ##logfile = open( os.path.join(full_path_trajectory, 'output.log'), 'a')
+        #json_data = json.dumps(parameters, indent=4)
+        #with open(logfile, "a") as file:
+        #    file.write(json_data)
+
+        with open(logfile, 'a') as file:
+            sys.stdout = file  # Redirect stdout to the file
+            pprint(parameters)
+            sys.stdout = sys.__stdout__  # Restore stdout
+
+
+
+
+
+
+
 
     def run (self, parameters, interface = False):
         """ Function doc """
@@ -1552,13 +1569,17 @@ class UmbrellaSampling:
         self.logFile2.Header ( )
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+        
+        self.write_parameters(parameters = parameters, logfile = os.path.join(full_path_trajectory, 'output.log'))
+
+
         if parameters['RC2'] is not None:
             self._run_umbrella_sampling_2D(parameters = parameters, interface = False)
         else:
             self._run_umbrella_sampling_1D(parameters)
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        self.logFile2.Footer ( )
+        #self.logFile2.Footer ( )
         self.logFile2.Close()
         self.logFile2 = None
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

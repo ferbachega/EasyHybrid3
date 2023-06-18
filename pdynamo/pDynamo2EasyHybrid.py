@@ -62,6 +62,8 @@ from pSimulation               import*
 
 import numpy as np
 from vismol.model.molecular_properties import ATOM_TYPES
+from vismol.libgl.representations import DashedLinesRepresentation
+
 #from vismol.model.molecular_properties import COLOR_PALETTE
 from util.colorpalette import COLOR_PALETTE
 
@@ -584,23 +586,10 @@ class pSimulations:
         """
         parameters['system'] = self.psystem[self.active_id] 
         parameters = self._apply_restraints (parameters)
-        ##--------------------------------------------------------------------------
-        #parameters['system'].DefineRestraintModel(None)
-        #restraints = RestraintModel()
-        #parameters['system'].DefineRestraintModel( restraints )
-        #for name, restraint_list in parameters['system'].e_restraints_dict.items():
-        #
-        #    if restraint_list[0]:
-        #        rmodel    = RestraintEnergyModel.Harmonic(restraint_list[4],restraint_list[5])
-        #        restraint = RestraintDistance.WithOptions(energyModel = rmodel, 
-        #                                                        point1 = restraint_list[2] , 
-        #                                                        point2 = restraint_list[3] )
-        #        restraints[name] = restraint
-        ##--------------------------------------------------------------------------
         
         pprint(parameters)
         
-        energy = None
+        energy      = None
         new_vobject = True
 
         if parameters['simulation_type'] == 'Energy_Single_Point':
@@ -613,12 +602,10 @@ class pSimulations:
             energy = self.energy_refinement.run(parameters)
             new_vobject = False
 
-        
         elif parameters['simulation_type'] == 'Geometry_Optimization':
             self.geometry_optimization_object = GeometryOptimization()
             self.geometry_optimization_object.run(parameters)
             
-        
         elif parameters['simulation_type'] == 'Molecular_Dynamics':
             #pprint(parameters)
             self.molecular_dynamics_object = MolecularDynamics()
@@ -629,25 +616,30 @@ class pSimulations:
             self.relaxed_surface_scan = RelaxedSurfaceScan()
             self.relaxed_surface_scan.run(parameters = parameters, interface = True)
         
-        
         elif parameters['simulation_type'] == 'Umbrella_Sampling':
             self.umbrella_sampling = UmbrellaSampling()
             self.umbrella_sampling.run(parameters = parameters, interface = True)
             
-
-        
         elif parameters['simulation_type'] == 'Nudged_Elastic_Band':
             self.chain_of_states_opt = ChainOfStatesOptimizePath()
             self.chain_of_states_opt.run(parameters)
-        
         
         elif parameters['simulation_type'] == 'Normal_Modes':
             self.normal_modes = NormalModes()
             self.normal_modes.run(parameters)
         
-        
         else:
             pass
+        
+        
+        
+        
+        #if TrueFalse:
+        #    self.main.simple_dialog.info(msg = msg )
+        #else:
+        #    self.main.simple_dialog.error(msg = msg )
+        
+        
         
         
         
@@ -815,7 +807,59 @@ class Restraints:
     def __init__ (self):
         """ Class initialiser """
     
+    def update_restaint_representation (self, e_id = None):
+        """ Function doc """
+        try:
+            if e_id:
+                pass
+            else:
+                e_id = self.active_id
+            
+            indexes = []
+            for name, restraint in self.psystem[e_id].e_restraints_dict.items():
+                _bool = restraint[0]
+                name  = restraint[1]
+                _type = restraint[2]
+                if _type == 'distance':
+                    atons = '{} / {}'.format(restraint[3][0],restraint[3][1]) 
+                    dist_or_angle = '{:.4f}'.format(restraint[4])
+                    force_const   = str(restraint[5])
+                    e_id          =  restraint[6] 
+                    if _bool:
+                        indexes.append(restraint[3][0])
+                        indexes.append(restraint[3][1])
+
+
+            for vobject in self.main.vm_session.vm_objects_dic.values():
+                
+                if vobject.e_id == e_id:
+                    
+                    if indexes == []:
+                        
+                        vobject.representations["restraints"] = None
+                    
+                    else:
+                        
+                        if 'restraints' in vobject.representations.keys():
+                            
+                            if vobject.representations["restraints"] is not None:
+                                print('["restraints"] is not None',indexes)
+                                #vobject.representations["restraints"].define_new_indexes_to_vbo(indexes)
+                                vobject.representations["restraints"] = DashedLinesRepresentation(vobject, self.vm_session.vm_glcore,
+                                                                                          active=True, indexes = indexes)
+                            else:
+                                print('else',indexes)
+                                vobject.representations["restraints"] = DashedLinesRepresentation(vobject, self.vm_session.vm_glcore,
+                                                                                          active=True, indexes = indexes)
+                        else:
+                            vobject.representations["restraints"] = DashedLinesRepresentation(vobject, self.vm_session.vm_glcore,
+                                                                      active=True, indexes = indexes)    
+            self.main.vm_session.vm_glcore.queue_draw()
+            print(indexes)
     
+        except:
+            print('\n\n Failed when trying to represent harmonic potential constraints. This is just a representation error, the potencies are working normally.\n\n')
+        
     def add_new_harmonic_restraint (self, parameters, _type = 'distance'):
         """ Function doc """
         #restraints = RestraintModel()
@@ -1524,14 +1568,26 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         _YBox      =  parameters['YBox']
         _ZBox      =  parameters['ZBox']
         
+        
+        #----------------------------------------------------------------------
         _NPositive =  parameters['NPositive']
-        cation     =  parameters['cation']
+        if _NPositive > 0:
+            cation     =  Unpickle ( parameters['cation'])
+        else:
+            cation     = None
+        #----------------------------------------------------------------------
+        
+        
+        #----------------------------------------------------------------------
         _NNegative =  parameters['NNegative']
-        anion      =  parameters['anion']
+        if _NNegative > 0:
+            anion      =  Unpickle ( parameters['anion'])
+        else:
+            anion      =  None
+        #----------------------------------------------------------------------
         
-        solvent    =  Unpickle ( parameters['solvent'])
         
-        
+        solvent    =  parameters['solvent']
         system     =  self.psystem[e_id]
         system.Summary ( )
         
@@ -1545,27 +1601,37 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         if anion is None and cation is None:
             solute = system
         else:
+            print('\n\n\n AddCounterIons \n\n\n\n')
+            #print( system, 
+            #                          _NNegative, anion, 
+            #                          _NPositive, cation, 
+            #                          ( _XBox, _YBox, _ZBox )
+            #                          )
+            
+            
+            
             solute = AddCounterIons ( system, 
                                       _NNegative, anion, 
                                       _NPositive, cation, 
                                       ( _XBox, _YBox, _ZBox )
                                       )
         solute.Summary ( )
-    
+        
+        #--------------------------------------------------------------------------------------------
         # . Create the solvated system.
         solution       = SolvateSystemBySuperposition ( solute, solvent, reorientSolute = False )
         solution.label = "Solvated {:s}".format ( system.label )
-        
-        
-        #solution.DefineNBModel  ( nbModel )
-        #solution.Summary ( )
+        self.define_NBModel (_type = 1 , parameters =  None, system = solution)
+        #--------------------------------------------------------------------------------------------
+
+        #--------------------------------------------------------------------------------------------
         new_system = self.append_system_to_pdynamo_session (system = solution)
         self.main.main_treeview.add_new_system_to_treeview (new_system)
         ff  =  getattr(new_system.mmModel, 'forceField', "None")
 
         self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(new_system.label, new_system.e_tag, ff), system = new_system)
         self._add_vismol_object_to_easyhybrid_session (new_system, True) #, name = 'olha o  coco')
-   
+        #--------------------------------------------------------------------------------------------
     
 
 
@@ -2205,35 +2271,44 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
     def check_for_fragmented_charges (self, system_id = None):
         """ Function doc """
-        system = self.psystem[self.active_id]
-        total = sum(system.mmState.charges)
-        print('total charge =', total)
+        try:
+            system = self.psystem[self.active_id]
+            itotal  = sum(system.mmState.charges)
+            #print('total charge =', total)
 
-        vobj_tmp = self._build_vobject_from_pDynamo_system (system = system)
-        
-       
-        for res_index, residue in vobj_tmp.residues.items():
-            n = 0.0
-            res_charge = 0.0
-            for atom_index, atom in residue.atoms.items():
-                res_charge += system.mmState.charges[atom_index]
+            vobj_tmp = self._build_vobject_from_pDynamo_system (system = system)
+            n = 0
+            for res_index, residue in vobj_tmp.residues.items():
+                n = 0.0
+                res_charge = 0.0
+                for atom_index, atom in residue.atoms.items():
+                    res_charge += system.mmState.charges[atom_index]
+                    n += 1
+                
+                
+                difference = res_charge - float(round(res_charge))
+                fraction = difference/n
+
+                res_charge2 = 0.0
+                for atom_index, atom in residue.atoms.items():
+                    system.mmState.charges[atom_index] -= fraction
+                    res_charge2 += system.mmState.charges[atom_index]
+                
                 n += 1
-            
-            
-            difference = res_charge - float(round(res_charge))
-            fraction = difference/n
+                
+                #print('Initial charge: {}, Differente{} {}'.format(res_charge, difference, res_charge2))
 
-            res_charge2 = 0.0
-            for atom_index, atom in residue.atoms.items():
-                system.mmState.charges[atom_index] -= fraction
-                res_charge2 += system.mmState.charges[atom_index]
+            system.e_charges_backup = list(system.AtomicCharges()).copy()
+            ftotal = sum(system.mmState.charges)
             
             
-            #print('Initial charge: {}, Differente{} {}'.format(res_charge, difference, res_charge2))
-
-        system.e_charges_backup = list(system.AtomicCharges()).copy()
-        return True
-
+            
+            
+            return True, 'Inspection of partial charges performed successfully.\n\nNumber of resdues: {} \nInitial sum of charges: {} \nFinal sum of charges: {}'.format(n, itotal, ftotal)
+        except:
+            return False, 'Inspection of partial charges failed!'
+        
+        
     def generate_new_empty_vismol_object (self, system_id = None, name = 'new_coordinates' ):
         """  
         This method creates a new vismol object (without coordinates). 

@@ -259,6 +259,15 @@
                       </object>
                     </child>
                     <child>
+                      <object class="GtkMenuItem" id="menuitem_solvate">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="label" translatable="yes">Solvate System</property>
+                        <property name="use_underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkMenuItem">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
