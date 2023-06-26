@@ -1192,7 +1192,20 @@ class MainWindow:
             string = 'system: {}    atoms: {}    '.format(name, size)
 
             if psystem.qcModel:
-                hamiltonian   = getattr(psystem.qcModel, 'hamiltonian', 'ORCA')
+                hamiltonian   = getattr(psystem.qcModel, 'hamiltonian', False)
+                if hamiltonian:
+                    pass
+                else:
+                    try:
+                        itens = psystem.qcModel.SummaryItems()
+                        print(itens)
+                        hamiltonian = itens[0][0]
+                    except:
+                        hamiltonian = 'external'
+                    
+                    
+                    
+                
                 n_QC_atoms    = len(list(psystem.qcState.pureQCAtoms))
                 
                 

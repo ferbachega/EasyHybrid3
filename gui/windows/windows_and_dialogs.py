@@ -356,10 +356,17 @@ class SinglePointwindow:
         string = '\nsystem: {}    \natoms: {}    '.format(name, size)
 
         if psystem.qcModel:
-            hamiltonian   = getattr(psystem.qcModel, 'hamiltonian', 'ORCA')
+            hamiltonian   = getattr(psystem.qcModel, 'hamiltonian', False)
+            
+            if hamiltonian:
+                pass
+            else:
+                try:
+                    itens = psystem.qcModel.SummaryItems()
+                    hamiltonian = itens[0][0]
+                except:
+                    hamiltonian = 'external'
             n_QC_atoms    = len(list(psystem.qcState.pureQCAtoms))
-            
-            
             summary_items = psystem.electronicState.SummaryItems()
             
             string += '\nhamiltonian: {}    \nQC atoms: {}    \nQC charge: {}    \nspin multiplicity {}    '.format(  hamiltonian, 
@@ -1679,7 +1686,81 @@ class PDynamoSelectionWindow:
         """ Function doc """
         #print('VismolGoToAtomWindow2 update')
         pass
+
+
+
+class SetupDFTBplusWindow:
+    """ Class doc """
     
+    def __init__ (self, main, setup_QC_model_window):
+        """ Class initialiser """
+        self.main_session     = main
+        self.home             = main.home
+        self.Visible          = False        
+        self.vismol_object    = None 
+        
+        self.setup_QC_model_window = setup_QC_model_window
+        
+        try:
+            self.skf_folder = os.path.join(os.environ.get('PDYNAMO3_HOME'),'examples/dftbPlus/data/skf')
+        except:
+            self.skf_folder = os.environ.get('PDYNAMO3_HOME')
+        
+        try:
+            self.scratch_folder = os.environ.get('PDYNAMO3_SCRATCH')
+        except:
+            self.skf_folder = os.environ.get('PDYNAMO3_HOME')
+        
+
+    def OpenWindow (self, vismol_object = None):
+        """ Function doc """
+        if self.Visible  ==  False:
+            self.builder = Gtk.Builder()
+            self.builder.add_from_file(os.path.join(self.home, 'gui/windows/setup_qc_model_window.glade'))
+            self.builder.connect_signals(self)
+            
+            self.window = self.builder.get_object('window_setup_dftb')
+            self.window.set_keep_above(True)
+            self.window.set_default_size(450, 200)
+            
+            self.button_ok         = self.builder.get_object('dftb_button_ok') 
+            self.button_cancel     = self.builder.get_object('dftb_button_cancel') 
+            self.button_ok.connect("clicked", self.on_button_ok)
+            self.button_cancel.connect("clicked", self.CloseWindow)
+            
+            
+            self.skf_folder_chooser = self.builder.get_object('folder_chooser_skf_files')
+            self.skf_folder_chooser.set_filename(self.skf_folder)
+            
+            self.entry_dftb_scratch_folder = self.builder.get_object('entry_dftb_scratch_folder')
+            self.entry_dftb_scratch_folder.set_text(self.scratch_folder)
+            
+            self.checkbox_use_scc          = self.builder.get_object('checkbox_use_scc')
+            self.checkbox_delete_job_files = self.builder.get_object('checkbox_delete_job_files')
+            self.checkbox_random_scratch   = self.builder.get_object('checkbox_random_scratch')
+            
+            self.window.connect("destroy", self.CloseWindow)
+            self.window.show_all()
+            #self.refresh_orca_parameters (None)
+            self.Visible  =  True
+    
+    def CloseWindow (self, button, data  = None):
+        """ Function doc """
+        self.window.destroy()
+        self.Visible    =  False
+
+    def on_button_ok (self, button):
+        """ Function doc """
+        self.skf_folder       = self.skf_folder_chooser.get_filename()
+        self.scratch_folder   = self.entry_dftb_scratch_folder.get_text()
+        self.use_scc          = self.checkbox_use_scc         .get_active()
+        self.delete_job_files = self.checkbox_delete_job_files.get_active()
+        self.random_scratch   = self.checkbox_random_scratch  .get_active()
+        self.CloseWindow (None, None)
+    
+    def on_skf_folder_chooser_changed (self, widget):
+        """ Function doc """
+        pass
 
 class SetupORCAWindow:
     """ Class doc """
@@ -2075,10 +2156,11 @@ class EasyHybridSetupQCModelWindow:
                                       3 : 'pm6'             ,
                                       4 : 'mndo'            ,
                                       5 : 'ab initio - ORCA',
-                                      6 : 'DFT / DFTB'      ,
+                                      6 : 'DFTB+'           ,
                                       }
         
         self.setup_orca_window = SetupORCAWindow(self.main_session, self)
+        self.setup_dftb_window = SetupDFTBplusWindow(self.main_session, self)
         self.orca_options = ''
         self.orca_scratch = ''
     
@@ -2118,15 +2200,17 @@ class EasyHybridSetupQCModelWindow:
             
             '''--------------------------------------------------------------------------------------------'''
             self.methods_type_store = Gtk.ListStore(str)
-            methods_types = [
-                "am1",
-                "am1dphot",
-                "pm3",
-                "pm6",
-                "mndo",
-                "ab initio - ORCA",
-                "DFT / DFTB",
-                ]
+            methods_types = self.methods_id_dictionary.values()
+            #methods_types = [
+            #    "am1",
+            #    "am1dphot",
+            #    "pm3",
+            #    "pm6",
+            #    "mndo",
+            #    "ab initio - ORCA",
+            #    "DFT / DFTB",
+            #    ]
+            
             for method_type in methods_types:
                 self.methods_type_store.append([method_type])
                 #print (method_type)
@@ -2165,6 +2249,8 @@ class EasyHybridSetupQCModelWindow:
             
             self.button_orca_setup = self.builder.get_object('button_setup_orca') 
             self.button_orca_setup.connect("clicked", self.on_button_setup_orca)
+            self.button_orca_setup = self.builder.get_object('button_setup_dftb') 
+            self.button_orca_setup.connect("clicked", self.on_button_setup_dftb)
 
             
             
@@ -2192,8 +2278,17 @@ class EasyHybridSetupQCModelWindow:
         
         if len(system.e_qc_table) > 0:
             
-            for index in system.e_qc_table:
-                estimated_charge += system.mmState.charges[index]
+            is_mmState   = getattr(system, 'mmState', False) 
+            
+            if is_mmState:
+                for index in system.e_qc_table:
+                    try:
+                        estimated_charge += system.mmState.charges[index]
+                    except:
+                        print('System object has no attribute mmState - pure QC system')
+                        estimated_charge += 0
+            else:
+                estimated_charge = 0
             
             estimated_charge = int(round(estimated_charge))
             self.spinbutton_charge.set_value (estimated_charge)
@@ -2233,12 +2328,21 @@ class EasyHybridSetupQCModelWindow:
         
         if self.method_id in [0,1,2,3,4]:            
             self.builder.get_object('button_setup_orca').hide()
+            self.builder.get_object('button_setup_dftb').hide()
             self.builder.get_object('expander_DIISSCF_converger').show()
             
         elif self.method_id == 5:
             self.builder.get_object('button_setup_orca').show()
+            self.builder.get_object('button_setup_dftb').hide()
             self.builder.get_object('expander_DIISSCF_converger').hide()
             self.setup_orca_window.OpenWindow()
+        
+        elif self.method_id == 6:
+            self.builder.get_object('button_setup_dftb').show()
+            self.builder.get_object('button_setup_orca').hide()
+            self.builder.get_object('expander_DIISSCF_converger').hide()
+            self.setup_dftb_window.OpenWindow()
+        
         print(self.method_id)
     
     def on_button_ok (self, button):
@@ -2264,7 +2368,27 @@ class EasyHybridSetupQCModelWindow:
         if self.method_id == 5:
             parameters['orca_options'  ] = self.orca_options
             parameters['orca_scratch'  ] = self.orca_scratch
+        elif self.method_id == 6:
+            #parameters['dftb+_scratch'  ] = os.environ.get('PDYNAMO3_SCRATCH')
+            #parameters['skf_path'  ]      = os.path.join(os.environ.get('PDYNAMO3_HOME'),'examples/dftbPlus/data/skf')
+        
+            parameters['skf_path'  ]         = self.setup_dftb_window.skf_folder       #self.setup_dftb_window.skf_folder_chooser.get_filename()
+            parameters['dftb+_scratch'  ]    = self.setup_dftb_window.scratch_folder   #self.setup_dftb_window.entry_dftb_scratch_folder.get_text()
+            parameters['use_scc']            = self.setup_dftb_window.use_scc          #self.setup_dftb_window.checkbox_use_scc.get_active()         
+            parameters['delete_job_files'  ] = self.setup_dftb_window.delete_job_files #self.setup_dftb_window.checkbox_delete_job_files.get_active()
+            parameters['random_scratch'  ]   = self.setup_dftb_window.random_scratch   #self.setup_dftb_window.checkbox_random_scratch.get_active()  
+        
             
+            
+            
+            
+            
+        
+        
+        
+        
+        
+        
         parameters['energyTolerance'  ] = float(self.builder.get_object('entry_energyTolerance').get_text())
         parameters['densityTolerance' ] = float(self.builder.get_object('entry_densityTolerance').get_text())
         parameters['maximumIterations'] = int(self.builder.get_object('entry_maximumIterations').get_text())
@@ -2278,6 +2402,10 @@ class EasyHybridSetupQCModelWindow:
     def on_button_setup_orca (self, button):
         """ Function doc """
         self.setup_orca_window.OpenWindow()
+    
+    def on_button_setup_dftb (self, button):
+        """ Function doc """
+        self.setup_dftb_window.OpenWindow()
         
 
 

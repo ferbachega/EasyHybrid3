@@ -119,7 +119,12 @@ class EnergyCalculation:
         self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(full_path_file, parameters['filename']+'.log') )
         
         parameters['system'].Summary(log = self.logFile2)
+        #try:
         energy = parameters['system'].Energy(log = self.logFile2)
+        #except :
+        #    msg = 'Error!'
+        #    return False, msg
+        
         backup_orca_files(system        = parameters['system']         , 
                           output_folder = parameters['folder']         , 
                           output_name   = parameters['filename'])

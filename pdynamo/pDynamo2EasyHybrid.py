@@ -594,7 +594,13 @@ class pSimulations:
 
         if parameters['simulation_type'] == 'Energy_Single_Point':
             self.energy_calculations = EnergyCalculation()
-            energy = self.energy_calculations.run(parameters)
+            energy, msg = self.energy_calculations.run(parameters)
+            
+            if energy:
+                pass
+            else:
+                self.main.simple_dialog.error(msg = msg )
+                
             new_vobject = False
         
         elif parameters['simulation_type'] == 'Energy_Refinement':
@@ -1792,6 +1798,14 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                                 scratch        = parameters['orca_scratch'  ],
                                                  )
         
+        elif parameters['method'] == 'DFTB+':
+            print(parameters)
+            qcModel = QCModelDFTB.WithOptions ( deleteJobFiles = parameters['delete_job_files'],
+                                                randomScratch  = parameters['random_scratch']  ,
+                                                scratch        = parameters['dftb+_scratch']   ,
+                                                skfPath        = parameters['skf_path']        ,
+                                                useSCC         = parameters['use_scc']         )
+        
         else:
             converger = DIISSCFConverger.WithOptions( energyTolerance   = parameters['energyTolerance'] ,
                                                       densityTolerance  = parameters['densityTolerance'] ,
@@ -1817,6 +1831,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             if system.mmModel:
                 if parameters['method'] == 'ab initio - ORCA':
                     system.DefineNBModel (NBModelORCA.WithDefaults ( ))
+                elif parameters['method'] == 'DFTB+':
+                    system.DefineNBModel (NBModelDFTB.WithDefaults ( ))
                 else:
                     system.DefineNBModel ( NBModelCutOff.WithDefaults ( ) )
             else:
