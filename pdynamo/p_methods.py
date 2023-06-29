@@ -133,7 +133,7 @@ class EnergyCalculation:
         self.logFile2.Close()
         self.logFile2 = None
         
-        return energy
+        return energy, 'Energy: '+str(energy)
         # - - - - - -
 
 
