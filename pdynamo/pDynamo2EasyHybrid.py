@@ -1069,7 +1069,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         ff  =  getattr(system.mmModel, 'forceField', "None")
         
         self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system =system)
-        self._add_vismol_object_to_easyhybrid_session (system, True) #, name = 'olha o  coco')
+        self._add_vismol_object_to_easyhybrid_session (system, True)  
         #self.main.refresh_active_system_liststore()
         #self.main.refresh_system_liststore ()
         
@@ -1472,7 +1472,26 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         vobject_liststore_dict, in addition to the vm_object_dic in the .vm_session.'''
         
         '''-----------------------------------------------------'''
-        
+
+
+
+
+        '''Unit Cell'''
+        #'''
+        cell_object = None
+        if system.symmetry:
+
+            a = system.symmetryParameters.a
+            b = system.symmetryParameters.b
+            c = system.symmetryParameters.c
+
+            alpha = system.symmetryParameters.alpha 
+            beta  = system.symmetryParameters.beta  
+            gamma = system.symmetryParameters.gamma
+            
+            vm_object.set_cell (a, b, c, alpha, beta, gamma, color = [0.7, 0.7, 0.2] )
+       
+        #'''
         return vm_object
 
 
@@ -1517,6 +1536,49 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self.main.refresh_widgets()
         #self.refresh_qc_and_fixed_representations(QC_atoms = False)
         return True
+
+
+    def get_symmetry_parameters (self, system_e_id = None):
+        """ Function doc """
+        if system_e_id != None:
+            
+            if self.psystem[system_e_id].symmetry:
+
+                a = self.psystem[system_e_id].symmetryParameters.a
+                b = self.psystem[system_e_id].symmetryParameters.b
+                c = self.psystem[system_e_id].symmetryParameters.c
+                
+                alpha = self.psystem[system_e_id].symmetryParameters.alpha 
+                beta  = self.psystem[system_e_id].symmetryParameters.beta  
+                gamma = self.psystem[system_e_id].symmetryParameters.gamma
+                
+                cell  = [a,b,c, alpha, beta, gamma]
+                return cell 
+                
+            else:
+                
+                return False
+            
+            
+        else:
+            return False
+    
+    def set_symmetry_parameters (self, system_e_id = None, 
+                                       a     = 0.0,
+                                       b     = 0.0,
+                                       c     = 0.0,
+                                       alpha = 0.0,
+                                       beta  = 0.0,
+                                       gamma = 0.0
+                                       ):
+        """ Function doc """
+        if system_e_id != None:
+            if self.psystem[system_e_id].symmetry:
+                self.psystem[system_e_id].symmetryParameters.SetCrystalParameters(a,b,c, alpha,beta,gamma)
+            else:
+                return False
+        else:
+            return False
 
 
     def make_solvent_box (self, parameters):

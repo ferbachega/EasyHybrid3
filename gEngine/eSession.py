@@ -983,6 +983,13 @@ class EasyHybridSession(VismolSession, GLMenu):
             vismol_object.create_representation(rep_type="lines")
             #vismol_object.create_representation(rep_type="dash")
             #vismol_object.create_representation(rep_type="sticks")
+
+            '''
+            if vismol_object.cell_parameters:
+                from vismol.libgl.representations import CellLineRepresentation
+                print (vismol_object.cell_parameters)
+                vismol_object.representations["cell_lines"] =  CellLineRepresentation(vismol_object, self.vm_glcore,name  = 'lines', active=True, indexes = vismol_object.cell_bonds)
+            '''
             
             
             #from vismol.libgl.representations import DashedLinesRepresentation
@@ -1541,3 +1548,23 @@ button position in the main treeview (active column).""".format(name,self.main.p
         #print(bonds)
         #self.advanced_selection(selection = None, _type = 'around' , radius = 10, grid_size = 10)
 
+
+
+    def show_cell (self, vismol_object):
+        """ Function doc """
+        rep_labels = vismol_object.representations.keys()
+        
+        if  "cell_lines" in rep_labels:
+            vismol_object.representations["cell_lines"].active = True
+        
+        else:
+            if vismol_object.cell_parameters:
+                from vismol.libgl.representations import CellLineRepresentation
+                print (vismol_object.cell_parameters)
+                vismol_object.representations["cell_lines"] =  CellLineRepresentation(vismol_object, self.vm_glcore,name  = 'lines', active=True, indexes = vismol_object.cell_bonds)
+        self.vm_glcore.queue_draw()
+    
+    def hide_cell (self, vismol_object):
+        if  "cell_lines" in  vismol_object.representations.keys():
+            vismol_object.representations["cell_lines"].active = False
+        self.vm_glcore.queue_draw()

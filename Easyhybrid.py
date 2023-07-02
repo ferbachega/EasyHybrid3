@@ -778,8 +778,25 @@ class MainWindow:
         elif menuitem == self.builder.get_object('menuitem_qc_setup'):
             self.setup_QCModel_window.OpenWindow()
             
-        elif menuitem == self.builder.get_object('menuitem_cell_and_symmetry'):
-            print ('menuitem_cell_and_symmetry')
+        elif menuitem == self.builder.get_object('menuitem_show_cell'):
+            system = self.p_session.psystem[self.p_session.active_id]
+            for key, vobject in self.vm_session.vm_objects_dic.items():
+                self.vm_session.show_cell (vobject)
+            
+            
+        elif menuitem == self.builder.get_object('menuitem_hide_cell'):
+            system = self.p_session.psystem[self.p_session.active_id]
+            for key, vobject in self.vm_session.vm_objects_dic.items():
+                self.vm_session.hide_cell (vobject)
+            #if self.builder.get_object('toogle_show_cell').get_active():
+            #    print('toogle_show_cell - show', self.builder.get_object('toogle_show_cell').get_active())
+            #else:
+            #    print('toogle_show_cell - hide', self.builder.get_object('toogle_show_cell').get_active())
+        
+        #elif menuitem == self.builder.get_object('menuitem_cell_and_symmetry'):
+        #    print ('menuitem_cell_and_symmetry')
+            
+            
             
         elif menuitem == self.builder.get_object('menuitem_change_color'):
             #selection               = self.selections[self.current_selection]
@@ -1783,7 +1800,7 @@ class TreeViewMenu:
                                 #'Info'                  : self.f2 ,
                                 'Rename'                : self._menu_rename ,
                                 '_separator'            : ''      ,
-
+                                'Show / Hide Cell'      : self.show_or_hide_cell,
                                 #'Load Data Into System' : self._menu_load_data_to_system,
                                 #'Change Color'  : self.change_system_color_palette ,
                                 'Go To Atom'            : self._menu_go_to_atom ,
@@ -1835,6 +1852,29 @@ class TreeViewMenu:
                     
         self.tree_view_vobj_menu  , self.tree_header_vobj_menu    = self.build_tree_view_menu(vobject_menu_items)
         self.tree_view_sys_menu   , self.tree_header_sys_menu     = self.build_tree_view_menu(system_menu_items)
+
+    def show_or_hide_cell (self, widget):
+        """ Function doc """
+        selection     = self.treeview.get_selection()
+        (model, iter) = selection.get_selected()
+
+        old_name = model.get_value(iter, 2)
+        v_id     = model.get_value(iter, 1)
+        e_id     = model.get_value(iter, 0)
+        #----------------------------------------------------------------------        
+        #system = self.main.p_session.psystem[e_id]
+        
+        vobject = self.main.vm_session.vm_objects_dic[v_id]
+        if "cell_lines" in vobject.representations.keys():
+            if vobject.representations["cell_lines"].active:
+                self.main.vm_session.hide_cell (vobject)
+            
+            else:
+                self.main.vm_session.show_cell (vobject)
+        else:
+            self.main.vm_session.show_cell (vobject)
+            
+
 
 
     def _show_info (self, widget):
