@@ -1454,12 +1454,37 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
         vm_object.frames = coords
         vm_object.mass_center = np.mean(vm_object.frames[0], axis=0)
-        vm_object.find_bonded_and_nonbonded_atoms()
         
+        '''
+            -----------------------------------------------------------
+            Extracting chemical bonds from the pdynamo system topology.
+        '''
+        is_mmState  = getattr(system, 'mmState', None)
+        index_bonds = None
+        if is_mmState:
+            for term in system.mmState.mmTerms:
+                if term.label == 'Harmonic Bond':
+                    print('Bonds defined from pDynamo system topology.')
+                    index_bonds = term.Get12Indices() # some thing like:[1, 0, 2, 1, 3, 2, 4, 3, 5, 0, 5, 4, 6, 0, 7, 6, 8, 7, 9, 8, 10, 1, 10, 9, 11, 10, 12, 9, 13, 6, 14, 13, 15, 14, 16, 15, 17, 16, 18, 13, 18, 17, 19...]
+            
+            if index_bonds:
+                vm_object.define_bonds_from_external(index_bonds = index_bonds)
+            else:
+                vm_object.find_bonded_and_nonbonded_atoms()
+                print('Bonds definwd from distance.')
+        else:
+            vm_object.find_bonded_and_nonbonded_atoms()
+            print('Bonds definwd from distance.')
+
         vm_object.e_id = system.e_id
         vm_object._generate_color_vectors(self.vm_session.atom_id_counter)
         vm_object.active = True
         #vm_object.e_treeview_iter_parent_key = None
+        '''
+            -----------------------------------------------------------
+        '''
+        
+        
         
         '''-----------------------------------------------------'''
         '''Now each pdynamo system object and vismol object has a 
