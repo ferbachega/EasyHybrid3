@@ -55,7 +55,7 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Bins:</property>
+                                <property name="label" translatable="yes">Bins [RC1]:</property>
                                 <property name="xalign">1</property>
                               </object>
                               <packing>
@@ -72,7 +72,7 @@
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>
-                                <property name="top_attach">3</property>
+                                <property name="top_attach">4</property>
                               </packing>
                             </child>
                             <child>
@@ -84,7 +84,7 @@
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>
-                                <property name="top_attach">4</property>
+                                <property name="top_attach">5</property>
                               </packing>
                             </child>
                             <child>
@@ -106,7 +106,7 @@
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
-                                <property name="top_attach">3</property>
+                                <property name="top_attach">4</property>
                               </packing>
                             </child>
                             <child>
@@ -117,13 +117,14 @@
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
-                                <property name="top_attach">4</property>
+                                <property name="top_attach">5</property>
                               </packing>
                             </child>
                             <child>
                               <object class="GtkComboBox" id="PMF_combobox">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
+                                <signal name="changed" handler="on_combobox_PMF_type" swapped="no"/>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
@@ -153,7 +154,7 @@
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>
-                                <property name="top_attach">5</property>
+                                <property name="top_attach">6</property>
                               </packing>
                             </child>
                             <child>
@@ -167,7 +168,7 @@
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>
-                                <property name="top_attach">6</property>
+                                <property name="top_attach">7</property>
                               </packing>
                             </child>
                             <child>
@@ -178,7 +179,7 @@
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
-                                <property name="top_attach">5</property>
+                                <property name="top_attach">6</property>
                               </packing>
                             </child>
                             <child>
@@ -189,7 +190,7 @@
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
-                                <property name="top_attach">6</property>
+                                <property name="top_attach">7</property>
                               </packing>
                             </child>
                             <child>
@@ -216,6 +217,29 @@
                               <packing>
                                 <property name="left_attach">1</property>
                                 <property name="top_attach">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkEntry" id="entry_bins_RC2">
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="text" translatable="yes">100</property>
+                              </object>
+                              <packing>
+                                <property name="left_attach">1</property>
+                                <property name="top_attach">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="label_bins_RC2">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="label" translatable="yes">Bins [RC2]:</property>
+                                <property name="xalign">1</property>
+                              </object>
+                              <packing>
+                                <property name="left_attach">0</property>
+                                <property name="top_attach">3</property>
                               </packing>
                             </child>
                           </object>
@@ -403,9 +427,6 @@
                     <property name="left_attach">1</property>
                     <property name="top_attach">1</property>
                   </packing>
-                </child>
-                <child>
-                  <placeholder/>
                 </child>
               </object>
               <packing>

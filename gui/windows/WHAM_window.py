@@ -134,9 +134,13 @@ class WHAMWindow(Gtk.Window):
             
             self.button_cancel = self.builder.get_object('button_cancel')
             self.button_cancel.connect("clicked", self.clear_treeview)
-            
             self.window.connect("destroy", self.CloseWindow)
             self.window.show_all()
+            
+            self.builder.get_object('entry_bins_RC2').hide()
+            self.builder.get_object('label_bins_RC2').hide()
+
+            
             self.Visible  = True   
         
         else:
@@ -190,7 +194,9 @@ class WHAMWindow(Gtk.Window):
 
         
         if _type ==1:
-            parameters['bins'] = [int(bins), int(bins)] 
+            bins_RC1 = self.builder.get_object('entry_bins'     ).get_text()
+            bins_RC2 = self.builder.get_object('entry_bins_RC2').get_text()
+            parameters['bins'] = [int(bins_RC1), int(bins_RC2)] 
 
         else:
             parameters['bins'] = [int(bins)] 
@@ -295,6 +301,22 @@ class WHAMWindow(Gtk.Window):
                 pass
 
 #=====================================================================================
+    def on_combobox_PMF_type(self, widget):
+        _type     = self.methods_combo.get_active()
+        
+        if _type ==1:
+            self.builder.get_object('entry_bins_RC2').show()
+            self.builder.get_object('label_bins_RC2').show()
+            
+            #parameters['bins'] = [int(bins), int(bins)] 
+
+        else:
+            self.builder.get_object('entry_bins_RC2').hide()
+            self.builder.get_object('label_bins_RC2').hide()
+        
+        #self.builder.get_object('label_bins_RC2').hide()
+        
+    
     def on_combobox_systemsbox_changed(self, widget):
         """ Function doc """
         system_id = self.combobox_systems.get_system_id()

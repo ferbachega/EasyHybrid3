@@ -13,7 +13,7 @@
         <property name="can_focus">False</property>
         <property name="spacing">6</property>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_RC_type">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Coordinate Type:</property>
@@ -258,7 +258,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_step_size">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Step Size:</property>
@@ -270,7 +270,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_num_of_steps">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Number of Steps:</property>
@@ -282,7 +282,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_force">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Force Constante:</property>
@@ -294,7 +294,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_initial_distance_angle_dihedral">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Initial Distance:</property>

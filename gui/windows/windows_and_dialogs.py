@@ -3361,7 +3361,7 @@ class ImportANewSystemWindow(Gtk.Window):
                 
    
         
-        elif filetype in ['par', 'prmtop', 'prm', 'PAR', 'PRM', 'str']:
+        elif filetype in ['par', 'prmtop', 'prm', 'PAR', 'PRM', 'str', 'rtf']:
             if systemtype == 1:
                 self.files['charmm_par'].append(filein)
                 return 'charmm parameters'

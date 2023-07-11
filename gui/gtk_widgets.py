@@ -10,6 +10,7 @@ import threading
 import time
 
 from util.periodic_table import atomic_dic 
+import numpy as np
 
 HOME        = os.environ.get('HOME')
 
@@ -878,12 +879,96 @@ def get_distance (vobject, index1, index2):
     dist = (dx**2+dy**2+dz**2)**0.5
     print('distance a1 - a2:', dist)
     return dist
-#===========================================================
+
 def get_angle (vobject, index1, index2, index3):
-    """ Function doc """
-#===========================================================
-def get_dihedral (vobject, index1, index2, index3, index4):
-    """ Function doc """
+    
+    atom1 = vobject.atoms[index1]
+    atom2 = vobject.atoms[index2]
+    atom3 = vobject.atoms[index3]
+
+    a1_coord = atom1.coords()
+    a2_coord = atom2.coords()
+    a3_coord = atom1.coords()
+ 
+    # Convert the coordinates to numpy arrays
+    atom1 = np.array(a1_coord)
+    atom2 = np.array(a2_coord)
+    atom3 = np.array(a3_coord)
+
+    # Compute vectors between the atoms
+    vec1 = atom1 - atom2
+    vec2 = atom3 - atom2
+
+    # Normalize the vectors
+    vec1 /= np.linalg.norm(vec1)
+    vec2 /= np.linalg.norm(vec2)
+
+    # Compute the dot product
+    dot = np.dot(vec1, vec2)
+
+    # Compute the angle
+    angle = np.arccos(dot)
+    angle = np.degrees(angle)
+
+    return angle 
+
+def get_dihedral(vobject, index1, index2, index3, index4):
+    # Convert the coordinates to numpy arrays
+    #atom1 = vobject.atoms[index1]
+    #atom2 = vobject.atoms[index2]
+    #atom3 = vobject.atoms[index3]
+    #atom4 = vobject.atoms[index4]
+    
+    a1_coord = vobject.atoms[index1].coords()
+    a2_coord = vobject.atoms[index2].coords()
+    a3_coord = vobject.atoms[index3].coords()
+    a4_coord = vobject.atoms[index4].coords()
+    
+    print(a1_coord, a2_coord,a3_coord  , a4_coord)
+    
+    atom1 = np.array(a1_coord)
+    atom2 = np.array(a2_coord)
+    atom3 = np.array(a3_coord)
+    atom4 = np.array(a4_coord)
+
+    print(atom1, atom2,atom3  , atom4)
+
+    # Compute vectors between the atoms
+    vec1 = atom2 - atom1
+    vec2 = atom3 - atom2
+    vec3 = atom4 - atom3
+
+    # Normalize the vectors
+    vec1 /= np.linalg.norm(vec1)
+    vec2 /= np.linalg.norm(vec2)
+    vec3 /= np.linalg.norm(vec3)
+
+    # Compute the cross products
+    cross1 = np.cross(vec1, vec2)
+    cross2 = np.cross(vec2, vec3)
+
+    # Compute the dot product between the cross products
+    dot = np.dot(cross1, cross2)
+
+    # Compute the dihedral angle
+    dihedral = np.arctan2(np.linalg.norm(np.cross(cross1, cross2)), dot)
+    dihedral = np.degrees(dihedral)
+    return dihedral
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #===========================================================
 def compute_sigma_a1_a3 (vobject, index1, index3):
 
@@ -932,7 +1017,7 @@ class ReactionCoordinateBox(Gtk.Box):
         Gtk.Box.__init__(self)
         
         
-        if mode == 0:
+        if mode == 1:
             xml = '''
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Generated with glade 3.22.2 -->
@@ -949,7 +1034,413 @@ class ReactionCoordinateBox(Gtk.Box):
         <property name="can_focus">False</property>
         <property name="spacing">6</property>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_RC_type">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Coordinate Type:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkComboBox" id="combobox_reaction_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkGrid">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="row_spacing">5</property>
+        <property name="column_spacing">10</property>
+        <child>
+          <object class="GtkLabel" id="label_atom4_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Atom 4(index):</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom3_index_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_atom2_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Atom 2(index):</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_atom1_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Atom 1(index):</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_atom3_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Atom 3(index):</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_name3_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Name:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">2</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_name4_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Name:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">2</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_name2_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Name:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">2</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_name1_coord1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Name:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">2</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom3_name_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">3</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom2_index_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom1_index_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom4_index_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom4_name_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">3</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom2_name_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">3</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_atom1_name_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">3</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_step_size">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Step Size:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">4</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_num_of_steps">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Number of Steps:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">4</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_force">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Force Constante:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">4</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_initial_distance_angle_dihedral">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Initial Distance:</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">4</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_step_size1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">5</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_nsteps1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+            <property name="text" translatable="yes">10</property>
+          </object>
+          <packing>
+            <property name="left_attach">5</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_FORCE_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+            <property name="text" translatable="yes">4000</property>
+          </object>
+          <packing>
+            <property name="left_attach">5</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_dmin_coord1">
+            <property name="width_request">25</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="width_chars">8</property>
+          </object>
+          <packing>
+            <property name="left_attach">5</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">True</property>
+        <property name="fill">True</property>
+        <property name="position">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkButton" id="import_picking_selection_button">
+        <property name="label" translatable="yes">Import from Picking Selection</property>
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="receives_default">True</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">2</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkCheckButton" id="mass_restraints1">
+        <property name="label" translatable="yes">Apply Mass Weighted Restraints</property>
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="receives_default">False</property>
+        <property name="draw_indicator">True</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">3</property>
+      </packing>
+    </child>
+  </object>
+</interface>
+
+'''
+
+        elif mode == 0:
+            xml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.22.2 -->
+<interface>
+  <requires lib="gtk+" version="3.20"/>
+  <object class="GtkBox" id="reaction_coordinate_box">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="orientation">vertical</property>
+    <property name="spacing">4</property>
+    <child>
+      <object class="GtkBox">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="spacing">6</property>
+        <child>
+          <object class="GtkLabel" id="label_RC_type">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Coordinate Type:</property>
@@ -1256,7 +1747,7 @@ class ReactionCoordinateBox(Gtk.Box):
         <property name="row_spacing">1</property>
         <property name="column_spacing">10</property>
         <child>
-          <object class="GtkLabel" id="label_force_constant">
+          <object class="GtkLabel" id="label_force">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Force Constante:</property>
@@ -1268,7 +1759,7 @@ class ReactionCoordinateBox(Gtk.Box):
           </packing>
         </child>
         <child>
-          <object class="GtkLabel" id="label_dmin">
+          <object class="GtkLabel" id="label_initial_distance_angle_dihedral">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Initial Distance:</property>
@@ -1301,7 +1792,7 @@ class ReactionCoordinateBox(Gtk.Box):
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_num_of_steps">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Number of Steps:</property>
@@ -1313,7 +1804,7 @@ class ReactionCoordinateBox(Gtk.Box):
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_step_size">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Step Size:</property>
@@ -1351,414 +1842,6 @@ class ReactionCoordinateBox(Gtk.Box):
         <property name="expand">False</property>
         <property name="fill">True</property>
         <property name="position">5</property>
-      </packing>
-    </child>
-  </object>
-</interface>
-
-'''
-
-        elif mode == 1:
-            xml = '''
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.22.2 -->
-<interface>
-  <requires lib="gtk+" version="3.20"/>
-  <object class="GtkBox" id="reaction_coordinate_box">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="orientation">vertical</property>
-    <property name="spacing">4</property>
-    <child>
-      <object class="GtkBox">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="spacing">6</property>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Coordinate Type:</property>
-            <property name="xalign">1</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkComboBox" id="combobox_reaction_coord1">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">1</property>
-          </packing>
-        </child>
-      </object>
-      <packing>
-        <property name="expand">False</property>
-        <property name="fill">True</property>
-        <property name="position">0</property>
-      </packing>
-    </child>
-    <child>
-      <object class="GtkGrid">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="row_spacing">5</property>
-        <property name="column_spacing">10</property>
-        <child>
-          <object class="GtkLabel" id="label_atom4_coord1">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Atom 4(index):</property>
-            <property name="xalign">1</property>
-          </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="entry_atom3_index_coord1">
-            <property name="width_request">25</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="halign">start</property>
-            <property name="valign">start</property>
-            <property name="width_chars">8</property>
-          </object>
-          <packing>
-            <property name="left_attach">1</property>
-            <property name="top_attach">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label_atom2_coord1">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Atom 2(index):</property>
-            <property name="xalign">1</property>
-          </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label_atom1_coord1">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Atom 1(index):</property>
-            <property name="xalign">1</property>
-          </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label_atom3_coord1">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Atom 3(index):</property>
-            <property name="xalign">1</property>
-          </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label_name3_coord1">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Name:</property>
-            <property name="xalign">1</property>
-          </object>
-          <packing>
-            <property name="left_attach">2</property>
-            <property name="top_attach">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label_name4_coord1">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Name:</property>
-            <property name="xalign">1</property>
-          </object>
-          <packing>
-            <property name="left_attach">2</property>
-            <property name="top_attach">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label_name2_coord1">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Name:</property>
-            <property name="xalign">1</property>
-          </object>
-          <packing>
-            <property name="left_attach">2</property>
-            <property name="top_attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label_name1_coord1">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Name:</property>
-            <property name="xalign">1</property>
-          </object>
-          <packing>
-            <property name="left_attach">2</property>
-            <property name="top_attach">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="entry_atom3_name_coord1">
-            <property name="width_request">25</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="halign">start</property>
-            <property name="valign">start</property>
-            <property name="width_chars">8</property>
-          </object>
-          <packing>
-            <property name="left_attach">3</property>
-            <property name="top_attach">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="entry_atom2_index_coord1">
-            <property name="width_request">25</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="halign">start</property>
-            <property name="valign">start</property>
-            <property name="width_chars">8</property>
-          </object>
-          <packing>
-            <property name="left_attach">1</property>
-            <property name="top_attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="entry_atom1_index_coord1">
-            <property name="width_request">25</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="halign">start</property>
-            <property name="valign">start</property>
-            <property name="width_chars">8</property>
-          </object>
-          <packing>
-            <property name="left_attach">1</property>
-            <property name="top_attach">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="entry_atom4_index_coord1">
-            <property name="width_request">25</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="halign">start</property>
-            <property name="valign">start</property>
-            <property name="width_chars">8</property>
-          </object>
-          <packing>
-            <property name="left_attach">1</property>
-            <property name="top_attach">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="entry_atom4_name_coord1">
-            <property name="width_request">25</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="halign">start</property>
-            <property name="valign">start</property>
-            <property name="width_chars">8</property>
-          </object>
-          <packing>
-            <property name="left_attach">3</property>
-            <property name="top_attach">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="entry_atom2_name_coord1">
-            <property name="width_request">25</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="halign">start</property>
-            <property name="valign">start</property>
-            <property name="width_chars">8</property>
-          </object>
-          <packing>
-            <property name="left_attach">3</property>
-            <property name="top_attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="entry_atom1_name_coord1">
-            <property name="width_request">25</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="halign">start</property>
-            <property name="valign">start</property>
-            <property name="width_chars">8</property>
-          </object>
-          <packing>
-            <property name="left_attach">3</property>
-            <property name="top_attach">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label_step_size">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Step Size:</property>
-            <property name="xalign">1</property>
-          </object>
-          <packing>
-            <property name="left_attach">4</property>
-            <property name="top_attach">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label_nsteps">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Number of Steps:</property>
-            <property name="xalign">1</property>
-          </object>
-          <packing>
-            <property name="left_attach">4</property>
-            <property name="top_attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label_force_constant">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Force Constante:</property>
-            <property name="xalign">1</property>
-          </object>
-          <packing>
-            <property name="left_attach">4</property>
-            <property name="top_attach">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label_dmin">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Initial Distance:</property>
-            <property name="xalign">1</property>
-          </object>
-          <packing>
-            <property name="left_attach">4</property>
-            <property name="top_attach">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="entry_step_size1">
-            <property name="width_request">25</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="halign">start</property>
-            <property name="valign">start</property>
-            <property name="width_chars">8</property>
-            <property name="text" translatable="yes">0.1</property>
-          </object>
-          <packing>
-            <property name="left_attach">5</property>
-            <property name="top_attach">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="entry_nsteps1">
-            <property name="width_request">25</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="halign">start</property>
-            <property name="valign">start</property>
-            <property name="width_chars">8</property>
-            <property name="text" translatable="yes">10</property>
-          </object>
-          <packing>
-            <property name="left_attach">5</property>
-            <property name="top_attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="entry_FORCE_coord1">
-            <property name="width_request">25</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="halign">start</property>
-            <property name="valign">start</property>
-            <property name="width_chars">8</property>
-            <property name="text" translatable="yes">4000</property>
-          </object>
-          <packing>
-            <property name="left_attach">5</property>
-            <property name="top_attach">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="entry_dmin_coord1">
-            <property name="width_request">25</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="halign">start</property>
-            <property name="valign">start</property>
-            <property name="width_chars">8</property>
-            <property name="text" translatable="yes">0.0</property>
-          </object>
-          <packing>
-            <property name="left_attach">5</property>
-            <property name="top_attach">3</property>
-          </packing>
-        </child>
-      </object>
-      <packing>
-        <property name="expand">True</property>
-        <property name="fill">True</property>
-        <property name="position">1</property>
-      </packing>
-    </child>
-    <child>
-      <object class="GtkButton" id="import_picking_selection_button">
-        <property name="label" translatable="yes">Import from Picking Selection</property>
-        <property name="visible">True</property>
-        <property name="can_focus">True</property>
-        <property name="receives_default">True</property>
-      </object>
-      <packing>
-        <property name="expand">False</property>
-        <property name="fill">True</property>
-        <property name="position">2</property>
-      </packing>
-    </child>
-    <child>
-      <object class="GtkCheckButton" id="mass_restraints1">
-        <property name="label" translatable="yes">Apply Mass Weighted Restraints</property>
-        <property name="visible">True</property>
-        <property name="can_focus">True</property>
-        <property name="receives_default">False</property>
-        <property name="draw_indicator">True</property>
-      </object>
-      <packing>
-        <property name="expand">False</property>
-        <property name="fill">True</property>
-        <property name="position">3</property>
       </packing>
     </child>
   </object>
@@ -1812,7 +1895,7 @@ class ReactionCoordinateBox(Gtk.Box):
         self.label_nsteps         = self.builder.get_object('label_nsteps')
         self.label_force_constant = self.builder.get_object('label_force_constant')
         self.label_dmin           = self.builder.get_object('label_dmin')
-        
+        self.label_initial_dist_angle_dihedral = self.builder.get_object('label_initial_distance_angle_dihedral')
         
         
     def toggle_mass_restraint1 (self, widget):
@@ -1846,6 +1929,28 @@ class ReactionCoordinateBox(Gtk.Box):
             else:
                 DMINIMUM =  dist1- dist2
                 self.builder.get_object('entry_dmin_coord1').set_text(str(DMINIMUM))
+        
+        elif _type == 2:
+            index1 = int(self.builder.get_object('entry_atom1_index_coord1').get_text() )
+            index2 = int(self.builder.get_object('entry_atom2_index_coord1').get_text() )
+            index3 = int(self.builder.get_object('entry_atom3_index_coord1').get_text() )
+            index4 = int(self.builder.get_object('entry_atom4_index_coord1').get_text() )
+            
+            dihedral = get_dihedral(self.vobject, index1, index2, index3, index4)
+            #dist2 = get_distance(self.vobject, index2, index3 )
+            self.builder.get_object('entry_dmin_coord1').set_text(str(dihedral))
+            
+            #if self.builder.get_object('mass_restraints1').get_active():
+            #    self.sigma_pk1_pk3, self.sigma_pk3_pk1  = compute_sigma_a1_a3(self.vobject, index1, index3)
+            #    #print('distance a1 - a2:', dist1 - dist2)
+            #    DMINIMUM =  (self.sigma_pk1_pk3 * dist1) -(self.sigma_pk3_pk1 * dist2*-1)
+            #    self.builder.get_object('entry_dmin_coord1').set_text(str(DMINIMUM))
+            #else:
+            #    DMINIMUM =  dist1- dist2
+            #    self.builder.get_object('entry_dmin_coord1').set_text(str(DMINIMUM))
+        
+        
+        
         else:
             pass    
               
@@ -1873,6 +1978,7 @@ class ReactionCoordinateBox(Gtk.Box):
         atom2 = self.vm_session.picking_selections.picking_selections_list[1]
         atom3 = self.vm_session.picking_selections.picking_selections_list[2]
         atom4 = self.vm_session.picking_selections.picking_selections_list[3]
+        
         if atom1:
             self.vobject = atom1.vm_object
         else:
@@ -1924,6 +2030,7 @@ class ReactionCoordinateBox(Gtk.Box):
             self.builder.get_object('label_name4_coord1').hide()
             self.builder.get_object('entry_atom4_name_coord1').hide()
             self.builder.get_object('mass_restraints1').set_sensitive(False)
+            self.label_initial_dist_angle_dihedral.set_text('Initial Distance:')
 
         if _type == 1:
             self.builder.get_object('label_atom3_coord1').show()
@@ -1936,6 +2043,7 @@ class ReactionCoordinateBox(Gtk.Box):
             self.builder.get_object('label_name4_coord1').hide()
             self.builder.get_object('entry_atom4_name_coord1').hide()
             self.builder.get_object('mass_restraints1').set_sensitive(True)
+            self.label_initial_dist_angle_dihedral.set_text('Initial Distance:')
 
         if _type == 2:
             self.builder.get_object('label_atom3_coord1').show()
@@ -1948,6 +2056,12 @@ class ReactionCoordinateBox(Gtk.Box):
             self.builder.get_object('label_name4_coord1').show()
             self.builder.get_object('entry_atom4_name_coord1').show()
             self.builder.get_object('mass_restraints1').set_sensitive(False)
+            #self.label_initial_dist_angle_dihedral.set_text('Initial Distance:')
+            self.label_initial_dist_angle_dihedral.set_text('Initial Angle:')
+        if _type == 3:
+            self.label_initial_dist_angle_dihedral.set_text('Initial Angle:')
+        
+        
         
         if self.scan:
             try:

@@ -1027,6 +1027,47 @@ class RelaxedSurfaceScan:
                 
                 '''----------------------------------------------------------------------------------------------------------------'''
 
+            elif parameters['RC1']["rc_type"] == 'dihedral':
+                atom3   = parameters['RC1']['ATOMS'][2]
+                atom4   = parameters['RC1']['ATOMS'][3]
+                
+                angle = parameters['RC1']['dminimum'] + ( parameters['RC1']['dincre'] * float(i) )
+                #print('\n\n\n\n\n\n\n\n',distance, parameters['system'].coordinates3.Dihedral (atom1, atom2, atom3, atom4), '\n\n\n\n\n\n\n\n')
+                rmodel    = RestraintEnergyModel.Harmonic(angle, parameters['RC1']['force_constant'], period = 360.0 )
+                restraint = RestraintDihedral.WithOptions ( energyModel = rmodel     ,
+                                                            point1      = atom1 ,
+                                                            point2      = atom2 ,
+                                                            point3      = atom3 ,
+                                                            point4      = atom4 )                
+                restraints["RC1"] = restraint            
+                #--------------------------------------------------------------------
+            
+                #-------------------------------------------------------------------------------------------------------------
+                ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
+                                                         logFrequency           = parameters['log_frequency'],
+                                                         maximumIterations      = parameters['maxIterations'],
+                                                         rmsGradientTolerance   = parameters['rmsGradient'])
+                #-------------------------------------------------------------------------------------------------------------
+                angle0 = parameters['system'].coordinates3.Dihedral (atom1, atom2, atom3, atom4)
+                #distance1 = parameters['system'].coordinates3.Distance( atom1 , atom2  )
+                #distance2 = parameters['system'].coordinates3.Distance( atom2 , atom3  )
+                energy   = parameters['system'].Energy(log=None)
+                #data.append([i, distance1, distance2, energy])             
+                
+                text = "\nDATA %9i       %13.12f        %13.12f"% (int(i), float(angle0), float(energy))
+                arq.write(text)
+
+                Pickle( os.path.join( parameters['folder'], 
+                                      parameters['traj_folder_name']+".ptGeo", 
+                                      "frame{}.pkl".format(i) ), 
+                        parameters['system'].coordinates3 ) 
+                
+                backup_orca_files(system        = parameters['system'], 
+                                  output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
+                                  output_name   = "frame{}".format(i))
+
+
+
             else:
                 pass
         #---------------------------------------
@@ -1042,8 +1083,13 @@ class RelaxedSurfaceScan:
         atom_RC1_1 = parameters['RC1']['ATOMS'][0]
         atom_RC1_2 = parameters['RC1']['ATOMS'][1]                   
         
-        atom_RC2_1 = parameters['RC1']['ATOMS'][0]
-        atom_RC2_2 = parameters['RC1']['ATOMS'][1]                   
+        atom_RC2_1 = parameters['RC2']['ATOMS'][0]
+        atom_RC2_2 = parameters['RC2']['ATOMS'][1]                   
+        
+        print(atom_RC1_1, atom_RC1_2, atom_RC2_1, atom_RC2_2)
+        print(parameters['RC1']['ATOMS'], parameters['RC2']['ATOMS'])
+        
+        #return True
         #---------------------------------
         restraints = RestraintModel()
         parameters['system'].DefineRestraintModel( restraints )                     
@@ -1578,21 +1624,7 @@ class UmbrellaSampling:
         self.write_parameters(parameters = parameters, logfile = os.path.join(full_path_trajectory, 'output.log'))
 
 
-        if parameters['RC2'] is not None:
-            self._run_umbrella_sampling_2D(parameters = parameters, interface = False)
-        else:
-            self._run_umbrella_sampling_1D(parameters)
-
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        #self.logFile2.Footer ( )
-        self.logFile2.Close()
-        self.logFile2 = None
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            
-
-    def _run_umbrella_sampling_1D (self, parameters):
-        """ Function doc """
-
+        
         #----------------------------------------------------------------------------------------
         full_path_trajectory_eq = os.path.join(parameters['folder'], parameters['traj_folder_name'], 'equilibration')
         isExist = os.path.exists(full_path_trajectory_eq)
@@ -1613,11 +1645,145 @@ class UmbrellaSampling:
             os.mkdir(full_path_trajectory_dc)
         parameters['trajectory_path_dc'] = full_path_trajectory_dc
         #----------------------------------------------------------------------------------------
-        
 
+        pprint (parameters)
+        
+        #-------------------------------------------------------------------------
+        if interface:
+            e_treeview_iter  = getattr(parameters['system'], 'e_treeview_iter', None)
+            e_liststore_iter = getattr(parameters['system'], 'e_liststore_iter', None)
+            parameters['system'].e_treeview_iter   = None
+            parameters['system'].e_liststore_iter  = None            
+        #-------------------------------------------------------------------------
+        
+        if parameters['RC2'] is not None:
+            self._run_umbrella_sampling_2D(parameters = parameters, interface = False)
+        else:
+            self._run_umbrella_sampling_1D(parameters)
+        
+        #-------------------------------------------------------------------------
+        if interface:
+            parameters['system'].e_treeview_iter  = e_treeview_iter 
+            parameters['system'].e_liststore_iter = e_liststore_iter 
+        #-------------------------------------------------------------------------
+
+
+        '''
+        if parameters['RC2'] is not None:
+            self._run_umbrella_sampling_2D(parameters = parameters, interface = False)
+        else:
+            self._run_umbrella_sampling_1D(parameters)
+        '''
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        #self.logFile2.Footer ( )
+        self.logFile2.Close()
+        self.logFile2 = None
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            
+    def _run_umbrella_sampling (self, parameters, interface = False):
+        """ Function doc """
+        
+        if parameters['input_type'] == 1: # means = parallel
+            #------------------------------------------------------------------
+            files = os.listdir( parameters['source_folder'])
+            pkl_files = []
+            for _file in files:
+                # Check file extention
+                if _file.endswith('.pkl'):
+                    pkl_files.append(_file)
+            pkl_files.sort()
+    
+            
+            if interface:
+                #-------------------------------------------------------------------------
+                e_treeview_iter  = getattr(parameters['system'], 'e_treeview_iter', None)
+                e_liststore_iter = getattr(parameters['system'], 'e_liststore_iter', None)
+                parameters['system'].e_treeview_iter   = None
+                parameters['system'].e_liststore_iter  = None            
+                #-------------------------------------------------------------------------
+            else:
+                pass
+            
+            #-------------------------------------------------------------------------
+
+            
+            if parameters['RC2']:
+                
+                #-------------------------------------------------------------------------
+                joblist = []
+                for pkl in pkl_files:
+                    #  - - - - adding to the joblist - - - - 
+                    system  = parameters['system']
+                    
+                    i_j = pkl[5:-4] 
+                    i_j = i_j.split('_')
+                    
+                    i = int(i_j[0])
+                    j = int(i_j[1])
+                                   
+                    joblist.append([i, j, pkl, parameters, parameters['system']])
+                
+                
+                p = multiprocessing.Pool(processes=parameters['NmaxThreads'])
+                results = p.map(_run_parallel_umbrella_sampling_2D, joblist)
+                #-------------------------------------------------------------------------
+
+                if interface:
+                    parameters['system'].e_treeview_iter  = e_treeview_iter 
+                    parameters['system'].e_liststore_iter = e_liststore_iter 
+
+
+
+
+
+            else:
+                joblist = []
+                for pkl in pkl_files:
+                    #  - - - - adding to the joblist - - - - 
+                    system  = parameters['system']
+                    i = int(pkl[5:-4]) 
+                    joblist.append([i, pkl, parameters, parameters['system']])
+                    
+                p = multiprocessing.Pool(processes=parameters['NmaxThreads'])
+                results = p.map(_run_parallel_umbrella_sampling_1D, joblist)
+
+                #-------------------------------------------------------------------------
+                
+                if interface:
+                    parameters['system'].e_treeview_iter  = e_treeview_iter 
+                    parameters['system'].e_liststore_iter = e_liststore_iter 
+            
+        
+        else:
+            self._run_serial_umbrella_sampling_1D (parameters)
+    
+ 
+    
+    
+    def _run_umbrella_sampling_1D (self, parameters):
+        """ Function doc """
+        '''
+        #----------------------------------------------------------------------------------------
+        full_path_trajectory_eq = os.path.join(parameters['folder'], parameters['traj_folder_name'], 'equilibration')
+        isExist = os.path.exists(full_path_trajectory_eq)
+        if isExist:
+            pass
+        else:
+            os.mkdir(full_path_trajectory_eq)
+        parameters['trajectory_path_eq'] = full_path_trajectory_eq
+        #----------------------------------------------------------------------------------------
         
         
-        
+        #----------------------------------------------------------------------------------------
+        full_path_trajectory_dc = os.path.join(parameters['folder'], parameters['traj_folder_name'], 'data_collection')
+        isExist = os.path.exists(full_path_trajectory_dc)
+        if isExist:
+            pass
+        else:
+            os.mkdir(full_path_trajectory_dc)
+        parameters['trajectory_path_dc'] = full_path_trajectory_dc
+        #----------------------------------------------------------------------------------------
+        '''
         
         if parameters['input_type'] == 1: # means = parallel
             #------------------------------------------------------------------
@@ -1629,12 +1795,12 @@ class UmbrellaSampling:
                     pkl_files.append(_file)
             pkl_files.sort()
             
-            #-------------------------------------------------------------------------
-            e_treeview_iter  = getattr(parameters['system'], 'e_treeview_iter', None)
-            e_liststore_iter = getattr(parameters['system'], 'e_liststore_iter', None)
-            parameters['system'].e_treeview_iter   = None
-            parameters['system'].e_liststore_iter  = None            
-            #-------------------------------------------------------------------------
+            ##-------------------------------------------------------------------------
+            #e_treeview_iter  = getattr(parameters['system'], 'e_treeview_iter', None)
+            #e_liststore_iter = getattr(parameters['system'], 'e_liststore_iter', None)
+            #parameters['system'].e_treeview_iter   = None
+            #parameters['system'].e_liststore_iter  = None            
+            ##-------------------------------------------------------------------------
             
             
             #-------------------------------------------------------------------------
@@ -1651,17 +1817,14 @@ class UmbrellaSampling:
             #-------------------------------------------------------------------------
 
 
-            parameters['system'].e_treeview_iter  = e_treeview_iter 
-            parameters['system'].e_liststore_iter = e_liststore_iter 
+            #parameters['system'].e_treeview_iter  = e_treeview_iter 
+            #parameters['system'].e_liststore_iter = e_liststore_iter 
             
         
         else:
             self._run_serial_umbrella_sampling_1D (parameters)
     
-    
-    
-    
-    
+
     def _run_serial_umbrella_sampling_1D (self, parameters):
         """ Function doc """
         
@@ -1744,6 +1907,179 @@ class UmbrellaSampling:
         #---------------------------------------
         parameters['system'].DefineRestraintModel(None)
         
+
+    def _run_umbrella_sampling_2D (self, parameters, interface = False):
+        """ Function doc """
+        '''
+        #----------------------------------------------------------------------------------------
+        full_path_trajectory_eq = os.path.join(parameters['folder'], parameters['traj_folder_name'], 'equilibration')
+        isExist = os.path.exists(full_path_trajectory_eq)
+        if isExist:
+            pass
+        else:
+            os.mkdir(full_path_trajectory_eq)
+        parameters['trajectory_path_eq'] = full_path_trajectory_eq
+        #----------------------------------------------------------------------------------------
+        
+        
+        #----------------------------------------------------------------------------------------
+        full_path_trajectory_dc = os.path.join(parameters['folder'], parameters['traj_folder_name'], 'data_collection')
+        isExist = os.path.exists(full_path_trajectory_dc)
+        if isExist:
+            pass
+        else:
+            os.mkdir(full_path_trajectory_dc)
+        parameters['trajectory_path_dc'] = full_path_trajectory_dc
+        #----------------------------------------------------------------------------------------
+        '''
+        
+        if parameters['input_type'] == 1: # means = parallel
+            #------------------------------------------------------------------
+            files = os.listdir( parameters['source_folder'])
+            pkl_files = []
+            for _file in files:
+                # Check file extention
+                if _file.endswith('.pkl'):
+                    pkl_files.append(_file)
+            pkl_files.sort()
+            
+            
+            #-------------------------------------------------------------------#
+            #                       BUILDING THE JOBLIST                        #
+            #-------------------------------------------------------------------#
+            joblist = []
+            for pkl in pkl_files:
+                #  - - - - adding to the joblist - - - - 
+                system  = parameters['system']
+                
+                i_j = pkl[5:-4] 
+                i_j = i_j.split('_')
+                
+                i = int(i_j[0])
+                j = int(i_j[1])
+                joblist.append([i, j, pkl, parameters, parameters['system']])
+            #-------------------------------------------------------------------------
+            
+            #print([i, j, pkl, parameters, parameters['system']])
+            #'''
+            #print('input_type', parameters['input_type'],  joblist, parameters['NmaxThreads'])
+            p = multiprocessing.Pool(processes=parameters['NmaxThreads'])
+            results = p.map(_run_parallel_umbrella_sampling_2D, joblist)
+            #-------------------------------------------------------------------------
+            #'''
+
+
+
+def _run_parallel_umbrella_sampling_2D (job):
+    """ Function doc """
+    i          = job[0]
+    j          = job[1]
+    pkl        = job[2]
+    parameters = job[3]
+    system     = job[4]
+    
+    parameters['system'].coordinates3 = ImportCoordinates3(os.path.join(parameters['source_folder'], pkl ))
+    
+    opt_parameters  = parameters['OPT_parm']
+    md_paramters    = parameters['MD_parm']
+    #----------------------------------------------------------------------------------------
+    full_path_trajectory_eq = parameters['trajectory_path_eq']
+    full_path_trajectory_dc = parameters['trajectory_path_dc']
+    #----------------------------------------------------------------------------------------
+
+    
+    
+    #----------------------------------------------------------------------------------------    
+    atom_RC1_1 = parameters['RC1']['ATOMS'][0]
+    atom_RC1_2 = parameters['RC1']['ATOMS'][1]                   
+
+    atom_RC2_1 = parameters['RC2']['ATOMS'][0]
+    atom_RC2_2 = parameters['RC2']['ATOMS'][1]  
+    
+    #---------------------------------
+    restraints = RestraintModel()
+    parameters['system'].DefineRestraintModel( restraints )                     
+    #----------------------------------------------------------------------------------------
+
+    '''----------------------------------------------------------------------------------------------------------------'''
+    if parameters['RC1']["rc_type"] == 'simple_distance':
+        distance1 = system.coordinates3.Distance( atom_RC1_1, atom_RC1_2)
+        #---------------------------------------------------------------------------------------------------------
+        rmodel            = RestraintEnergyModel.Harmonic(distance1, parameters['RC1']['force_constant'])
+        restraint         = RestraintDistance.WithOptions(energyModel = rmodel, point1= atom_RC1_1, point2= atom_RC1_2)
+        restraints["RC1"] = restraint            
+        #---------------------------------------------------------------------------------------------------------
+    elif parameters['RC1']["rc_type"] == 'multiple_distance':
+        #--------------------------------------------------------------------
+
+        atom_RC1_3 = parameters['RC1']['ATOMS'][2]
+        weight1 = parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+        weight2 = parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
+        
+        distance_a1_a2 = system.coordinates3.Distance( atom_RC1_1, atom_RC1_2)
+        distance_a2_a3 = system.coordinates3.Distance( atom_RC1_2, atom_RC1_3)
+        
+        distance = (weight1 * distance_a1_a2) - (weight2 * distance_a2_a3*-1)
+        
+        rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+        restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ 
+                                                                                                      [ atom_RC1_2, atom_RC1_1, weight1 ], 
+                                                                                                      [ atom_RC1_2, atom_RC1_3, weight2 ] 
+                                                                                                    ] )
+        restraints["RC1"] = restraint            
+        #--------------------------------------------------------------------
+    else:
+        pass
+
+
+    '''reaction coordinate 2 - ONLY at 0 first'''
+    '''----------------------------------------------------------------------------------------------------------------'''
+    distance2 = parameters['RC2']['dminimum'] + ( parameters['RC2']['dincre'] * float(j) )
+    
+    if parameters['RC2']["rc_type"] == 'simple_distance':
+        #---------------------------------------------------------------------------------------------------------
+        rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'])
+        restraint         = RestraintDistance.WithOptions(energyModel = rmodel, point1= atom_RC2_1, point2= atom_RC2_2)
+        restraints["RC2"] = restraint            
+        #---------------------------------------------------------------------------------------------------------
+    
+    elif parameters['RC2']["rc_type"] == 'multiple_distance':
+        #--------------------------------------------------------------------
+        atom_RC2_3 = parameters['RC2']['ATOMS'][2]
+        weight1 = parameters['RC2']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+        weight2 = parameters['RC2']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
+        
+        rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'])
+        restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ 
+                                                                                                      [ atom_RC2_2, atom_RC2_1, weight1 ], 
+                                                                                                      [ atom_RC2_2, atom_RC2_3, weight2 ] 
+                                                                                                      ] )
+        restraints["RC2"] = restraint            
+        #--------------------------------------------------------------------
+   
+    '''             G E O M E T R Y   O P T I M I Z A T I O N            '''
+    if parameters['OPT_parm'] is not None:
+        _us_geo_opt(parameters['system'], opt_parameters)
+
+
+
+    '''                M O L E C U L A R   D Y N A M I C S               '''
+    _us_molecular_dynamics (system          = parameters['system'], 
+                            parameters      = md_paramters, 
+                            path_trajectory = full_path_trajectory_eq, 
+                            mode            = 0, 
+                            i = i, 
+                            j = j)
+
+    _us_molecular_dynamics (system          = parameters['system'], 
+                            parameters      = md_paramters, 
+                            path_trajectory = full_path_trajectory_dc, 
+                            mode            = 1, 
+                            i = i, 
+                            j = j)
+    #---------------------------------------
+    parameters['system'].DefineRestraintModel(None)
+
 
 
 def _run_parallel_umbrella_sampling_1D (job):
