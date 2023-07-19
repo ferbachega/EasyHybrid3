@@ -177,6 +177,57 @@ class GLMenu:
         if sele_menu is None:
             ''' Standard Sele Menu '''
             
+            
+            def menu_show_atom_name (_):
+                print('menu_show_atom_name') 
+                selection = self.show_or_hide( rep_type = 'labels', show = True)
+                
+                for atom in selection.selected_atoms:
+                    atom.label_text = atom.name
+            
+            
+            def menu_show_atom_symbol (_):   
+                selection = self.show_or_hide( rep_type = 'labels', show = True)
+                
+                for atom in selection.selected_atoms:
+                    atom.label_text = atom.symbol
+            
+            
+            def menu_show_atom_index (_):    
+                selection = self.show_or_hide( rep_type = 'labels', show = True)
+                for atom in selection.selected_atoms:
+                    atom.label_text = str(atom.index)
+                    
+            def menu_show_atom_MM_charge (_):               
+                selection = self.show_or_hide( rep_type = 'labels', show = True)
+                for atom in selection.selected_atoms:
+                    VObj = atom.vm_object
+                    atom.label_text  = '%4.3f'%(float(self.main.p_session.psystem[VObj.e_id].mmState.charges[atom.index-1]))            
+
+            def menu_show_residue_name  (_): 
+                selection = self.show_or_hide( rep_type = 'labels', show = True)
+                for atom in selection.selected_atoms:
+                    #VObj = atom.vm_object
+                    atom.label_text = atom.residue.name              
+            
+            def menu_show_residue_index  (_):
+                selection = self.show_or_hide( rep_type = 'labels', show = True)
+                for atom in selection.selected_atoms:
+                    #VObj = atom.vm_object
+                    atom.label_text = str(atom.residue.index)             
+            
+            def menu_show_chain (_):
+                selection = self.show_or_hide( rep_type = 'labels', show = True)
+                for atom in selection.selected_atoms:
+                    #VObj = atom.vm_object
+                    atom.label_text = str(atom.chain.name)  
+            
+            def menu_hide_label (_):
+                """ Function doc """
+                selection = self.show_or_hide( rep_type = 'labels', show = False)
+            
+            
+            
             def menu_show_dynamic_bonds (_):
                 """ Function doc """
                ##print('dynamic_test')
@@ -556,6 +607,19 @@ class GLMenu:
                     'Show'   : [
                                 'submenu' ,{
                                             
+                                            'labels'        : [
+                                                               'submenu' ,{
+                                                                           'Name'          : ['MenuItem', menu_show_atom_name     ],      
+                                                                           'Symbol'        : ['MenuItem', menu_show_atom_symbol   ],      
+                                                                           'Index'         : ['MenuItem', menu_show_atom_index    ],      
+                                                                           'Charge(MM)'    : ['MenuItem', menu_show_atom_MM_charge],      
+                                                                           'Residue Name'  : ['MenuItem', menu_show_residue_name  ],      
+                                                                           'Residue Index' : ['MenuItem', menu_show_residue_index ],      
+                                                                           'Chain'         : ['MenuItem', menu_show_chain         ],      
+                                                                           
+                                                                           }
+                                                              ],
+                                            
                                             'lines'         : ['MenuItem', menu_show_lines],
                                             #'dotted_lines'  : ['MenuItem', menu_show_dotted_lines],
                                             'sticks'        : ['MenuItem', menu_show_sticks],
@@ -577,6 +641,21 @@ class GLMenu:
                     
                     'Hide'   : [
                                 'submenu',  {
+                                            'labels'        : ['MenuItem', menu_hide_label],
+                                                              #[
+                                                              # 'submenu' ,{
+                                                              #             'Name'          : ['MenuItem', menu_hide_label],      
+                                                              #             'Symbol'        : ['MenuItem', menu_hide_label],      
+                                                              #             'Index'         : ['MenuItem', menu_hide_label],      
+                                                              #             'Charge(MM)'    : ['MenuItem', menu_hide_label],      
+                                                              #             'Residue Name'  : ['MenuItem', menu_hide_label],      
+                                                              #             'Residue Index' : ['MenuItem', menu_hide_label],      
+                                                              #             'Chain'         : ['MenuItem', menu_hide_label],      
+                                                              #             
+                                                              #             }
+                                                              #],
+                                            
+                                            
                                             'lines'         : ['MenuItem', menu_hide_lines],
                                             #'dotted_lines'  : ['MenuItem', menu_hide_dotted_lines],
                                             'sticks'        : ['MenuItem', menu_hide_sticks],
@@ -984,12 +1063,16 @@ class EasyHybridSession(VismolSession, GLMenu):
             #vismol_object.create_representation(rep_type="dash")
             #vismol_object.create_representation(rep_type="sticks")
 
-            '''
-            if vismol_object.cell_parameters:
-                from vismol.libgl.representations import CellLineRepresentation
-                print (vismol_object.cell_parameters)
-                vismol_object.representations["cell_lines"] =  CellLineRepresentation(vismol_object, self.vm_glcore,name  = 'lines', active=True, indexes = vismol_object.cell_bonds)
-            '''
+            #'''
+            #from vismol.libgl.representations import LabelRepresentation
+            ##print (vismol_object.cell_parameters)
+            ##vismol_object.representations["labels"] =  LabelRepresentation(vismol_object, self.vm_glcore, name  = 'lines', active=True, indexes = vismol_object.cell_bonds)
+            #vismol_object.representations["labels"] =  LabelRepresentation(vismol_object = vismol_object  ,  
+            #                                                               vismol_glcore = self.vm_glcore , 
+            #                                                               indexes       = [0,1,2] , 
+            #                                                               labels        = None     , 
+            #                                                               color         = [1, 1, 0, 1])
+            #'''
             
             
             #from vismol.libgl.representations import DashedLinesRepresentation

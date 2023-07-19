@@ -36,7 +36,8 @@ from pprint import pprint
 from vismol.model.residue import Residue
 from vismol.model.chain import Chain
 from vismol.core.vismol_object import VismolObject
-
+from vismol.model.atom import Atom
+#print ('\n\n\n\n\n\nATOM',Atom,'\n\n\n\n\n\nATOM')
 from logging import getLogger
 logger = getLogger(__name__)
 
@@ -2439,6 +2440,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         return vismol_object
 
 
+
 class Atom:
     """ Class doc """
     
@@ -2509,7 +2511,9 @@ class Atom:
         self.surface        = False
         self.bonds          = []
         self.isfree         = True
-    
+        self.labels         = False
+        self.label_text     = None
+        
     def _get_symbol(self):
         """ Function doc """
         name = self.name.strip()
