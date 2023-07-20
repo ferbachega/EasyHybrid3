@@ -386,7 +386,7 @@ class MolecularDynamicsWindow():
     def update_working_folder_chooser (self, folder = None):
         """ Function doc """
         if folder:
-            print('update_working_folder_chooser')
+            #print('update_working_folder_chooser')
             self.save_trajectory_box.set_folder(folder = folder)
         else:
             self.save_trajectory_box.set_folder(folder = HOME)

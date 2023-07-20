@@ -67,9 +67,9 @@ class CommandLine:
         """ Function doc"""
         
         func, args = self.command_line_parser(cmd)
-        print(func, args)
+        #print(func, args)
         _func = getattr(self, func)
-        print(_func)
+        #print(_func)
         try:
             log = _func(args)
         except AttributeError as ae:
@@ -179,7 +179,7 @@ class GLMenu:
             
             
             def menu_show_atom_name (_):
-                print('menu_show_atom_name') 
+                #print('menu_show_atom_name') 
                 selection = self.show_or_hide( rep_type = 'labels', show = True)
                 
                 for atom in selection.selected_atoms:
@@ -333,11 +333,11 @@ class GLMenu:
                 for vobj_id, indexes in vobjects.items():
                     '''----------------------------- Applying the selection ------------------------------------'''
                     vobject = self.vm_objects_dic[vobj_id]
-                    print ('1 - ',self.selections[self.current_selection].selected_atoms)
+                    #print ('1 - ',self.selections[self.current_selection].selected_atoms)
                     self.selections[self.current_selection].selecting_by_indexes (vismol_object = vobject, indexes = indexes, clear = True)
                     self.selections[self.current_selection].active = True
                     '''-----------------------------------------------------------------------------------------'''
-                    print ('2 - ',self.selections[self.current_selection].selected_atoms)
+                    #print ('2 - ',self.selections[self.current_selection].selected_atoms)
 
                     self.show_or_hide( rep_type = 'lines', show = False)
                     self.show_or_hide( rep_type = 'sticks', show = False)
@@ -477,7 +477,7 @@ class GLMenu:
                         #for row in self.treestore:
                         #    #row[2] = row.path == selected_path
                         #    row[3] =  False
-                        print('color', color)
+                        #print('color', color)
 
                         self.main.p_session.prune_system (selection = atomlist, name = name, summary = True, tag = tag, color = color)
             
@@ -1212,7 +1212,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
                 #
                 except:
                     pass
-                    print("VisMol/vModel/Representations.py, line 123, in _set_colors_to_buffer GL.glBindBuffer(GL.GL_ARRAY_BUFFER, ctypes.ArgumentError: argument 2: <class 'TypeError'>: wrong type'")
+                    #print("VisMol/vModel/Representations.py, line 123, in _set_colors_to_buffer GL.glBindBuffer(GL.GL_ARRAY_BUFFER, ctypes.ArgumentError: argument 2: <class 'TypeError'>: wrong type'")
                     
         return True
 

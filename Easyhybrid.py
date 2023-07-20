@@ -548,9 +548,9 @@ class MainWindow:
             self.go_to_atom_window.OpenWindow()
         
         elif menuitem == self.builder.get_object('menuitem_preferences'):
-            print(menuitem, 'menuitem_preferences', self.vm_session.vm_glcore.bckgrnd_color)
+            #print(menuitem, 'menuitem_preferences', self.vm_session.vm_glcore.bckgrnd_color)
             #self.vm_session.vm_glcore.bckgrnd_color = [1,1,1,1]
-            print(menuitem, 'menuitem_preferences', self.vm_session.vm_glcore.bckgrnd_color)
+            #print(menuitem, 'menuitem_preferences', self.vm_session.vm_glcore.bckgrnd_color)
             #self.vm_session.vm_config.gl_parameters["line_width"] =20
             self.vm_session.vm_glcore.light_position = [0, 10, 100.0]
         #----------------------------------------------------------------------
@@ -648,7 +648,7 @@ class MainWindow:
                     name         = dialog.name        
                     tag          = dialog.tag  
                     color        = dialog.color 
-                    print('color', color)
+                    #print('color', color)
                     self.p_session.prune_system (selection = atomlist, name = name, summary = True, tag = tag, color = color)
 
         
@@ -904,7 +904,7 @@ class MainWindow:
             new_system = copy.deepcopy(system)
             system.e_treeview_iter   = backup[0]
             system.e_liststore_iter  = backup[1]
-            print('menuitem_clone')
+            #print('menuitem_clone')
             
             new_system = self.p_session.append_system_to_pdynamo_session (system = new_system)
             self.main_treeview.add_new_system_to_treeview (new_system)
@@ -1215,7 +1215,7 @@ class MainWindow:
                 else:
                     try:
                         itens = psystem.qcModel.SummaryItems()
-                        print(itens)
+                        #print(itens)
                         hamiltonian = itens[0][0]
                     except:
                         hamiltonian = 'external'
@@ -1255,8 +1255,8 @@ class MainWindow:
                 if psystem.symmetry:
                     #nbmodel = psystem.mmModel.forceField
                     string += 'PBC: True    symmetry: {}    '.format( psystem.symmetry.crystalSystem.label)
-                    print(psystem.symmetry)
-                    print(psystem.symmetryParameters)
+                    #print(psystem.symmetry)
+                    #print(psystem.symmetryParameters)
                     #summary_items = psystem.nbModel.SummaryItems()
                     
                 
@@ -1295,9 +1295,9 @@ class MainWindow:
 
     def print_btn (self, widget):
         """ Function doc """
-        print(self.box_reac)
+        #print(self.box_reac)
         parm = self.box_reac.get_rc_data()
-        print(parm)
+        #print(parm)
     
     
     def run_test (self, widget):
@@ -1721,7 +1721,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
                 vobj = self.main.vm_session.vm_objects_dic[vobj_id]
                 size = len(vobj.frames)
                 self.treestore[treeview_iter][8] = size
-                print(vobj_id, self.treestore[treeview_iter][2], 'frames', len(vobj.frames))
+                #print(vobj_id, self.treestore[treeview_iter][2], 'frames', len(vobj.frames))
         #'''
 
     def on_treeview_mouse_button_release_event (self, tree, event):
@@ -1765,7 +1765,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
             treeview_iter = vobject.e_treeview_iter
             size = len(vobject.frames)
             self.treestore[treeview_iter][8] = size
-            print(index, self.treestore[treeview_iter][2], 'frames', len(vobject.frames))
+            #print(index, self.treestore[treeview_iter][2], 'frames', len(vobject.frames))
 
 
     def refresh (self):
@@ -1907,7 +1907,7 @@ class TreeViewMenu:
         
         if self.colorchooserdialog.run() == Gtk.ResponseType.OK:
             color = self.colorchooserdialog.get_rgba()
-            print(color.red,color.green, color.blue )
+            #print(color.red,color.green, color.blue )
             new_color = [color.red, color.green, color.blue]
 
         else:

@@ -722,7 +722,7 @@ class pAnalysis:
                 #dialog.destroy()
 
             
-            print (TrueFalse,msg )
+            #print (TrueFalse,msg )
             return TrueFalse
 class ModifyRepInVismol:
     """ Class doc """
@@ -850,19 +850,19 @@ class Restraints:
                         if 'restraints' in vobject.representations.keys():
                             
                             if vobject.representations["restraints"] is not None:
-                                print('["restraints"] is not None',indexes)
+                                #print('["restraints"] is not None',indexes)
                                 #vobject.representations["restraints"].define_new_indexes_to_vbo(indexes)
                                 vobject.representations["restraints"] = DashedLinesRepresentation(vobject, self.vm_session.vm_glcore,
                                                                                           active=True, indexes = indexes)
                             else:
-                                print('else',indexes)
+                                #print('else',indexes)
                                 vobject.representations["restraints"] = DashedLinesRepresentation(vobject, self.vm_session.vm_glcore,
                                                                                           active=True, indexes = indexes)
                         else:
                             vobject.representations["restraints"] = DashedLinesRepresentation(vobject, self.vm_session.vm_glcore,
                                                                       active=True, indexes = indexes)    
             self.main.vm_session.vm_glcore.queue_draw()
-            print(indexes)
+            #print(indexes)
     
         except:
             print('\n\n Failed when trying to represent harmonic potential constraints. This is just a representation error, the potencies are working normally.\n\n')
@@ -997,7 +997,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
     def load_a_new_pDynamo_system_from_dict (self, input_files = {}, system_type = 0, name = None, tag = None, color = None):
         """ Function doc """
-        print('\n\n\ init - load_a_new_pDynamo_system_from_dict')
+        #print('\n\n\ init - load_a_new_pDynamo_system_from_dict')
         # This commented section prints information about the existing psystem dictionary
 
         #for index , psystem in self.psystem.items():
@@ -1723,7 +1723,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         if anion is None and cation is None:
             solute = system
         else:
-            print('\n\n\n AddCounterIons \n\n\n\n')
+            #print('\n\n\n AddCounterIons \n\n\n\n')
             #print( system, 
             #                          _NNegative, anion, 
             #                          _NPositive, cation, 
@@ -1775,7 +1775,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         system.e_treeview_iter   = backup[0]
         system.e_liststore_iter  = backup[1]
         
-        print('menuitem_clone')
+        #print('menuitem_clone')
 
         new_system = self.append_system_to_pdynamo_session (system = new_system)
         self.main.main_treeview.add_new_system_to_treeview (new_system)
@@ -1795,7 +1795,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                              color   = [0,1,1]):
         """ Function doc """
         
-        print (e_id1,e_id2,vob_id1,vob_id2,name,tag,color)
+        #print (e_id1,e_id2,vob_id1,vob_id2,name,tag,color)
         
         system1 = self.psystem[e_id1]
         vob1 = self.vm_session.vm_objects_dic[vob_id1]
@@ -1837,8 +1837,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         if summary:
             system.Summary ( )
         
-        print('color', color)
-        print('color', color)
+        #print('color', color)
+        #print('color', color)
         system = self.append_system_to_pdynamo_session ( 
                                                         system = system,  name = name, tag = tag, color = color )
         
@@ -1915,7 +1915,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                                  )
         
         elif parameters['method'] == 'DFTB+':
-            print(parameters)
+            #print(parameters)
             qcModel = QCModelDFTB.WithOptions ( deleteJobFiles = parameters['delete_job_files'],
                                                 randomScratch  = parameters['random_scratch']  ,
                                                 scratch        = parameters['dftb+_scratch']   ,
@@ -2709,7 +2709,7 @@ class Atom:
         """
         if frame is None:
             frame  = self.vm_object.vm_session.frame
-            print (frame, len(self.vm_object.frames))
+            #print (frame, len(self.vm_object.frames))
             if len(self.vm_object.frames)-1 <= frame:
                 frame = len(self.vm_object.frames)-1
             else:

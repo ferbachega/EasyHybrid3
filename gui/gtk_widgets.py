@@ -463,7 +463,7 @@ class FileChooser:
                                        (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
                                         Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
         #GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER
-        print (filters)
+        #print (filters)
 
         if select_multiple:
             chooser.set_select_multiple(True)
@@ -480,12 +480,12 @@ class FileChooser:
         
         else:
             if filters:
-                print('\n\nfilters')
+                #print('\n\nfilters')
                 for _filter in filters:
                     chooser.add_filter(_filter)
 
             else:
-                print('else')
+                #print('else')
 
                 '''
                 filter = Gtk.FileFilter()  
@@ -643,7 +643,7 @@ class VismolTrajectoryFrame(Gtk.Frame):
         value = value+1
         self.scale.set_value(int(value))
         self.vm_session.set_frame(int(value))
-        print(value)
+        #print(value)
         return value
         
         
@@ -658,7 +658,7 @@ class VismolTrajectoryFrame(Gtk.Frame):
         
         self.vm_session.set_frame(int(value))
         self.scale.set_value(value)
-        print(value)
+        #print(value)
     
     def get_box (self):
         """ Function doc """
@@ -668,8 +668,8 @@ class VismolTrajectoryFrame(Gtk.Frame):
         
     def on_combobox_vobjects_changed (self, widget):
         """ Function doc """
-        print('\n\n',widget)
-        print('\n\n',widget.get_active())
+        #print('\n\n',widget)
+        #print('\n\n',widget.get_active())
         
         cb_index = widget.get_active()
         if cb_index in self.vm_session.vobjects_dic:
@@ -691,14 +691,14 @@ class VismolTrajectoryFrame(Gtk.Frame):
 
     def update (self):
         """ Function doc """
-        print('VismolTrajectoryFrame update')
+        #print('VismolTrajectoryFrame update')
         #for index , vobject in self.vm_session.vobjects_dic.items():
         #last_obj = len(self.vm_session.vobjects) -1
         last_obj = len(self.vm_session.vobjects_dic.items()) -1
         self.combobox_vobjects.set_active(last_obj)
     def change_range (self, upper = 100):
         """ Function doc """
-        print('upper =', upper)
+        #print('upper =', upper)
         self.adjustment     = Gtk.Adjustment(value         = self.value,
                                              lower         = 0,
                                              upper         = upper,
@@ -867,7 +867,7 @@ class CoordinatesComboBox(Gtk.ComboBox):
 
 def get_distance (vobject, index1, index2):
     """ Function doc """
-    print( index1, index2)
+    #print( index1, index2)
     atom1 = vobject.atoms[index1]
     atom2 = vobject.atoms[index2]
     a1_coord = atom1.coords()
@@ -877,7 +877,7 @@ def get_distance (vobject, index1, index2):
     dy = a1_coord[1] - a2_coord[1]
     dz = a1_coord[2] - a2_coord[2]
     dist = (dx**2+dy**2+dz**2)**0.5
-    print('distance a1 - a2:', dist)
+    #print('distance a1 - a2:', dist)
     return dist
 
 def get_angle (vobject, index1, index2, index3):
@@ -924,14 +924,14 @@ def get_dihedral(vobject, index1, index2, index3, index4):
     a3_coord = vobject.atoms[index3].coords()
     a4_coord = vobject.atoms[index4].coords()
     
-    print(a1_coord, a2_coord,a3_coord  , a4_coord)
+    #print(a1_coord, a2_coord,a3_coord  , a4_coord)
     
     atom1 = np.array(a1_coord)
     atom2 = np.array(a2_coord)
     atom3 = np.array(a3_coord)
     atom4 = np.array(a4_coord)
 
-    print(atom1, atom2,atom3  , atom4)
+    #print(atom1, atom2,atom3  , atom4)
 
     # Compute vectors between the atoms
     vec1 = atom2 - atom1

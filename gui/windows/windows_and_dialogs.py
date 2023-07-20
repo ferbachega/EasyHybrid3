@@ -396,8 +396,9 @@ class SinglePointwindow:
             if psystem.symmetry:
                 #nbmodel = psystem.mmModel.forceField
                 string += '\nsymmetry: {}    '.format( psystem.symmetry.crystalSystem.label)
-                print(psystem.symmetry)
-                print(psystem.symmetryParameters)
+                #print(psystem.symmetry)
+                #print(psystem.symmetryParameters)
+                
                 #summary_items = psystem.nbModel.SummaryItems()
                     
                 
@@ -615,7 +616,7 @@ class EnergyRefinementWindow():
     def on_input_types_changed(self, widget):
         """ Function doc """
         _id = self.comobobox_input_type.get_active()
-        print(_id)
+        #print(_id)
         
         if _id == 0:
             self.builder.get_object('label_coordinates').show()
@@ -643,7 +644,7 @@ class EnergyRefinementWindow():
     def on_coordinates_combobox_change (self, widget):
         """ Function doc """
         _id = self.coordinates_combobox.get_active()
-        print(_id)
+        #print(_id)
         vobject_index = None
         #-----------------------------------------------------------------------------
         _iter = self.coordinates_combobox.get_active_iter()
@@ -651,7 +652,7 @@ class EnergyRefinementWindow():
             '''selecting the vismol object from the content that is in the combobox '''
             model = self.coordinates_combobox.get_model()
             _name, vobject_index = model[_iter][:2]
-            print ('\n\n\_name, vobject_index:', _name, vobject_index, '\n\n')
+            #print ('\n\n\_name, vobject_index:', _name, vobject_index, '\n\n')
         #-----------------------------------------------------------------------------
         self.vobject = self.main.vm_session.vm_objects_dic[vobject_index]
 
@@ -741,7 +742,7 @@ class EnergyRefinementWindow():
         
         #----------------------------------------------------------------------
         
-        pprint (parameters)
+        #pprint (parameters)
         self.p_session.run_simulation( parameters = parameters )
 
 
@@ -894,7 +895,7 @@ class ExportDataWindow:
             '''selecting the vismol object from the content that is in the combobox '''
             model = self.combobox_starting_coordinates.get_model()
             name, vobject_id = model[tree_iter][:2]
-            print (name, model[tree_iter][:2])
+            #print (name, model[tree_iter][:2])
             #name, vobject_id = model[tree_iter][:2]
         
         
@@ -934,7 +935,7 @@ class ExportDataWindow:
             '''selecting the vismol object from the content that is in the combobox '''
             model = self.combobox_starting_coordinates.get_model()
             name, vobject_id = model[tree_iter][:2]
-            print (name, model[tree_iter][:2])
+            #print (name, model[tree_iter][:2])
             
         if len(self.main.vm_session.vm_objects_dic[vobject_id].frames) > 1:
             print(self.main.vm_session.vm_objects_dic[vobject_id].name,
@@ -1046,7 +1047,7 @@ class ExportDataWindow:
         parameters['stride'] = int(self.builder.get_object('entry_stride').get_text())
         '''-------------------------------------------------------------------------------'''
         parameters['system'] = self.main.p_session.psystem[parameters['system_id']]
-        print(parameters)
+        #print(parameters)
         '''------------------------------------------------------------------------------'''
         
         format_dict = {
@@ -1400,7 +1401,7 @@ class SolvateSystemWindow:
         parameters['solvent'] = self.p_session.psystem[solvent_box_id]
         #------------------------------------------------------------------------------
         
-        print(parameters)
+        #print(parameters)
         self.p_session.solvate_system (e_id = system_id, parameters = parameters)
 
 class MakeSolventBoxWindow:
@@ -2047,7 +2048,7 @@ class SetupORCAWindow:
     
     def on_button_ok (self, button):
         """ Function doc """
-        print('on_button_ok')
+        #print('on_button_ok')
         textbuffer = self.builder.get_object('textview_orca').get_buffer ()
         text = textbuffer.get_text (textbuffer.get_start_iter(), textbuffer.get_end_iter(), True)
         print (text)
@@ -2057,7 +2058,7 @@ class SetupORCAWindow:
     
     def on_button_ok2 (self, button):
         """ Function doc """
-        print('on_button_ok2')
+        #print('on_button_ok2')
         pass
 
     def refresh_orca_parameters (self, widget):
@@ -2343,7 +2344,7 @@ class EasyHybridSetupQCModelWindow:
             self.builder.get_object('expander_DIISSCF_converger').hide()
             self.setup_dftb_window.OpenWindow()
         
-        print(self.method_id)
+        #print(self.method_id)
     
     def on_button_ok (self, button):
         """ Function doc """
@@ -2393,7 +2394,8 @@ class EasyHybridSetupQCModelWindow:
         parameters['densityTolerance' ] = float(self.builder.get_object('entry_densityTolerance').get_text())
         parameters['maximumIterations'] = int(self.builder.get_object('entry_maximumIterations').get_text())
 
-        print(parameters)
+        #print(parameters)
+        
         self.main_session.p_session.define_a_new_QCModel(system = None,  parameters = parameters, vismol_object =  self.vismol_object)
         #self.main_session.update_gui_widgets ()
         self.window.destroy()
@@ -2748,7 +2750,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
     def refresh_coordinates_liststore(self, system_id = None):
         """ Function doc """
         system_id = self.combobox_systems.get_system_id()
-        print(2313, system_id,self.main.vobject_liststore_dict )
+        #print(2313, system_id,self.main.vobject_liststore_dict )
         self.coordinates_combobox.set_model(self.main.vobject_liststore_dict[system_id])
         self.coordinates_combobox.set_active_vobject(-1)
         #self.coordinates_liststore.clear()
@@ -3455,7 +3457,7 @@ class ImportANewSystemWindow(Gtk.Window):
         blue  = color.blue  
         
         
-        print(self.files, systemtype, color, [red, green,blue ])
+        #print(self.files, systemtype, color, [red, green,blue ])
 
         #'''
         self.easyhybrid_main.p_session.load_a_new_pDynamo_system_from_dict(input_files = self.files, 
@@ -3608,7 +3610,7 @@ class ImportTrajectoryWindow:
         """ Function doc """
         #print(self.folder_chooser_button.folder)
         trajfolder  = self.folder_chooser_button.get_folder()
-        print(trajfolder)
+        #print(trajfolder)
         files = os.listdir(trajfolder)
         
         logfiles = []
@@ -3637,7 +3639,7 @@ class ImportTrajectoryWindow:
             '''selecting the vismol object from the content that is in the combobox '''
             model = self.combobox_pdynamo_system.get_model()
             name, sys_id = model[tree_iter][:2]
-            print ('name/ system_id: ', name, sys_id)
+            #print ('name/ system_id: ', name, sys_id)
         else:
             return False
 
@@ -3682,7 +3684,7 @@ class ImportTrajectoryWindow:
             self.builder.get_object('entry_create_a_new_vobj').set_sensitive(True)
             self.builder.get_object('vobjects_combobox').set_sensitive(True)        
         
-        print ('\ndata_type: ', data_type, '\ndata_type_dict: ',self.data_type_dict[data_type])
+        #print ('\ndata_type: ', data_type, '\ndata_type_dict: ',self.data_type_dict[data_type])
         data_type = self.data_type_dict[data_type]
         
         if  data_type in self.folder_type_list:
@@ -3699,12 +3701,12 @@ class ImportTrajectoryWindow:
             '''selecting the vismol object from the content that is in the combobox '''
             model = self.combobox_starting_coordinates.get_model()
             name, vobject_id = model[tree_iter][:2]
-            print ('\nname: ', name, '\nmodel[tree_iter][:2]: ', model[tree_iter][:2])
+            #print ('\nname: ', name, '\nmodel[tree_iter][:2]: ', model[tree_iter][:2])
 
     def on_name_combo_changed (self, widget):
         """ Function doc """
         traj_type = self.builder.get_object('combobox_coordinate_type').get_active() 
-        print (traj_type, self.data_type_dict[traj_type])
+        #print (traj_type, self.data_type_dict[traj_type])
         traj_type = self.data_type_dict[traj_type]
         
         if  traj_type in self.folder_type_list:
@@ -3790,7 +3792,7 @@ class ImportTrajectoryWindow:
                 parameters['vobject']    = vobject
             #-------------------------------------------------------------------------------------------
 
-        print('\n parameters: ', parameters)
+        #print('\n parameters: ', parameters)
         self.main.p_session.import_data ( parameters ) 
 
     def update (self):
@@ -4180,7 +4182,7 @@ class PotentialEnergyAnalysisWindow:
             _name, index = model[_iter][:2]
         
         self.data = self.p_session.psystem[self.vobject.e_id].e_logfile_data[self.vobject.index][index] 
-        print('data: ', self.data)
+        #print('data: ', self.data)
         
         if self.data['type'] == 'plot1D':
             pass
@@ -4249,7 +4251,7 @@ class PotentialEnergyAnalysisWindow:
             '''
             if self.interpolate:
                 if len(widget.points) > 0 :
-                    print([widget.points[-1],[i_on_plot, j_on_plot] ])
+                    #print([widget.points[-1],[i_on_plot, j_on_plot] ])
                     
                     xy_list = build_chain_of_states( [widget.points[-1], [i_on_plot, j_on_plot]])
                 
@@ -4319,7 +4321,7 @@ class PotentialEnergyAnalysisWindow:
             #print(self.xy_traj[int(value)])
             xy = self.plot.points[int(value)]
             #print(xy, self.zdata[int(value)])
-            print(xy, self.plot.data[xy[0]][xy[1]])
+            #print(xy, self.plot.data[xy[0]][xy[1]])
             x = [value]
             y = [  self.plot.data[xy[0]][xy[1]]   ]
             frame = self.vobject.idx_2D_xy[(xy[1], xy[0])]
@@ -4664,7 +4666,7 @@ class PotentialEnergyAnalysisWindow_old():
             '''selecting the vismol object from the content that is in the combobox '''
             model = self.coordinates_combobox.get_model()
             _name, vobject_index = model[_iter][:2]
-            print ('\n\n\_name, vobject_index:', _name, vobject_index, '\n\n')
+            #print ('\n\n\_name, vobject_index:', _name, vobject_index, '\n\n')
         #-----------------------------------------------------------------------------
         self.vobject = self.main.vm_session.vm_objects_dic[vobject_index]
 
@@ -4690,7 +4692,7 @@ class PotentialEnergyAnalysisWindow_old():
         
         #self.vobject = self.main.vm_session.vm_objects_dic[vobject_index]
         self.data = self.p_session.psystem[self.vobject.e_id].e_logfile_data[self.vobject.index][index] 
-        print('data: ', self.data)
+        #print('data: ', self.data)
         self.plot.data = self.data['Z']
         #self._draw_data(cla = True)
         
@@ -4759,7 +4761,7 @@ class PotentialEnergyAnalysisWindow_old():
                 
                 if self.interpolate:
                     if len(self.xy_traj) > 0 :
-                        print([self.xy_traj[-1],[x,y] ])
+                        #print([self.xy_traj[-1],[x,y] ])
                         xy_list = build_chain_of_states( [self.xy_traj[-1],[x,y] ])
                     else:
                         xy_list = [[x,y]]
@@ -4800,7 +4802,7 @@ class PotentialEnergyAnalysisWindow_old():
         
         #print(self.xy_traj[int(value)])
         xy = self.xy_traj[int(value)]
-        print(xy, self.zdata[int(value)])
+        #print(xy, self.zdata[int(value)])
         
         self.ax2.cla()
         self.ax3.cla()

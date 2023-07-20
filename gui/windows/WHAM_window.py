@@ -216,7 +216,7 @@ class WHAMWindow(Gtk.Window):
         #----------------------------------------------------------------------
         
         
-        print(parameters)
+        #print(parameters)
         TrueFalse = self.p_session.run_analysis(parameters)
         
         if TrueFalse:
@@ -233,7 +233,7 @@ class WHAMWindow(Gtk.Window):
     
     def clear_treeview (self, widget):
         """ Function doc """
-        print('clear_treeview')
+        #print('clear_treeview')
         self.liststore.clear()
     
     
@@ -251,7 +251,7 @@ class WHAMWindow(Gtk.Window):
         if response == Gtk.ResponseType.OK:
             # Get the list of selected folder paths
             folder_paths = dialog.get_filenames()
-            print(folder_paths)
+            #print(folder_paths)
             
             liststore = self.builder.get_object('liststore1')
             
