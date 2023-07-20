@@ -2819,15 +2819,15 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
     def _build_res_liststore(self):
         self.residue_liststore.clear() #= Gtk.ListStore(GdkPixbuf.Pixbuf, int, str, str, int)
         for chain in self.VObj.chains:
-            for resi in self.VObj.chains[chain].residues:
-                #print(res.resi, res.resn, chain,  len(res.atoms) ) 
-                
-                #res_color = self.residues_dictionary[self.VObj.residues[resi].name]
+            for index, resi in self.VObj.chains[chain].residues.items():
+                #print(resi.index, resi.name, chain,  len(resi.atoms) ) 
                 color  =  self.VObj.color_palette['C']
                 res_color  = [int(color[0]*255),int(color[1]*255),int(color[2]*255)] 
                 swatch = self.getColouredPixmap( res_color[0], res_color[1], res_color[2] )
-                #print(swatch, self.VObj.residues[resi].index, self.VObj.residues[resi].name , chain,  len(self.VObj.residues[resi].atoms)) 
-                self.residue_liststore.append(list([swatch, self.VObj.residues[resi].index, self.VObj.residues[resi].name , chain,  len(self.VObj.residues[resi].atoms)]))
+                
+                self.residue_liststore.append(list([swatch, index, resi.name , chain,  len(self.VObj.chains[chain].residues[index].atoms)]))
+                #self.residue_liststore.append(list([swatch, self.VObj.residues[resi].index, self.VObj.residues[resi].name , chain,  len(self.VObj.residues[resi].atoms)]))
+                #self.residue_liststore.append(list([swatch, self.VObj.residues[resi].index, resn , chain,  len(self.VObj.residues[resi].atoms)]))
 
     def on_combobox_systems_changed (self, widget):
         """ Function doc """

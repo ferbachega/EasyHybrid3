@@ -998,6 +998,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
     def load_a_new_pDynamo_system_from_dict (self, input_files = {}, system_type = 0, name = None, tag = None, color = None):
         """ Function doc """
         print('\n\n\ init - load_a_new_pDynamo_system_from_dict')
+        # This commented section prints information about the existing psystem dictionary
+
         #for index , psystem in self.psystem.items():
         #    if psystem:
         #        print(' in load_a_new_pDynamo_system_from_dict', index, psystem.e_color_palette['C'])
@@ -1063,31 +1065,49 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
         '''-----------------------------------------------------------------'''
 
-        #system
+        # Add the system to the main treeview
         self.main.main_treeview.add_new_system_to_treeview (system)
-        
-        #sys_type = {0: 'AMBER', 1:'CHARMM'}
+
+        # Determine the force field used
+        # sys_type = {0: 'AMBER', 1: 'CHARMM'}        
         ff  =  getattr(system.mmModel, 'forceField', "None")
         
+        
+        # Add information about the new system to the status treeview
         self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system =system)
+        
+        # Add the system as a vismol object to the easyhybrid session
         self._add_vismol_object_to_easyhybrid_session (system, True)  
+        
+        
         #self.main.refresh_active_system_liststore()
         #self.main.refresh_system_liststore ()
         
     
     def _add_vismol_object_to_easyhybrid_session (self, system, show_molecule=True, name = 'new_coords'):
         """ Function doc """
-        # vismol obejct
+        # Create a VisMol object from the given pDynamo system
         vm_object = self._build_vobject_from_pDynamo_system ( system = system, name = name ) 
+        
+        # Add the VisMol object to the VisMol session
         self.vm_session._add_vismol_object(vm_object, show_molecule=True)
+        
+        # Add the VisMol object to the main treeview
         self.main.main_treeview.add_vismol_object_to_treeview(vm_object)
         
+        # Add the VisMol object to the vobject liststore dictionary
         self.main.add_vobject_to_vobject_liststore_dict(vm_object)
         
+        # Apply fixed representation to the VisMol object
         self._apply_fixed_representation_to_vobject(vismol_object =vm_object)
+        
+        # Apply QC representation to the VisMol object
         self._apply_QC_representation_to_vobject(vismol_object =vm_object)
         
+        # Refresh the widgets in the main window
         self.main.refresh_widgets()
+        
+        # Return the VisMol object
         return vm_object
 
     
@@ -1114,9 +1134,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         
         
-        
-        
-        
+
         # - - - - - - - - - - - - - Working Folder - - - - - - - - - - - - - 
         if working_folder is None:
             is_wf_already_set = getattr ( system, "e_working_folder", False )            
@@ -1339,7 +1357,15 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
     
     def get_fixed_atoms_from_system (self, system):
-        """ Function doc """
+        """
+        Get a list of fixed atoms from the given system object.
+
+        Args:
+            system (YourSystemClass): The system object containing atoms and freeAtoms attribute.
+
+        Returns:
+            list: A list of fixed atoms (atoms not present in freeAtoms).
+        """
         if system.freeAtoms is None:
             pass
         
@@ -1422,11 +1448,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             _chain = vm_object.chains[_atom["chain"]]
             
             if _atom["resi"] not in _chain.residues.keys():
+                #print(_atom["resn"], _atom["chain"],_atom["resi"] )
                 _r = Residue(vm_object, name=_atom["resn"], index=_atom["resi"], chain=_chain)
                 vm_object.residues[_atom["resi"]] = _r
                 _chain.residues[_atom["resi"]] = _r
-            _residue = _chain.residues[_atom["resi"]]
             
+            _residue = _chain.residues[_atom["resi"]]
+            #print(_residue.name, _residue.index )
             #print(_atom)
             #atom = Atom()
             atom = Atom(vismol_object = vm_object,#
