@@ -2142,8 +2142,10 @@ class ReactionCoordinateBox(Gtk.Box):
         
         parameters["nsteps"]         = int(self.builder.get_object('entry_nsteps1').get_text() )
         parameters["force_constant"] = float( self.builder.get_object('entry_FORCE_coord1').get_text() )
-        parameters["dincre"]         = float( self.builder.get_object('entry_step_size1').get_text() )
-        
+        try:
+            parameters["dincre"]         = float( self.builder.get_object('entry_step_size1').get_text() )
+        except:
+            parameters["dincre"]         = 0.00
         return (parameters)
         
         

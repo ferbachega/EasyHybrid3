@@ -1976,7 +1976,24 @@ def _run_parallel_umbrella_sampling_2D (job):
     pkl        = job[2]
     parameters = job[3]
     system     = job[4]
+
+
+    hamiltonian = get_hamiltonian (system)
+    ''' 
     
+    '''
+    if hamiltonian in ['DFTB QC Model', 'ORCA QC Model', 'external']:
+        try:
+            os.mkdir(system.qcModel.scratch +'/process_'+str(i)+'_'+str(j))
+        except:
+            pass
+     
+        try:
+            system.qcState.DeterminePaths(system.qcModel.scratch +'/process_'+str(i)+'_'+str(j))
+        except:
+            pass
+
+
     parameters['system'].coordinates3 = ImportCoordinates3(os.path.join(parameters['source_folder'], pkl ))
     
     opt_parameters  = parameters['OPT_parm']
@@ -2089,6 +2106,22 @@ def _run_parallel_umbrella_sampling_1D (job):
     parameters = job[2]
     system     = job[3]
 
+    
+    hamiltonian = get_hamiltonian (system)
+    ''' 
+    '''
+    if hamiltonian in ['DFTB QC Model', 'ORCA QC Model', 'external']:
+        try:
+            os.mkdir(system.qcModel.scratch +'/process_'+str(i))
+        except:
+            pass
+     
+        try:
+            system.qcState.DeterminePaths(system.qcModel.scratch +'/process_'+str(i))
+        except:
+            pass
+
+    
     parameters['system'].coordinates3 = ImportCoordinates3(os.path.join(parameters['source_folder'], pkl ))
     #-------------------------------------------------------------------------
     #Setting some local vars to ease the notation in the pDynamo methods
