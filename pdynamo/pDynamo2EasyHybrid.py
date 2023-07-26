@@ -724,6 +724,8 @@ class pAnalysis:
             
             #print (TrueFalse,msg )
             return TrueFalse
+
+
 class ModifyRepInVismol:
     """ Class doc """
     

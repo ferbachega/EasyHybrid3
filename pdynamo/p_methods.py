@@ -1314,7 +1314,7 @@ class RelaxedSurfaceScan:
         parameters['system'].e_treeview_iter   = backup[0]
         parameters['system'].e_liststore_iter  = backup[1]
 
-
+    '''
     def _run_scan_2D_old (self, parameters):
         """ Function doc """
         #-------------------------------------------------------------------------
@@ -1337,7 +1337,6 @@ class RelaxedSurfaceScan:
         for i in range(parameters['nsteps_RC1']):       
             distance = parameters['dminimum_RC1'] + ( parameters['dincre_RC1'] * float(i) )
 
-            '''----------------------------------------------------------------------------------------------------------------'''
             if parameters["rc_type_1"] == 'simple_distance':
                 #---------------------------------------------------------------------------------------------------------
                 rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['force_constant_1'])
@@ -1451,7 +1450,7 @@ class RelaxedSurfaceScan:
                 text = "\nDATA  %4i  %4i     %13.12f       %13.12f       %13.12f"% (int(i), int(j),  float(data[(i,j)][0]), float(data[(i,j)][1]), float(data[(i,j)][2]))
                 arq.write(text)
         #--------------------------------------------------------------------------------------
-
+    '''
 class UmbrellaSampling:
     def __init__ (self):
         """ Class initialiser """
@@ -2537,6 +2536,25 @@ def _run_second_coordinate_in_parallel ( job):
     parameters = job[2]
     system     = job[3]
     
+    
+    hamiltonian = get_hamiltonian (system)
+    ''' 
+    
+    '''
+    if hamiltonian in ['DFTB QC Model', 'ORCA QC Model', 'external']:
+        try:
+            os.mkdir(system.qcModel.scratch +'/process_'+str(i))
+        except:
+            pass
+     
+        try:
+            system.qcState.DeterminePaths(system.qcModel.scratch +'/process_'+str(i))
+        except:
+            pass
+
+    
+    
+    
     atom_RC1_1 = parameters['ATOMS_RC1'][0]
     atom_RC1_2 = parameters['ATOMS_RC1'][1]                   
     
@@ -2686,7 +2704,22 @@ def _run_second_coordinate_in_parallel ( job):
         
     
 
-
-
+def get_hamiltonian (system):
+    """ Function doc """
+    
+    hamiltonian   = getattr(system.qcModel, 'hamiltonian', False)
+    
+    if hamiltonian:
+        pass
+    
+    else:
+        try:
+            itens = system.qcModel.SummaryItems()
+            #print(itens)
+            hamiltonian = itens[0][0]
+        except:
+            hamiltonian = 'external'
+    
+    return hamiltonian
 
 
