@@ -1502,7 +1502,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 vm_object.define_bonds_from_external(index_bonds = index_bonds)
             else:
                 vm_object.find_bonded_and_nonbonded_atoms()
-                print('Bonds definwd from distance.')
+                print('Bonds defined from distance.')
         else:
             vm_object.find_bonded_and_nonbonded_atoms()
             print('Bonds definwd from distance.')
