@@ -23,7 +23,7 @@ Umbrella sampling
 
 Reaction path calculations
 
-
+For more information access: https://sites.google.com/view/easyhybrid/home?authuser=1
 
 
 The principle references for pDynamo are:
