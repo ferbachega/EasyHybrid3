@@ -136,8 +136,8 @@ class ChainOfStatesOptWindow(Gtk.Window):
 
             #------------------------------------------------------------------------------------------------
             if  self.p_session.psystem[self.p_session.active_id]:
-                system = self.p_session.psystem[self.p_session.active_id]
-                self.builder.get_object('traj_name').set_text(str(system.e_step_counter)+'-'+system.e_tag +'_'+ self.sym_tag)
+                output_name = self.p_session.get_output_filename_from_system(self.sym_tag)
+                self.builder.get_object('traj_name').set_text(output_name)            
             else:
                 pass
             #------------------------------------------------------------------------------------------------
@@ -287,7 +287,15 @@ class ChainOfStatesOptWindow(Gtk.Window):
         self._starting_coordinates_model_update()
         if self.Visible:
             self.update_working_folder_chooser()
-
+        
+        
+            #------------------------------------------------------------------------------------------------
+            if  self.p_session.psystem[self.p_session.active_id]:
+                output_name = self.p_session.get_output_filename_from_system(self.sym_tag)
+                self.builder.get_object('traj_name').set_text(output_name)            
+            else:
+                pass
+            #------------------------------------------------------------------------------------------------
 
     def update_working_folder_chooser (self, folder = None):
         """ Function doc """

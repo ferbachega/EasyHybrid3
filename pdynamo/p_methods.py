@@ -179,7 +179,7 @@ class EnergyRefinement:
                     dist =  parameters['system'].coordinates3.Distance (atom1, atom2) 
                     data_energy[int(x)] = [energy, dist ]
                 
-                elif parameters['rc_type_1'] == 'multiple_distance':
+                elif parameters['RC1']['rc_type'] == 'multiple_distance':
                     atom1 = parameters['RC1']['ATOMS'][0]
                     atom2 = parameters['RC1']['ATOMS'][1]
                     atom3 = parameters['RC1']['ATOMS'][2]
@@ -195,6 +195,7 @@ class EnergyRefinement:
             
             lowest_energy = min(energy_list)
             keys = data_energy.keys()
+            
             for i in range(0, len(keys)):
 
                 

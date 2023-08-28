@@ -290,6 +290,11 @@ class SinglePointwindow:
             self.builder.get_object('button_run').connect('clicked', self.on_button_run_clicked)
             self.window.connect('destroy', self.CloseWindow)
 
+            if  self.p_session.psystem[self.p_session.active_id]:
+                output_name = self.p_session.get_output_filename_from_system('single_point')
+                self.builder.get_object('entry_logfile_name').set_text(output_name)
+
+
             self.window.show_all()
             self.Visible  = True
     
@@ -448,7 +453,10 @@ class SinglePointwindow:
         self._starting_coordinates_model_update()
         if self.Visible:
             self.update_working_folder_chooser()
-
+            
+            if  self.p_session.psystem[self.p_session.active_id]:
+                output_name = self.p_session.get_output_filename_from_system('single_point')
+                self.builder.get_object('entry_logfile_name').set_text(output_name)
 
     def update_working_folder_chooser (self, folder = None):
         """ Function doc """
@@ -567,6 +575,10 @@ class EnergyRefinementWindow():
                 self.folder_chooser_button.set_folder(folder = folder)
             #------------------------------------------------------------------------------------------------
             
+            
+            if  self.p_session.psystem[self.p_session.active_id]:
+                output_name = self.p_session.get_output_filename_from_system('energy_ref')
+                self.builder.get_object('entry_logfile').set_text(output_name)  
             
 
             self.window.show_all()
@@ -752,7 +764,10 @@ class EnergyRefinementWindow():
         self._starting_coordinates_model_update()
         if self.Visible:
             self.update_working_folder_chooser()
-
+            
+            if  self.p_session.psystem[self.p_session.active_id]:
+                output_name = self.p_session.get_output_filename_from_system('energy_ref')
+                self.builder.get_object('entry_logfile').set_text(output_name)  
 
     def update_working_folder_chooser (self, folder = None):
         """ Function doc """

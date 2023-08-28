@@ -1398,6 +1398,89 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         return self.psystem[system_id].e_fixed_table
     
+    def get_output_filename_from_system (self, stype = None):
+        """ Function doc """
+        psystem = self.psystem[self.active_id]
+            
+        name    = psystem.label
+        size    = len(psystem.atoms)
+        string = 'system: {}    atoms: {}    '.format(name, size)
+        
+        
+        qc_string = ''
+        
+        if psystem.qcModel:
+            hamiltonian   = getattr(psystem.qcModel, 'hamiltonian', False)
+            if hamiltonian:
+                pass
+            else:
+                try:
+                    itens = psystem.qcModel.SummaryItems()
+                    #print(itens)
+                    hamiltonian = itens[0][0]
+                except:
+                    hamiltonian = 'external'
+                
+                
+                
+            
+            n_QC_atoms    = len(list(psystem.qcState.pureQCAtoms))
+           
+            summary_items = psystem.electronicState.SummaryItems()
+            
+            qc_string += '{}_QC{}_'.format(  hamiltonian, n_QC_atoms)
+        else:
+            pass
+            
+            #string += 'hamiltonian: {}    QC atoms: {}    QC charge: {}    spin multiplicity {}    '.format(  hamiltonian, 
+            #                                                                                                  n_QC_atoms,
+            #                                                                                                  summary_items[1][1],
+            #                                                                                                  summary_items[2][1],
+            #                                                                                                 )
+        
+        
+        mm_string = ''    
+        n_fixed_atoms = len(psystem.e_fixed_table)
+        string += 'fixed atoms: {}    '.format(n_fixed_atoms)
+        
+        if psystem.mmModel:
+            forceField = psystem.mmModel.forceField
+            string += 'force field: {}    '.format(forceField)
+        
+            if psystem.nbModel:
+                nbmodel = psystem.mmModel.forceField
+                string += 'nbModel: True    '
+                
+                summary_items = psystem.nbModel.SummaryItems()
+                
+            
+            else:
+                string += 'nbModel: False    '
+            
+            
+            if psystem.symmetry:
+                #nbmodel = psystem.mmModel.forceField
+                string += 'PBC: True    symmetry: {}    '.format( psystem.symmetry.crystalSystem.label)
+                #print(psystem.symmetry)
+                #print(psystem.symmetryParameters)
+                #summary_items = psystem.nbModel.SummaryItems()
+                
+            
+            else:
+                string += 'PBC: False    '
+        
+            #mm_string += '{}_F{}'.format(forceField, n_fixed_atoms)
+            mm_string += '{}_'.format(forceField)
+        
+        else:
+            pass
+            
+        
+        
+        filename = str(psystem.e_step_counter)+'-'+psystem.e_tag +'_'+mm_string + qc_string.upper() + stype
+        #filename = '{}-{}_{}_{}_{}'str(psystem.e_step_counter)+'-'+system.e_tag +'_'+mm_string+ '_'+qc_string+' '+ stype
+        return filename
+    
     def get_color_palette (self, system_id = None):
         """ Function doc """
         if system_id:

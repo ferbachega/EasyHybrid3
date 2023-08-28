@@ -913,7 +913,24 @@ class MainWindow:
             self.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(new_system.label, new_system.e_tag, ff), system = new_system)
             self.p_session._add_vismol_object_to_easyhybrid_session (new_system, True) #, name = 'olha o  coco')
             #----------------------------------------------------------------------
-    
+        elif menuitem == self.builder.get_object('menuitem_prune_to_qc_region'): 
+            system = self.p_session.psystem[self.p_session.active_id]
+            
+            new_system = system.PruneToQCRegion()
+            new_system = self.p_session.append_system_to_pdynamo_session (system = new_system)            
+            self.main_treeview.add_new_system_to_treeview (new_system)
+            # Determine the force field used
+            # sys_type = {0: 'AMBER', 1: 'CHARMM'}        
+            ff  =  getattr(new_system.mmModel, 'forceField', "None")
+            
+            
+            # Add information about the new system to the status treeview
+            self.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system =system)
+            
+            # Add the system as a vismol object to the easyhybrid session
+            self.p_session._add_vismol_object_to_easyhybrid_session (new_system, True)  
+        
+        #---------------------------------------------------------------------------------------------------------
         
         
         elif menuitem == self.builder.get_object('menuitem_energy'): 

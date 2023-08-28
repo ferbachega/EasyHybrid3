@@ -57,7 +57,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
         self.p_session  = main.p_session 
         self.vm_session = main.vm_session 
         self.Visible    =  False        
-        
+        self.sym_tag    = "umb_sam"
         self.input_types  = {
                             0 : 'From Coordinates (sequential)',
                             1 : 'From Trajectory (parallel)'   ,
@@ -223,6 +223,14 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.opt_methods_combo.set_active(0)
             self.md_integrators_combobox.set_active(0)
             self.update_working_folder_chooser ( )
+            
+            if  self.p_session.psystem[self.p_session.active_id]:
+                output_name = self.p_session.get_output_filename_from_system(self.sym_tag)
+                self.builder.get_object('entry_traj_name').set_text(output_name)
+            else:
+                pass
+            
+            
             self.Visible  = True   
 
         else:
@@ -422,7 +430,12 @@ class UmbrellaSamplingWindow(Gtk.Window):
         self._starting_coordinates_model_update()
         if self.Visible:
             self.update_working_folder_chooser()
-
+        
+            if  self.p_session.psystem[self.p_session.active_id]:
+                output_name = self.p_session.get_output_filename_from_system(self.sym_tag)
+                self.builder.get_object('entry_traj_name').set_text(output_name)
+            else:
+                pass
 
     def update_working_folder_chooser (self, folder = None):
         """ Function doc """
