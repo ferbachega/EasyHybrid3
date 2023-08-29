@@ -1107,11 +1107,13 @@ class RelaxedSurfaceScan:
         from the treeview, enabling easy interconnection of the data.'''
         #if interface:
         backup = []
-        backup.append(parameters['system'].e_treeview_iter)
-        backup.append(parameters['system'].e_liststore_iter)
-        parameters['system'].e_treeview_iter   = None
-        parameters['system'].e_liststore_iter  = None
-        
+        try:
+            backup.append(parameters['system'].e_treeview_iter)
+            backup.append(parameters['system'].e_liststore_iter)
+            parameters['system'].e_treeview_iter   = None
+            parameters['system'].e_liststore_iter  = None
+        except:
+            pass
        
         
         
@@ -1312,9 +1314,11 @@ class RelaxedSurfaceScan:
         
 
         #if interface:
-        parameters['system'].e_treeview_iter   = backup[0]
-        parameters['system'].e_liststore_iter  = backup[1]
-
+        try:
+            parameters['system'].e_treeview_iter   = backup[0]
+            parameters['system'].e_liststore_iter  = backup[1]
+        except:
+            pass
     '''
     def _run_scan_2D_old (self, parameters):
         """ Function doc """
