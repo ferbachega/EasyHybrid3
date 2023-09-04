@@ -1,0 +1,48 @@
+
+--------------------------------------------------------------------------------------------------
+                              Summary of System "new pDynamo system"
+--------------------------------------------------------------------------------------------------
+---------------------------------------------- Atoms ---------------------------------------------
+Atoms                       =                 10  Heavy Atoms                 =                  3
+Hydrogens                   =                  7
+------------------------------------------ Connectivity ------------------------------------------
+Angles                      =                  0  Atoms                       =                 10
+Bonds                       =                  0  Dihedrals                   =                  0
+Isolates                    =                 10  Ring Sets                   =                  0
+---------------------------------------- Electronic State ----------------------------------------
+Electronic Charge           =                  0  Is Spin Restricted          =               True
+Occupancy Type              =           Cardinal  Spin Multiplicity           =                  1
+------------------------------------------ MNDO QC Model -----------------------------------------
+Alpha Charge                =             12.000  Beta Charge                 =             12.000
+Energy Base Line            =             34.554  Exchange Scaling            =              1.000
+Hamiltonian                 =                am1  MNDO Parameter Entries      =                  3
+Number of Boundary Atoms    =                  0  Number of QC Atoms          =                 10
+Orbital Basis Functions     =                 19  Orthogonalization Method    =          Symmetric
+Relative Link Atom Distance =               True  SCF Converger               = DIIS SCF Converger
+--------------------------------------------------------------------------------------------------
+
+Start Time: Thu Aug 31 00:01:21 2023
+
+CPU Time: 2.904s
+
+Stop Time: Thu Aug 31 00:01:23 2023
+---------------------------
+TYPE                          EasyHybrid-SCAN                                   
+--------------------------------------------------------------------------------
+
+----------------------- Coordinate 1 - Simple-Distance -------------------------
+ATOM1                  =              0  ATOM NAME1             =             O0
+ATOM2                  =              3  ATOM NAME2             =             N3
+NUMBER OF STEPS        =              5  FORCE CONSTANT         =           4000
+DMINIMUM               =        4.20873  MAX INTERACTIONS       =            600
+STEP SIZE              =      0.1000000  RMS GRAD               =      0.1000000
+--------------------------------------------------------------------------------
+
+-------------------------------------------------------------
+           Frame    dist-ATOM1-ATOM2             Energy      
+-------------------------------------------------------------
+DATA         0       4.208498603727        -562.795084415118
+DATA         1       4.308635667595        -562.692472608736
+DATA         2       4.408655204569        -562.641043781717
+DATA         3       4.508702125309        -562.621255927107
+DATA         4       4.608711935811        -562.602385227163

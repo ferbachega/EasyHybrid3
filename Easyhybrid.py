@@ -525,17 +525,22 @@ class MainWindow:
             self.open_gtk_load_files (menuitem)
             
         elif menuitem == self.builder.get_object('menuitem_save'):
-            self.gtk_save_file (menuitem)
-            
+            if self.session_filename == None:
+                self.gtk_save_as_file(menuitem)
+            else:
+                self.p_session.save_easyhybrid_session( filename = self.session_filename)            
+
         elif menuitem == self.builder.get_object('menuitem_save_as'):
             self.gtk_save_as_file (menuitem)
 
         elif menuitem == self.builder.get_object('menuitem_export'):
             self.export_data_window.OpenWindow()
+        
+        elif menuitem == self.builder.get_object('menuitem_import'):
+            self.import_trajectory_window.OpenWindow()
             
         elif menuitem == self.builder.get_object('menuitem_quit'):
             Gtk.main_quit()
-            ##print(menuitem, 'menu_item_merge_system')
             pass
         
         
