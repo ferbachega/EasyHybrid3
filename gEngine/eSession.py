@@ -1002,9 +1002,11 @@ class GLMenu:
 class EasyHybridSession(VismolSession, GLMenu):
     """ Class doc """
     
-    def __init__ (self, a = None):
+    def __init__ (self, vm_config = None):
+        
         """ Class initialiser """
-        super().__init__(toolkit="Gtk_3.0")
+        super().__init__(toolkit="Gtk_3.0", vm_config = vm_config)
+        
         ##print('\n\n\n',a, '\n\n\n')
         self.selection_box_frame = None
         self.cmd = CommandLine(self)

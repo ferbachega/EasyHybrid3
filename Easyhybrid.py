@@ -54,6 +54,7 @@ from vismol.core.vismol_session import VismolSession
 import vismol.utils.matrix_operations  as mop
 
 from gEngine.eSession import EasyHybridSession
+from gEngine.config import VismolConfig
 from gui.gtk_widgets import VismolSelectionTypeBox
 from gui.gtk_widgets import FileChooser
 from gui.gtk_widgets import get_colorful_square_pixel_buffer
@@ -108,7 +109,9 @@ class MainWindow:
     def __init__ (self, vm_session = None):
         """ Class initialiser """
         self.home               =  EASYHYBRID_HOME
+        self.home               =  os.environ.get('EASYHYBRID_HOME')
         self.EASYHYBRID_VERSION =  EASYHYBRID_VERSION
+        print (self.home, self.EASYHYBRID_VERSION)
         self.builder = Gtk.Builder()
         self.builder.add_from_file(os.path.join(self.home,'gui/MainWindow.glade'))
         self.builder.add_from_file(os.path.join(self.home,'gui/MainWindow_text_and_logs.glade'))
@@ -2389,10 +2392,11 @@ class PreferencesWindow:
 def main():
     logging.basicConfig(format="%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",
                         datefmt="%Y-%m-%d:%H:%M:%S", level=logging.DEBUG)
-    
-    vm_session = EasyHybridSession( a = True)
+
+    vconfig = VismolConfig()
+
+    vm_session = EasyHybridSession(vm_config = vconfig)
     vm_session.vm_widget.insert_glmenu()
-    
     main_window = MainWindow(vm_session = vm_session)
     main_window.window.connect('destroy', Gtk.main_quit)
     
