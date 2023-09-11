@@ -39,7 +39,8 @@ from pSimulation               import *
 
 
 # importing system
-system = ImportSystem ('../pkl/1UAO_OPLS_folded_solvated.pkl')
+system = ImportSystem ('../pkl/bALA_eq_OPLS.pkl')
+
 # summary
 system.Summary()
 

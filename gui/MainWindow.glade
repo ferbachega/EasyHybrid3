@@ -1342,6 +1342,7 @@
                   <object class="GtkToolButton" id="toolbutton_chain_of_states_opt">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Nudged Elastic Band (NEB)</property>
                     <property name="label" translatable="yes">__glade_unnamed_8</property>
                     <property name="use_underline">True</property>
                     <property name="icon_widget">image7</property>

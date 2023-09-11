@@ -3523,7 +3523,7 @@ class ImportTrajectoryWindow:
             self.builder.add_from_file(os.path.join(self.home,'gui/windows/import_trajectory_window.glade'))
             self.builder.connect_signals(self)
             self.window = self.builder.get_object('import_trajectory_window')
-            self.window.set_title('Import Trajectory Window')
+            self.window.set_title('Import Data Window')
             self.window.set_keep_above(True)
             '''--------------------------------------------------------------------------------------------'''
             self.box = self.builder.get_object('box_system')

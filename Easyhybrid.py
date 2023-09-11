@@ -2014,16 +2014,20 @@ class TreeViewMenu:
         old_name = model.get_value(iter, 2)
         v_id     = model.get_value(iter, 1)
         e_id     = model.get_value(iter, 0)
-
+        tag      = self.main.p_session.psystem[e_id].e_tag 
+        
+        old_name = old_name.split("- ")
+        old_name = old_name[-1]
         
         if self.rename_window_visible:
+            self.preferences.set_names (old_name, tag)
             pass
         else:
             
             self.preferences = PreferencesWindow(main = self.main, 
                                                  e_id = e_id     ,
                                                  v_id = v_id     )
-            
+            self.preferences.set_names (old_name, tag)
 
     def destroy (self, widget):
         """ Function doc """
@@ -2357,7 +2361,13 @@ class PreferencesWindow:
         self.window.show_all()
         self.button_color.hide()
         self.builder.get_object('label_color').hide()
+    
+    def set_names (self, name, tag):
+        """ Function doc """
+        self.entry_name.set_text(name)
+        self.entry_tag .set_text(tag)
         
+    
     def on_button_apply (self, button):
         """ Function doc """
         name  = self.entry_name.get_text()

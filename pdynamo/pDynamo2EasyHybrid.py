@@ -199,8 +199,10 @@ class LoadAndSaveData:
         
         for data  in easyhybrid_session_data['systems']:
             system = data['system']
-            #print('\n\n\n\n',system)
-            self.append_system_to_pdynamo_session (system = system)
+            name   = system.label
+            tag    = system.e_tag
+            print('\n\n\n\n',system, name, tag)
+            self.append_system_to_pdynamo_session (system = system, name  = name, tag = tag)
             self.main.main_treeview.add_new_system_to_treeview (system)
             ff  =  getattr(system.mmModel, 'forceField', "None")
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system = system)
@@ -265,6 +267,7 @@ class EasyHybridImportTrajectory:
             #print (parameters['vobject'].frames)
             #coords = np.vstack((coords, f))
             parameters['vobject'].frames = np.vstack((parameters['vobject'].frames, v_coords))
+            self._apply_QC_representation_to_vobject(vismol_object = parameters['vobject'])
 
     
     def _import_coordinates_from_pklfolder (self, parameters):
@@ -350,7 +353,8 @@ class EasyHybridImportTrajectory:
                 v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
                 parameters['vobject'].frames = np.vstack((parameters['vobject'].frames, v_coords))
             '''
-            
+        self._apply_QC_representation_to_vobject(vismol_object = vismol_object)
+
     def _import_coordinates_from_pklfolder2D (self, parameters):
         """ Function doc """
         files = os.listdir( parameters['data_path'])
@@ -397,7 +401,7 @@ class EasyHybridImportTrajectory:
             
             vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
             n+=1
-            
+        self._apply_QC_representation_to_vobject(vismol_object = vismol_object)
 
     def _import_normal_modes_data (self, parameters):
         """ Function doc """
@@ -779,6 +783,45 @@ class ModifyRepInVismol:
             self.psystem[system_id].e_qc_table = list(self.psystem[system_id].qcState.pureQCAtoms)
             
             
+            
+            '''
+                This part of the code identifies which atoms in the QC 
+            region are connected to atoms in the MM region (MM_QC_atoms). 
+            Then build a list containing only atoms from the QC region with no 
+            connection to the MM part. the line representation will be 
+            erased for the atoms in this new list.
+            '''
+            #------------------------------------------------------------------
+            MM_QC_atoms = []
+            for index in self.psystem[system_id].e_qc_table:
+                for bond in vismol_object.atoms[index].bonds:
+                    a1 = bond.atom_i.index -1
+                    a2 = bond.atom_j.index-1
+                    #print (index, bond.atom_i.index-1, bond.atom_j.index-1 )
+                    
+                    if a1 in self.psystem[system_id].e_qc_table :
+                        pass
+                    else:
+                        MM_QC_atoms.append(index)
+                    
+                    
+                    if a2 in self.psystem[system_id].e_qc_table :
+                        pass
+                    else:
+                        MM_QC_atoms.append(index)
+            
+            
+            # list containing only atoms from the QC region with no connection to the MM part
+            delete_lines = [] 
+            
+            for index in self.psystem[system_id].e_qc_table:
+                if index in MM_QC_atoms:
+                    pass
+                else:
+                    delete_lines.append(index)
+            #------------------------------------------------------------------
+            
+            
             for atom in vismol_object.atoms.values():
                 atom.spheres = False
                 atom.sticks = False
@@ -798,7 +841,12 @@ class ModifyRepInVismol:
 
             if static:
 
-                self.vm_session.show_or_hide(rep_type = 'sticks',selection= selection , show = True )
+                selection2 = self.vm_session.create_new_selection()
+                selection2.selecting_by_indexes(vismol_object, delete_lines, clear=True)
+
+                #self.vm_session.show_or_hide(rep_type = 'sticks',selection= selection , show = True )
+                self.vm_session.show_or_hide(rep_type = 'dynamic',selection= selection , show = True )
+                self.vm_session.show_or_hide(rep_type = 'lines',selection= selection2 , show = False )
                 #self.vm_session.show_or_hide(rep_type = 'sticks' , show = True )
 
             else:
@@ -2711,6 +2759,14 @@ class Atom:
                     symbol = "Po"
                 else:
                     symbol = "P" 
+            
+            elif name[0] == "Z":
+                if name[1] == "r":
+                    symbol = "Zr"
+                elif  name[1] == "N":
+                    symbol = "Zn"
+                else:
+                    symbol = "Zn" 
             
             elif name[0] == "F":
                 if name[1] == "E":
