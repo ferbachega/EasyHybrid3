@@ -279,9 +279,9 @@ class EasyHybridImportTrajectory:
             if _file.endswith('.pkl'):
                 pkl_files.append(_file)
 
-        print ('pDynamo pkl folder:' , parameters['data_type'])
-        print ('Number of pkl files:', len(pkl_files))
-        
+        #print ('pDynamo pkl folder:' , parameters['data_type'])
+        #print ('Number of pkl files:', len(pkl_files))
+        print ('pDynamo pkl folder:' , parameters)
         
         if parameters['new_vobj_name']:
             '''it is necessary to create a new object'''
@@ -338,10 +338,13 @@ class EasyHybridImportTrajectory:
             
             trajectory = ImportTrajectory ( parameters['data_path'], self.psystem[parameters['system_id']] )
             trajectory.ReadHeader ( )
+            vismol_object = parameters['vobject']
             # . Loop over the frames in the trajectory.
             while trajectory.RestoreOwnerData ( ):
                 p_coords = self.psystem[parameters['system_id']].coordinates3
                 v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+                
+                #vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
                 vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
 
             trajectory.ReadFooter ( )
@@ -524,12 +527,35 @@ class EasyHybridImportTrajectory:
             
             vobject_id = parameters['vobject_id']
             
+            if parameters['isAppend']:
+                '''
+                When two trajectories are added together. Here EasyHybrid 
+                will try to concatenate the log data. As they are not 
+                mandatory, and can be the result of different routines, 
+                they may not fit perfectly with the final trajectory
+                '''
+                
+                if vobject_id in  self.psystem[parameters['system_id']].e_logfile_data.keys():
+                    if len(self.psystem[parameters['system_id']].e_logfile_data[vobject_id]) != 0:
+                        '''Adding the lists of RC1 - reaction coordinate and Z - energy'''
+                        self.psystem[parameters['system_id']].e_logfile_data[vobject_id][0]["RC1"] += data["RC1"]
+                        self.psystem[parameters['system_id']].e_logfile_data[vobject_id][0]["Z"] += data["Z"]
+                    else:
+                        '''In this case, the list already exists, but there is nothing inside.'''
+                        self.psystem[parameters['system_id']].e_logfile_data[vobject_id].append(data)
+                
+                else:
+                    '''Here there is not yet a list of data associated with the vobject_id. 
+                    In this case, the list needs to be created first.'''
+                    self.psystem[parameters['system_id']].e_logfile_data[vobject_id] = []
+                    self.psystem[parameters['system_id']].e_logfile_data[vobject_id].append(data)
             
-            if vobject_id in  self.psystem[parameters['system_id']].e_logfile_data.keys():
-                self.psystem[parameters['system_id']].e_logfile_data[vobject_id].append(data)
             else:
-                self.psystem[parameters['system_id']].e_logfile_data[vobject_id] = []
-                self.psystem[parameters['system_id']].e_logfile_data[vobject_id].append(data)
+                if vobject_id in  self.psystem[parameters['system_id']].e_logfile_data.keys():
+                    self.psystem[parameters['system_id']].e_logfile_data[vobject_id].append(data)
+                else:
+                    self.psystem[parameters['system_id']].e_logfile_data[vobject_id] = []
+                    self.psystem[parameters['system_id']].e_logfile_data[vobject_id].append(data)
             
             #print ('\n\n\n\n\n\n\n')
             #print (self.psystem[parameters['system_id']].e_logfile_data)
@@ -1255,6 +1281,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         system.e_qc_table                 = []           
         system.e_qc_residue_table         = {}             #yes, it's a dict           
         system.e_fixed_table              = []             
+        
+        system.e_color_segments           = {}   # {1: [[idx1, idx2, idx3, ... ], [red, green, blue]]}
+        
         
         if getattr ( system, "e_selections", False ):
             pass
@@ -2448,8 +2477,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
     
     def _convert_pDynamo_coords_to_vismol(self, p_coords):
         '''
-        This function converts pDynamo coordinates ( which is a l
-        ist containg all the coords) into a vObject coordinates 
+        This function converts pDynamo coordinates ( which is a 
+        list containg all the coords) into a vObject coordinates 
         (which has a different numpy structure). PS: Carlos is 
         the responsible for this mess :D
         '''

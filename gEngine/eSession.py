@@ -127,7 +127,6 @@ class CommandLine:
     
     
 
-
 class GLMenu:
     """ Class doc """
     def insert_glmenu (self, bg_menu  = None, 
@@ -344,36 +343,36 @@ class GLMenu:
                     self.show_or_hide( rep_type = 'spheres', show = False)
 
             
-            def menu_set_color_grey (_):
-                """ Function doc """
-                self.set_color(color = [0.3     , 0.3     , 0.5 ] )
-            
-            def menu_set_color_green (_):
-                """ Function doc """
-                self.set_color(color = [0.0     , 1.0     , 0.0 ] )
-            
-            def menu_set_color_yellow (_):
-                """ Function doc """
-                self.set_color(color = [1.0     , 1.0     , 0.0 ] )
-            
-            def menu_set_color_light_blue (_):
-                """ Function doc """
-                self.set_color(color = [0.5     , 0.5     , 1.0 ] )
-            
-            def menu_set_color_light_red (_):
-                """ Function doc """
-                self.set_color(color = [1.0     , 0.5     , 0.5 ] )
-            
-            def menu_set_color_purple (_):
-                """ Function doc """
-                self.set_color(color = [1.0     , 0.0     , 1.0 ] )
-            
-            def menu_set_color_orange (_):
-                """ Function doc """
-                self.set_color(color = [1.0     , 0.5     , 0.0 ] )
-
-            def menu_set_color_magenta (_):
-                """ Function doc """
+            #def menu_set_color_grey (_):
+            #    """ Function doc """
+            #    self.set_color(color = [0.3     , 0.3     , 0.5 ] )
+            #
+            #def menu_set_color_green (_):
+            #    """ Function doc """
+            #    self.set_color(color = [0.0     , 1.0     , 0.0 ] )
+            #
+            #def menu_set_color_yellow (_):
+            #    """ Function doc """
+            #    self.set_color(color = [1.0     , 1.0     , 0.0 ] )
+            #
+            #def menu_set_color_light_blue (_):
+            #    """ Function doc """
+            #    self.set_color(color = [0.5     , 0.5     , 1.0 ] )
+            #
+            #def menu_set_color_light_red (_):
+            #    """ Function doc """
+            #    self.set_color(color = [1.0     , 0.5     , 0.5 ] )
+            #
+            #def menu_set_color_purple (_):
+            #    """ Function doc """
+            #    self.set_color(color = [1.0     , 0.0     , 1.0 ] )
+            #
+            #def menu_set_color_orange (_):
+            #    """ Function doc """
+            #    self.set_color(color = [1.0     , 0.5     , 0.0 ] )
+            #
+            #def menu_set_color_magenta (_):
+            #    """ Function doc """
 
             def menu_color_change (_):
                 """ Function doc """
@@ -384,9 +383,12 @@ class GLMenu:
                     color = self.colorchooserdialog.get_rgba()
                     #print(color.red,color.green, color.blue )
                     new_color = [color.red, color.green, color.blue]
-
+                
+                
+                
+                
                 self.colorchooserdialog.destroy()
-                self.set_color(color =new_color)
+                self.set_color(color = new_color)
 
             def set_as_qc_atoms (_):
                 """ Function doc """
@@ -997,6 +999,7 @@ class GLMenu:
                                      sele_menu = sele_menu, 
                                      obj_menu  = obj_menu, 
                                      pick_menu = pick_menu)
+
 
 
 class EasyHybridSession(VismolSession, GLMenu):

@@ -3751,7 +3751,9 @@ class ImportTrajectoryWindow:
                       'new_vobj_name': None, 
                       'vobject_id'   : None,
                       'vobject'      : None,
-
+                      
+                      'isAppend'     : False,
+                      
                       'logfile'      : None,
                       
                       'first'        : None,
@@ -3805,6 +3807,8 @@ class ImportTrajectoryWindow:
                 
                 parameters['vobject_id'] = vobject_id
                 parameters['vobject']    = vobject
+                parameters['isAppend']   = True
+                
             #-------------------------------------------------------------------------------------------
 
         #print('\n parameters: ', parameters)

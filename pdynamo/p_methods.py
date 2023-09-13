@@ -2350,7 +2350,7 @@ def _us_langevin_dynamics (system, trajectory, parameters):
                                       steps                  = parameters['steps']                                    ,
                                       temperature            = parameters['temperatureStart']                         ,
                                       timeStep               = parameters['timeStep']                                 ,
-                                      trajectories           = [(trajectory, parameters['trajectory_frequency'])],
+                                      trajectories           = [(trajectory, parameters['trajectory_frequency'])] #, (traj2, int)],
                                       #log                    = self.logFile2
                                       )
 

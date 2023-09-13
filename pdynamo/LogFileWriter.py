@@ -296,6 +296,43 @@ class LogFileReader:
             print(data)
             return data        
         
+        
+        elif self.type == 'Chain-Of-States':
+            Z       = []
+            RC1     = []
+            RC2     = []
+            
+            datalines = []
+            
+            data2   = self.data
+            counter = 0
+            start   = 0
+            
+            
+            
+            for line in data2:
+                if "Path Summary" in line:
+                    start = counter
+                counter += 1
+            
+            
+            for line in data2[start:]: 
+                line2  = line.split()
+                if len(line2) == 9:
+                    Z.append(float(line2[1]))
+                    RC1.append(float(line2[-1]))
+
+            data = {
+                   'name': self.basename,
+                   'type': "plot1D",
+                   'RC1' : RC1,
+                   'Z'   : Z
+                   }
+            print(data)
+            return data  
+        
+        
+        
         else:
             pass
         
@@ -314,6 +351,9 @@ class LogFileReader:
                 #line2 = line.split()
                 print(line)
                 self.type = 'EasyHybrid-SCAN'
+            elif 'Summary of Chain-Of-States Optimizer' in line:
+                print(line)
+                self.type = 'Chain-Of-States'
             
             else:
                 pass
