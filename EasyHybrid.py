@@ -118,7 +118,6 @@ class MainWindow:
     def __init__ (self, vm_session = None):
         """ Class initialiser """
         self.home               =  EASYHYBRID_HOME
-        self.home               =  os.environ.get('EASYHYBRID_HOME')
         self.EASYHYBRID_VERSION =  EASYHYBRID_VERSION
         print (self.home, self.EASYHYBRID_VERSION)
         self.builder = Gtk.Builder()
