@@ -48,17 +48,30 @@ Gtk.main()
 '''
 
 import os, sys, time
+EASYHYBRID_VERSION = '3.0'
+#EASYHYBRID_HOME    = os.environ.get('EASYHYBRID_HOME')#'/home/fernando/programs/EasyHybrid3'#os.environ.get('EASYHYBRID_HOME')
 
+#               Installation is not necessary anymore.
+#.This retrieves the absolute path of the script file that is currently being executed.
+easy_main_file = os.path.abspath(__file__)
+#.This extracts the directory (folder) from the absolute path obtained in the previous step.
+EASYHYBRID_HOME = os.path.dirname(easy_main_file)
 
-from vismol.core.vismol_session import VismolSession
+#.Adding GRAPHIC ENGINE LIB
+sys.path.append(os.path.join(EASYHYBRID_HOME,"graphics_engine/src"))
+#os.system("source /home/fernando/programs/pDynamo3/installation/shellScripts/environment_bash.com")
+
+   
+#from   vismol.core.vismol_session import VismolSession
+from   vismol.core.vismol_session import VismolSession
 import vismol.utils.matrix_operations  as mop
 
 from gEngine.eSession import EasyHybridSession
-from gEngine.config import VismolConfig
-from gui.gtk_widgets import VismolSelectionTypeBox
-from gui.gtk_widgets import FileChooser
-from gui.gtk_widgets import get_colorful_square_pixel_buffer
-from gui.gtk_widgets import ReactionCoordinateBox
+from gEngine.config   import VismolConfig
+from gui.gtk_widgets  import VismolSelectionTypeBox
+from gui.gtk_widgets  import FileChooser
+from gui.gtk_widgets  import get_colorful_square_pixel_buffer
+from gui.gtk_widgets  import ReactionCoordinateBox
 
 from gui.windows.windows_and_dialogs import ImportANewSystemWindow
 from gui.windows.windows_and_dialogs import EasyHybridDialogSetQCAtoms
@@ -97,10 +110,6 @@ from gui.windows.WHAM_window                 import WHAMWindow
 from pdynamo.pDynamo2EasyHybrid import pDynamoSession
 
 logger = logging.getLogger(__name__)
-EASYHYBRID_VERSION = '3.0'
-EASYHYBRID_HOME    = os.environ.get('EASYHYBRID_HOME')#'/home/fernando/programs/EasyHybrid3'#os.environ.get('EASYHYBRID_HOME')
-
-
 
 
 
