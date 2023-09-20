@@ -42,8 +42,8 @@ class VismolConfig                       :
                               "line_type"                  : 0,
                               "line_color"                 : 0,
                               
-                              "ribbon_width"               : 0.4, # not being used (defined in the shader)
-                              "ribbon_width_selection"     : 0.4, # not being used (defined in the shader)
+                              "ribbon_width"               : 0.4, # Now being used (defined in the shader)
+                              #"ribbon_width_selection"     : 0.4, # Now being used (defined in the shader)
                               "ribbon_type"                : 2,
                               "ribbon_color"               : 0,
                               "sphere_type"                : 0,
@@ -55,7 +55,7 @@ class VismolConfig                       :
                               "impostor_type"              : 0,
                               #"sticks_radius"             : 2.5,
                               
-                              "sticks_radius"              : 0.5, # not being used (defined in the shader)
+                              "sticks_radius"              : 0.16, # not being used (defined in the shader)
                               
                               "sticks_color"               : 0,
                               "sticks_type"                : 0,
