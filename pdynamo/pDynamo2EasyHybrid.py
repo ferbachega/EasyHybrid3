@@ -763,6 +763,23 @@ class ModifyRepInVismol:
         """ Class initialiser """
         pass
 
+    def clean_QC_representation_to_vobject (self, system_id = None):
+        """ Function doc """
+        if system_id:
+            system = self.psystem[system_id]
+        else:
+            system = self.psystem[self.active_id]
+        
+        if system.qcModel:
+            qc_table = list(system.qcState.pureQCAtoms)
+            for vismol_object in self.vm_session.vm_objects_dic.values():
+                if vismol_object.e_id == system.e_id:
+                    selection = self.vm_session.create_new_selection()
+                    selection.selecting_by_indexes(vismol_object, qc_table, clear=True)
+                    self.vm_session.show_or_hide(rep_type = 'lines',selection= selection, show = True )
+                    self.vm_session.show_or_hide(rep_type = 'dynamic',selection= selection , show = False )
+                    #self.vm_session.show_or_hide(rep_type = 'stick',selection= selection , show = False )
+            
 
     def _apply_fixed_representation_to_vobject (self, system_id = None, vismol_object = None):
         """ Function doc """
@@ -2049,6 +2066,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         This is postulated because multiple associations of QC 
         regions can distort the charge distribution of some residues. 
         (because charge rescale)'''
+        
+        self.clean_QC_representation_to_vobject()
         
         if vismol_object is None:
             system =  self.psystem[self.active_id]
