@@ -879,32 +879,17 @@ class MainWindow:
             
         elif menuitem == self.builder.get_object('menuitem_remove_qc'): 
             system = self.p_session.psystem[self.p_session.active_id]
+            '''
+            # The QC region will be deleted. First we have to disable 
+            # the QC representation and restore the MM representation 
+            # to the atoms.
+            '''
             self.p_session.clean_QC_representation_to_vobject()
-            
-            '''
-            if system.qcModel:
-                qc_table = list(system.qcState.pureQCAtoms)
-                for vismol_object in self.vm_session.vm_objects_dic.values():
-                    if vismol_object.e_id == system.e_id:
-                        selection = self.vm_session.create_new_selection()
-                        selection.selecting_by_indexes(vismol_object, qc_table, clear=True)
-                        self.vm_session.show_or_hide(rep_type = 'lines',selection= selection, show = True )
-                        self.vm_session.show_or_hide(rep_type = 'dynamic',selection= selection , show = False )
-                        #self.vm_session.show_or_hide(rep_type = 'stick',selection= selection , show = False )
-            '''
-            
+
             system.qcModel = None
-            for vismol_object in self.vm_session.vm_objects_dic.values():
-                if vismol_object.e_id == system.e_id:
-                    
-                    for atom in vismol_object.atoms.values():
-                        atom.spheres = False
-                        atom.sticks = False
-                    
-                    vismol_object.representations['spheres'] = None
-                    vismol_object.representations['sticks'] = None
-                    self.p_session._apply_QC_representation_to_vobject   (system_id = None, vismol_object = vismol_object)                   
-            
+            #for vismol_object in self.vm_session.vm_objects_dic.values():
+            #    if vismol_object.e_id == system.e_id:
+            #        self.p_session._apply_QC_representation_to_vobject   (system_id = None, vismol_object = vismol_object)                   
             self.vm_session.vm_glcore.queue_draw()
             self.refresh_widgets()
 

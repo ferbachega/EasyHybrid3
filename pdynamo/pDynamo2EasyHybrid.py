@@ -778,7 +778,15 @@ class ModifyRepInVismol:
                     selection.selecting_by_indexes(vismol_object, qc_table, clear=True)
                     self.vm_session.show_or_hide(rep_type = 'lines',selection= selection, show = True )
                     self.vm_session.show_or_hide(rep_type = 'dynamic',selection= selection , show = False )
+                    
                     #self.vm_session.show_or_hide(rep_type = 'stick',selection= selection , show = False )
+                    for atom in vismol_object.atoms.values():
+                        atom.spheres = False
+                        atom.sticks = False
+                    
+                    vismol_object.representations['spheres'] = None
+                    vismol_object.representations['sticks'] = None
+                    #self._apply_QC_representation_to_vobject   (system_id = None, vismol_object = vismol_object)                   
             
 
     def _apply_fixed_representation_to_vobject (self, system_id = None, vismol_object = None):
