@@ -23,10 +23,9 @@ Umbrella sampling
 
 Reaction path calculations
 
-########################################################################
 Cloning:
 git clone --recurse-submodules https://github.com/ferbachega/EasyHybrid3
-########################################################################
+
 
 For more information access: https://sites.google.com/view/easyhybrid/home?authuser=1
 
