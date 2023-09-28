@@ -41,7 +41,7 @@ from gui.gtk_widgets import get_distance
 from pdynamo.p_methods import LogFile
 
 
-import external.orca_qc_keywords as orca_keys
+import util.orca_qc_keywords as orca_keys
 
 from util.file_parser import get_file_type  
 from util.file_parser import read_MOL2  
