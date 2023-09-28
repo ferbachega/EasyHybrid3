@@ -136,7 +136,6 @@ class EnergyCalculation:
         return energy, 'Energy: '+str(energy)
         # - - - - - -
 
-
 class EnergyRefinement:
     
     def __init__ (self):
@@ -380,13 +379,6 @@ class EnergyRefinement:
         return arq
 
     
-
-
-
-
-
-
-
 class GeometryOptimization:
     """ Class doc """
     
@@ -528,7 +520,6 @@ class GeometryOptimization:
                                          maximumIterations    = parameters['maxIterations']                  ,
                                          rmsGradientTolerance = parameters['rmsGradient']                    ,
                                          log                  = self.logFile2                                   )
-
 
 
 class MolecularDynamics:
@@ -760,7 +751,6 @@ class MolecularDynamics:
                                               temperature            = parameters['temperatureStart']   ,
                                               timeStep               = parameters['timeStep']           )
             
-
             
 class RelaxedSurfaceScan:
     """ Class doc """
@@ -1456,6 +1446,8 @@ class RelaxedSurfaceScan:
                 arq.write(text)
         #--------------------------------------------------------------------------------------
     '''
+
+
 class UmbrellaSampling:
     def __init__ (self):
         """ Class initialiser """
@@ -2100,7 +2092,6 @@ def _run_parallel_umbrella_sampling_2D (job):
                             j = j)
     #---------------------------------------
     parameters['system'].DefineRestraintModel(None)
-
 
 
 def _run_parallel_umbrella_sampling_1D (job):

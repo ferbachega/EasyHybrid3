@@ -33,9 +33,6 @@ from gui.widgets.custom_widgets import CoordinatesComboBox
 from gui.widgets.custom_widgets import ReactionCoordinateBox
 
 from gui.windows.simulation.PES_scan_window            import compute_sigma_a1_a3 
-#from gui.windows.simulation.PES_scan_window            import get_dihedral 
-#from gui.windows.simulation.PES_scan_window            import get_angle 
-#from gui.windows.simulation.PES_scan_window            import get_distance 
 from util.geometric_analysis            import get_dihedral 
 from util.geometric_analysis            import get_angle 
 from util.geometric_analysis            import get_distance 
