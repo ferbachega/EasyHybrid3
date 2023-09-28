@@ -23,8 +23,12 @@ Umbrella sampling
 
 Reaction path calculations
 
-For more information access: https://sites.google.com/view/easyhybrid/home?authuser=1
+########################################################################
+Cloning:
+git clone --recurse-submodules https://github.com/ferbachega/EasyHybrid3
+########################################################################
 
+For more information access: https://sites.google.com/view/easyhybrid/home?authuser=1
 
 The principle references for pDynamo are:
 
