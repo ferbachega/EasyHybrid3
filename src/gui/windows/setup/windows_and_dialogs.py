@@ -2847,7 +2847,7 @@ class EasyHybridDialogPrune:
     def __init__ (self, home = None, num_of_atoms =  0,  name = 'Unknow', tag = 'UNK'):
         """ Class initialiser """
         self.builder = Gtk.Builder()
-        self.builder.add_from_file(os.path.join(home,'src/gui/windows/windows_and_dialogs.glade'))
+        self.builder.add_from_file(os.path.join(home,'src/gui/windows/setup/windows_and_dialogs.glade'))
         #self.builder.connect_signals(self)
         
         self.dialog       = self.builder.get_object('dialog_prune')
