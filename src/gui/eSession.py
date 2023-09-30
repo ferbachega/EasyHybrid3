@@ -57,10 +57,33 @@ class CommandLine:
         
         
     def command_line_parser (self, cmd_text):
-        """ Function doc """
-        data = cmd_text.split()
-        func = data[0]
-        args = data[1:]     
+        """             
+            command:
+            
+            func arg1 = value1, arg2 = value2+value3... , arg3 = ... 
+        
+        """
+        #obtaing the function name
+        func = cmd_text.split()
+        func = func[0]
+        
+        #obtating the arguments 
+        args_raw = cmd_text.replace(func, '')
+        args_raw = args_raw.strip()
+        args_raw = args_raw.split(',')
+        
+        
+        args = []
+        for argr in args_raw:
+            argr = argr.split('=')
+            for arg in argr:
+                print(arg.strip())
+                args.append(arg.strip())
+        
+        
+        #func =arg_raw data[0]
+        #args = data[1:]     
+        print ('data', func, args)
         
         return func, args
         
@@ -120,8 +143,8 @@ class CommandLine:
 
     def show (self, args):
         """ Function doc """
-        print('show', args)
-
+        print('print show', args)
+        
 
     def clear (self, args = None):
         """ Function doc """
