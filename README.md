@@ -36,7 +36,7 @@ Reaction path calculations
 
   If the graphics_engine folder is empty, then you must clone it, to do this simply run the following command from within the src folder.
 
-  'git clone https://github.com/casebor/graphics_engine'
+  `git clone https://github.com/casebor/graphics_engine` 
 
   
   For more information access: https://sites.google.com/view/easyhybrid/home?authuser=1
