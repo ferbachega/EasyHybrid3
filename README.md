@@ -24,7 +24,7 @@ Umbrella sampling
 Reaction path calculations
 
 # Cloning and Instalation 
-The installation process is straightforward. Begin by cloning the repository using the following command:  
+The installation process is straightforward, but before proceeding, please ensure that [pDynamo3](https://www.pdynamo.org/home) is already installed. Begin by cloning the repository using the following command:  
   `git clone --recurse-submodules https://github.com/ferbachega/EasyHybrid3`
 
 Next, navigate to the ../EasyHybrid3/src/graphics_engine folder. Here, you'll find a script for compiling the graphics engine. Run the install.sh script from within this folder:
