@@ -23,13 +23,25 @@ Umbrella sampling
 
 Reaction path calculations
 
-# Cloning:
-git clone --recurse-submodules https://github.com/ferbachega/EasyHybrid3
+# Cloning and Instalation 
+  Installation is quite simple, just with the code using the following command:
+  
+  git clone --recurse-submodules https://github.com/ferbachega/EasyHybrid3
 
+  Check the contents of the ../EasyHybrid3/src/graphics_engine folder, there is a script to compile the graphics engine. Run the install.sh script from within the mentioned folder.
 
-For more information access: https://sites.google.com/view/easyhybrid/home?authuser=1
+  cd src/graphics_engine
+  ./install.sh
 
-The principle references for pDynamo are:
+  If the graphics_engine folder is empty, then you must clone it, to do this simply run the following command from within the src folder.
+
+  git clone https://github.com/casebor/graphics_engine
+
+  
+  For more information access: https://sites.google.com/view/easyhybrid/home?authuser=1
+
+# References
+pDynamo:
 
   The second edition of the book M. J. Field, A Practical Introduction to the Simulation of Molecular Systems published by Cambridge University Press in 2007 [Amazon UK, Amazon US, CUP].
 
@@ -37,10 +49,7 @@ The principle references for pDynamo are:
 
   pDynamo3 paper Martin J. Field Journal of Chemical Information and Modeling 2022 62 (23), 5849-5854 DOI: 10.1021/acs.jcim.2c01239 
 
-
-
-EasyHybrid references:
-
+EasyHybrid:
   The paper J. F. R. Bachega, L. F. S. M. Timmers, L. Assirati, L. B. Bachega, M. J. Field, T. Wymore. J. Comput. Chem. 2013, 34, 2190-2196. DOI: 10.1002/jcc.23346
 
 
