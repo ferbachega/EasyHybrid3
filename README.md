@@ -26,7 +26,7 @@ Reaction path calculations
 # Cloning and Instalation 
   Installation is quite simple, just with the code using the following command:
   
-  'git clone --recurse-submodules https://github.com/ferbachega/EasyHybrid3'
+  >'git clone --recurse-submodules https://github.com/ferbachega/EasyHybrid3'
 
   Check the contents of the ../EasyHybrid3/src/graphics_engine folder, there is a script to compile the graphics engine. Run the install.sh script from within the mentioned folder.
 
