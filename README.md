@@ -23,7 +23,7 @@ Umbrella sampling
 
 Reaction path calculations
 
-# Cloning and Instalation 
+# Cloning and Installing
 The installation process is straightforward, but before proceeding, please ensure that [pDynamo3](https://www.pdynamo.org/home) is already installed. Begin by cloning the repository using the following command:  
   `git clone --recurse-submodules https://github.com/ferbachega/EasyHybrid3`
 
