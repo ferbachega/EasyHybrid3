@@ -206,6 +206,7 @@ class AddHarmonicRestraintDialog:
         self.force = None
         self.ok    = False
         self.builder.get_object('dialog').run()
+    
     def on_button_ok_clicked (self, widget):
         """ Function doc """
         self.dist  = self.builder.get_object('entry_dmin_coord1').get_text()

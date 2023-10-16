@@ -69,21 +69,22 @@ class CommandLine:
         
         #obtating the arguments 
         args_raw = cmd_text.replace(func, '')
-        args_raw = args_raw.strip()
+        args_raw = args_raw.replace(' ', '')
+        #args_raw = args_raw.strip()
         args_raw = args_raw.split(',')
         
-        
+        print (args_raw)
         args = []
         for argr in args_raw:
             argr = argr.split('=')
             for arg in argr:
-                print(arg.strip())
+                #print(arg.strip())
                 args.append(arg.strip())
         
         
         #func =arg_raw data[0]
         #args = data[1:]     
-        print ('data', func, args)
+        #print ('data', func, args)
         
         return func, args
         
@@ -105,8 +106,8 @@ class CommandLine:
             
     def list (self, args = None):
         """ Function doc """
-        text = ''
-        if args == []:
+        text = 'here is list'
+        if args == [] or args == ['']:
             for e_id, system in self.vm_session.main.p_session.psystem.items():
                 print('system: {} - {}'.format(e_id, system.label))               
                 
@@ -141,8 +142,26 @@ class CommandLine:
         '''
 
 
+    def select (sys = None, obj = None, name = [], symbol = [], resi = [], resn = [], chain = []):
+        """ Function doc 
+        
+        select 
+        
+        """
+        #for arg in kwargs:
+            
+        
+        
+        
+    
     def show (self, args):
-        """ Function doc """
+        """ Function doc 
+        
+        example:
+        
+        show type = lines, sele = sel01 
+        
+        """
         print('print show', args)
         
 
@@ -1306,8 +1325,9 @@ button position in the main treeview (active column).""".format(name,self.main.p
         self.frame = np.uint32(frame)
         self.vm_glcore.updated_coords = True
         self.vm_widget.queue_draw()
-
-    
+        
+        if self.picking_selection_mode:
+            self.picking_selections.print_pk_distances()    
     
 
     def define_vismol_object_molecules (self, vobject):
