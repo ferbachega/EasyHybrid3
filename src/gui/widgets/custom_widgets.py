@@ -459,7 +459,7 @@ class FileChooser:
 
         """ Function doc """
         #main = gtkmain
-        main = self.main_window
+        main = None#self.main_window
         filename = None
         
         chooser = Gtk.FileChooserDialog("Open File...", main,0,
@@ -467,13 +467,24 @@ class FileChooser:
                                         Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
         #GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER
         #print (filters)
-
+        
+        if self.main_window.current_search_folder:
+            chooser.set_current_folder(self.main_window.current_search_folder)
+        else:
+            pass
+            
+        
         if select_multiple:
             chooser.set_select_multiple(True)
             response = chooser.run()
             if response == Gtk.ResponseType.OK:
                 filenames = chooser.get_filenames()
             chooser.destroy()
+            
+            # updating current_search_folder
+            file_directory = os.path.dirname(filenames[0])
+            self.main_window.current_search_folder = file_directory
+            
             return filenames
             
             
@@ -483,13 +494,9 @@ class FileChooser:
         
         else:
             if filters:
-                #print('\n\nfilters')
                 for _filter in filters:
                     chooser.add_filter(_filter)
-
             else:
-                #print('else')
-
                 '''
                 filter = Gtk.FileFilter()  
                 filter.set_name("PKL files - *.pkl")
@@ -504,10 +511,13 @@ class FileChooser:
                 filter.add_pattern("*")
                 #
                 chooser.add_filter(filter)  
-
             response = chooser.run()
             if response == Gtk.ResponseType.OK:
                 filename = chooser.get_filename()
+                
+                file_directory = os.path.dirname(filename)
+                self.main_window.current_search_folder = file_directory
+            
             chooser.destroy()
             return filename
 

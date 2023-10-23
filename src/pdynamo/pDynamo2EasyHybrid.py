@@ -1237,17 +1237,28 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
 
         # - - - - - - - - - - - - - Working Folder - - - - - - - - - - - - - 
+        # . When no name is provided.
         if working_folder is None:
+            # . Checks whether the pkl file (hence system object) contains an associated workbook
             is_wf_already_set = getattr ( system, "e_working_folder", False )            
+            
             if is_wf_already_set is False:
+                # . If not, the pdynamo scratch folder will be used
                 try:  
                     system.e_working_folder = os.environ.get('PDYNAMO3_SCRATCH')
                 except:
                     system.e_working_folder =  os.environ.get('HOME')
+            
             else:
-                pass
+                # . If there is a path to the working folder, verify that the folder exists.
+                isExist = os.path.exists(is_wf_already_set)
+                if isExist:
+                    pass
+                else:
+                    system.e_working_folder = os.environ.get('PDYNAMO3_SCRATCH')
         else:
-            system.e_working_folder           = working_folder
+            # . When a working folder is provided by easyhybrid.
+            system.e_working_folder = working_folder
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         
         
