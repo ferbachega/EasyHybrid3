@@ -1328,8 +1328,13 @@ button position in the main treeview (active column).""".format(name,self.main.p
         
         if self.picking_selection_mode:
             self.picking_selections.print_pk_distances()    
-    
-
+        '''
+        for vobj_id, vobject in self.vm_objects_dic.items():
+            for index, atom in vobject.atoms.items():
+                for bond in atom.bonds:
+                    print(index-1, atom.name, bond.get_indexes() )
+        '''
+        
     def define_vismol_object_molecules (self, vobject):
         """ Function doc """
         

@@ -2479,16 +2479,16 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                     system   = self.psystem[parameters['system_id']]
                     
                     if parameters['format'] == 2:
-                        ExportSystem ( os.path.join ( folder, filename+'.pdb'), system )
+                        ExportSystem ( os.path.join ( folder, '{}{}.pdb'.format(filename,i) ), system )
                     
                     if parameters['format'] == 3:
-                        ExportSystem ( os.path.join ( folder, filename+'.xyz'), system )
+                        ExportSystem ( os.path.join ( folder, '{}{}.xyz'.format(filename,i)), system )
                     
                     if parameters['format'] == 4:
-                        ExportSystem ( os.path.join ( folder, filename+'.mol'), system )
+                        ExportSystem ( os.path.join ( folder, '{}{}.mol'.format(filename,i)), system )
                     
                     if parameters['format'] == 5:
-                        ExportSystem ( os.path.join ( folder, filename+'.mol2'), system )
+                        ExportSystem ( os.path.join ( folder, '{}{}.mol2'.format(filename,i)), system )
                     
                     
                     #Pickle( os.path.join ( folder, "frame{}.pkl".format(i) ), 
