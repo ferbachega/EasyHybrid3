@@ -81,6 +81,11 @@ class MainWindow:
         self.home               =  home
         self.EASYHYBRID_VERSION =  version
         print (self.home, self.EASYHYBRID_VERSION)
+
+        '''Search home folder. Every time a file is loaded into memory 
+        this attribute will be modified.'''
+        self.current_search_folder = None
+        
         
         self.builder = Gtk.Builder()
         self.builder.add_from_file(os.path.join(self.home,'src/gui/MainWindow.glade'))
@@ -255,7 +260,7 @@ class MainWindow:
         '''#- - - - - - - - - - G T K  W I N D O W S - - - - - - - - - - -#'''
         self.window_list = []
         
-        self.filechooser                  = FileChooser()
+        self.filechooser                  = FileChooser(main_window = self)
         self.NewSystemWindow              = ImportANewSystemWindow       ( main = self )
         
         self.setup_QCModel_window         = EasyHybridSetupQCModelWindow ( main = self )
