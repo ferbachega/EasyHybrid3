@@ -2960,6 +2960,11 @@ class ImportANewSystemWindow(Gtk.Window):
                 column = Gtk.TreeViewColumn(column_title, renderer, text=i)
                 self.treeview.append_column(column)
 
+            # - - - - - - - - - - - working folder  - - - - - - - - - - - -
+            self.folder_chooser_button = FolderChooserButton(main =  self, sel_type = 'folder', home =  self.home)
+            self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
+            self.folder_chooser_button.set_folder(None)
+            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
             
             self.window.show_all()                                               
             self.builder.connect_signals(self)                                   
@@ -2977,13 +2982,14 @@ class ImportANewSystemWindow(Gtk.Window):
                             }
             self.system_types_combo.set_active(0)
 
+
             self.window.connect('destroy', self.CloseWindow)
             self.builder.get_object('button_load_files')        .connect('clicked', self.on_button_load_files_clicked)
             self.builder.get_object('button_remove_files')      .connect('clicked', self.on_button_delete_files_clicked)
             #self.builder.get_object('gtkbox_OPLS_folderchooser').connect('clicked',)
             self.builder.get_object('button_cancel')            .connect('clicked', self.CloseWindow)
             self.builder.get_object('import_import_system')     .connect('clicked', self.on_button_import_system_clicked)
-
+            #self.window.show_all()
         else:
             self.window.present()
             #----------------------------------------------------------------
@@ -3168,11 +3174,13 @@ class ImportANewSystemWindow(Gtk.Window):
         #print(self.files, systemtype, color, [red, green,blue ])
 
         #'''
-        self.easyhybrid_main.p_session.load_a_new_pDynamo_system_from_dict(input_files = self.files, 
-                                                                           system_type = systemtype, 
-                                                                           name        = name      ,
-                                                                           tag         = tag       ,
-                                                                           color       = [red, green, blue])
+        wfolder  = self.folder_chooser_button.get_folder()
+        self.easyhybrid_main.p_session.load_a_new_pDynamo_system_from_dict(input_files    = self.files, 
+                                                                           system_type    = systemtype, 
+                                                                           name           = name      ,
+                                                                           tag            = tag       ,
+                                                                           color          = [red, green, blue],
+                                                                           working_folder = wfolder)
         #'''
         self.CloseWindow(button, data  = None)
 

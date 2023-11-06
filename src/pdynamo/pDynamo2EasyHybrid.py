@@ -13,6 +13,7 @@ from gi.repository import Gtk
 
 import glob, math, os, os.path, sys, shutil
 import pickle
+import threading
 
 from datetime import date
 import time
@@ -636,10 +637,14 @@ class pSimulations:
         
         elif parameters['simulation_type'] == 'Energy_Refinement':
             self.energy_refinement = EnergyRefinement()
+            
+            #thread1 = threading.Thread(self.energy_refinement.run(parameters))
+            #thread1.start()
             energy = self.energy_refinement.run(parameters)
             new_vobject = False
 
         elif parameters['simulation_type'] == 'Geometry_Optimization':
+           
             self.geometry_optimization_object = GeometryOptimization()
             self.geometry_optimization_object.run(parameters)
             
@@ -1096,7 +1101,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         return name
         
         
-    def load_a_new_pDynamo_system_from_dict (self, input_files = {}, system_type = 0, name = None, tag = None, color = None):
+    def load_a_new_pDynamo_system_from_dict (self, input_files = {}, system_type = 0, name = None, tag = None, color = None, working_folder = None):
         """ Function doc """
         #print('\n\n\ init - load_a_new_pDynamo_system_from_dict')
         # This commented section prints information about the existing psystem dictionary
@@ -1145,8 +1150,11 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         system.Summary()
         
         
-        
-       
+        if working_folder:
+            system.e_working_folder = working_folder
+        else:
+            pass
+            
         ''''
         If the name is too long we have problems with the "system 
         comboboxes", they get huge and the use of the interface is impaired.

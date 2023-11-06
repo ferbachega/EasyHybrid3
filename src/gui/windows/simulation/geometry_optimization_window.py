@@ -22,6 +22,7 @@
 #  
 #  
 import gi
+import threading
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
@@ -220,12 +221,26 @@ class GeometryOptimization(Gtk.Window):
         else:
             self.run_dialog()
             return None
-        
-        #self.main.refresh_main_statusbar(message = 'Running geometry optimization...')
-        
         self.main.p_session.run_simulation( parameters = simParameters )
+        #self.main.refresh_main_statusbar(message = 'Running geometry optimization...')
         self.window.destroy()
         self.Visible    =  False
+        
+        '''
+        def thread ():
+            """ Function doc """
+            self.main.p_session.run_simulation( parameters = simParameters )
+        thread1 = threading.Thread(target = thread).start()
+        
+        #thread1.start()
+        print('eeeeeeeeeeeeeeeeeee')
+        '''
+        #print('thread is over')
+        #thread2 = threading.Thread(target = self.window.destroy())
+        #thread2.start()
+        
+        #
+
 
     
     def _starting_coordinates_model_update (self, init = False):

@@ -287,6 +287,7 @@ class SaveTrajectoryBox:
         self.formats_combo.add_attribute(renderer_text, "text", 0)
         '''--------------------------------------------------------------------------------------------'''
         self.formats_combo.set_active(0)
+        self.set_folder(None)
         #simParameters["trajectory_name"] = self.save_trajectory_box.builder.get_object('entry_trajectory_name').get_text()
     #====================================================================================
     def on_toggle_save_checkbox (self, widget):
@@ -379,12 +380,15 @@ class FolderChooserButton:
     #====================================================================================
     def set_folder (self, folder = '/home'):
         """ Function doc """
-        #print('set_folder', folder)
-        self.folder = folder
-        name = os.path.basename(folder )
+        if folder == None:
+            self.folder = os.environ.get('HOME')
+        else:
+            self.folder = folder
+        
+        name = os.path.basename(self.folder )
         #print( name)
         self.label.set_text(name)
-        return folder
+        return self.folder
         #self.main.pdynamo_session.systems[self.main.pdynamo_session.active_id]['working_folder'] = self.folder
     #====================================================================================
     def get_folder (self):
