@@ -715,7 +715,7 @@ class pSimulations:
 
 
         parameters['system'].e_step_counter += 1
-        
+        self.changed = True
         return energy
         
         
@@ -1063,7 +1063,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         self.counter      = 0
         self.color_palette_counter = 0
-
+        
+        '''This attribute is checked by the session before 
+        closing it. If it is set to False, the session is 
+        closed without question. If it is set to True, the 
+        GUI asks the user if they want to save the session.
+        "'''
+        self.changed = True
 
     def set_active(self, system_e_id = None):
         """ Function doc """

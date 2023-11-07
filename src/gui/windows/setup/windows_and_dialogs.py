@@ -3657,7 +3657,7 @@ class MergeSystemWindow(Gtk.Window):
             self.button_cancel = self.builder.get_object('button_cancel')
             self.button_cancel.connect("clicked", self.CloseWindow)
 
-            self.window.connect("destroy", self.CloseWindow)
+            #self.window.connect("destroy", self.CloseWindow)
             self.window.show_all()
             self.Visible  = True   
         

@@ -66,7 +66,7 @@ class TerminalWindow():
             self.window.set_title('EasyHybrid Terminal')  
 
             self.window.connect('destroy-event', self.CloseWindow)
-            self.window.connect('delete-event', self.CloseWindow)
+            #self.window.connect('delete-event', self.CloseWindow)
 
             self.window.set_keep_above(True)
             self.entry_terminal = self.builder.get_object('entry_terminal')

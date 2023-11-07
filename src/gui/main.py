@@ -334,9 +334,12 @@ class MainWindow:
         self.make_solvent_box_window = MakeSolventBoxWindow(main = self)
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
 
-        self.window.connect("destroy", Gtk.main_quit)
+        #self.window.connect("destroy", Gtk.main_quit)
+        #self.window.connect("delete-event", Gtk.main_quit)
+        #self.window.connect("destroy",      self.quit_easyhybrid)
+        self.window.connect("delete-event", self.quit_easyhybrid)
         self.window.connect("check-resize", self.window_resize)
-        self.window.connect("delete-event",    Gtk.main_quit)
+        
         
         #self.builder.get_object('button_test').connect("clicked",    self.run_test)
         
@@ -1523,6 +1526,36 @@ class MainWindow:
         '''
         
         
+    def quit_easyhybrid (self, button, event):
+        """ Function doc """
+        print(button, event, self.p_session.changed)
+        
+        if self.p_session.changed:
+            self.save_dialog(self.window, event)
+        
+        
+        
+        #Gtk.main_quit()
+
+    def save_dialog(self, widget, event):
+        dialog = Gtk.MessageDialog(
+            transient_for=self.window,
+            flags=Gtk.DialogFlags.MODAL,
+            type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.YES_NO,
+            text="Deseja realmente fechar a janela principal?"
+        )
+
+        response = dialog.run()
+        dialog.destroy()
+
+        if response == Gtk.ResponseType.YES:
+            Gtk.main_quit()
+        else:
+            return True  # Impede que a janela seja fechada
+
+
+
 class EasyHybridMainTreeView(Gtk.TreeView):
     
     def __init__(self):
@@ -2332,7 +2365,7 @@ class PreferencesWindow:
         self.button_cancel.connect('clicked', self.on_button_cancel )
         self.main.main_treeview.treeview_menu.rename_window_visible = True
         
-        self.window.connect("destroy", self.on_button_cancel)
+        #self.window.connect("destroy", self.on_button_cancel)
         
         self.window.set_resizable(False)
         self.window.show_all()

@@ -57,21 +57,12 @@ def main():
                              home       =  EASYHYBRID_HOME,
                              version    = EASYHYBRID_VERSION)
                              
-    main_window.window.connect('destroy', Gtk.main_quit)
+    #main_window.window.connect('destroy', Gtk.main_quit)
     
     
     
     main_window.builder.get_object('toolbutton_monte_carlo').hide()
     main_window.builder.get_object('button_test')           .hide()
-    
-    #window = Gtk.Window(title="Vismol window") 
-    #container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-    #container.pack_start(vm_session.vm_widget, True, True, 0)
-    #window.connect("key-press-event", vm_session.vm_widget.key_pressed)
-    #window.connect("key-release-event", vm_session.vm_widget.key_released)
-    #window.add(container)
-    #window.connect("delete-event", Gtk.main_quit)
-    #window.show_all()
     try:
         filein = sys.argv[-1]
         vm_session.load_molecule(filein)
