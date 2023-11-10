@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.2 -->
+<!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
   <object class="GtkAboutDialog" id="about_dialog">
@@ -12,8 +12,8 @@
     <property name="website-label" translatable="yes">EasyHybrid3 - page on github</property>
     <property name="authors">Fernando Bachega (main developer)
 Carlos Cerqueiros
-Martin John Field
-Igor Barden</property>
+Luis Fernando S. Timmers
+Martin John Field</property>
     <property name="logo">../../icons/easyhybrid_solo_100x100.png</property>
     <property name="license-type">gpl-3-0</property>
     <child internal-child="vbox">

@@ -116,6 +116,7 @@ class LoadAndSaveData:
         '''- - - - - - - - - - pDynamo systems - - - - - - - - - - - '''
         #easyhybrid_session_data['psystem'] = self.psystem
         '''- - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
+        self.main.bottom_notebook.get_active_system_text_from_textbuffer()
         easyhybrid_session_data['systems'] = [ ]
         
         for e_id, system in self.psystem.items():
@@ -1069,7 +1070,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         closed without question. If it is set to True, the 
         GUI asks the user if they want to save the session.
         "'''
-        self.changed = True
+        self.changed = False
 
     def set_active(self, system_e_id = None):
         """ Function doc """
@@ -1176,7 +1177,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         '''Storing the system source files'''
         system.e_input_files = input_files
-        system = self.append_system_to_pdynamo_session (system = system,  name = name, tag = tag, color = color )
+        system = self.append_system_to_pdynamo_session (system = system,  name = name, tag = tag, color = color, changed = True )
 
         '''-----------------------------------------------------------------'''
 
@@ -1231,7 +1232,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                           name           = 'pDynamo system',
                                           tag            = None            ,
                                           working_folder = None            ,
-                                          color          = None            ):
+                                          color          = None            ,
+                                          changed        = False ):
         """ Function doc """  
     
         
@@ -1374,6 +1376,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                                 }
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         
+        if getattr ( system, "e_annotations", False ):
+            pass
+        else:
+            system.e_annotations = ''
+
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        
         
         
         '''
@@ -1384,13 +1393,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         the method "add_new_system_to_treeview" 
         
         '''
-        system.e_treeview_iter            = None  #the method "add_new_system_to_treeview" modify this attribute 
-        system.e_liststore_iter           = None  #the method "add_new_system_to_treeview" modify this attribute
+        system.e_treeview_iter    = None  #the method "add_new_system_to_treeview" modify this attribute 
+        system.e_liststore_iter   = None  #the method "add_new_system_to_treeview" modify this attribute
         
-        system.e_id                      =  self.counter
-        self.psystem[system.e_id]        =  system 
-        
-        self.active_id   = self.counter  
+        system.e_id               =  self.counter
+        self.psystem[system.e_id] =  system 
+        self.changed              = changed  
+        self.active_id            = self.counter  
         self.counter    += 1
         return system
 

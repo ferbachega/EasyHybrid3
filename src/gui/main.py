@@ -23,6 +23,7 @@
 #  
 import os, sys, time
 import gi 
+import signal
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
 from gi.repository import GdkPixbuf
@@ -80,7 +81,8 @@ class MainWindow:
         """ Class initialiser """
         self.home               =  home
         self.EASYHYBRID_VERSION =  version
-        print (self.home, self.EASYHYBRID_VERSION)
+        #signal.signal(signal.SIGINT, self.on_sigint_received)
+        #print (self.home, self.EASYHYBRID_VERSION)
 
         '''Search home folder. Every time a file is loaded into memory 
         this attribute will be modified.'''
@@ -89,8 +91,6 @@ class MainWindow:
         
         self.builder = Gtk.Builder()
         self.builder.add_from_file(os.path.join(self.home,'src/gui/MainWindow.glade'))
-        #self.builder.add_from_file(os.path.join(self.home,'src/gui/MainWindow_text_and_logs.glade'))
-
         self.builder.connect_signals(self)
         self.window = self.builder.get_object('window1')
         self.window.set_default_size(1200, 600)                          
@@ -228,7 +228,7 @@ class MainWindow:
                 self.terminal_window           = TerminalWindow  (main = self)
             
         '''
-        self.terminal_text_buffer          = Gtk.TextBuffer()
+        self.terminal_text_buffer    = Gtk.TextBuffer()
         
         
         
@@ -337,7 +337,7 @@ class MainWindow:
         #self.window.connect("destroy", Gtk.main_quit)
         #self.window.connect("delete-event", Gtk.main_quit)
         #self.window.connect("destroy",      self.quit_easyhybrid)
-        self.window.connect("delete-event", self.quit_easyhybrid)
+        self.window.connect("delete-event", self.on_delete_event)
         self.window.connect("check-resize", self.window_resize)
         
         
@@ -354,14 +354,9 @@ class MainWindow:
         self.session_filename = None
         self.vm_session.restart()
 
-    
     def window_resize (self, a, b =None, c=None):
         """ Function doc """
         w, h = a.get_size()
-        #self.paned_V_position += h/100
-        #self.paned_V.set_position(self.paned_V_position)
-        
-        #print ( a.get_size(), b, c)
     
     def add_vobject_to_vobject_liststore_dict (self, vismol_object):
         """ Adds a vobject to the vobject liststore. """
@@ -380,32 +375,6 @@ class MainWindow:
                                                                                  vismol_object.e_id,
                                                                                  sqr_color]
                                                                                  )
-
-
-    #def clear_vobject_liststore_dict (self, e_id = 'all'):
-    #    """ Function doc """
-    #    if e_id == 'all':
-    #        for e_id, liststore in self.vobject_liststore_dict.items(): 
-    #            liststore.clear()
-    #        else:
-    #            self.vobject_liststore_dict[e_id].clear()
-    #
-    #
-    #def refresh_vobject_liststore_dict  (self, e_id = 'all'):
-    #    """ Function doc """
-    #    if e_id == 'all':
-    #        self.clear_vobject_liststore_dict()
-    #        for index, vobject in self.vm_session.vm_objects_dic.items():
-    #            self.add_vobject_to_vobject_liststore_dict(vobject)
-    #    
-    #    else:
-    #        self.clear_vobject_liststore_dict(e_id = e_id)
-    #        for index, vobject in self.vm_session.vm_objects_dic.items:
-    #            if e_id == index:
-    #                self.add_vobject_to_vobject_liststore_dict(vobject)
-    #            else:
-    #                pass
-
 
     def on_main_toolbar_clicked (self, button):
         """ Function doc """
@@ -494,7 +463,6 @@ class MainWindow:
             ##print('toolbutton_umbrella_sampling')
             self.normal_modes_analysis_window.OpenWindow()
 
-
     def on_main_menu_activate (self, menuitem):
         """ Function doc """
         ##print(menuitem)
@@ -521,7 +489,8 @@ class MainWindow:
             self.import_trajectory_window.OpenWindow()
             
         elif menuitem == self.builder.get_object('menuitem_quit'):
-            Gtk.main_quit()
+            self.on_delete_event(self, None)
+            #Gtk.main_quit()
             pass
         
         
@@ -1012,9 +981,6 @@ class MainWindow:
             print("Save operation canceled.")
             dialog.destroy()
 
-        
-        
-                
     def open_gtk_load_files (self, button):
         '''Easyhybrid and pkl pdynamo file search '''
         filters = []        
@@ -1056,7 +1022,6 @@ class MainWindow:
                 self.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
         else:
             pass
-
         
     def run_dialog_set_QC_atoms (self, _type = None, vismol_object = None):
         """ Function doc """
@@ -1072,13 +1037,11 @@ class MainWindow:
 
         dialog.destroy()
 
-
     def uptade_interface_windows_and_dialogs (self, parameters = None):
         """ Function doc """
         for window in self.window_list:
             window.update()
         
-
     def change_reference_color (self, system, new_color):
         """ Function doc """
         system.e_color_palette['C'] = new_color
@@ -1098,7 +1061,6 @@ class MainWindow:
             else:
                 pass
 
-
     def rename_tag (self, e_id, tag):
         """ Function doc """
         #selection     = self.get_selection()
@@ -1106,7 +1068,6 @@ class MainWindow:
         #e_id     = model.get_value(iter, 0)
         self.p_session.psystem[e_id].e_tag = tag
 
-        
     def rename (self, e_id = None, v_id = -1, name = None):
         if v_id == -1:
             _iter = self.p_session.psystem[e_id].e_treeview_iter
@@ -1121,7 +1082,6 @@ class MainWindow:
             self.vm_session.vm_objects_dic[v_id].name = name
             self.vobject_liststore_dict[e_id][self.vm_session.vm_objects_dic[v_id].liststore_iter][0] = name
             
-
     def delete_system (self, system_e_id = None ):
         """ 
         system_e_id = is the access key to the object. You can get it from vobject.e_id
@@ -1162,7 +1122,6 @@ class MainWindow:
             a = self.p_session.delete_system(system_e_id)
             self.vm_session.vm_glcore.queue_draw()
 
-
     def delete_vm_object (self, vm_object_index = None):
         """ 
         
@@ -1193,8 +1152,6 @@ class MainWindow:
 
             self.vm_session.vm_glcore.queue_draw()
         
-
-
     def refresh_main_statusbar(self, message = None, psystem = None):
         """ Function doc """
         psystem = self.p_session.psystem[self.p_session.active_id]
@@ -1288,20 +1245,16 @@ class MainWindow:
             '''
         self.statusbar_main.push(1,string)
 
-
     def refresh_widgets (self, statusbar = True):
         """ Function doc """
         if statusbar:
             self.refresh_main_statusbar()
 
-
     def print_btn (self, widget):
         """ Function doc """
         #print(self.box_reac)
         parm = self.box_reac.get_rc_data()
-        #print(parm)
-    
-    
+
     def run_test (self, widget):
         """ Function doc """
         parameters = {}
@@ -1524,36 +1477,56 @@ class MainWindow:
         #print(text)
         os.system('povray +A0.3 -UV +W1000 +H1000 +Itemp.pov +Otemp2.png')
         '''
-        
-        
-    def quit_easyhybrid (self, button, event):
-        """ Function doc """
-        print(button, event, self.p_session.changed)
-        
+
+    def on_delete_event(self, widget, event):
         if self.p_session.changed:
-            self.save_dialog(self.window, event)
-        
-        
-        
-        #Gtk.main_quit()
+            if self.session_filename == None:
+                filename = 'untitled'
+                #dialog.set_text('''Save changes to the project "{}" before closing?\n Your changes will be lost if you don't save them'''.format(filename))
+            else:
+                #dialog.set_text('''Save changes to the project "{}" before closing?\n Your changes will be lost if you don't save them'''.format(self.session_filename))
+                filename = os.path.split(self.session_filename)
+                filename = filename[-1]
+            
+            
+            dialog = Gtk.MessageDialog(
+                transient_for=self.window,
+                modal=True,
+                message_type=Gtk.MessageType.QUESTION,
+                text='''Save changes to the EasyHybrid session "{}" before closing?\n Your changes will be lost if you don't save them'''.format(filename)
+            )
+            
+            # .Save changes to the project "Untitled" before closing?
+            # .Your changes will be lost if you don' tsave them
+            
+            dialog.add_button("Don't Save", Gtk.ResponseType.NO)
+            dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+            dialog.add_button("Save", Gtk.ResponseType.YES)
+            response = dialog.run()
+            dialog.destroy()
+            #print (response) 
+            
 
-    def save_dialog(self, widget, event):
-        dialog = Gtk.MessageDialog(
-            transient_for=self.window,
-            flags=Gtk.DialogFlags.MODAL,
-            type=Gtk.MessageType.QUESTION,
-            buttons=Gtk.ButtonsType.YES_NO,
-            text="Deseja realmente fechar a janela principal?"
-        )
-
-        response = dialog.run()
-        dialog.destroy()
-
-        if response == Gtk.ResponseType.YES:
-            Gtk.main_quit()
+            
+            if response == -9:   # Don't Save and close
+                Gtk.main_quit()
+            
+            elif response == -6: # Cancel - don't close
+                return True 
+            
+            elif response == -8: # Save and close
+                if self.session_filename == None:
+                    self.gtk_save_as_file(widget)
+                else:
+                    self.p_session.save_easyhybrid_session( filename = self.session_filename)
+                #print('Saving' )
+                Gtk.main_quit() 
+            
+            else:
+                return True 
         else:
-            return True  # Impede que a janela seja fechada
-
+            Gtk.main_quit()
+    
 
 
 class EasyHybridMainTreeView(Gtk.TreeView):
@@ -1612,7 +1585,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
        
         system.e_liststore_iter = self.main.system_liststore.append([str(system.e_id)+' - '+ system.label, system.e_id, sqr_color])
         self.main.vobject_liststore_dict[system.e_id] = Gtk.ListStore(str, int, int,sqr_color)
-        
+        self.main.bottom_notebook.set_active_system_text_to_textbuffer()
     
     def add_vismol_object_to_treeview(self, vismol_object):
         """ Function doc """
@@ -1708,17 +1681,25 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         #
         for row in self.treestore:
             ##print(row.path, selected_path)
+            
+            active_id_before = self.main.p_session.active_id
+            
             row[4] = row.path == selected_path
             if row.path == selected_path:
                 system_e_id = row[0]
                 self.main.p_session.active_id = system_e_id
+                active_id_after = system_e_id
+                
+                self.main.bottom_notebook.change_annotations_textbuffer(
+                                                                  active_id_before,
+                                                                  active_id_after
+                                                                  )
                 #print (system_e_id, self.main.p_session.psystem[system_e_id].label)
             else:
                 pass
         #self.main.refresh_active_system_liststore ()
         self.main.refresh_main_statusbar ()
         self.main.uptade_interface_windows_and_dialogs()
-
     
     def on_select(self, tree, path, selection):
         '''---------------------- Row information ---------------------'''
@@ -2116,10 +2097,16 @@ class BottomNoteBook:
         self.widget = self.builder.get_object('notebook_text_and_logs')
 
         self._define_status_treeview()
-
     
+
+        self.annotations_textviewer = self.builder.get_object('annontations_textviewer')
+        self.annotations_textbuffer = self.annotations_textviewer.get_buffer()
+
+
     def _define_status_treeview (self):
-        """ Function doc """
+        """   
+        This function builds the status treeview
+        """
         self.treeview = self.builder.get_object('treeview_status')
         self.status_liststore = Gtk.ListStore(str, # time 
                                               str, # message
@@ -2175,8 +2162,33 @@ class BottomNoteBook:
         # Scroll the TreeView to the newly added row
         self.treeview.scroll_to_cell(path, None, True, 0.5, 0.5)
 
+    
+    
+    def set_active_system_text_to_textbuffer (self):
+        e_id = self.main.p_session.active_id
+        new_text = self.main.p_session.psystem[e_id].e_annotations
+        self.annotations_textbuffer.set_text(new_text, -1)
+    
+    def get_active_system_text_from_textbuffer (self):
+        """ Function doc """
+        start_iter = self.annotations_textbuffer.get_start_iter()
+        end_iter = self.annotations_textbuffer.get_end_iter()
+        extracted_text = self.annotations_textbuffer.get_text(start_iter, end_iter, include_hidden_chars=False)
+        
+        e_id = self.main.p_session.active_id
+        self.main.p_session.psystem[e_id].e_annotations = extracted_text
 
 
+    def change_annotations_textbuffer (self, before, after):
+        """ Function doc """
+        start_iter = self.annotations_textbuffer.get_start_iter()
+        end_iter = self.annotations_textbuffer.get_end_iter()
+        extracted_text = self.annotations_textbuffer.get_text(start_iter, end_iter, include_hidden_chars=False)
+        
+        self.main.p_session.psystem[before].e_annotations = extracted_text
+        new_text = self.main.p_session.psystem[after].e_annotations
+        self.annotations_textbuffer.set_text(new_text, -1)
+        #label.set_text("Extracted Text: " + extracted_text)
 
 
 class PreferencesWindow:

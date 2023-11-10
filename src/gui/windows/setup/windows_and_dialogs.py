@@ -2912,7 +2912,9 @@ class ImportANewSystemWindow(Gtk.Window):
         self.OPLS_txt = '''When preparing systems natively in pDynamo utilizing the OPLS force field, it is necessary to have two components: a folder containing the OPLS parameters, and a topology and coordinate file (in formats such as pdb, mol2, or mol).'''
         self.DYFF_txt = '''The DYFF force field is a generic force field specifically designed for use within the pDynamo program. When utilizing DYFF to prepare systems natively in pDynamo, it is essential to have two components: a folder containing the necessary force field parameters, and a coordinate file in formats such as pdb, mol2, or mol.'''
         self.gmx_txt = '''Systems prepared natively in GROMACS using the CHARMM(or AMBER) force field require: A parameter/topology (top) file and coordinate file (pdb, mol2, mol, ...) .  '''
+        self.xyz_pdb_text = '''If you load a coordinate file in this manner, you won't be able to perform any molecular mechanics simulations.'''
         
+        self.pkl_text = '''If you load a coordinate file in this manner, you won't be able to perform any molecular mechanics simulations.'''
     
     def OpenWindow (self):
         """ Function doc """
@@ -2941,10 +2943,11 @@ class ImportANewSystemWindow(Gtk.Window):
                 #print (system_type)
             
             self.system_types_combo = Gtk.ComboBox.new_with_model(self.system_type_store)
-            #self.system_types_combo = self.builder.get_object('system_type_combox_from_import_a_new_system')
+            self.system_types_combo.set_tooltip_text(self.amber_txt)
             self.box_combo = self.builder.get_object('box')
             self.box_combo.pack_start(self.system_types_combo, True, True, 0)
             
+            self.builder.get_object('gtk_label_fftype').hide()
             self.system_types_combo.connect("changed", self.on_name_combo_changed)
             self.system_types_combo.set_model(self.system_type_store)
             
@@ -3025,22 +3028,22 @@ class ImportANewSystemWindow(Gtk.Window):
             
         if fftype == 0: #AMBER
             self.builder.get_object('gtkbox_OPLS_folderchooser').hide()
-            self.builder.get_object('gtk_label_fftype').set_text(self.amber_txt)
- 
+            #self.builder.get_object('gtk_label_fftype').set_text(self.amber_txt)
+            self.system_types_combo.set_tooltip_text(self.amber_txt)
             
         if fftype == 1: # "CHARMM":
             self.builder.get_object('gtkbox_OPLS_folderchooser').hide()
-            self.builder.get_object('gtk_label_fftype').set_text(self.charmm_txt)
-
+            #self.builder.get_object('gtk_label_fftype').set_text(self.charmm_txt)
+            self.system_types_combo.set_tooltip_text(self.charmm_txt)
             
         if fftype == 10: #"GROMACS":
             self.builder.get_object('gtkbox_OPLS_folderchooser').hide()
-            self.builder.get_object('gtk_label_fftype').set_text(self.gmx_txt)
-
+            #self.builder.get_object('gtk_label_fftype').set_text(self.gmx_txt)
+            self.system_types_combo.set_tooltip_text(self.OPLS_txt)
             
         if fftype == 2:#"OPLS":
             self.builder.get_object('gtkbox_OPLS_folderchooser').show()
-            self.builder.get_object('gtk_label_fftype').set_text(self.OPLS_txt)
+            #self.builder.get_object('gtk_label_fftype').set_text(self.OPLS_txt)
             
             '''Eventually, the user may have another set of parameters, but 
             by default, the pDynamo3 parameter directories are first searched.'''
@@ -3054,16 +3057,19 @@ class ImportANewSystemWindow(Gtk.Window):
             
         if fftype == 4: #"Other(*.pdb,*.xyz,*.mol2...)":
             self.builder.get_object('gtkbox_OPLS_folderchooser').hide()
+            self.system_types_combo.set_tooltip_text(self.xyz_pdb_text)
 
         if fftype == 5:#"DYFF":
             self.builder.get_object('gtkbox_OPLS_folderchooser').show()
-            self.builder.get_object('gtk_label_fftype').set_text(self.DYFF_txt)
+            #self.builder.get_object('gtk_label_fftype').set_text(self.DYFF_txt)
             #try:
             '''Eventually, the user may have another set of parameters, but 
             by default, the pDynamo3 parameter directories are first searched.'''
             path = os.environ.get('PDYNAMO3_PARAMETERS')            
             path = os.path.join(path,'forceFields/dyff/dyff-1.0')
             self.builder.get_object('OPLS_folderchooserbutton').set_filename(path)
+            self.system_types_combo.set_tooltip_text(self.DYFF_txt)
+            
             #except:
             #    pass
                 

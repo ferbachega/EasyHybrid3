@@ -59,6 +59,7 @@
                       <object class="GtkEntry" id="entry_system_name">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <property name="tooltip-text" translatable="yes">System name.</property>
                         <property name="hexpand">True</property>
                         <property name="text" translatable="yes">new pDynamo system</property>
                       </object>
@@ -83,6 +84,7 @@
                       <object class="GtkEntry" id="entry_system_tag">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <property name="tooltip-text" translatable="yes">A 'tag' consists of a few characters that are automatically suggested in the names of files and folders created by subsequent simulation routines.</property>
                         <property name="max-length">15</property>
                         <property name="width-chars">10</property>
                         <property name="text" translatable="yes">molsys</property>
@@ -122,6 +124,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="receives-default">True</property>
+                        <property name="tooltip-text" translatable="yes">System reference color. The carbon atoms will be colored based on the choice of this color.</property>
                         <property name="rgba">rgb(138,226,52)</property>
                       </object>
                       <packing>
@@ -157,7 +160,6 @@
                     <child>
                       <object class="GtkLabel" id="gtk_label_fftype">
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">Systems prepared using the AMBER force field require  two files: topologies (top / prmtop) and coordinates (crd, pdb, xyz, ...).  </property>
                         <property name="wrap">True</property>
                       </object>
                     </child>
@@ -198,6 +200,7 @@
                       <object class="GtkFileChooserButton" id="OPLS_folderchooserbutton">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">Natively generated molecular mechanics systems in pDynamo use a folder containing force field files as a parameter reference.</property>
                         <property name="action">select-folder</property>
                         <property name="title" translatable="yes"/>
                       </object>

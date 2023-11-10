@@ -178,7 +178,7 @@ class TextDrawingArea(Gtk.DrawingArea):
         
         
         for index, sequence in enumerate(self.main.sequences):
-            
+            print(index, 'index')
             if self.main.mode == 0:
                 
                 k = 0
@@ -212,7 +212,7 @@ class TextDrawingArea(Gtk.DrawingArea):
                         #cr.fill()
                         cr.set_source_rgb(1, 0, 0)
                         text =  residue.rcode
-                        x, y = k, i*3  # Posição do texto
+                        x, y = k, i*3 +i*index  # Posição do texto
                         cr.move_to(x, y)
                         cr.show_text(text)
                     
@@ -220,7 +220,7 @@ class TextDrawingArea(Gtk.DrawingArea):
                         #print ('')
                         cr.set_source_rgb(0, 0, 1)
                         text =  residue.rcode
-                        x, y = k, i*3  # Posição do texto
+                        x, y = k, i*3 +i*index# Posição do texto
                         cr.move_to(x, y)
                         cr.show_text(text)
                         #print (x, y, text)
@@ -290,7 +290,7 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
         
         self.select_in_motion = True
         
-        self.mode = 1 # 0 - one letter code / 1 - three letter code
+        self.mode = 0 # 0 - one letter code / 1 - three letter code
 
         self.click_x = 0.0
         self.click_y = 0.0
@@ -312,7 +312,15 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
             res3l = one_letter_res_dict[res]
             residue = Residue(rname = res3l , rcode = res, rnum = rnum)
             sequence.append(residue)
+        self.sequences.append(sequence)
         
+        self.sequence ='MISYLASIFTTTTHHHHHHHHHHHEVVFPSVETSRSGVKTVKFTA' 
+        sequence       = []
+        for rnum, res in enumerate(self.sequence):
+            res3l = one_letter_res_dict[res]
+            residue = Residue(rname = res3l , rcode = res, rnum = rnum)
+            sequence.append(residue)
+            
         self.sequences.append(sequence)
 
         #print(self.sequences)
@@ -383,7 +391,8 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
         #                        int(canvas_y/(char_height + gap_height)  )
         #                        )
         try:
-            print(self.sequences[canvas_y][canvas_x].rname, self.sequences[canvas_y][canvas_x].rnum)
+            print(canvas_x,canvas_y)
+            #print(self.sequences[canvas_y][canvas_x].rname, self.sequences[canvas_y][canvas_x].rnum)
         except:
             pass
             
@@ -403,15 +412,24 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
         if event.button == 1:
             self.is_button_1_pressed = True # mouse left button
 
-            print(canvas_x,canvas_y, self.sequences[canvas_y][canvas_x].rname)
+            
             
             if self.sequences[canvas_y][canvas_x].is_selected:
+                print(canvas_x,canvas_y, self.sequences[canvas_y][canvas_x].rname)
                 self.sequences[canvas_y][canvas_x].is_selected = False
                 self.select_in_motion = False
-
+                print('if dentro',self.sequences[0][canvas_x].is_selected) 
+                print('if dentro',self.sequences[1][canvas_x].is_selected)
             else:
+                print('else dentro',self.sequences[0][canvas_x].is_selected) 
+                print('else dentro',self.sequences[1][canvas_x].is_selected)
                 self.sequences[canvas_y][canvas_x].is_selected = True
                 self.select_in_motion = True
+                print('else dentro',self.sequences[0][canvas_x].is_selected) 
+                print('else dentro',self.sequences[1][canvas_x].is_selected)
+                
+            print('fora1',self.sequences[0][canvas_x].is_selected) 
+            print('fora1',self.sequences[1][canvas_x].is_selected) 
             
             self.text_drawing_area.queue_draw()
 
