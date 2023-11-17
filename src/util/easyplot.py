@@ -367,7 +367,10 @@ class ImagePlot(Canvas):
         self.height = widget.get_allocated_height() #widget dimentions   
         self._make_bg(cr)
 
-        
+        if self.data:
+            pass
+        else:
+            return None
         self.size_x = len(self.data)
         self.size_y = len(self.data[0])
 

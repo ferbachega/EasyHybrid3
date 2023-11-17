@@ -2406,6 +2406,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             backup = []
             backup.append(system.e_treeview_iter)
             backup.append(system.e_liststore_iter)
+            backup.append(system.e_logfile_data)
             
             system.e_treeview_iter   = None
             system.e_liststore_iter  = None
@@ -2414,6 +2415,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
             system.e_treeview_iter   = backup[0]
             system.e_liststore_iter  = backup[1]
+            system.e_logfile_data    = backup[2]
         
         
         
