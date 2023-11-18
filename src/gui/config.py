@@ -37,7 +37,7 @@ class VismolConfig                       :
                               "dots_size"                  : 2,
                               "dot_type"                   : 1,
                               "dot_sel_size"               : 2.0,
-                              "line_width"                 : 6,
+                              "line_width"                 : 3,
                               "line_width_selection"       : 10,
                               "line_type"                  : 0,
                               "line_color"                 : 0,
@@ -72,7 +72,7 @@ class VismolConfig                       :
                               "center_on_coord_sleep_time" : 0.01,
                               "gridsize"                   : 0.8,
                               "maxbond"                    : 2.4,
-                              "bond_tolerance"             : 1.4,
+                              "bond_tolerance"             : 2.0,
                               "picking_dots_color"         : [0.0, 1.0, 1.0],
                               "picking_dots_safe"          : True,
                               }

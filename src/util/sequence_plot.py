@@ -86,7 +86,7 @@ three_letter_res_dict = {'CYS': 'C',
                        'MET': 'M'}
 
 
-class Residue:
+class SeqResidue:
     """ Class doc """
     def __init__ (self, rname = "UNK" , rcode = "X", rnum = 0, chain = "X"):
         """ Class initialiser """
@@ -307,6 +307,7 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
 
 
         self.sequences = []
+        '''
         sequence       = []
         for rnum, res in enumerate(self.sequence):
             res3l = one_letter_res_dict[res]
@@ -322,7 +323,7 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
             sequence.append(residue)
             
         self.sequences.append(sequence)
-
+        '''
         #print(self.sequences)
         #-------------------------------------------------------------------------------
     def set_font_size (self, size = 20):
@@ -467,38 +468,44 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
                                        
         if event.button == 3:          
             self.is_button_3_pressed = False # mouse right button
-            
+    
+    def insert_sequence_from_vobject (self, vobject, chain):
+        """ Function doc """
         
-#'''        
-main  = Gtk.Window()
-main.set_default_size(400, 200)
-seqview =  GtkSequenceViewer(main = main)
-notebook = Gtk.Notebook()
-tab_label = Gtk.Label("sequence")
-notebook.append_page(seqview, tab_label)
+        
+    
+            
+if __name__ == '__main__':
+    #'''        
+    main  = Gtk.Window()
+    main.set_default_size(400, 200)
+    seqview =  GtkSequenceViewer(main = main)
+    notebook = Gtk.Notebook()
+    tab_label = Gtk.Label("sequence")
+    notebook.append_page(seqview, tab_label)
 
 
 
-#seqview.text_drawing_area.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
-#seqview.text_drawing_area.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
-#seqview.text_drawing_area.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
-#seqview.text_drawing_area.add_events(Gdk.EventMask.KEY_PRESS_MASK)
-#seqview.text_drawing_area.add_events(Gdk.EventMask.KEY_RELEASE_MASK)
-#seqview.text_drawing_area.add_events(Gdk.EventMask.SCROLL_MASK)
+    #seqview.text_drawing_area.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+    #seqview.text_drawing_area.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+    #seqview.text_drawing_area.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
+    #seqview.text_drawing_area.add_events(Gdk.EventMask.KEY_PRESS_MASK)
+    #seqview.text_drawing_area.add_events(Gdk.EventMask.KEY_RELEASE_MASK)
+    #seqview.text_drawing_area.add_events(Gdk.EventMask.SCROLL_MASK)
 
-#-----------------------------------------------------------------------
-seqview.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
-seqview.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
-seqview.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
+    #-----------------------------------------------------------------------
+    seqview.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+    seqview.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+    seqview.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
 
-seqview.connect("motion-notify-event" , seqview.on_motion)
-seqview.connect("button_press_event"  , seqview.button_press)
-seqview.connect("button-release-event", seqview.button_release)
-#-----------------------------------------------------------------------
+    seqview.connect("motion-notify-event" , seqview.on_motion)
+    seqview.connect("button_press_event"  , seqview.button_press)
+    seqview.connect("button-release-event", seqview.button_release)
+    #-----------------------------------------------------------------------
 
 
-main.add(notebook) 
-main.show_all()
-Gtk.main()
-print ('uhuuu')
-#'''
+    main.add(notebook) 
+    main.show_all()
+    Gtk.main()
+    print ('uhuuu')
+    #'''

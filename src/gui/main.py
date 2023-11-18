@@ -33,6 +33,7 @@ from gui.widgets.custom_widgets  import VismolSelectionTypeBox
 from gui.widgets.custom_widgets  import FileChooser
 from gui.widgets.custom_widgets  import get_colorful_square_pixel_buffer
 from gui.widgets.custom_widgets  import ReactionCoordinateBox
+from gui.widgets.custom_widgets  import SequenceViewerBox
 
 from gui.windows.setup.windows_and_dialogs import ImportANewSystemWindow
 from gui.windows.setup.windows_and_dialogs import EasyHybridDialogSetQCAtoms
@@ -69,7 +70,7 @@ from gui.windows.analysis.normal_modes_analysis_window   import NormalModesAnaly
 from gui.windows.analysis.energy_refinement_window       import EnergyRefinementWindow
 
 
-
+from util.sequence_plot import GtkSequenceViewer
 
 
 from pdynamo.pDynamo2EasyHybrid import pDynamoSession
@@ -87,7 +88,26 @@ class MainWindow:
         '''Search home folder. Every time a file is loaded into memory 
         this attribute will be modified.'''
         self.current_search_folder = None
+
         
+
+
+        '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
+        self.system_liststore        = Gtk.ListStore(str, int, GdkPixbuf.Pixbuf)
+
+        
+        '''The "vobject_liststore_dict" is a dictionary where the access key is
+        the e_id, which is the index of the system of interest generated in 
+        "pDynamo2Easyhybrid/pDynamoSession/append_system_to_pdynamo_session". 
+        Each dictionary element contains a liststore that includes the respective 
+        vobjects.'''
+        self.vobject_liststore_dict  = {               
+                                       0 : Gtk.ListStore(str,  int, int, GdkPixbuf.Pixbuf)  # name, object_index, e_id, pixel_buffer
+                                       }                                 
+        '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
+
+
+
         
         self.builder = Gtk.Builder()
         self.builder.add_from_file(os.path.join(self.home,'src/gui/MainWindow.glade'))
@@ -120,6 +140,11 @@ class MainWindow:
         self.vm_session.selection_box_frame = self.selection_box_frame 
         #print('\n\n\n',self.selection_box_frame,self.vm_session.selection_box_frame ,'\n\n')
         self.menu_box.add(self.selection_box_frame.box)
+
+        '''#- - - - - - - - - - - -  pDynamo - - - - - - - - - - - - - - -#'''
+        self.p_session = pDynamoSession(vm_session = vm_session)
+        '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
+
 
         '''This gtk list is declared in the VismolGLWidget file 
            (it does not depend on the creation of Treeview)'''
@@ -233,28 +258,11 @@ class MainWindow:
         
         
         
-        '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
-        self.system_liststore        = Gtk.ListStore(str, int, GdkPixbuf.Pixbuf)
-
-        
-        '''The "vobject_liststore_dict" is a dictionary where the access key is
-        the e_id, which is the index of the system of interest generated in 
-        "pDynamo2Easyhybrid/pDynamoSession/append_system_to_pdynamo_session". 
-        Each dictionary element contains a liststore that includes the respective 
-        vobjects.'''
-        self.vobject_liststore_dict  = {               
-                                       0 : Gtk.ListStore(str,  int, int, GdkPixbuf.Pixbuf)  # name, object_index, e_id, pixel_buffer
-                                       }                                 
-        '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
 
 
         #             EASYHYBRID SESSION FILE
         self.session_filename = None
         
-        
-        '''#- - - - - - - - - - - -  pDynamo - - - - - - - - - - - - - - -#'''
-        self.p_session = pDynamoSession(vm_session = vm_session)
-        '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
 
         
         '''#- - - - - - - - - - G T K  W I N D O W S - - - - - - - - - - -#'''
@@ -2101,6 +2109,26 @@ class BottomNoteBook:
 
         self.annotations_textviewer = self.builder.get_object('annontations_textviewer')
         self.annotations_textbuffer = self.annotations_textviewer.get_buffer()
+
+        #-----------------------------------------------------------------------
+        seqview =  SequenceViewerBox(main = self.main)
+        notebook = self.widget
+        tab_label = Gtk.Label("sequence")
+        notebook.append_page(seqview, tab_label)
+        #-----------------------------------------------------------------------
+        
+        
+        
+        #seqview.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+        #seqview.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        #seqview.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
+        #
+        #seqview.connect("motion-notify-event" , seqview.on_motion)
+        #seqview.connect("button_press_event"  , seqview.button_press)
+        #seqview.connect("button-release-event", seqview.button_release)
+        ##-----------------------------------------------------------------------
+
+
 
 
     def _define_status_treeview (self):

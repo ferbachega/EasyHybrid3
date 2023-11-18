@@ -833,6 +833,19 @@ class RelaxedSurfaceScan:
             text = text + "\n--------------------------------------------------------------------------------"
 
         
+        elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
+            text = text + "\n"
+            text = text + "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"	
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOM_NAMES'][0] )
+            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOM_NAMES'][1] )
+            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
+            text = text + "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC1']['ATOMS'][3]    , parameters['RC1']['ATOM_NAMES'][3] )
+            text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']      , parameters['RC1']['force_constant'] ) 
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['maxIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['rmsGradient']           )
+            #text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['RC1']['sigma_pk1pk3'], parameters['RC1']['sigma_pk3pk1']   )
+            text = text + "\n--------------------------------------------------------------------------------"
+
         elif parameters['RC1']["rc_type"] == 'multiple_distance':
             text = text + "\n"
             text = text + "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"	
@@ -866,6 +879,18 @@ class RelaxedSurfaceScan:
                 text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']  , parameters['rmsGradient']           )
                 text = text + "\n--------------------------------------------------------------------------------"
 
+            
+            elif parameters['RC2']["rc_type"] == 'multiple_distance*4atoms':
+                text = text + "\n"
+                text = text + "\n---------------------- Coordinate 2 - multiple-Distance ------------------------"	
+                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOM_NAMES'][0] )
+                text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOM_NAMES'][1] )
+                text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
+                text = text + "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC2']['ATOMS'][3]    , parameters['RC2']['ATOM_NAMES'][3] )
+                text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']      , parameters['RC2']['force_constant'] )
+                text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maxIterations']         )
+                text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradient']           )
+                text = text + "\n--------------------------------------------------------------------------------"
             
             elif parameters['RC2']["rc_type"] == 'multiple_distance':
                 text = text + "\n"
@@ -909,6 +934,13 @@ class RelaxedSurfaceScan:
                 text = text + "\n\n--------------------------------------------------------------------------------"
                 text = text + "\n           Frame     dist-ATOM1-ATOM2      dist-ATOM2-ATOM3         Energy        "
                 text = text + "\n--------------------------------------------------------------------------------  "
+        
+            elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
+                text = text + "\n\n--------------------------------------------------------------------------------"
+                text = text + "\n           Frame     dist-ATOM1-ATOM2      dist-ATOM3-ATOM4         Energy        "
+                text = text + "\n--------------------------------------------------------------------------------  "
+        
+        
         #-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
             
@@ -979,6 +1011,40 @@ class RelaxedSurfaceScan:
 
             
                 '''----------------------------------------------------------------------------------------------------------------'''
+            
+            elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
+                atom3   = parameters['RC1']['ATOMS'][2]
+                atom4   = parameters['RC1']['ATOMS'][3]
+                weight1 =  1.0#parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+                weight2 = -1.0#parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0]
+                rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+                restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom2, atom1, weight1 ], [ atom3, atom4, weight2 ] ] )
+                restraints["RC1"] = restraint            
+                
+                #-------------------------------------------------------------------------------------------------------------
+                ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
+                                                         logFrequency           = parameters['log_frequency'],
+                                                         maximumIterations      = parameters['maxIterations'],
+                                                         rmsGradientTolerance   = parameters['rmsGradient'])
+                #-------------------------------------------------------------------------------------------------------------
+                distance1 = parameters['system'].coordinates3.Distance( atom1 , atom2  )
+                distance2 = parameters['system'].coordinates3.Distance( atom3 , atom4  )
+                energy   = parameters['system'].Energy(log=None)
+                data.append([i, distance1, distance2, energy])             
+                
+                text = "\nDATA %9i       %13.12f        %13.12f        %13.12f"% (int(i), float(distance1), float(distance2), float(energy))
+                arq.write(text)
+                
+                Pickle( os.path.join( parameters['folder'], 
+                                      parameters['traj_folder_name']+".ptGeo", 
+                                      "frame{}.pkl".format(i) ), 
+                        parameters['system'].coordinates3 ) 
+                
+                backup_orca_files(system        = parameters['system'], 
+                                  output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
+                                  output_name   = "frame{}".format(i))
+            
+            
             elif parameters['RC1']["rc_type"] == 'multiple_distance':
                 #--------------------------------------------------------------------
                 atom3   = parameters['RC1']['ATOMS'][2]
@@ -1126,6 +1192,17 @@ class RelaxedSurfaceScan:
                 restraints["RC1"] = restraint            
                 #---------------------------------------------------------------------------------------------------------
             
+            elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
+                atom_RC1_3   = parameters['RC1']['ATOMS'][2]
+                atom_RC1_4   = parameters['RC1']['ATOMS'][3]
+                weight1 =  1.0#parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+                weight2 = -1.0#parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0]
+                rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+                restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom_RC1_1, atom_RC1_2, weight1 ], 
+                                                                                                              [ atom_RC1_3, atom_RC1_4, weight2 ] 
+                                                                                                              ] )
+                restraints["RC1"] = restraint  
+            
             elif parameters['RC1']["rc_type"] == 'multiple_distance':
                 #--------------------------------------------------------------------
                 atom_RC1_3   = parameters['RC1']['ATOMS'][2]
@@ -1153,6 +1230,20 @@ class RelaxedSurfaceScan:
                 restraint         = RestraintDistance.WithOptions(energyModel = rmodel, point1= atom_RC2_1, point2= atom_RC2_2)
                 restraints["RC2"] = restraint            
                 #---------------------------------------------------------------------------------------------------------
+            
+            
+            elif parameters['RC2']["rc_type"] == 'multiple_distance*4atoms':
+                atom_RC2_3   = parameters['RC2']['ATOMS'][2]
+                atom_RC2_4   = parameters['RC2']['ATOMS'][3]
+                weight1 =  1.0#parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+                weight2 = -1.0#parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0]
+                rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'])
+                restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom_RC2_1, atom_RC2_2, weight1 ], 
+                                                                                                              [ atom_RC2_3, atom_RC2_4, weight2 ] 
+                                                                                                              ] )
+                restraints["RC2"] = restraint  
+            
+            
             
             elif parameters['RC2']["rc_type"] == 'multiple_distance':
                 #--------------------------------------------------------------------
@@ -1190,10 +1281,16 @@ class RelaxedSurfaceScan:
             #                     Calculating the reaction coordinate 1
             #--------------------------------------------------------------------------------------
             distance1 = parameters['system'].coordinates3.Distance( atom_RC1_1 , atom_RC1_2  )
+            
             if parameters['RC1']["rc_type"] == 'multiple_distance':
                 distance2 = parameters['system'].coordinates3.Distance( atom_RC1_2,  atom_RC1_3  )
+
+            elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
+                distance2 = parameters['system'].coordinates3.Distance( atom_RC1_3,  atom_RC1_4  )
+            
             else:
                 distance2 = 0
+            
             RC1_d1_minus_d2 = distance1 - distance2
             #--------------------------------------------------------------------------------------
             
@@ -1203,10 +1300,16 @@ class RelaxedSurfaceScan:
             #                     Calculating the reaction coordinate 2
             #--------------------------------------------------------------------------------------
             distance1 = parameters['system'].coordinates3.Distance( atom_RC2_1 , atom_RC2_2  )
+            
             if parameters['RC2']["rc_type"] == 'multiple_distance':
                 distance2 = parameters['system'].coordinates3.Distance( atom_RC2_2,  atom_RC2_3  )
+            
+            elif parameters['RC2']["rc_type"] == 'multiple_distance*4atoms':
+                distance2 = parameters['system'].coordinates3.Distance( atom_RC2_3,  atom_RC2_4  )
+            
             else:
                 distance2 = 0
+            
             RC2_d1_minus_d2 = distance1 - distance2
             #--------------------------------------------------------------------------------------
             
@@ -2611,6 +2714,18 @@ def _run_second_coordinate_in_parallel ( job):
             restraints["RC1"] = restraint            
             #---------------------------------------------------------------------------------------------------------
         
+        elif parameters["rc_type_1"] == 'multiple_distance*4atoms':
+            atom_RC1_3   = parameters['ATOMS_RC1'][2]
+            atom_RC1_4   = parameters['ATOMS_RC1'][3]
+            weight1 =  1.0 #parameters['sigma_pk1pk3_rc1'] #self.sigma_a1_a3[0]
+            weight2 = -1.0 #parameters['sigma_pk3pk1_rc1'] #self.sigma_a3_a1[0] 
+            
+            rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['force_constant_1'])
+            restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom_RC1_2, atom_RC1_1, weight1 ], 
+                                                                                                          [ atom_RC1_3, atom_RC1_4, weight2 ] 
+                                                                                                        ] )
+            restraints["RC1"] = restraint 
+        
         elif parameters["rc_type_1"] == 'multiple_distance':
             #--------------------------------------------------------------------
             atom_RC1_3   = parameters['ATOMS_RC1'][2]
@@ -2639,6 +2754,21 @@ def _run_second_coordinate_in_parallel ( job):
             restraints["RC2"] = restraint            
             #---------------------------------------------------------------------------------------------------------
         
+        elif parameters["rc_type_2"] == 'multiple_distance*4atoms':
+            #--------------------------------------------------------------------
+            atom_RC2_3 = parameters['ATOMS_RC2'][2]
+            atom_RC2_4 = parameters['ATOMS_RC2'][3]
+            weight1 =   1.0 #parameters['sigma_pk1pk3_rc2'] #self.sigma_a1_a3[0]
+            weight2 =  -1.0 #parameters['sigma_pk3pk1_rc2'] #self.sigma_a3_a1[0] 
+            
+            rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['force_constant_2'])
+            restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ 
+                                                                                                          [ atom_RC2_2, atom_RC2_1, weight1 ], 
+                                                                                                          [ atom_RC2_3, atom_RC2_4, weight2 ] 
+                                                                                                          ] )
+            restraints["RC2"] = restraint            
+            #--------------------------------------------------------------------
+       
         elif parameters["rc_type_2"] == 'multiple_distance':
             #--------------------------------------------------------------------
             atom_RC2_3 = parameters['ATOMS_RC2'][2]

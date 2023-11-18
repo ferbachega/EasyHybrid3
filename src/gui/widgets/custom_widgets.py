@@ -13,6 +13,10 @@ from util.geometric_analysis            import get_distance
 from util.geometric_analysis            import get_dihedral 
 from util.geometric_analysis            import get_angle 
 from util.periodic_table import atomic_dic 
+
+from util.sequence_plot import GtkSequenceViewer
+
+
 import numpy as np
 
 HOME        = os.environ.get('HOME')
@@ -249,7 +253,6 @@ class VismolSelectionTypeBox(Gtk.Box):
         print('VismolSelectionTypeBox update')
 
 
-
 class SaveTrajectoryBox:
     """ Class doc """
     
@@ -455,6 +458,7 @@ class FolderChooserButton:
         """ Function doc """
         self.btn.set_tooltip_text(text)
 
+
 class FileChooser:
     """ Class doc """
     
@@ -528,7 +532,6 @@ class FileChooser:
             
             chooser.destroy()
             return filename
-
 
 
 class VismolTrajectoryFrame(Gtk.Frame):
@@ -731,7 +734,6 @@ class VismolTrajectoryFrame(Gtk.Frame):
         self.upper = upper
 
 
-
 class SystemComboBox(Gtk.ComboBox):
     """ Class doc """
     
@@ -886,111 +888,7 @@ class CoordinatesComboBox(Gtk.ComboBox):
 
 
 
-#def get_distance (vobject, index1, index2):
-#    """ Function doc """
-#    #print( index1, index2)
-#    atom1 = vobject.atoms[index1]
-#    atom2 = vobject.atoms[index2]
-#    a1_coord = atom1.coords()
-#    a2_coord = atom2.coords()
-#    
-#    dx = a1_coord[0] - a2_coord[0]
-#    dy = a1_coord[1] - a2_coord[1]
-#    dz = a1_coord[2] - a2_coord[2]
-#    dist = (dx**2+dy**2+dz**2)**0.5
-#    #print('distance a1 - a2:', dist)
-#    return dist
-#
-#def get_angle (vobject, index1, index2, index3):
-#    
-#    atom1 = vobject.atoms[index1]
-#    atom2 = vobject.atoms[index2]
-#    atom3 = vobject.atoms[index3]
-#
-#    a1_coord = atom1.coords()
-#    a2_coord = atom2.coords()
-#    a3_coord = atom1.coords()
-# 
-#    # Convert the coordinates to numpy arrays
-#    atom1 = np.array(a1_coord)
-#    atom2 = np.array(a2_coord)
-#    atom3 = np.array(a3_coord)
-#
-#    # Compute vectors between the atoms
-#    vec1 = atom1 - atom2
-#    vec2 = atom3 - atom2
-#
-#    # Normalize the vectors
-#    vec1 /= np.linalg.norm(vec1)
-#    vec2 /= np.linalg.norm(vec2)
-#
-#    # Compute the dot product
-#    dot = np.dot(vec1, vec2)
-#
-#    # Compute the angle
-#    angle = np.arccos(dot)
-#    angle = np.degrees(angle)
-#
-#    return angle 
-#
-#def get_dihedral(vobject, index1, index2, index3, index4):
-#    # Convert the coordinates to numpy arrays
-#    #atom1 = vobject.atoms[index1]
-#    #atom2 = vobject.atoms[index2]
-#    #atom3 = vobject.atoms[index3]
-#    #atom4 = vobject.atoms[index4]
-#    
-#    a1_coord = vobject.atoms[index1].coords()
-#    a2_coord = vobject.atoms[index2].coords()
-#    a3_coord = vobject.atoms[index3].coords()
-#    a4_coord = vobject.atoms[index4].coords()
-#    
-#    #print(a1_coord, a2_coord,a3_coord  , a4_coord)
-#    
-#    atom1 = np.array(a1_coord)
-#    atom2 = np.array(a2_coord)
-#    atom3 = np.array(a3_coord)
-#    atom4 = np.array(a4_coord)
-#
-#    #print(atom1, atom2,atom3  , atom4)
-#
-#    # Compute vectors between the atoms
-#    vec1 = atom2 - atom1
-#    vec2 = atom3 - atom2
-#    vec3 = atom4 - atom3
-#
-#    # Normalize the vectors
-#    vec1 /= np.linalg.norm(vec1)
-#    vec2 /= np.linalg.norm(vec2)
-#    vec3 /= np.linalg.norm(vec3)
-#
-#    # Compute the cross products
-#    cross1 = np.cross(vec1, vec2)
-#    cross2 = np.cross(vec2, vec3)
-#
-#    # Compute the dot product between the cross products
-#    dot = np.dot(cross1, cross2)
-#
-#    # Compute the dihedral angle
-#    dihedral = np.arctan2(np.linalg.norm(np.cross(cross1, cross2)), dot)
-#    dihedral = np.degrees(dihedral)
-#    return dihedral
-#
-#
-#
-#
 
-
-
-
-
-
-
-
-
-
-
-#===========================================================
 def compute_sigma_a1_a3 (vobject, index1, index3):
 
     """ example:
@@ -1895,7 +1793,7 @@ class ReactionCoordinateBox(Gtk.Box):
 
         #-----------------------------------------------------------------------------------
         self.method_store = Gtk.ListStore(str)
-        methods = ["simple distance", "multiple distance", 'dihedral']
+        methods = ["simple distance", "multiple distance", "multiple distance *4 atoms", 'dihedral']
 
         for method in methods:
             self.method_store.append([method])
@@ -1952,6 +1850,24 @@ class ReactionCoordinateBox(Gtk.Box):
                 self.builder.get_object('entry_dmin_coord1').set_text(str(DMINIMUM))
         
         elif _type == 2:
+            index1 = int(self.builder.get_object('entry_atom1_index_coord1').get_text() )
+            index2 = int(self.builder.get_object('entry_atom2_index_coord1').get_text() )
+            index3 = int(self.builder.get_object('entry_atom3_index_coord1').get_text() )
+            index4 = int(self.builder.get_object('entry_atom4_index_coord1').get_text() )
+            
+            dist1 = get_distance(self.vobject, index1, index2 )
+            dist2 = get_distance(self.vobject, index3, index4 )
+            
+            #if self.builder.get_object('mass_restraints1').get_active():
+            #    self.sigma_pk1_pk3, self.sigma_pk3_pk1  = compute_sigma_a1_a3(self.vobject, index1, index3)
+            #    #print('distance a1 - a2:', dist1 - dist2)
+            #    DMINIMUM =  (self.sigma_pk1_pk3 * dist1) -(self.sigma_pk3_pk1 * dist2*-1)
+            #    self.builder.get_object('entry_dmin_coord1').set_text(str(DMINIMUM))
+            #else:
+            DMINIMUM =  dist1- dist2
+            self.builder.get_object('entry_dmin_coord1').set_text(str(DMINIMUM))
+        
+        elif _type == 3:
             index1 = int(self.builder.get_object('entry_atom1_index_coord1').get_text() )
             index2 = int(self.builder.get_object('entry_atom2_index_coord1').get_text() )
             index3 = int(self.builder.get_object('entry_atom3_index_coord1').get_text() )
@@ -2066,6 +1982,7 @@ class ReactionCoordinateBox(Gtk.Box):
             self.builder.get_object('mass_restraints1').set_sensitive(True)
             self.label_initial_dist_angle_dihedral.set_text('Initial Distance:')
 
+        
         if _type == 2:
             self.builder.get_object('label_atom3_coord1').show()
             self.builder.get_object('entry_atom3_index_coord1').show()
@@ -2078,8 +1995,23 @@ class ReactionCoordinateBox(Gtk.Box):
             self.builder.get_object('entry_atom4_name_coord1').show()
             self.builder.get_object('mass_restraints1').set_sensitive(False)
             #self.label_initial_dist_angle_dihedral.set_text('Initial Distance:')
-            self.label_initial_dist_angle_dihedral.set_text('Initial Angle:')
+            self.label_initial_dist_angle_dihedral.set_text('Initial Distance:')
+
         if _type == 3:
+            self.builder.get_object('label_atom3_coord1').show()
+            self.builder.get_object('entry_atom3_index_coord1').show()
+            self.builder.get_object('label_name3_coord1').show()
+            self.builder.get_object('entry_atom3_name_coord1').show()
+            
+            self.builder.get_object('label_atom4_coord1').show()
+            self.builder.get_object('entry_atom4_index_coord1').show()
+            self.builder.get_object('label_name4_coord1').show()
+            self.builder.get_object('entry_atom4_name_coord1').show()
+            self.builder.get_object('mass_restraints1').set_sensitive(False)
+            #self.label_initial_dist_angle_dihedral.set_text('Initial Distance:')
+            self.label_initial_dist_angle_dihedral.set_text('Initial Angle:')
+        
+        if _type == 4:
             self.label_initial_dist_angle_dihedral.set_text('Initial Angle:')
         
         
@@ -2155,6 +2087,27 @@ class ReactionCoordinateBox(Gtk.Box):
             index3 = int( self.builder.get_object('entry_atom3_index_coord1').get_text() )
             index4 = int( self.builder.get_object('entry_atom4_index_coord1').get_text() )
             dmin   = float( self.builder.get_object('entry_dmin_coord1').get_text() )
+            
+            name1 = self.builder.get_object('entry_atom1_name_coord1').get_text() 
+            name2 = self.builder.get_object('entry_atom2_name_coord1').get_text() 
+            name3 = self.builder.get_object('entry_atom3_name_coord1').get_text() 
+            name4 = self.builder.get_object('entry_atom4_name_coord1').get_text() 
+            
+            
+            parameters["ATOMS"]      = [ index1,index2,index3,index4] 
+            parameters["ATOM_NAMES"] = [ name1,  name2,  name3, name4] 
+
+            parameters["dminimum"]  = dmin 
+            parameters["rc_type"]     = "multiple_distance*4atoms"
+            parameters["sigma_pk1pk3"] =   1.0
+            parameters["sigma_pk3pk1"] =  -1.0
+        
+        elif _type == 3:
+            index1 = int( self.builder.get_object('entry_atom1_index_coord1').get_text() )
+            index2 = int( self.builder.get_object('entry_atom2_index_coord1').get_text() )
+            index3 = int( self.builder.get_object('entry_atom3_index_coord1').get_text() )
+            index4 = int( self.builder.get_object('entry_atom4_index_coord1').get_text() )
+            dmin   = float( self.builder.get_object('entry_dmin_coord1').get_text() )
             parameters["ATOMS"]     = [ index1,index2,index3,index4] 
             parameters["dminimum"]  = dmin 
             parameters["rc_type"]     = "dihedral"
@@ -2170,43 +2123,81 @@ class ReactionCoordinateBox(Gtk.Box):
         return (parameters)
         
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
 
+class SequenceViewerBox(Gtk.Box):
+    """ Class doc """
+    
+    def __init__ (self, main = None, mode = 0 ):
+        """ Class initialiser """
+        Gtk.Box.__init__(self)
+        
+        self.main = main
+        self.seqview   = GtkSequenceViewer(main = main)
+        #-----------------------------------------------------------------------
+        self.seqview.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+        self.seqview.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        self.seqview.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
+
+        self.seqview.connect("motion-notify-event" , self.seqview.on_motion)
+        self.seqview.connect("button_press_event"  , self.seqview.button_press)
+        self.seqview.connect("button-release-event", self.seqview.button_release)
+        #-----------------------------------------------------------------------
+
+        #self.add()
+        
+        #--------------------------------------------------------------#
+        self.box_horizontal1 = Gtk.Box(orientation = Gtk.Orientation.HORIZONTAL, spacing = 10)
+        
+        self.label1  = Gtk.Label()
+        self.label1.set_text('Coordinates:')
+        self.box_horizontal1.pack_start(self.label1, False, False, 0)
+        self.coordinates_combobox = CoordinatesComboBox(self.main.vobject_liststore_dict[self.main.p_session.active_id])
+        
+        self.box_horizontal1.pack_start(self.coordinates_combobox, False, False, 0)
+        #--------------------------------------------------------------#
+
+
+
+
+        #------------------------------------------------------------------#
+        #                  CHAIN combobox and Label
+        #------------------------------------------------------------------#
+        self.label2  = Gtk.Label()
+        self.label2.set_text('Chain:')
+        self.box_horizontal1.pack_start(self.label2, False, False, 0)
+
+        self.liststore_chains = Gtk.ListStore(str)
+        self.combobox_chains = Gtk.ComboBox.new_with_model(self.liststore_chains)
+        self.combobox_chains.connect("changed", self.on_combobox_chains_changed)
+        renderer_text = Gtk.CellRendererText() 
+        self.combobox_chains.pack_start(renderer_text, True)
+        self.combobox_chains.add_attribute(renderer_text, "text", 0)
+        #vbox.pack_start(self.combobox_chains, False, False, True)
+        self.box_horizontal1.pack_start(self.combobox_chains, False, False, 0)
+        
+        #Gtk.show_all()
+
+
+
+    def on_combobox_chains_changed (self, widget):
+        """ Function doc """
+        
+        tree_iter = self.combobox_chains.get_active_iter()
+        if tree_iter is not None:
+            model = self.combobox_chains.get_model()
+            chain = model[tree_iter][0]
+            #print("Selected: country=%s" % country)
+        
+        self.current_filter_chain = chain
+        #print("%s Chain selected!" % self.current_filter_chain)
+        # we update the filter, which updates in turn the view
+        self.chain_filter.refilter()
+        
+        
+        
+        
+        
+        
+        
+        
+        
