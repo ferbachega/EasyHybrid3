@@ -459,6 +459,19 @@ class XYPlot(Gtk.DrawingArea):
         self.connect("motion-notify-event", self.on_motion)
 
 
+        self.line_color     = [0,0,0]
+        self.bg_color       = [1,1,1]
+        self.sel_color      = [1,0,0]
+        
+        #self.line_color     = [1,1,1]
+        #self.bg_color       = [0,0,0]
+        #self.sel_color      = [1,0,0]
+        
+        self.bglines_color  = [0.5,0.5,0.5]
+        self.bx = 100#80
+        self.by = 50#50 
+
+
     def data_update (self, data):
         """ Function doc """
         X = data['X']
@@ -564,7 +577,7 @@ class XYPlot(Gtk.DrawingArea):
         cr.set_line_width (3.0)
         #----------------------------------------------------------------------
         #retangle
-        cr.set_source_rgb( 1, 1, 1)
+        cr.set_source_rgb( color[0], color[1], color[2])
         cr.rectangle(self.bx,
                      self.by, 
                      self.x_box_size,
@@ -576,7 +589,7 @@ class XYPlot(Gtk.DrawingArea):
         
         
         cr.set_line_width (1.0)
-        cr.set_source_rgb( 1, 1, 1)
+        cr.set_source_rgb( color[0], color[1], color[2])
         #---------------------------------------------------------------------------------------------------
         # x axy
         cr.move_to (self.bx, self.y_box_size+ self.by)
@@ -733,8 +746,10 @@ class XYPlot(Gtk.DrawingArea):
         self.width = widget.get_allocated_width()
         self.height = widget.get_allocated_height()
 
-
-        cr.set_source_rgb( 0, 0, 0)
+        line_color = self.line_color
+        bg_color   = self.bg_color  
+        cr.set_source_rgb( bg_color[0], bg_color[1], bg_color[2])
+        #line_color = [0,0,0]
         cr.paint()
 
         self.x = self.width
@@ -742,14 +757,13 @@ class XYPlot(Gtk.DrawingArea):
 
 
 
-        self.bx = 80
-        self.by = 50 
+
 
         self.x_box_size = self.width  - (self.bx*1.5)
         self.y_box_size = self.height - (self.by*1.8)
 
-        self.draw_box    (cr, line_width = 3.0 , color = [1, 1, 1])
-        self.draw_XY_axes(cr, line_width = 3.0 , color = [1, 1, 1])
+        self.draw_box    (cr, line_width = 3.0 , color = line_color) #color = [1, 1, 1])
+        self.draw_XY_axes(cr, line_width = 3.0 , color = line_color) #color = [1, 1, 1])
             
         if self.data == []:
             return False
@@ -779,14 +793,14 @@ class XYPlot(Gtk.DrawingArea):
                 
             #self.Ynorm_max = max(self.norm_data)
             
-            self.draw_XY_scale ( cr, line_width = 3.0 , color = [1, 1, 1] )
+            self.draw_XY_scale ( cr, line_width = 3.0 , color = line_color)#color = [1, 1, 1] )
             
             
             
             #----------------------------------------------------------------------
             cr.set_line_width (2.0)
             #----------------------------------------------------------------------
-            cr.set_source_rgb( 1, 1, 1)
+            cr.set_source_rgb( line_color[0], line_color[1], line_color[2])
             cx = 0#self.bx - self.norm_X[0]
             #----------------------------------------------------------------------
             for data in self.data:
@@ -795,16 +809,17 @@ class XYPlot(Gtk.DrawingArea):
                 for i in range(len(data['Ynorm'])):           
                     x = data['Xnorm'][i]    
                     y = data['Ynorm'][i]
-                    color = data['line_color']
                     
-                    cr.set_source_rgb( color[0], color[1], color[2])
+                    #color = data['line_color']
+                    #color = [0,0,0]
+                    #cr.set_source_rgb( color[0], color[1], color[2])
                     
                     cr.line_to (x*self.x_box_size + cx, 
                             #(self.new_Ymax + self.y_box_size + self.by ) - (y+self.y_box_size))
                             (1*self.y_box_size + self.by) - (y*self.y_box_size))
                 cr.stroke ()
                 
-            
+            #'''
             for data in self.data:
                 cx = self.bx -  data['Xnorm'][0]
                 
@@ -812,18 +827,25 @@ class XYPlot(Gtk.DrawingArea):
                     x = data['Xnorm'][i]    
                     y = data['Ynorm'][i]
                     color = data['line_color']
+                    color = [0,0,0]
                     
                     if data['sym'] is not None:
                         color = data['sym_color']
-                        cr.set_source_rgb( color[0], color[1], color[2])
+                        
+                        #cr.set_source_rgb( color[0], color[1], color[2])
+                        cr.set_source_rgb( self.sel_color[0], self.sel_color[1], self.sel_color[2])
+                        
                         cr.arc (x*self.x_box_size + cx, 
                                 #(self.new_Ymax + self.y_box_size + self.by ) - (y+self.y_box_size))
                                 (1*self.y_box_size + self.by) - (y*self.y_box_size), 5, 0, 2*3.14)
                     
                     if data['sym_fill']:
+                        cr.set_source_rgb( self.sel_color[0], self.sel_color[1], self.sel_color[2])
                         cr.fill()
                     else:
+                        cr.set_source_rgb( self.line_color[0], self.line_color[1], self.line_color[2])
                         cr.stroke ()
+            #'''
             #print(
             #'\nself.Ymax     ', self.Ymax      ,
             #'\nself.Ymin     ', self.Ymin      ,

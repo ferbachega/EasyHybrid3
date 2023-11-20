@@ -72,7 +72,7 @@ class VismolConfig                       :
                               "center_on_coord_sleep_time" : 0.01,
                               "gridsize"                   : 0.8,
                               "maxbond"                    : 2.4,
-                              "bond_tolerance"             : 2.0,
+                              "bond_tolerance"             : 1.8,
                               "picking_dots_color"         : [0.0, 1.0, 1.0],
                               "picking_dots_safe"          : True,
                               }

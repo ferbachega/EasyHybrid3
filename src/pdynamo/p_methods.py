@@ -1978,6 +1978,27 @@ class UmbrellaSampling:
                 restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom2, atom1, weight1 ], [ atom2, atom3, weight2 ] ] )
                 restraints["RC1"] = restraint            
                 #--------------------------------------------------------------------
+            
+            elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
+                #--------------------------------------------------------------------
+
+                atom_3  = parameters['RC1']['ATOMS'][2]
+                atom_4  = parameters['RC1']['ATOMS'][3]
+                weight1 =  1.0#parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+                weight2 = -1.0#parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
+                
+                distance_a1_a2 = system.coordinates3.Distance( atom_1, atom_2)
+                distance_a2_a3 = system.coordinates3.Distance( atom_3, atom_4)
+                
+                distance = (weight1 * distance_a1_a2) - (weight2 * distance_a2_a3*-1)
+                
+                rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+                restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom_2, atom_1, weight1 ], [ atom_3, atom_4, weight2 ] ] )
+                restraints["RC1"] = restraint            
+                #--------------------------------------------------------------------
+            
+            
+            
             else:
                 pass
                 
@@ -2144,6 +2165,24 @@ def _run_parallel_umbrella_sampling_2D (job):
                                                                                                     ] )
         restraints["RC1"] = restraint            
         #--------------------------------------------------------------------
+    
+    elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
+        #--------------------------------------------------------------------
+        atom_RC1_3   = parameters['RC1']['ATOMS'][2]
+        atom_RC1_4   = parameters['RC1']['ATOMS'][3]
+        weight1 =  1.0#parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+        weight2 = -1.0#parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
+        
+        distance_a1_a2 = system.coordinates3.Distance( atom_RC1_1, atom_RC1_2)
+        distance_a2_a3 = system.coordinates3.Distance( atom_RC1_3, atom_RC1_4)
+        
+        distance = (weight1 * distance_a1_a2) - (weight2 * distance_a2_a3*-1)
+        
+        rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+        restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom_RC1_2, atom_RC1_1, weight1 ], [ atom_RC1_3, atom_RC1_4, weight2 ] ] )
+        restraints["RC1"] = restraint            
+        #--------------------------------------------------------------------
+    
     else:
         pass
 
@@ -2172,6 +2211,30 @@ def _run_parallel_umbrella_sampling_2D (job):
                                                                                                       ] )
         restraints["RC2"] = restraint            
         #--------------------------------------------------------------------
+   
+    elif parameters['RC2']["rc_type"] == 'multiple_distance*4atoms':
+        #--------------------------------------------------------------------
+
+        atom_RC2_3   = parameters['RC2']['ATOMS'][2]
+        atom_RC2_4   = parameters['RC2']['ATOMS'][3]
+        weight1 =  1.0#parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+        weight2 = -1.0#parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
+        
+        distance_a1_a2 = system.coordinates3.Distance( atom_RC2_1, atom_RC2_2)
+        distance_a2_a3 = system.coordinates3.Distance( atom_RC2_3, atom_RC2_4)
+        
+        distance = (weight1 * distance_a1_a2) - (weight2 * distance_a2_a3*-1)
+        
+        rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC2']['force_constant'])
+        restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom_RC2_1, atom_RC2_2, weight1 ], [ atom_RC2_3, atom_RC2_4, weight2 ] ] )
+        restraints["RC2"] = restraint            
+        #--------------------------------------------------------------------
+   
+   
+   
+   
+   
+   
    
     '''             G E O M E T R Y   O P T I M I Z A T I O N            '''
     if parameters['OPT_parm'] is not None:
@@ -2266,6 +2329,24 @@ def _run_parallel_umbrella_sampling_1D (job):
         
         rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
         restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom2, atom1, weight1 ], [ atom2, atom3, weight2 ] ] )
+        restraints["RC1"] = restraint            
+        #--------------------------------------------------------------------
+    
+    elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
+        #--------------------------------------------------------------------
+
+        atom3   = parameters['RC1']['ATOMS'][2]
+        atom4   = parameters['RC1']['ATOMS'][3]
+        weight1 =  1.0#parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
+        weight2 = -1.0#parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
+        
+        distance_a1_a2 = system.coordinates3.Distance( atom1, atom2)
+        distance_a2_a3 = system.coordinates3.Distance( atom3, atom4)
+        
+        distance = (weight1 * distance_a1_a2) - (weight2 * distance_a2_a3*-1)
+        
+        rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+        restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom2, atom1, weight1 ], [ atom3, atom4, weight2 ] ] )
         restraints["RC1"] = restraint            
         #--------------------------------------------------------------------
     else:

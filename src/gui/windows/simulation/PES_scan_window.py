@@ -67,7 +67,7 @@ class PotentialEnergyScanWindow():
             self.builder.connect_signals(self)
             #
             self.window = self.builder.get_object('pes_scan_window')
-            self.window.set_title('PES Scan Window')
+            self.window.set_title('Reaction Coordinate Scans')
             self.window.set_keep_above(True)            
             
          
