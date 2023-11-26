@@ -3723,7 +3723,9 @@ class MergeSystemWindow(Gtk.Window):
 #import copy as cp
 #import gc
 #import os
-from util.easyplot import ImagePlot, XYPlot 
+from util.easyplot import ImagePlot, XYPlot
+from util.colormaps import COLOR_MAPS  
+
 import math
 
 
@@ -3736,7 +3738,9 @@ class PotentialEnergyAnalysisWindow:
         self.p_session           = self.main.p_session
         self.vm_session          = self.main.vm_session
         self.Visible             =  False  
-
+        
+        self.cmap_id = 0
+        
         self.vobject_liststore = Gtk.ListStore(str,              # name
                                                int,              # vobj_id
                                                int,              # sys_id
@@ -3747,7 +3751,14 @@ class PotentialEnergyAnalysisWindow:
         # plotting attributes
         self.interpolate = True
         
+        self.cmap_ref_dict = {}
+        self.cmap_store = Gtk.ListStore(str)
+        cmaps = COLOR_MAPS.keys()
         
+        for i, cmap in enumerate(cmaps):
+            self.cmap_store.append([cmap])
+            self.cmap_ref_dict[i] = cmap
+            print(cmap)
 
     def OpenWindow (self, vobject = None):
         """ Function doc """
@@ -3769,6 +3780,16 @@ class PotentialEnergyAnalysisWindow:
             self.hbox = self.builder.get_object('hbox_plotting')
             
             
+            
+            self.cmap_box = self.builder.get_object('cmap_box')          
+
+            
+            self.cmap_combobox = Gtk.ComboBox.new_with_model(self.cmap_store)
+            renderer_text = Gtk.CellRendererText()
+            self.cmap_combobox.pack_start(renderer_text, True)
+            self.cmap_combobox.add_attribute(renderer_text, "text", 0)            
+            self.cmap_box.add(self.cmap_combobox)
+            self.cmap_combobox.connect('changed', self.on_cmap_combobox_change)
             
             '''-------------------------------------------------------------'''
             self.plot = ImagePlot()
@@ -3815,7 +3836,7 @@ class PotentialEnergyAnalysisWindow:
             self.refresh_vobject_liststore ()
 
 
-
+            
 
 
 
@@ -3832,8 +3853,8 @@ class PotentialEnergyAnalysisWindow:
             #------------------------------------------------------------------------------------
 
 
-
-
+            self.threshold_entry= self.builder.get_object('threshold_entry')
+            self.threshold_entry.connect('activate', self.on_threshold_entry_activate)
 
             #------------------------------------------------------------------------------------
             self.scale_traj = self.builder.get_object('scale_trajectory_from_PES')
@@ -3852,7 +3873,7 @@ class PotentialEnergyAnalysisWindow:
 
 
 
-
+            self.cmap_combobox.set_active(self.cmap_id)
 
             self.window.show_all()
             self.Visible  = True
@@ -3886,17 +3907,38 @@ class PotentialEnergyAnalysisWindow:
             else:
                 pass
 
+    def on_threshold_entry_activate (self, widget):
+        """ Function doc """
+        try:
+            new_threshold = float(self.threshold_entry.get_text())
+            self.plot.set_threshold_color ( _min = 0, _max = new_threshold)
+            self.plot.queue_draw()
+        except:
+            pass
 
+        
+    def on_cmap_combobox_change (self, widget):
+        """ Function doc """
+        self.cmap_id = widget.get_active()
+        print(self.cmap_id, self.cmap_ref_dict[self.cmap_id])
+        self.plot.cmap = self.cmap_ref_dict[self.cmap_id]
+        self.plot.set_cmap (cmap = self.cmap_ref_dict[self.cmap_id])
+        
+        self.on_threshold_entry_activate (None)
+        
     def on_coordinates_combobox_change (self, widget):
         """ Function doc """
-        vobject_index = self.coordinates_combobox.get_vobject_id()
-        self.vobject  = self.main.vm_session.vm_objects_dic[vobject_index]
-        
-        self.data_liststore.clear()
-        for index , data in enumerate(self.p_session.psystem[self.vobject.e_id].e_logfile_data[vobject_index]):
-            self.data_liststore.append([data['name'], index])
+        try:
+            vobject_index = self.coordinates_combobox.get_vobject_id()
+            self.vobject  = self.main.vm_session.vm_objects_dic[vobject_index]
+            
+            self.data_liststore.clear()
+            for index , data in enumerate(self.p_session.psystem[self.vobject.e_id].e_logfile_data[vobject_index]):
+                self.data_liststore.append([data['name'], index])
 
-        self.data_combobox.set_active(0)
+            self.data_combobox.set_active(0)
+        except:
+            pass
         #print( self.vobject.idx_2D_xy)
     
     def on_data_combobox_change (self, widget):
@@ -3906,7 +3948,8 @@ class PotentialEnergyAnalysisWindow:
             '''selecting the vismol object from the content that is in the combobox '''
             model = self.data_combobox.get_model()
             _name, index = model[_iter][:2]
-        
+        else:
+            return False
         self.data = self.p_session.psystem[self.vobject.e_id].e_logfile_data[self.vobject.index][index] 
         #print('data: ', self.data)
         
@@ -3936,6 +3979,7 @@ class PotentialEnergyAnalysisWindow:
             self.plot2.add( X = range(0, len(self.data['Z'])), Y = self.data['Z'], symbol = 'dot', sym_fill = False, sym_color = [0,1,1], line = 'solid', line_color = [0,1,1] )
             self.plot.hide()
             self.scale_traj_new_definitions(set_range = len(self.data['Z']))
+        
         elif self.data['type'] == 'plot2D':
         
             minlist = []
@@ -3951,8 +3995,10 @@ class PotentialEnergyAnalysisWindow:
             self.plot.show()
             self.plot.data = self.data['Z']
         
-        
-        
+            
+            data_min, data_max, delta , norm_data = self.plot.define_datanorm()
+            
+            self.builder.get_object('threshold_entry').set_text(str(data_max))
         
         self.plot.queue_draw()
 
@@ -4111,7 +4157,7 @@ class PotentialEnergyAnalysisWindow:
 RC1 and RC2 refer to the coordinates of reactions 1 and 2, 
 respectively, defined to obtain the PES. In the case of a 
 simple reaction coordinate, the RC is simply the value of 
-the distance between atoms 1 and 2 defined. In the case of 
+the distance between atoms 1 and 2 defined. In the case of w
 the multiple distance based reaction coordinate defined by 
 three (3) atoms, the RC is defined as the distance between 
 atoms 1 and 2 minus the distance between atoms 2 and 3.

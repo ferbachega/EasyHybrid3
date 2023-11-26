@@ -1145,6 +1145,15 @@ class MainWindow:
             #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             
             
+            #  - - - - REMOVING plotting data FROM system.e_logfile_data - - - - - -
+            system = self.p_session.psystem[vobject.e_id]
+            #print(vobject.e_id, vm_object_index)
+            if vm_object_index in system.e_logfile_data.keys():
+                print ('deleting plotting data...')
+                system.e_logfile_data[vm_object_index] = None
+                system.e_logfile_data.pop(vm_object_index)
+            #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            
             #  - - - - - - REMOVING vobj FROM  vobject_liststore_dict - - - - - - -
             self.vobject_liststore_dict[vobject.e_id].remove(vobject.liststore_iter)
             #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

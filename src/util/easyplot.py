@@ -6,28 +6,29 @@ import sys
 
 
 from util.colormaps import COLOR_MAPS  
+from pprint import pprint
 
 def interpolate_color(color1, color2, fraction):
     return [ ( (x1 + fraction * (x2 - x1))) for (x1, x2) in zip(color1, color2)]
 
-def get_color(valor, color_map):#, factor = 2):   
+def get_color(value, color_map):#, factor = 2):   
     
     
-    #valor = (valor+1)/factor   
+    #value = (value+1)/factor   
     
     cutoffs = list(color_map.keys())
     color_list = list(color_map.values())
     counter = 0 
     
-    #print(valor)
+    #print(value)
     
     
     
     for cutoff, color in color_map.items():
         
-        if valor <= cutoff :
+        if value <= cutoff :
             
-            fraction = (valor -  cutoffs[counter-1]) / ( cutoff - cutoffs[counter-1])
+            fraction = (value -  cutoffs[counter-1]) / ( cutoff - cutoffs[counter-1])
             
             
             color1  = color_list[counter-1]
@@ -43,13 +44,45 @@ def get_color(valor, color_map):#, factor = 2):
             #color[0] = color[0] 
             #color[1] = color[1] 
             #color[2] = color[2] 
-            #print(valor, cutoff, fraction,color )
+            #print(value, cutoff, fraction,color )
 
             return color
         else:
             pass
-            #print(valor, cutoff)#, fraction,color )
+            #print(value, cutoff)#, fraction,color )
         counter +=1
+
+
+def bilinear_interpolation(c1, c2, c3, c4, tx, ty):
+    return (
+        int((1 - tx) * (1 - ty) * c1[0] + tx * (1 - ty) * c2[0] + (1 - tx) * ty * c4[0] + tx * ty * c3[0]),
+        int((1 - tx) * (1 - ty) * c1[1] + tx * (1 - ty) * c2[1] + (1 - tx) * ty * c4[1] + tx * ty * c3[1]),
+        int((1 - tx) * (1 - ty) * c1[2] + tx * (1 - ty) * c2[2] + (1 - tx) * ty * c4[2] + tx * ty * c3[2]),
+        int((1 - tx) * (1 - ty) * c1[3] + tx * (1 - ty) * c2[3] + (1 - tx) * ty * c4[3] + tx * ty * c3[3])
+    )
+    
+class ColorSquareBilinearInterpolation:
+    def __init__(self, surface, x, y, size, c1, c2, c3, c4):
+        self.ctx = cairo.Context(surface)
+        self.x, self.y, self.size = x, y, size
+        self.c1, self.c2, self.c3, self.c4 = c1, c2, c3, c4
+
+    def draw(self):
+        for i in range(self.size):
+            for j in range(self.size):
+                tx = j / (self.size - 1)
+                ty = i / (self.size - 1)
+                color = bilinear_interpolation(self.c1, self.c2, self.c3, self.c4, tx, ty)
+
+                self.ctx.set_source_rgba(*[comp / 255.0 for comp in color])
+                self.ctx.rectangle(self.x + j, self.y + i, 1, 1)
+                self.ctx.fill()
+                
+                cr.rectangle(self.bx+i*self.factor_x -1,
+                             self.by+j*self.factor_y -1, 
+                             round(self.factor_x)+1, 
+                             round(self.factor_y)+1)
+                cr.fill()
 
 class Canvas(Gtk.DrawingArea):
     """ Class doc """
@@ -69,8 +102,7 @@ class Canvas(Gtk.DrawingArea):
         #self.connect("button_press_event", self.on_mouse_button_press)
         #self.connect("motion-notify-event", self.on_motion)
     
-    def set_cmap (self, cmap = 'jet'):
-        """ Function doc """
+
         
     def set_bg_color (self, r = 1 , g = 1 , b = 1):
         """ Function doc """
@@ -165,18 +197,51 @@ class ImagePlot(Canvas):
         self.points = []
         
         self.data = data
+        self.cmap = 'jet'
         
+        self.norm_data = None
+        self.data_min  = None
+        self.data_max  = None
     
+    def define_datanorm (self):
+        """ Function doc """
+        self.norm_data = self.data - np.min(self.data)
+
+        self.data_min = np.min(self.norm_data)
+        self.data_max = np.max(self.norm_data)
+        delta = (self.data_max - self.data_min)
+        self.norm_data = self.norm_data/delta
+        return self.data_min, self.data_max, delta , self.norm_data
+        
+    def set_threshold_color (self, _min = 0, _max = None, cmap = 'jet'):
+        """ Function doc """
+        self.color_map = COLOR_MAPS[self.cmap]
+        fraction = _max / self.data_max #number between 0 and 1
+        
+        new_colormap = {}
+        
+        for i in range(101):
+            value = i/100
+            
+            color = get_color(value, self.color_map)
+            new_colormap[fraction*value] = color
+        
+        last_color = get_color(1, self.color_map)
+        new_colormap[1.1] = last_color
+        #pprint(self.color_map)
+        #pprint( new_colormap)
+        self.color_map = new_colormap
+        
     def set_cmap (self, cmap = 'jet'):
         """ Function doc """
-        
+        self.color_map = COLOR_MAPS[cmap]
     
-    def draw_color_bar (self, cr, res, gap = 20, label_spacing = 2, font_size = 12):
+    def draw_color_bar (self, cr, res, gap = 20, label_spacing = 2, font_size = 12, num_labels = 10):
         """ Function doc """
          
        
         cr.set_line_width (1.0)
-        
+        #print('\n\n',res,'\n\n')
         for j in range(0, res*10, 1):
             
             #--------------------------------------------------------------------------------------------
@@ -205,28 +270,64 @@ class ImagePlot(Canvas):
         
         
         
-        factor = int( self.size_y/10 )
-        
+        factor = self.size_y/num_labels
         if factor ==  0:
             factor = 1
         else:
             pass
         
         
-        _min = np.min(self.data)
-        _max = np.max(self.data)
-        factor2 = (_max - _min)/10
-        print(_min, _max)
+        
+        cr.set_source_rgb(0,0,0)
+        _min = self.data_min
+        _max = self.data_max
+        factor2 = (_max - _min)/(num_labels-1)
+        #print(_min, _max, factor, self.size_y, self.size_y/factor, self.factor_y)
         counter = 0
+        
+        '''
+           The position of the labels depends on the number of elements 
+        in y of the data matrix (self.size_y). It depends on the factor 
+        in y (self.factor_y), which in turn takes into account the 
+        number of squares in the matrix and the size of the window.
+        
+        
+        '''
+        for i in range(0, num_labels):    
+            
+            j = (num_labels-1)-i
+            
+            x1 = round(self.size_x * self.factor_x)+self.bx*1.2 +37
+            y1 = self.by + (j*self.factor_y*(self.size_y/(num_labels-1)))
+            
+            cr.move_to (x1,y1)
+            
+            x2 = round(self.size_x * self.factor_x)+self.bx*1.2 +30  
+            cr.line_to (x2,y1) 
+            #--------------------------------------------------------------------------------------------
+            cr.stroke ()
+            
+            # . text
+            cr.set_font_size(font_size)
+            text = '{:<6.3f}'.format(i*factor2)
+            x_bearing, y_bearing, width, height, x_advance, y_advance = cr.text_extents(text)
+            
+            x3 = round(self.size_x * self.factor_x)+self.bx*1.2 + 45 
+            cr.move_to(x3,y1 + height/2)
+            cr.show_text(text)
+            #--------------------------------------------------------------------------------------------
+            counter +=1
+        
+        
+        
+        '''
         for j in range(0, self.size_y+1, factor ):    
-            
-            
-            
+
             j = self.size_y -j-1
             
             #z = ((j  / float(self.size_y)) - 0.5)*2
             #print(z)
-            cr.set_source_rgb( 0, 0,0)
+            cr.set_source_rgb(0,0,0)
             cr.move_to (round(self.size_x * self.factor_x)+self.bx*1.2 +37      , 
                               self.by + j*self.factor_y + self.factor_y  )
             
@@ -241,6 +342,7 @@ class ImagePlot(Canvas):
             #--------------------------------------------------------------------------------------------
             # texto em y
             cr.set_font_size(font_size)
+            #print(_min, factor2, counter, _min + factor2*counter)
             text = '{:<6.3f}'.format(_min + factor2*counter )
             x_bearing, y_bearing, width, height, x_advance, y_advance = cr.text_extents(text)
             cr.move_to(round(self.size_x * self.factor_x)+self.bx*1.2 + 45 ,  
@@ -248,7 +350,7 @@ class ImagePlot(Canvas):
             cr.show_text(text)
             #--------------------------------------------------------------------------------------------
             counter +=1
-
+        '''
 
 
 
@@ -263,24 +365,93 @@ class ImagePlot(Canvas):
                      round(self.size_y * self.factor_y))
         cr.stroke ()
 
+    def draw_discrete_square (self, i, j, cr):
+        """ Function doc """
+        z = self.norm_data[i][j]
+
+        color = get_color(z, self.color_map)
+
+        cr.set_source_rgb( color[0], color[1], color[2]   )
+        
+        cr.rectangle(self.bx+i*self.factor_x -1,
+                     self.by+j*self.factor_y -1, 
+                     round(self.factor_x)+1, 
+                     round(self.factor_y)+1)
+        cr.fill()
+    
+    def draw_inter_square (self, surface, x, y, size, c1, c2, c3, c4, cr):
+        """ Function doc """
+        #self.ctx = cr
+        #self.x, self.y, self.size = x, y, size
+        #self.c1, self.c2, self.c3, self.c4 = c1, c2, c3, c4
+
+        for i in range(size):
+            for j in range(size):
+                tx = j / (size - 1)
+                ty = i / (size - 1)
+                color = bilinear_interpolation(c1, c2, c3, c4, tx, ty)
+
+                cr.set_source_rgba(*[comp / 255.0 for comp in color])
+                cr.rectangle(x + j, y + i, 1, 1)
+                cr.fill()
+                
+                #cr.rectangle(self.bx+i*self.factor_x -1,
+                #             self.by+j*self.factor_y -1, 
+                #             round(self.factor_x)+1, 
+                #             round(self.factor_y)+1)
+                #cr.fill()
+    
+
 
     def draw_image (self, cr):
         """ Function doc """
         n = 0 
         for i in range(0,self.size_x, ):
             for j in range(0,self.size_y):
+                self.draw_discrete_square (i, j, cr)
                 
-                z = self.norm_data[i][j]
-
-                color = get_color(z, self.color_map)
-
-                cr.set_source_rgb( color[0], color[1], color[2]   )
+                '''
+                z1     = self.norm_data[i]  [j]
+                z2     = self.norm_data[i+1][j]
+                z3     = self.norm_data[i]  [j+1]
+                z4     = self.norm_data[i+1][j+1]
                 
-                cr.rectangle(self.bx+i*self.factor_x -1,
-                             self.by+j*self.factor_y -1, 
-                             round(self.factor_x)+1, 
-                             round(self.factor_y)+1)
-                cr.fill()
+                color1 = get_color(z1, self.color_map)
+                color2 = get_color(z2, self.color_map)
+                color3 = get_color(z3, self.color_map)
+                color4 = get_color(z4, self.color_map)
+                
+                color1.append(255)
+                color2.append(255)
+                color3.append(255)
+                color4.append(255)
+                
+                
+                
+                
+                color_surface = cairo.ImageSurface(cairo.FORMAT_RGB24, 200, 200)
+                color_square = ColorSquareBilinearInterpolation(color_surface, 0, 0, 200,
+                                                                 (255, 0,  0, 255),  # Bottom-left
+                                                                 (0, 255,  0, 255),  # Bottom-right
+                                                                 (0, 0,  255, 255),  # Top-right
+                                                                 (255, 255,0, 255))  # Top-left
+                color_square.draw()
+
+                ctx.set_source_surface(color_surface, 0, 0)
+                ctx.paint()
+                '''
+                
+                #z = self.norm_data[i][j]
+                #
+                #color = get_color(z, self.color_map)
+                #
+                #cr.set_source_rgb( color[0], color[1], color[2]   )
+                #
+                #cr.rectangle(self.bx+i*self.factor_x -1,
+                #             self.by+j*self.factor_y -1, 
+                #             round(self.factor_x)+1, 
+                #             round(self.factor_y)+1)
+                #cr.fill()
 
 
     def draw_image_box (self, cr, line_width = 1, color = [0,0,0]):
@@ -292,7 +463,6 @@ class ImagePlot(Canvas):
                      round(self.size_y * self.factor_y))
         cr.stroke ()
         
-    
     
     def draw_scale (self, cr, font_size = 12, x_major_ticks = 3 , y_major_ticks = 3 ):
         """ Function doc """        
@@ -388,19 +558,21 @@ class ImagePlot(Canvas):
         self.x_plot_edge = self.size_x*self.factor_x-self.factor_x
         self.y_plot_edge = self.size_y*self.factor_y-self.factor_y
         
+        if self.data_max == None:
+            self.define_datanorm()
         
-        
-        
+        '''
         self.norm_data = self.data - np.min(self.data)
         
         
         self.data_min = np.min(self.norm_data)
         self.data_max = np.max(self.norm_data)
+        #self.data_max = 100
         delta = (self.data_max - self.data_min)
-        #print(self.data_min, self.data_max )
         self.norm_data = self.norm_data/delta
-
-        #print (self.norm_data)
+        
+        self.set_threshold_color ( _min = 0, _max = 200)
+        '''
 
         #print(np.min(self.norm_data), np.max(self.norm_data) )
         

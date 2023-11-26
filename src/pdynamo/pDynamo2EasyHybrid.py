@@ -121,37 +121,41 @@ class LoadAndSaveData:
         
         for e_id, system in self.psystem.items():
             
-            data   = {}
-
-            backup[e_id] = []
-            backup[e_id].append(system.e_treeview_iter)
-            backup[e_id].append(system.e_liststore_iter)
-
-            system.e_treeview_iter   = None
-            system.e_liststore_iter  = None
+            if system == None:
+                pass
             
-            data['system'] = system
-            data['vobjects'] = []
-            for key, vobject in self.vm_session.vm_objects_dic.items():
-                if system.e_id == vobject.e_id:
-                    #data['frames'] = vobject.frames
-                    #data['color_palette'] = vobject.color_palette
-                    vobj_data = {}
-                    vobj_data['frames']        = vobject.frames
-                    vobj_data['color_palette'] = vobject.color_palette
-                    vobj_data['name']          = vobject.name
-                    vobj_data['active']        = vobject.active
-                    
-                    
-                    if key in system.e_logfile_data.keys():
-                        vobj_data['logfile_data'] = system.e_logfile_data[key]
-                    
-                    if getattr (vobject, 'idx_2D_xy', False):
-                        vobj_data['idx_2D_xy'] = vobject.idx_2D_xy
-                    
-                    data['vobjects'].append(vobj_data)
+            else:
+                data   = {}
+    
+                backup[e_id] = []
+                backup[e_id].append(system.e_treeview_iter)
+                backup[e_id].append(system.e_liststore_iter)
+    
+                system.e_treeview_iter   = None
+                system.e_liststore_iter  = None
+                
+                data['system'] = system
+                data['vobjects'] = []
+                for key, vobject in self.vm_session.vm_objects_dic.items():
+                    if system.e_id == vobject.e_id:
+                        #data['frames'] = vobject.frames
+                        #data['color_palette'] = vobject.color_palette
+                        vobj_data = {}
+                        vobj_data['frames']        = vobject.frames
+                        vobj_data['color_palette'] = vobject.color_palette
+                        vobj_data['name']          = vobject.name
+                        vobj_data['active']        = vobject.active
                         
-            easyhybrid_session_data['systems'].append(data)
+                        
+                        if key in system.e_logfile_data.keys():
+                            vobj_data['logfile_data'] = system.e_logfile_data[key]
+                        
+                        if getattr (vobject, 'idx_2D_xy', False):
+                            vobj_data['idx_2D_xy'] = vobject.idx_2D_xy
+                        
+                        data['vobjects'].append(vobj_data)
+                            
+                easyhybrid_session_data['systems'].append(data)
         
         with open(filename,'wb') as outfile:
             pickle.dump(easyhybrid_session_data, outfile)
@@ -203,7 +207,8 @@ class LoadAndSaveData:
             system = data['system']
             name   = system.label
             tag    = system.e_tag
-            print('\n\n\n\n',system, name, tag)
+            print('\n\n\n\n',system, name, tag, data['system'], data['vobjects'] )
+            
             self.append_system_to_pdynamo_session (system = system, name  = name, tag = tag)
             self.main.main_treeview.add_new_system_to_treeview (system)
             ff  =  getattr(system.mmModel, 'forceField', "None")
@@ -1777,7 +1782,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             if self.psystem[system_e_id].label in self.psystem_name_list:
                 index = self.psystem_name_list.index(self.psystem[system_e_id].label)
                 self.psystem_name_list.pop(index)
-            
+            self.psystem[system_e_id] = None
             self.psystem.pop(system_e_id)
             return True
         else:
