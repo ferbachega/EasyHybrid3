@@ -48,7 +48,6 @@ from gui.windows.setup.windows_and_dialogs import MakeSolventBoxWindow
 
 from gui.windows.setup.windows_and_dialogs import ImportTrajectoryWindow
 from gui.windows.setup.windows_and_dialogs import TrajectoryPlayerWindow
-from gui.windows.setup.windows_and_dialogs import PotentialEnergyAnalysisWindow
 from gui.windows.setup.windows_and_dialogs import InfoWindow
 from gui.windows.setup.windows_and_dialogs import MergeSystemWindow
 from gui.windows.setup.windows_and_dialogs import SolvateSystemWindow
@@ -68,6 +67,7 @@ from gui.windows.simulation.normal_modes_window          import NormalModesWindo
 from gui.windows.analysis.WHAM_analysis_window           import WHAMWindow 
 from gui.windows.analysis.normal_modes_analysis_window   import NormalModesAnalysisWindow 
 from gui.windows.analysis.energy_refinement_window       import EnergyRefinementWindow
+from gui.windows.analysis.PES_analysis_window            import PotentialEnergyAnalysisWindow
 
 
 from util.sequence_plot import GtkSequenceViewer

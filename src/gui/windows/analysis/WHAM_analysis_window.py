@@ -196,7 +196,7 @@ class WHAMWindow(Gtk.Window):
         if _type ==1:
             bins_RC1 = self.builder.get_object('entry_bins'     ).get_text()
             bins_RC2 = self.builder.get_object('entry_bins_RC2').get_text()
-            parameters['bins'] = [int(bins_RC1), int(bins_RC2)] 
+            parameters['bins'] = [int(bins_RC2), int(bins_RC1)] 
 
         else:
             parameters['bins'] = [int(bins)] 

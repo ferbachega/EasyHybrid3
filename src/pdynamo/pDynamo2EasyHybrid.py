@@ -2372,8 +2372,17 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         except:
             #print('failed to bind nbModel')
             return False
+    
+    
+    def export_pdynamo_system_coordinates (self, folder, filename, system):
+        """
+            Export to a file the coordinates that are associated with a 
+        pDynamo system
+        """
         
-
+        Pickle( os.path.join ( folder, filename), system.coordinates3 )
+    
+    
     def export_system (self,  parameters ): 
                               
         """  
@@ -2428,9 +2437,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             
             #'''   When is Single File     '''
             if parameters['is_single_file']:
-                self.get_coordinates_from_vobject_to_pDynamo_system(vobject = vobject, 
-                                                                          system_id     = parameters['system_id'], 
-                                                                          frame         = parameters['last'])
+                self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
+                                                                    system_id = parameters['system_id'], 
+                                                                    frame     = parameters['last'])
                 
                 system   = self.psystem[parameters['system_id']]
                 

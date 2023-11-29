@@ -2165,7 +2165,6 @@ def _run_parallel_umbrella_sampling_2D (job):
                                                                                                     ] )
         restraints["RC1"] = restraint            
         #--------------------------------------------------------------------
-    
     elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
         #--------------------------------------------------------------------
         atom_RC1_3   = parameters['RC1']['ATOMS'][2]
@@ -2182,16 +2181,16 @@ def _run_parallel_umbrella_sampling_2D (job):
         restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom_RC1_2, atom_RC1_1, weight1 ], [ atom_RC1_3, atom_RC1_4, weight2 ] ] )
         restraints["RC1"] = restraint            
         #--------------------------------------------------------------------
-    
     else:
         pass
 
 
     '''reaction coordinate 2 - ONLY at 0 first'''
     '''----------------------------------------------------------------------------------------------------------------'''
-    distance2 = parameters['RC2']['dminimum'] + ( parameters['RC2']['dincre'] * float(j) )
+    #distance2 = parameters['RC2']['dminimum'] + ( parameters['RC2']['dincre'] * float(j) )
     
     if parameters['RC2']["rc_type"] == 'simple_distance':
+        distance2 = system.coordinates3.Distance( atom_RC2_1, atom_RC2_2)
         #---------------------------------------------------------------------------------------------------------
         rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'])
         restraint         = RestraintDistance.WithOptions(energyModel = rmodel, point1= atom_RC2_1, point2= atom_RC2_2)
@@ -2203,6 +2202,12 @@ def _run_parallel_umbrella_sampling_2D (job):
         atom_RC2_3 = parameters['RC2']['ATOMS'][2]
         weight1 = parameters['RC2']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
         weight2 = parameters['RC2']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
+        
+        distance_a1_a2 = system.coordinates3.Distance( atom_RC2_1, atom_RC2_2)
+        distance_a2_a3 = system.coordinates3.Distance( atom_RC2_2, atom_RC2_3)
+        
+        distance = (weight1 * distance_a1_a2) - (weight2 * distance_a2_a3*-1)
+        
         
         rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'])
         restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ 
@@ -2577,7 +2582,10 @@ class WHAMAnalysis:
             pmf       = state["PMF"      ]
             
             PMF_file = os.path.join(parameters['folder'], parameters['logfile']+'_pmf.log')
-            histogram.ToTextFileWithData (  PMF_file , [ pmf ], format = "{:20.3f} {:20.3f}\n" )
+            if parameters['type'] == 1:
+                histogram.ToTextFileWithData (  PMF_file , [ pmf ], format = "{:20.3f} {:20.3f} {:20.3f}\n" )
+            else:
+                histogram.ToTextFileWithData (  PMF_file , [ pmf ], format = "{:20.3f} {:20.3f}\n" )
         
         except TypeError:
             return False, 'Error on Write the PMF to a file!\n\n Please, check your input data.'
