@@ -202,7 +202,10 @@ class ImagePlot(Canvas):
         self.norm_data = None
         self.data_min  = None
         self.data_max  = None
-    
+        self.connect("motion-notify-event", self.on_motion)
+        
+        self.RC_label = None
+        
     def define_datanorm (self):
         """ Function doc """
         self.norm_data = self.data - np.min(self.data)
@@ -394,13 +397,6 @@ class ImagePlot(Canvas):
                 cr.set_source_rgba(*[comp / 255.0 for comp in color])
                 cr.rectangle(x + j, y + i, 1, 1)
                 cr.fill()
-                
-                #cr.rectangle(self.bx+i*self.factor_x -1,
-                #             self.by+j*self.factor_y -1, 
-                #             round(self.factor_x)+1, 
-                #             round(self.factor_y)+1)
-                #cr.fill()
-    
 
 
     def draw_image (self, cr):
@@ -440,18 +436,6 @@ class ImagePlot(Canvas):
                 ctx.set_source_surface(color_surface, 0, 0)
                 ctx.paint()
                 '''
-                
-                #z = self.norm_data[i][j]
-                #
-                #color = get_color(z, self.color_map)
-                #
-                #cr.set_source_rgb( color[0], color[1], color[2]   )
-                #
-                #cr.rectangle(self.bx+i*self.factor_x -1,
-                #             self.by+j*self.factor_y -1, 
-                #             round(self.factor_x)+1, 
-                #             round(self.factor_y)+1)
-                #cr.fill()
 
 
     def draw_image_box (self, cr, line_width = 1, color = [0,0,0]):
@@ -588,6 +572,27 @@ class ImagePlot(Canvas):
 
         self.draw_lines (cr, line_width = 2, color = [0,0,0])
 
+    def on_motion (self, widget, event):
+        """ Function doc """
+        if self.norm_data is not None:
+            pass
+        else:
+            return False
+        x_on_plot, y_on_plot, x, y = self.get_i_and_j_from_click_event (event)
+        i = y_on_plot
+        j = x_on_plot
+        
+        j_size = len(self.norm_data)
+        i_size = len(self.norm_data[0])
+
+        if i < 0 or j < 0:
+            pass
+        else:
+            if i < i_size and j < j_size:
+                if self.RC_label:
+                    text = 'i = {} / j = {}'.format(i, j)
+                    self.RC_label.set_text(text)
+                print( 'i = ', i, 'j = ', j)
 
 
 class XYPlot(Gtk.DrawingArea):

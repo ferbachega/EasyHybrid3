@@ -35,6 +35,8 @@ from gi.repository import Gtk, Pango
 from gi.repository import Gdk
 from gi.repository import GdkPixbuf
 from gui.widgets.custom_widgets import CoordinatesComboBox
+from gui.windows.setup.windows_and_dialogs import InfoWindow
+
 from pprint import pprint
 import numpy as np
 
@@ -108,7 +110,7 @@ class PotentialEnergyAnalysisWindow:
 
             self.window = self.builder.get_object('window')
             self.window.set_title('PES Analysis Window')
-            self.window.set_keep_above(True)            
+            #self.window.set_keep_above(True)            
             self.window.set_default_size(700, 450)
             
             
@@ -128,7 +130,10 @@ class PotentialEnergyAnalysisWindow:
             self.cmap_combobox.connect('changed', self.on_cmap_combobox_change)
             
             '''-------------------------------------------------------------'''
+            self.RC_label = self.builder.get_object('RC1_RC2_label')
+
             self.plot = ImagePlot()
+            self.plot.RC_label = self.RC_label
             #t = np.linspace(0, 2 * np.pi, 40)
             #data2d = np.sin(t)[:, np.newaxis] * np.cos(t)[np.newaxis, :]
             self.hbox.pack_start(self.plot, True, True, 0)
@@ -189,7 +194,6 @@ class PotentialEnergyAnalysisWindow:
             self.scale_traj.set_digits(0)
             #------------------------------------------------------------------------------------
 
-            
             self.menu, x = self.build_tree_view_menu(self.menu_items)
             
 
@@ -343,14 +347,16 @@ class PotentialEnergyAnalysisWindow:
                 Interpolation takes the intermediate points between two 
                 successive clicks.
                 '''
-                if self.interpolate:
+                if self.builder.get_object('checkbox_interpolate').get_active():
+                #if self.interpolate:
                     if len(widget.points) > 0 :
-                        #print([widget.points[-1],[i_on_plot, j_on_plot] ])
-                        
                         xy_list = build_chain_of_states( [widget.points[-1], [i_on_plot, j_on_plot]])
-                    
                     else:
                         xy_list = [[i_on_plot, j_on_plot]]
+                
+                #when the interpolation option is not active.
+                else:
+                    xy_list = [[i_on_plot, j_on_plot]]
                 
                 
                 for xy in xy_list:
@@ -469,16 +475,15 @@ class PotentialEnergyAnalysisWindow:
         new_vismol_object = self.main.p_session.generate_new_empty_vismol_object(system_id = self.vobject.e_id , 
                                                                                  name      = 'new_coordinates' )
         print('\n\n')
-        print('''
-RC1 and RC2 refer to the coordinates of reactions 1 and 2, 
-respectively, defined to obtain the PES. In the case of a 
-simple reaction coordinate, the RC is simply the value of 
-the distance between atoms 1 and 2 defined. In the case of w
-the multiple distance based reaction coordinate defined by 
-three (3) atoms, the RC is defined as the distance between 
-atoms 1 and 2 minus the distance between atoms 2 and 3.
-        ''')
-        print('  (i)   (j)   RC1       RC2       ENERGY(kJ/mol)')
+        
+        text = ''
+#The RC1 and RC2 refer to the reaction coordinates I and II, respectively. In case of RC is a  
+#simple reaction coordinate, RC is simply the distance value between atoms #1 and #2. For 
+#multiple distance based reaction coordinate defined by three (3) atoms, the 
+#RC is defined as the distance between atoms 1 and 2 minus the distance between atoms 2 and 3.
+#        ''' 
+        
+        text += '\n  (i)   (j)   RC1       RC2       ENERGY(kJ/mol)' 
         for xy in self.plot.points:
             frame_number = self.vobject.idx_2D_xy[(xy[1], xy[0])]
             #print(self.vobject.frames[frame_number])
@@ -487,14 +492,17 @@ atoms 1 and 2 minus the distance between atoms 2 and 3.
         
             
             
-            text = ' {:3d}   {:3d}    {:3.4f}    {:3.4f}    {:3.6f}'.format(xy[1], xy[0], self.data['RC1'][xy[0]][xy[1]],self.data['RC2'][xy[0]][xy[1]], self.data['Z'][xy[0]][xy[1]] )
-            print(text)
+            text += '\n {:3d}   {:3d}    {:3.4f}    {:3.4f}    {:3.6f}'.format(xy[1], xy[0], self.data['RC1'][xy[0]][xy[1]],self.data['RC2'][xy[0]][xy[1]], self.data['Z'][xy[0]][xy[1]] )
+            #print(text)
+        print (text)
         print('\n\n')
 
         self.main.p_session._apply_fixed_representation_to_vobject(system_id = None, vismol_object = new_vismol_object)
         self.main.p_session._apply_QC_representation_to_vobject   (system_id = None, vismol_object = new_vismol_object) 
         self.vm_session.main.main_treeview.refresh_number_of_frames()
-
+        
+        system = self.main.p_session.psystem[self.vobject.e_id]
+        window = InfoWindow(system, text)
         
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
         #active_id = self.main.p_session.active_id

@@ -98,16 +98,29 @@ def call_message_dialog (text1 = '', text2 = '', transient_for = None):
 
 
 class InfoWindow:
-    """ Class doc """
+    """ 
+    Create a text window. Currently used to display system 
+    information or log output. 
+    """
     
-    def __init__ (self, system):
+    def __init__ (self, system = None, text = None):
         """ Class initialiser """
         
-        log  = LogFile(system)
-        path = log.path
-        with open(path, "r") as f:
-            text = f.read()
+        if text:
+            pass
+        else:
+            text = ''
         
+        
+        if system:
+            log  = LogFile(system)
+            path = log.path
+            with open(path, "r") as f:
+                header = f.read()
+        else:
+            header = '' 
+        
+        text = header+text
         
         self.window = Gtk.Window(title="System Summary")
         self.window.set_default_size(1100, 600)
