@@ -2174,8 +2174,8 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         self.atom_liststore    = Gtk.ListStore(GdkPixbuf.Pixbuf, int, str, str, float, int, )
         self.residue_filter    = False
         self.visible           = False
-
-
+        
+        self.shift = False
 
         self.residues_dictionary = {
                                'WAT': [165,42,42], 
@@ -2339,7 +2339,10 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             
             self.treeview.connect("button-release-event", self.on_treeview_Objects_button_release_event)
             self.treeview.connect("row-activated", self.on_treeview_row_activated_event)
-            
+            self.treeview.connect("key-press-event",   self.key_pressed )
+            self.treeview.connect("key-release-event", self.key_released)
+            #        seqview.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+
             for i, column_title in enumerate(
                 ['', "index", "Residue",  "Chain", 'size']
             ):
@@ -2685,25 +2688,25 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         self.VObj = self.vm_session.vm_objects_dic[key]
         
         res = self.VObj.chains[self.selectedChn].residues[self.selectedID]
-        
-        
-        '''centering and selecting'''
         frame = self.vm_session.get_frame ()
         res.get_center_of_mass(frame = frame)
-        
-        #self.vm_session.vm_glcore.center_on_coordinates(res.vm_object, res.mass_center)
-        
-        atom_keys = list(res.atoms.values())
-        #print('\n\n\n', atom_keys, '\n\n\n')
-        #print('\n\n\n', res, '\n\n\n')
-        self.vm_session._selection_function_set({atom_keys[0]})
-        
+        '''centering and selecting'''
+
+        if self.shift:
+            for index, residue in self.VObj.residues.items():
+                if residue.name == res.name:
+                    atom_keys = list(residue.atoms.values())
+                    self.vm_session._selection_function_set({atom_keys[0]})
+                    #print('here', res.name, res.index)
+        else:
+            #self.vm_session.vm_glcore.center_on_coordinates(res.vm_object, res.mass_center)
+            atom_keys = list(res.atoms.values())
+            self.vm_session._selection_function_set({atom_keys[0]})
+            
         self.vm_session.vm_glcore.updated_coords = True
         #self.vm_session.selections[self.vm_session.current_selection].selection_function_viewing_set( selected= {atom_keys[0]}, _type= "residue")
-        
         #self.vm_session.selections[self.vm_session.current_selection].selecting_by_residue( selected_atoms = {atom_keys[0]} )
         #self.vm_session.selections[self.vm_session.current_selection]._build_selected_atoms_coords_and_selected_objects_from_selected_atoms()
-        
         self.vm_session.vm_glcore.queue_draw()
         
     def on_treeview_Objects_button_release_event(self, tree, event):
@@ -2856,6 +2859,19 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         pass
         #self.self.combobox_systems.set_active(-1)
 
+    def key_pressed  (self, widget, event):
+        key = Gdk.keyval_name(event.keyval)
+        
+        if key == 'Shift_R' or key == 'Shift_L':
+            self.shift = True
+        print(widget, event, Gdk.keyval_name(event.keyval), self.shift)
+    
+    def key_released (self, widget, event):
+        key = Gdk.keyval_name(event.keyval)
+        if key == 'Shift_R' or key == 'Shift_L':
+            self.shift = False
+        print(widget, event, Gdk.keyval_name(event.keyval), self.shift)
+        
 class EasyHybridDialogSetQCAtoms(Gtk.Dialog):
     def __init__(self, parent):
         super().__init__(title="New QC list", transient_for=parent, flags=0)
