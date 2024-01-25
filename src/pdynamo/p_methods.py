@@ -2206,7 +2206,7 @@ def _run_parallel_umbrella_sampling_2D (job):
         distance_a1_a2 = system.coordinates3.Distance( atom_RC2_1, atom_RC2_2)
         distance_a2_a3 = system.coordinates3.Distance( atom_RC2_2, atom_RC2_3)
         
-        distance = (weight1 * distance_a1_a2) - (weight2 * distance_a2_a3*-1)
+        distance2 = (weight1 * distance_a1_a2) - (weight2 * distance_a2_a3*-1)
         
         
         rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'])
