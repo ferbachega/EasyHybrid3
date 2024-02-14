@@ -70,7 +70,13 @@ class PotentialEnergyAnalysisWindow:
             self.cmap_ref_dict[i] = cmap
             print(cmap)
         
-        
+        #----------------------- RC labels -----------------------------
+        self.RC_label_list = ['frames', 'rc distances']
+        self.RC_type_store = Gtk.ListStore(str)
+        for label in self.RC_label_list:
+            self.RC_type_store.append([label])
+        #---------------------------------------------------------------
+
         self.menu_items = {
                           
                           #'header'                  : None                            ,
@@ -117,11 +123,10 @@ class PotentialEnergyAnalysisWindow:
             self.grid = self.builder.get_object('grid_setup')
             self.hbox = self.builder.get_object('hbox_plotting')
             
-            
+            self.checkbox_smooth = self.builder.get_object('checkbox_smooth')
+            self.checkbox_smooth.connect('toggled', self.on_checkbox_smooth_toggle)
             
             self.cmap_box = self.builder.get_object('cmap_box')          
-
-            
             self.cmap_combobox = Gtk.ComboBox.new_with_model(self.cmap_store)
             renderer_text = Gtk.CellRendererText()
             self.cmap_combobox.pack_start(renderer_text, True)
@@ -139,10 +144,18 @@ class PotentialEnergyAnalysisWindow:
             self.hbox.pack_start(self.plot, True, True, 0)
             #self.plot.data = data2d
             self.plot.connect("button_press_event", self.on_mouse_button_press)
+            
+            self.RC_type_box = self.builder.get_object('RC_type_box')          
+            self.RC_type_combobox = Gtk.ComboBox.new_with_model(self.RC_type_store)
+            renderer_text = Gtk.CellRendererText()
+            self.RC_type_combobox.pack_start(renderer_text, True)
+            self.RC_type_combobox.add_attribute(renderer_text, "text", 0)            
+            self.RC_type_box.add(self.RC_type_combobox)
+            self.RC_type_combobox.connect('changed', self.on_RC_type_combobox)
+            self.RC_type_combobox.set_active(0)
             '''-------------------------------------------------------------'''
 
-            
-            
+
             '''-------------------------------------------------------------'''
             self.plot2 = XYPlot()
 
@@ -153,6 +166,7 @@ class PotentialEnergyAnalysisWindow:
             self.plot2.decimal = 0
             self.hbox.pack_start(self.plot2, True, True, 0)
             '''-------------------------------------------------------------'''
+            #self.plot2.connect("button_press_event", self.on_mouse_button_press)
 
             self.coordinates_combobox = CoordinatesComboBox(coordinates_liststore = self.vobject_liststore)
             self.coordinates_combobox.connect('changed', self.on_coordinates_combobox_change)
@@ -193,7 +207,7 @@ class PotentialEnergyAnalysisWindow:
             self.scale_traj.set_adjustment ( self.adjustment)
             self.scale_traj.set_digits(0)
             #------------------------------------------------------------------------------------
-
+            #self.scale_trajectory_energy_label = self.builder.get_object('scale_trajectory_energy_label')
             self.menu, x = self.build_tree_view_menu(self.menu_items)
             
 
@@ -241,6 +255,20 @@ class PotentialEnergyAnalysisWindow:
             self.plot.queue_draw()
         except:
             pass
+    def on_checkbox_smooth_toggle (self, widget):
+        """ Function doc """
+        if widget.get_active():
+            self.plot.is_discrete = False
+        else:
+            self.plot.is_discrete = True
+        self.plot.queue_draw()
+        #self.builder.get_object('checkbox_interpolate').get_active()
+
+    def on_RC_type_combobox (self, widget):
+        self.RC_type = widget.get_active()
+        print(self.RC_type)
+        self.plot.set_label_mode(mode = self.RC_type)
+        self.plot.queue_draw()
 
     def on_cmap_combobox_change (self, widget):
         """ Function doc """
@@ -316,10 +344,12 @@ class PotentialEnergyAnalysisWindow:
             for i in range(0, len(self.data['Z'])):
                 for j in range(0, len(self.data['Z'][i])):
                     self.data['Z'][i][j] = self.data['Z'][i][j]-_min 
-            
+            #print('\n\n\n', self.data,'\n\n\n')
             self.plot.show()
             self.plot.data = self.data['Z']
-        
+            self.plot.dataRC1 = self.data['RC1']
+            self.plot.dataRC2 = self.data['RC2']
+            
             
             data_min, data_max, delta , norm_data = self.plot.define_datanorm()
             
@@ -351,6 +381,7 @@ class PotentialEnergyAnalysisWindow:
                 #if self.interpolate:
                     if len(widget.points) > 0 :
                         xy_list = build_chain_of_states( [widget.points[-1], [i_on_plot, j_on_plot]])
+                        xy_list = xy_list[1:] # the first point is already in the yx list - should be deleted from the list of interpoated points
                     else:
                         xy_list = [[i_on_plot, j_on_plot]]
                 
@@ -359,7 +390,7 @@ class PotentialEnergyAnalysisWindow:
                     xy_list = [[i_on_plot, j_on_plot]]
                 
                 
-                for xy in xy_list:
+                for xy in xy_list:#[1:]:
                     widget.points.append(xy)
                 
                 
@@ -440,10 +471,14 @@ class PotentialEnergyAnalysisWindow:
         
         self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = True, sym_color = [1,0,0], line = 'solid', line_color = [0,1,1] )
         self.plot2.queue_draw()
-
         
+        #print('E = {}'.format( y[0]) )
+        #v = y[0]
+        #text = 'E = {6.3f}'.format(v)
+        #self.scale_trajectory_energy_label.set_text( 'E = {:6.3f}'.format( y[0])  )
         if self.vobject:
-            self.main.vm_session.frame = int(frame)
+            self.main.vm_session.set_frame(int(frame))
+            #self.main.vm_session.frame = int(frame)set_frame
             self.main.vm_session.vm_glcore.updated_coords = True
             self.main.vm_session.vm_widget.queue_draw()
         
@@ -555,7 +590,49 @@ class PotentialEnergyAnalysisWindow:
 
     def _menu_opt_pathway            (self, widget):
         """ Function doc """
+        print('Here - _menu_opt_pathway')
+        
+        input_coord = self.plot.points
+        e_matrix    = self.plot.data
 
+        self.plot.points = run_surface_NEB (input_coord = input_coord, e_matrix = e_matrix )
+        
+        
+        
+        self.plot2.data = []
+
+        self.plot2.Xmin_list = []
+        self.plot2.Ymin_list = []
+        self.plot2.Xmax_list = []
+        self.plot2.Ymax_list = []
+
+        x = []
+        y = []
+        for i, point in enumerate(self.plot.points):
+            x.append(i)
+            y.append(self.plot.data[point[0]][point[1]])
+        
+        self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [0,1,1], line = 'solid', line_color = [0,1,1] )
+
+        if len(x)-1 == 0:
+            self.plot2.x_major_ticks = 1
+        else:
+            x_major_ticks = len(x)-1  
+            self.plot2.x_major_ticks = x_major_ticks
+        self.plot2.Xmax   = 10 
+
+
+        
+        
+        
+        
+        
+        
+        
+        self.scale_traj_new_definitions()
+        self.plot.queue_draw()
+        self.plot2.queue_draw()
+        
     def _menu_export_incomplete_data (self, widget):
         """ Function doc """
         
@@ -617,24 +694,25 @@ class PotentialEnergyAnalysisWindow:
 
 
 def find_the_midpoint (coord1 , coord2):
-	""" Function doc """
-	#print (coord1, coord2)
-	
-	x = float(coord2[0] - coord1[0])
-	x = (x/2)
-	#print ('x', x)
-	x = coord1[0] + x
+    """ Function doc """
+    #print (coord1, coord2)
+    
+    x = float(coord2[0] - coord1[0])
+    x = (x/2)
+    #print ('x', x)
+    x = coord1[0] + x
+    
+    
+    y = float(coord2[1] - coord1[1])
+    y = (y/2)
+    #print ('y', y)
+    
+    y = coord1[1] + y
+    
+    #print (x, y)
+    #return [int(x), int(round(y))]
+    return [int(x), int( y )]
 
-
-	y = float(coord2[1] - coord1[1])
-	y = (y/2)
-	#print ('y', y)
-
-	y = coord1[1] + y
-
-	#print (x, y)
-	#return [int(x), int(round(y))]
-	return [int(x), int( y )]
 
 def build_chain_of_states( input_coord):
  
@@ -665,16 +743,242 @@ def build_chain_of_states( input_coord):
             except:
                 a = True
                 #print input_coord
-    return input_coord[1:]
+    return input_coord 
+
 
 def check_distance (coord1 , coord2):
-	""" Function doc """
-	x = float(coord2[0] - coord1[0])
-	y = float(coord2[1] - coord1[1])
-	d =  (x**2 + y**2)**0.5
-	if d < 1.42:
-		return False
-	else:
-		#print 'not too close'
-		return True
+    """ Function doc """
+    x = float(coord2[0] - coord1[0])
+    y = float(coord2[1] - coord1[1])
+    d =  (x**2 + y**2)**0.5
+    if d < 1.42:
+        return False
+    else:
+        #print 'not too close'
+        return True
 
+
+def get_gradient_from_matrix_line (matrix_line, position):
+    """ Function doc """
+    d1 =  matrix_line[position-1] - matrix_line[position]
+    #print position,'d1' , d1
+    if d1 <= 0: 
+        return -1 
+
+    d2 =  matrix_line[position+1] - matrix_line[position]
+    #print position, 'd2' , d2
+    if d2 <= 0:
+        return 1 
+    return 0
+
+
+def run_surface_NEB (input_coord = None, e_matrix = None, k = 1.5  ):
+    """ Function doc """
+    
+    '''
+    from the older script
+    data = log_parser (inputs['log_file'])
+    data = data[1]
+    k    = inputs['kf']
+    e_matrix    = data['matrix']
+
+    reac = [0,0]
+    #ts   = [15,30]
+    prod = [20,20]
+    
+    
+    #
+    Initial_positions = [reac, [4,10], prod]
+    #Initial_positions = [reac, ts,  prod]
+    '''
+    
+    print ('Matrix size:', len(e_matrix[0]), len(e_matrix))
+    
+    initial_size = len(input_coord)
+    xy_surface_positions   = build_chain_of_states(input_coord)
+    final_size   = len(xy_surface_positions)
+
+    #------------------------------------------------------------------
+    print ("\n\nInitial chain of states: \n")
+    for xy_coord in xy_surface_positions:
+        x = xy_coord[0]
+        y = xy_coord[1]
+        print (x, y, e_matrix[x][y])
+    #------------------------------------------------------------------
+
+    #------------------------------------------------------------------
+    counter                     = None
+    total_sum_grad_ateriror     = 0
+    delta                       = None
+    chain_of_states_convergence = False
+    
+
+    chain_of_states_convergence_max_interactions = 100
+    chain_of_states_convergence_counter = 0
+
+    #"""
+    while  chain_of_states_convergence != True:
+        '''
+        Optmizing the chain of states 
+        ----------------------------------------------------------------------------------------
+        '''
+        #print('primeiro while', chain_of_states_convergence_counter)
+        chain_of_states_perturbation_max_interactions = 100
+        chain_of_states_perturbation_counter = 0
+        
+        while delta != 0:
+            #print('segundo while')
+
+            total_sum_grad = 0
+            
+            for xy_coord in xy_surface_positions:
+                index       = xy_surface_positions.index(xy_coord)
+                final_index = len(xy_surface_positions)
+            
+                if index == 0 or index  == final_index-1:
+                    pass
+                
+                else:
+                    xy_coord_before = xy_surface_positions[index-1]
+                    xy_coord_after  = xy_surface_positions[index+1]
+                    
+                    x_before   = xy_coord_before[0]
+                    y_before   = xy_coord_before[1]
+                    
+                    x_midpoint = xy_coord[0]
+                    y_midpoint = xy_coord[1]
+                
+                    x_after    = xy_coord_after[0]
+                    y_after    = xy_coord_after[1]
+
+
+                    #----------------------- X   perturbations  ---------------------------------------
+                    energy_left  = k*( (x_midpoint-1) - x_before )**2 + k*( x_after - (x_midpoint-1) )**2
+                    energy_midle = k*(  x_midpoint    - x_before )**2 + k*( x_after -  x_midpoint    )**2
+                    energy_right = k*( (x_midpoint+1) - x_before )**2 + k*( x_after - (x_midpoint+1) )**2
+                
+                    print(  x_before, x_midpoint, x_after, energy_left, energy_midle , energy_right )
+                    energy_left__from_matrix = e_matrix[x_midpoint-1][y_midpoint]
+                    energy_midle_from_matrix = e_matrix[x_midpoint  ][y_midpoint]
+                    energy_right_from_matrix = e_matrix[x_midpoint+1][y_midpoint]
+                    
+                    sum_l = energy_left  + energy_left__from_matrix
+                    sum_m = energy_midle + energy_midle_from_matrix
+                    sum_r = energy_right + energy_right_from_matrix
+                    
+                    #klinh = 1
+                    #sum_l = klinh  + energy_left__from_matrix
+                    #sum_m =       energy_midle_from_matrix
+                    #sum_r = klinh + energy_right_from_matrix
+                    
+                    d1 = sum_l - sum_m
+                    d2 = sum_r - sum_m  
+
+                    if d2 < 0:
+                        asn = 1 
+                        total_sum_grad += d1
+
+                    if d1 < 0: 
+                        asn = -1 	
+                        total_sum_grad += d2
+
+                    if d1  > 0  and d2 > 0:
+                        asn = 0
+                    
+                    xy_surface_positions[index][0] += asn
+                    #-------------------------------------------------------------------------------------
+            
+
+                    #-----------------------   Y    perturbations  ---------------------------------------
+                    energy_left  = k*( (y_midpoint-1) - y_before )**2 + k*( y_after - (y_midpoint-1) )**2
+                    energy_midle = k*(  y_midpoint    - y_before )**2 + k*( y_after -  y_midpoint    )**2
+                    energy_right = k*( (y_midpoint+1) - y_before )**2 + k*( y_after - (y_midpoint+1) )**2
+                
+                    
+                    energy_left__from_matrix = e_matrix[x_midpoint][y_midpoint-1]
+                    energy_midle_from_matrix = e_matrix[x_midpoint][y_midpoint  ]
+                    energy_right_from_matrix = e_matrix[x_midpoint][y_midpoint+1]
+                    
+                    sum_l = energy_left  + energy_left__from_matrix
+                    sum_m = energy_midle + energy_midle_from_matrix
+                    sum_r = energy_right + energy_right_from_matrix
+                    
+                    #sum_l = klinh  + energy_left__from_matrix
+                    #sum_m =       energy_midle_from_matrix
+                    #sum_r = klinh + energy_right_from_matrix
+                    
+                    
+                    d1 = sum_l - sum_m
+                    d2 = sum_r - sum_m  
+
+                    if d2 < 0:
+                        asn = 1 
+                        total_sum_grad += d1
+
+                    if d1 < 0: 
+                        asn = -1 
+                        total_sum_grad += d2
+
+                    if d1  > 0  and d2 > 0:
+                        asn = 0
+                    
+                    xy_surface_positions[index][1] += asn
+                    #-------------------------------------------------------------------------------------
+
+            delta = total_sum_grad_ateriror - total_sum_grad
+            total_sum_grad_ateriror = total_sum_grad
+            print('delta: ' , delta)
+
+            old = None
+            for xy_coord in xy_surface_positions:
+                #                    X     Y
+                index  = xy_surface_positions.index(xy_coord)
+                
+                if xy_coord == old:
+                    xy_surface_positions.pop(index)
+                
+                else:
+                    x = xy_coord[0]
+                    y = xy_coord[1]
+                old = xy_coord
+            
+            chain_of_states_perturbation_counter += 1
+            
+            if chain_of_states_perturbation_counter == chain_of_states_convergence_max_interactions:
+                delta =  0
+                
+        chain_of_states_convergence_counter += 1
+        
+        old = xy_surface_positions
+        xy_surface_positions = build_chain_of_states(xy_surface_positions)
+        
+        if old == xy_surface_positions:
+            chain_of_states_convergence = True
+        else:
+            pass
+        
+        
+        if chain_of_states_convergence_counter == chain_of_states_convergence_max_interactions:
+            chain_of_states_convergence = True
+        else:
+            pass
+                
+                
+                
+    #print xy_surface_positions
+    print ("\n\nOptimized chain of states: \n")
+    for xy_coord in xy_surface_positions:
+        #                    X     Y
+        x = xy_coord[0]
+        y = xy_coord[1]
+        print (x, y, e_matrix[x][y])                
+    #"""
+    return xy_surface_positions
+        
+                
+                
+                
+                
+                
+                
+                

@@ -27,7 +27,7 @@
             <property name="orientation">vertical</property>
             <property name="spacing">6</property>
             <child>
-              <!-- n-columns=8 n-rows=3 -->
+              <!-- n-columns=8 n-rows=1 -->
               <object class="GtkGrid" id="grid_setup">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
@@ -79,6 +79,7 @@
                 </child>
                 <child>
                   <object class="GtkEntry" id="threshold_entry">
+                    <property name="width-request">20</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                   </object>
@@ -107,41 +108,71 @@
                 <child>
                   <placeholder/>
                 </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <!-- n-columns=8 n-rows=1 -->
+              <object class="GtkGrid" id="grid_setup1">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="row-spacing">9</property>
+                <property name="column-spacing">9</property>
                 <child>
-                  <placeholder/>
+                  <object class="GtkBox" id="RC_type_box">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">0</property>
+                  </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">RC label type:</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">0</property>
+                  </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkCheckButton" id="checkbox_interpolate">
+                    <property name="label" translatable="yes">Interpolate (picking)</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="active">True</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">3</property>
+                    <property name="top-attach">0</property>
+                  </packing>
                 </child>
                 <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
+                  <object class="GtkCheckButton" id="checkbox_smooth">
+                    <property name="label" translatable="yes">Smooth Image</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">2</property>
+                    <property name="top-attach">0</property>
+                  </packing>
                 </child>
                 <child>
                   <placeholder/>
@@ -159,7 +190,7 @@
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">0</property>
+                <property name="position">1</property>
               </packing>
             </child>
             <child>
@@ -179,7 +210,7 @@
               <packing>
                 <property name="expand">True</property>
                 <property name="fill">True</property>
-                <property name="position">1</property>
+                <property name="position">2</property>
               </packing>
             </child>
             <child>
@@ -194,6 +225,7 @@
                     <property name="can-focus">False</property>
                     <property name="orientation">vertical</property>
                     <property name="spacing">5</property>
+                    <property name="homogeneous">True</property>
                     <child>
                       <object class="GtkLabel" id="RC1_RC2_label">
                         <property name="visible">True</property>
@@ -207,22 +239,25 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkCheckButton" id="checkbox_interpolate">
-                        <property name="label" translatable="yes">Interpolate (picking)</property>
+                      <placeholder/>
+                    </child>
+                    <child>
+                      <object class="GtkBox">
                         <property name="visible">True</property>
-                        <property name="can-focus">True</property>
-                        <property name="receives-default">False</property>
-                        <property name="active">True</property>
-                        <property name="draw-indicator">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="spacing">5</property>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
                       </object>
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">True</property>
-                        <property name="position">1</property>
+                        <property name="position">2</property>
                       </packing>
-                    </child>
-                    <child>
-                      <placeholder/>
                     </child>
                   </object>
                   <packing>
@@ -239,26 +274,23 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="orientation">vertical</property>
-                    <property name="spacing">6</property>
                     <child>
                       <object class="GtkScale" id="scale_trajectory_from_PES">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="round-digits">1</property>
+                        <property name="value-pos">right</property>
                         <signal name="value-changed" handler="on_scaler_frame_value_changed" swapped="no"/>
                       </object>
                       <packing>
-                        <property name="expand">False</property>
+                        <property name="expand">True</property>
                         <property name="fill">True</property>
                         <property name="position">0</property>
                       </packing>
                     </child>
                     <child>
-                      <placeholder/>
-                    </child>
-                    <child>
                       <object class="GtkButton" id="button_export">
-                        <property name="label" translatable="yes">Export as a visualization object</property>
+                        <property name="label" translatable="yes">Export visualization object</property>
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="receives-default">True</property>
@@ -267,8 +299,11 @@
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">True</property>
-                        <property name="position">2</property>
+                        <property name="position">1</property>
                       </packing>
+                    </child>
+                    <child>
+                      <placeholder/>
                     </child>
                   </object>
                   <packing>
@@ -281,11 +316,8 @@
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">2</property>
+                <property name="position">3</property>
               </packing>
-            </child>
-            <child>
-              <placeholder/>
             </child>
           </object>
         </child>

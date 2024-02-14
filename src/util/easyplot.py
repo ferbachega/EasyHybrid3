@@ -1,6 +1,8 @@
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, cairo
+from gi.repository import Gtk, Gdk
+import cairo
+
 import numpy as np
 import sys
 
@@ -60,6 +62,181 @@ def bilinear_interpolation(c1, c2, c3, c4, tx, ty):
         int((1 - tx) * (1 - ty) * c1[2] + tx * (1 - ty) * c2[2] + (1 - tx) * ty * c4[2] + tx * ty * c3[2]),
         int((1 - tx) * (1 - ty) * c1[3] + tx * (1 - ty) * c2[3] + (1 - tx) * ty * c4[3] + tx * ty * c3[3])
     )
+ 
+ 
+def expand_array_size (norm_data):
+    """ 
+    this function receives an i x j matrix and transforms it into an 
+    i+2 x j+2 matrix. the original matrix is ​​in the middle of the new 
+    matrix, so the added elements are on the edges. they will be 
+    important for the interpolation of points when the smooth function 
+    is used in ImagePlot.
+    
+    
+       extra column /extra row
+         |
+       |---|---|---|---|---|
+     --| x | x | x | x | x |
+       |---|---|---|---|---|
+       | x |###|###|###| x |
+       |---|---|---|---|---|
+       | x |###|###|###| x |
+       |---|---|---|---|---|
+       | x | x | x | x | x |--
+       |---|---|---|---|---|
+                         |
+                       extra column /extra row
+    
+    ### = elements in original matrix
+    x   = new elements
+    
+    -It's not a very efficient algorithm, but it works well
+    """
+    size_x = len(norm_data)
+    size_y = len(norm_data[0])
+    #print('expanded matrix')
+    bigmatrix = []#[None]*size_x+2
+    for k in range (0, size_x+2):
+        bigmatrix.append([])
+        for l in range(0,  size_y+2):
+            bigmatrix[k].append(0)
+    #pprint (bigmatrix )    
+    for k in range (0, size_x+2):    
+        for l in range(0,  size_y+2):
+           
+            #    extra column /extra row
+            #      |
+            #    |---|---|---|---|---|
+            #  --|XXX|   |   |   |   |
+            #    |---|---|---|---|---|
+            #    |   |###|###|###|   |
+            #    |---|---|---|---|---|
+            #    |   |###|###|###|   |
+            #    |---|---|---|---|---|
+            #    |   |   |   |   |   |--
+            #    |---|---|---|---|---|
+            #                      |
+            #                    extra column /extra row
+            
+            if   k == 0 and l == 0:
+                bigmatrix[k][l] = norm_data[0][0]
+            
+            elif k == 0 and l == 1:
+                bigmatrix[k][l] = norm_data[0][0]
+            
+            elif k == 1 and l == 0:
+                bigmatrix[k][l] = norm_data[0][0]
+
+            
+            #    extra column /extra row
+            #      |
+            #    |---|---|---|---|---|
+            #  --|   |   |   |   |   |
+            #    |---|---|---|---|---|
+            #    |   |###|###|###|   |
+            #    |---|---|---|---|---|
+            #    |   |###|###|###|   |
+            #    |---|---|---|---|---|
+            #    |   |   |   |   |XXX|--
+            #    |---|---|---|---|---|
+            #                      |
+            #                    extra column /extra row
+            
+            elif k == size_x+1   and l == size_y+1 :
+                bigmatrix[k][l] = norm_data[size_x-1][size_y-1]
+            
+            elif k == size_x   and l == size_y+1 :
+                bigmatrix[k][l] = norm_data[size_x-1][size_y-1]
+            
+            elif k == size_x+1    and l == size_y :
+                bigmatrix[k][l] = norm_data[size_x-1][size_y-1]
+
+                
+            #    extra column /extra row
+            #      |
+            #    |---|---|---|---|---|
+            #  --|   |XXX|XXX|XXX|   |
+            #    |---|---|---|---|---|
+            #    |   |###|###|###|   |
+            #    |---|---|---|---|---|
+            #    |   |###|###|###|   |
+            #    |---|---|---|---|---|
+            #    |   |   |   |   |   |--
+            #    |---|---|---|---|---|
+            #                      |
+            #                    extra column /extra row
+            
+            elif k == 0 and   size_y+1 > l > 0  :
+                bigmatrix[k][l] = norm_data[0][l-1]
+            
+            
+            #    extra column /extra row
+            #      |
+            #    |---|---|---|---|---|
+            #  --|   |   |   |   |   |
+            #    |---|---|---|---|---|
+            #    |XXX|###|###|###|   |
+            #    |---|---|---|---|---|
+            #    |XXX|###|###|###|   |
+            #    |---|---|---|---|---|
+            #    |   |   |   |   |   |-- 
+            #    |---|---|---|---|---|
+            #                      |
+            #                    extra column /extra row
+            
+            elif size_x+1 > k > 0 and l == 0:
+                bigmatrix[k][l] = norm_data[k-1][0]
+            
+            
+            #---------------------------------------------------
+            #    extra column /extra row
+            #      |
+            #    |---|---|---|---|---|
+            #  --|   |   |   |   |   |
+            #    |---|---|---|---|---|
+            #    |   |###|###|###|xxx|
+            #    |---|---|---|---|---|
+            #    |   |###|###|###|xxx|
+            #    |---|---|---|---|---|
+            #    |   |   |   |   |   |-- 
+            #    |---|---|---|---|---|
+            #                      |
+            #                    extra column /extra row
+            
+            elif size_x+1 > k > 0 and size_y+1 == l:
+                bigmatrix[k][l] = norm_data[k-1][size_y-1]
+            #---------------------------------------------------
+               
+            #---------------------------------------------------
+            #    extra column /extra row
+            #      |
+            #    |---|---|---|---|---|
+            #  --|   |   |   |   |   |
+            #    |---|---|---|---|---|
+            #    |   |###|###|###|   |
+            #    |---|---|---|---|---|
+            #    |   |###|###|###|   |
+            #    |---|---|---|---|---|
+            #    |   |xxx|xxx|xxx|   |-- 
+            #    |---|---|---|---|---|
+            #                      |
+            #                    extra column /extra row
+            
+            elif k == size_x+1 and size_y  > l> 0:
+                bigmatrix[k][l] = norm_data[k-2][l-1]
+            #---------------------------------------------------
+
+
+            elif   k == 0        and l == size_y+1:
+                bigmatrix[k][l] = norm_data[0][l-2]
+            
+            elif k == size_x+1 and l == 0:
+                bigmatrix[k][l] = norm_data[k-2][0]
+            
+            else:
+                bigmatrix[k][l] = norm_data[k-1][l-1]
+    return bigmatrix
+ 
     
 class ColorSquareBilinearInterpolation:
     def __init__(self, surface, x, y, size, c1, c2, c3, c4):
@@ -197,6 +374,9 @@ class ImagePlot(Canvas):
         self.points = []
         
         self.data = data
+        self.dataRC1 = None
+        self.dataRC2 = None   
+        
         self.cmap = 'jet'
         
         self.norm_data = None
@@ -205,6 +385,8 @@ class ImagePlot(Canvas):
         self.connect("motion-notify-event", self.on_motion)
         
         self.RC_label = None
+        self.label_mode = 0
+        self.is_discrete = True
         
     def define_datanorm (self):
         """ Function doc """
@@ -238,6 +420,12 @@ class ImagePlot(Canvas):
     def set_cmap (self, cmap = 'jet'):
         """ Function doc """
         self.color_map = COLOR_MAPS[cmap]
+    
+    def set_label_mode (self, mode = 0):
+        """ Function doc """
+        self.label_mode = mode
+        
+        #self.plot.set_cmap (cmap = self.cmap_ref_dict[self.cmap_id])
     
     def draw_color_bar (self, cr, res, gap = 20, label_spacing = 2, font_size = 12, num_labels = 10):
         """ Function doc """
@@ -382,6 +570,50 @@ class ImagePlot(Canvas):
                      round(self.factor_y)+1)
         cr.fill()
     
+    def draw_smooth_square (self, cr = None, square = None, colors = None):
+        """ Function doc """
+        x0 , y0 = square[0]
+        x05, y0 = square[1]
+        x05,y05 = square[2]
+        x0 ,y05 = square[3]
+        
+        pattern = cairo.MeshPattern()
+        # Começa a definição do patch de padrão de malha
+        pattern.begin_patch()
+        pattern.move_to(x0 , y0)
+        pattern.line_to(x05, y0)
+        pattern.line_to(x05,y05)
+        pattern.line_to(x0 ,y05)
+        
+        color1 = colors[0]
+        color2 = colors[1]
+        color3 = colors[2]
+        color4 = colors[3]
+        
+        ### Define os vértices do patch
+        ##pattern.move_to(i,     j)
+        ##pattern.line_to(i+100, j)
+        ##pattern.line_to(i+100, j+100)
+        ##pattern.line_to(i    , j+100)
+
+        #color1 = get_color(z1, self.color_map)
+        #color2 = get_color(z2, self.color_map)
+        #color3 = get_color(z3, self.color_map)
+        #color4 = get_color(z4, self.color_map)
+        #
+        pattern.set_corner_color_rgb(0, color1[0], color1[1], color1[2]) 
+        pattern.set_corner_color_rgb(1, color2[0], color2[1], color2[2]) 
+        pattern.set_corner_color_rgb(2, color3[0], color3[1], color3[2]) 
+        pattern.set_corner_color_rgb(3, color4[0], color4[1], color4[2]) 
+        
+        # Finaliza a definição do patch de padrão de malha
+        #cr.scale(1, 1)
+        pattern.end_patch()
+        cr.set_source(pattern)
+        cr.paint()          
+
+
+    
     def draw_inter_square (self, surface, x, y, size, c1, c2, c3, c4, cr):
         """ Function doc """
         #self.ctx = cr
@@ -401,42 +633,132 @@ class ImagePlot(Canvas):
 
     def draw_image (self, cr):
         """ Function doc """
-        n = 0 
-        for i in range(0,self.size_x, ):
-            for j in range(0,self.size_y):
-                self.draw_discrete_square (i, j, cr)
-                
-                '''
-                z1     = self.norm_data[i]  [j]
-                z2     = self.norm_data[i+1][j]
-                z3     = self.norm_data[i]  [j+1]
-                z4     = self.norm_data[i+1][j+1]
-                
-                color1 = get_color(z1, self.color_map)
-                color2 = get_color(z2, self.color_map)
-                color3 = get_color(z3, self.color_map)
-                color4 = get_color(z4, self.color_map)
-                
-                color1.append(255)
-                color2.append(255)
-                color3.append(255)
-                color4.append(255)
-                
-                
-                
-                
-                color_surface = cairo.ImageSurface(cairo.FORMAT_RGB24, 200, 200)
-                color_square = ColorSquareBilinearInterpolation(color_surface, 0, 0, 200,
-                                                                 (255, 0,  0, 255),  # Bottom-left
-                                                                 (0, 255,  0, 255),  # Bottom-right
-                                                                 (0, 0,  255, 255),  # Top-right
-                                                                 (255, 255,0, 255))  # Top-left
-                color_square.draw()
+        if self.is_discrete == True:
+            #discrete square
+            #'''
+            n = 0 
+            for i in range(0,self.size_x, ):
+                for j in range(0,self.size_y):
+                    self.draw_discrete_square (i, j, cr)
 
-                ctx.set_source_surface(color_surface, 0, 0)
-                ctx.paint()
-                '''
 
+        else:
+            
+            data = expand_array_size(self.norm_data)
+        
+            for i in range(1, self.size_x+1):
+                for j in range(1,  self.size_y+1):
+                    
+                    x0, y0 = self.bx+(i-1)*self.factor_x -1   , self.by+(j-1)*self.factor_y -1
+                    x1, y1 = self.bx+(i )*self.factor_x -1 , self.by+ (j )*self.factor_y -1
+                    
+                    x05   = (x1 + x0)/2
+                    y05   = (y1 + y0)/2
+                    '''
+                    print(
+                    x0 , y0   ,
+                    x0 , y05 ,
+                    x0 , y1   ,
+
+                    x05 , y0  ,
+                    x05 , y05,
+                    x05 , y1  ,
+
+                    x1 , y0   ,
+                    x1 , y05 ,
+                    x1 , y1   ,
+                    )
+                    '''
+                    # calculating energies / avarege 
+                    E_x05_y05 = data[i][j]
+                    C_x05_y05 = get_color(E_x05_y05, self.color_map)
+                    
+                    E_x0_y0 = (data[i-1][j ] + data[i-1][j-1] + data[i ][j-1] +  data[i][j])/4
+                    C_x0_y0 = get_color(E_x0_y0, self.color_map)
+                    
+                    E_x1_y0 = (data[i][j-1] + data[i+1][j] + data[i+1][j-1] +  data[i][j])/4
+                    C_x1_y0 = get_color(E_x1_y0, self.color_map)
+                    
+                    E_x0_y1 = (data[i-1][j+1]+ data[i-1][j]+ data[i][j+1] +  data[i][j])/4
+                    C_x0_y1 = get_color(E_x0_y1, self.color_map)
+                    
+                    #                    E_x05_y1 = (data[i][j+1] + data[i-1][j+1] +data[i+1][j+1] +  data[i][j])/4
+
+                    E_x05_y1 = (data[i][j+1] +  data[i][j])/2
+                    C_x05_y1 = get_color(E_x05_y1, self.color_map)
+                    
+                    E_x05_y0 = (data[i][j-1] +  data[i][j])/2
+                    C_x05_y0 = get_color(E_x05_y0, self.color_map)
+                    
+                    E_x0_y05 = (data[i-1][j] +  data[i][j])/2
+                    C_x0_y05 = get_color(E_x0_y05, self.color_map)
+                    
+                    
+                    E_x1_y05 = (data[i+1][j] +  data[i][j])/2
+                    C_x1_y05 = get_color(E_x1_y05, self.color_map)
+                    
+                    E_x1_y1 = (data[i+1][j+1] +data[i][j+1] +data[i+1][j] +  data[i ][j ])/4
+                    C_x1_y1 = get_color(E_x1_y1, self.color_map)
+                    #C_x1_y1 = [0 ,0 ,0]
+                    #---------------------------------------------------
+                    square = [(x0 , y0),   # 
+                              (x05, y0),   #  o------o------o
+                              (x05,y05),   #  |XXXXXX|      |
+                              (x0 ,y05)]   #  |XXXXXX|      |
+                                           #  o------o------o
+                    colors = [C_x0_y0  ,   #  |      |      |
+                              C_x05_y0 ,   #  |      |      |
+                              C_x05_y05,   #  o------o------o
+                              C_x0_y05 ]   #
+                    
+                    self.draw_smooth_square(cr = cr, square = square, colors = colors)
+                    #---------------------------------------------------
+
+            
+                    #---------------------------------------------------
+                    square = [(x05 , y0),   # 
+                              (x1  , y0),   #  o------o------o
+                              (x1  , y05),  #  |      |      |
+                              (x05 , y05)]  #  |      |      |
+                                            #  o------o------o
+                    colors = [C_x05_y0,     #  |XXXXXX|      |
+                              C_x1_y0,      #  |XXXXXX|      |
+                              C_x1_y05,     #  o------o------o
+                              C_x05_y05]    #
+
+                    self.draw_smooth_square(cr = cr, square = square, colors = colors)
+                    #---------------------------------------------------
+                    
+                    
+                    #---------------------------------------------------
+                    square = [(x0  , y05),  # 
+                              (x05 ,y05),   #  o------o------o
+                              (x05 , y1 ),  #  |      |XXXXXX|
+                              (x0  , y1)]   #  |      |XXXXXX|
+                                            #  o------o------o
+                    colors = [C_x0_y05,     #  |      |      |
+                              C_x05_y05,    #  |      |      |
+                              C_x05_y1,     #  o------o------o
+                              C_x0_y1]      #
+
+                    self.draw_smooth_square(cr = cr, square = square, colors = colors)
+                    #---------------------------------------------------
+
+                    
+                    #---------------------------------------------------
+                    square = [(x05 , y05),  # 
+                              (x1  ,y05),   #  o------o------o
+                              (x1  , y1 ),  #  |      |      |
+                              (x05  , y1)]  #  |      |      |
+                                            #  o------o------o
+                    colors = [C_x05_y05,    #  |      |XXXXXX|
+                              C_x1_y05,     #  |      |XXXXXX|
+                              C_x1_y1,      #  o------o------o
+                              C_x05_y1]     #
+
+                    self.draw_smooth_square(cr = cr, square = square, colors = colors)
+                    #---------------------------------------------------
+                             
 
     def draw_image_box (self, cr, line_width = 1, color = [0,0,0]):
         cr.set_line_width (line_width)
@@ -466,8 +788,19 @@ class ImagePlot(Canvas):
             #--------------------------------------------------------------------------------------------
             cr.set_source_rgb(0, 0, 0)
             cr.set_font_size(font_size)
-    
-            text = str(i)
+            
+            if self.label_mode == 0:
+                text = str(i)
+            elif self.label_mode == 1:
+                '''
+                   The label of reaction coordinate distance list is wrong  
+                   self.dataRC2[i][0] - means frames on the vertical (index i)
+                '''
+                text = '{:3.2f}'.format(self.dataRC2[i][0])
+            else:
+                text = ''
+                pass
+            
             x_bearing, y_bearing, width, height, x_advance, y_advance = cr.text_extents(text)
             #print(x_bearing, y_bearing, width, height, x_advance, y_advance)
             #cr.move_to(self.bx + i*self.factor_x - width/2.0    ,  self.by -15 )   
@@ -488,12 +821,21 @@ class ImagePlot(Canvas):
             # texto em y
             cr.set_source_rgb(0, 0, 0)
             cr.set_font_size(font_size)
-    
-            text = str(j)
+
+            if self.label_mode == 0:
+                text = str(j)
+            elif self.label_mode == 1:
+                '''
+                The label of reaction coordinate distance list is wrong  
+                self.dataRC1[j][0] - means frames on the vertical (index j)
+                '''
+                text = '{:3.2f}'.format(self.dataRC1[0][j])
+            else:
+                text = ''
             x_bearing, y_bearing, width, height, x_advance, y_advance = cr.text_extents(text)
 
             cr.move_to(self.bx  -15 -width     , self.by + j*self.factor_y + height/2  + (self.factor_y)/2)
-            cr.show_text(str(j))
+            cr.show_text(text)
             #--------------------------------------------------------------------------------------------
         
     def draw_dots (self, cr, color = [0,0,0]):
@@ -590,9 +932,9 @@ class ImagePlot(Canvas):
         else:
             if i < i_size and j < j_size:
                 if self.RC_label:
-                    text = 'i = {} / j = {}'.format(i, j)
+                    text = 'i {}    |    j {}    |    rc1 {:4.2f}    |    rc2 {:4.2f}    |    E = {:6.3f}'.format(i, j,  self.dataRC1[j][i], self.dataRC2[j][i],  self.data[j][i])
                     self.RC_label.set_text(text)
-                print( 'i = ', i, 'j = ', j)
+                #print( 'i = ', i, 'j = ', j)
 
 
 class XYPlot(Gtk.DrawingArea):
@@ -669,7 +1011,7 @@ class XYPlot(Gtk.DrawingArea):
 
     def add (self, X = None, Y = None, 
               symbol = 'dot', sym_color = [1,1,1], sym_fill = True, 
-              line = 'solid', line_color = [1,1,1]):
+              line = 'solid', line_color = [1,1,1], energy_label = None):
         
         """ Function doc """
 
@@ -688,7 +1030,7 @@ class XYPlot(Gtk.DrawingArea):
                }
 
         data = self.data_update( data)
-
+        
 
         #self.Xmin_list.append(min(X))
         #self.Ymin_list.append(min(Y))
@@ -710,7 +1052,7 @@ class XYPlot(Gtk.DrawingArea):
         #        'line_color' : line_color
         #       }
         
- 
+        self.energy_label = energy_label
         
         self.data.append(data)
         self.define_xy_limits()
