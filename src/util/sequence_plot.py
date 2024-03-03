@@ -307,14 +307,14 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
 
 
         self.sequences = []
-        '''
+        #'''
         sequence       = []
         for rnum, res in enumerate(self.sequence):
             res3l = one_letter_res_dict[res]
-            residue = Residue(rname = res3l , rcode = res, rnum = rnum)
+            residue = SeqResidue(rname = res3l , rcode = res, rnum = rnum)
             sequence.append(residue)
         self.sequences.append(sequence)
-        
+        '''
         self.sequence ='MISYLASIFTTTTHHHHHHHHHHHEVVFPSVETSRSGVKTVKFTA' 
         sequence       = []
         for rnum, res in enumerate(self.sequence):
@@ -323,7 +323,7 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
             sequence.append(residue)
             
         self.sequences.append(sequence)
-        '''
+        #'''
         #print(self.sequences)
         #-------------------------------------------------------------------------------
     def set_font_size (self, size = 20):

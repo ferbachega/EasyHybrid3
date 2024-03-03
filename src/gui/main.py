@@ -74,7 +74,7 @@ from util.sequence_plot import GtkSequenceViewer
 
 
 from pdynamo.pDynamo2EasyHybrid import pDynamoSession
-
+import numpy as np
 
 class MainWindow:
     """ Class doc """
@@ -399,6 +399,10 @@ class MainWindow:
         
         if button  == self.builder.get_object('toolbutton_save_as'):
             self.gtk_save_as_file (button)
+        
+        if button  == self.builder.get_object('_show_cell'):
+            print('aqui')
+            self.run_test(None)
             
         if button == self.builder.get_object('toolbutton_terminal'):
             if button.get_active ():
@@ -817,6 +821,14 @@ class MainWindow:
         elif menuitem == self.builder.get_object('menuitem_nb_model'): 
             self.p_session.remove_NBModel()
             self.refresh_main_statusbar()
+        
+        elif menuitem == self.builder.get_object('menuitem_PES_data'): 
+            msg = self.p_session.remove_PES_data()
+            #if TrueFalse:
+            self.simple_dialog.info(msg = msg )
+            #else:
+            #    self.simple_dialog.error(msg = msg )
+        
         
         elif menuitem == self.builder.get_object('menuitem_new_nb_model'): 
             self.p_session.define_NBModel()
@@ -1273,111 +1285,8 @@ class MainWindow:
         parm = self.box_reac.get_rc_data()
 
     def run_test (self, widget):
-        """ Function doc """
-        parameters = {}
-        parameters['XBox'] = 30
-        parameters['YBox'] = 30
-        parameters['ZBox'] = 30
-        
-        parameters['NPositive'] = 0
-        parameters['cation']    = None
-        parameters['NNegative'] = 0
-        parameters['anion']     = None
-        
-        parameters['solvent']   = "/home/fernando/programs/EasyHybrid3/examples/waterBox.pkl" 
-        parameters['reorient']  = True
-        
-        e_id = self.p_session.active_id
-        self.p_session.solvate_system (e_id = e_id, parameters = parameters)
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        '''
-        true_or_false = self.p_session.check_for_fragmented_charges()
-        if true_or_false:
-            print ('')
-        '''
-        
-        #self.make_solvent_box_window.OpenWindow()
-        #parameters = {}
-        #parameters['_Density']=  1000.0 # . Density of water (kg m^-3).
-        #parameters['_Refine'] =  True
-        #parameters['_Steps']  = 10000
-        #
-        ## . Box sizes.
-        #parameters['_XBox'] = 28.0
-        #parameters['_YBox'] = 28.0
-        #parameters['_ZBox'] = 28.0
-        #
-        #parameters['molecule'] = self.p_session.psystem[self.p_session.active_id]
-        #
-        #self.p_session.make_solvent_box(parameters)
-        
-        
-        #self.WHAM_window.OpenWindow()
-        #window = Gtk.Window()
-        #builder = Gtk.Builder()
-        #builder.add_from_file(os.path.join(self.home,'src/gui/windows/WHAM_analysis_window.glade'))
-        #
-        #window = builder.get_object('window')
-        #window.show_all()
-        #self.box_reac.set_rc_type(0)
-        
-        
-        
-        #self.p_session.run_simulation (parameters = {'simulation_type' : 'Energy', 'system': self.p_session.psystem[self.p_session.active_id]})
-        
-        #self.p_session.psystem[self.p_session.active_id].Energy()
-        
-        '''        
-        #from vismol.libgl.representations import SticksRepresentation
-        #import numpy as np
-        #self.vm_session.vm_objects_dic[0].define_molecules()
-        
 
-        #----------------------------------------------------------------------------------------------------------------------------
-        selection = self.vm_session.selections[self.vm_session.current_selection]
-        selection_dict = {}
-        vobject = None
-        for atom in selection.selected_atoms:
-            selection_dict[atom.atom_id] = atom
-            vobject = atom.vm_object
-        
-        
-        vobject.dynamic_bonds = []
-        for frame in range(len(vobject.frames)):
-            
-            bonds = vobject.find_bonded_and_nonbonded_atoms(selection=selection_dict, frame=frame, internal = False)
-            #bonds = np.array(bonds, dtype=np.int32)
-            vobject.dynamic_bonds.append(bonds)
-            #print(len(bonds), bonds)
-        print(vobject.dynamic_bonds)
-
-        vobject.representations["dynamic"] = SticksRepresentation(vobject, self.vm_session.vm_glcore,
-                                                                  active=True, indexes=vobject.dynamic_bonds[0], is_dynamic = True)
-        #----------------------------------------------------------------------------------------------------------------------------
         #'''
-        
-        
-        
-        
-        
-        
-        #self.vm_session.selection_around()
-
-        '''
         #print('aloowww')
         #print(self.vm_session.vm_glcore.glcamera)
         print(self.vm_session.vm_glcore.glcamera.z_near          ) #= self.z_far
@@ -1392,10 +1301,10 @@ class MainWindow:
             print(vobj.trans_mat)
         
         
-        inv_mat = mop.get_inverse_matrix(self.vm_session.vm_glcore.glcamera.view_matrix )
-        print ('inverse of nview', inv_mat)
-        
-        print ('inverse of nview', inv_mat[3])
+        #inv_mat = mop.get_inverse_matrix(self.vm_session.vm_glcore.glcamera.view_matrix )
+        #print ('inverse of nview', inv_mat)
+        #
+        #print ('inverse of nview', inv_mat[3])
         
         
         view_matrix = self.vm_session.vm_glcore.glcamera.view_matrix
@@ -1438,7 +1347,7 @@ class MainWindow:
         text+= '  // LIGHT 1                                                       \n'
         text+= 'light_source                                                       \n'
         text+= '{                                                                  \n'
-        text+= '    <  0.000000,  0.000000,109.953541>                             \n'
+        text+= '    <  0.000000,  0.000000,4000>                             \n'
         text+= '    color 0.8*White                                                \n'
         text+= '}                                                                  \n'
         text+= '// BACKGROUND                                                      \n'
@@ -1459,7 +1368,7 @@ class MainWindow:
 
                 text+= 'sphere                                                             \n'
                 text+= '{                                                                  \n'
-                text+= '    <      {},    {},     {}>       {}  \n'.format(xyz[0], xyz[1], xyz[2], atom.vdw_rad*0.3)
+                text+= '    <      {},    {},     {}>       {}  \n'.format(xyz[0], xyz[1], xyz[2], atom.vdw_rad*0.2)
                 text+= '    texture { finish { Dull } }                                    \n'
                 text+= '    pigment { '+'rgb<     {},      {},      {}'.format(vobj.colors[i][0], vobj.colors[i][1],vobj.colors[i][2])+'> }  \n'
                 text+= '}                                                                  \n'
@@ -1472,28 +1381,149 @@ class MainWindow:
                 text+= '{                                                                 \n'
                 text+= '    <      {},      {},     {}>,               \n'.format(xyz_i[0], xyz_i[1], xyz_i[2])
                 text+= '    <      {},      {},     {}>                \n'.format(xyz_j[0], xyz_j[1], xyz_j[2])
-                text+= '          0.20                                                \n'
+                text+= '          0.15                                                \n'
                 text+= '    texture { finish { Dull } }                                   \n'
-                text+= '    pigment { rgb<      0.193545,      0.193545,      0.193545> } \n'
+                text+= '    pigment { rgb<      1,      1,      1> } \n'
                 text+= '}                                                                 \n'
 
 
         text+='transform { myTransforms }                                              \n'
         text+='}                                                                       \n'
         text+='                                                                        \n'
-        text+='object {molecule}                                                       \n'
-
-
-        text+= 'plane                                                              \n'
-        text+= '{                                                                  \n'
-        text+= '	z, {}                                                          \n'.format( -self.vm_session.vm_glcore.glcamera.z_far )
-        text+= '    pigment { rgb <   1.000000, 1.000000, 1.000000 > }                  \n'#.format(0.0, 0.0 , self.vm_session.vm_glcore.glcamera.fog_end )
-        text+= '} \n' 
+        #text+='object {molecule}                                                       \n'
+ 
+        text+='intersection{                                              \n'                          
+        text+='    object {molecule}                                      \n'                    
+        text+='    plane{z, %s pigment{rgbf<1,1,1,0>}}                    \n'% str(-self.vm_session.vm_glcore.glcamera.z_near)
+        text+='}                                                          \n'
+        #text+= 'plane                                                              \n'
+        #text+= '{                                                                  \n'
+        #text+= '	z, {}                                                          \n'.format( -self.vm_session.vm_glcore.glcamera.z_far )
+        #text+= '    pigment { rgb <   1.000000, 1.000000, 1.000000 > }                  \n'#.format(0.0, 0.0 , self.vm_session.vm_glcore.glcamera.fog_end )
+        #text+= '} \n' 
 
         pov_file.write(text)
         #print(text)
-        os.system('povray +A0.3 -UV +W1000 +H1000 +Itemp.pov +Otemp2.png')
+        #os.system('povray +A0.3 -UV +W1000 +H1000 +Itemp.pov +Otemp2.png')
+        print('povray +A0.3 -UV +W1000 +H1000 +Itemp.pov +Otemp2.png')
+        
+        
+        print(self.vm_session.vm_glcore.glcamera.z_near, self.vm_session.vm_glcore.glcamera.z_far)
+        #print(self.vm_session.vm_glcore.glcamera._get_view_matrix([0,0,10]))
+        print(self.vm_session.vm_glcore.glcamera.fog_end  )
+        print(self.vm_session.vm_glcore.glcamera.fog_start)
+        print(self.vm_session.vm_glcore.zero_reference_point)
+        #'''
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         '''
+        print('model matrix:',      self.vm_session.vm_glcore.model_mat                 , type(self.vm_session.vm_glcore.model_mat                 )  )
+        print('projection matrix:', self.vm_session.vm_glcore.glcamera.projection_matrix, type(self.vm_session.vm_glcore.glcamera.projection_matrix)  )
+        print('view matrix:',       self.vm_session.vm_glcore.glcamera.view_matrix      , type(self.vm_session.vm_glcore.glcamera.view_matrix      )  )
+        
+        proj_mat = self.vm_session.vm_glcore.glcamera.projection_matrix
+        view_mat = self.vm_session.vm_glcore.glcamera.view_matrix
+        #model_mat= self.vm_session.vm_glcore.model_mat
+        # Multiplica as matrizes na ordem correta
+
+        
+
+        pov_file  = open('temp.pov', 'w')
+        
+        text = '// Generated by EasyHybrid \n'
+        
+        text+= '#include "colors.inc"\n'
+        text+= '#include "textures.inc"\n'
+        text+= '#include "shapes.inc"\n'
+        text+= '#include "stones1.inc"\n'
+        
+        text+= '\n'
+        text+= 'camera {\n'
+        text+= '    location <0,0,-100>\n'
+        #text+= '    location <{},{},{}>\n'.format(camera_position_povray[0],camera_position_povray[1],camera_position_povray[2])
+        text+= '    look_at  <0,0,0>\n'
+        #text+= '    look_at  <{},{},{}>\n'.format(look_at_point_povray[0],look_at_point_povray[1],look_at_point_povray[2])
+        text+= '    angle 45\n'
+        text+= '}\n'
+
+        text+= '                                                                   \n'
+        text+= '  // LIGHT 1                                                       \n'
+        text+= 'light_source                                                       \n'
+        text+= '{                                                                  \n'
+        text+= '    <  0.000000,  0.000000,-109.953541>                             \n'
+        text+= '    color 0.8*White                                                \n'
+        text+= '}                                                                  \n'
+        text+= '// BACKGROUND                                                      \n'
+        text+= 'background                                                         \n'
+        text+= '{                                                                  \n'
+        text+= '    color rgb < 1.000000, 1.000000, 1.000000 >                     \n'
+        text+= '}                                                                  \n'
+        text+= '                                                                   \n'
+        text+= '# declare molecule = union {                                       \n'
+        text+= '// ATOMS                                                           \n'
+        
+
+        for key, vobj in self.vm_session.vm_objects_dic.items():
+            if vobj.active:
+                model_mat = vobj.model_mat
+                result = np.matmul(proj_mat, view_mat)
+                result = np.matmul(result, model_mat)
+                
+                for i, atom in vobj.atoms.items():
+                    #print(i, atom)
+                    xyz = atom.coords(frame = 0)
+                    #result = np.matmul(result, vert_coord)
+                    xyz = np.append(xyz, 1.0)
+                    xyz = np.matmul(result, xyz)
+                    text+= 'sphere                                                             \n'
+                    text+= '{                                                                  \n'
+                    text+= '    <      {},    {},     {}>       {}  \n'.format(xyz[0], xyz[1], xyz[2], atom.vdw_rad*0.3)
+                    text+= '    texture { finish { Dull } }                                    \n'
+                    text+= '    pigment { '+'rgb<     {},      {},      {}'.format(vobj.colors[i][0], vobj.colors[i][1],vobj.colors[i][2])+'> }  \n'
+                    text+= '}                                                                  \n'
+        
+                for bond in vobj.bonds:
+                    xyz_i = bond.atom_i.coords(frame = 0)
+                    xyz_j = bond.atom_j.coords(frame = 0)
+                    
+                    text+= 'cylinder                                                          \n'
+                    text+= '{                                                                 \n'
+                    text+= '    <      {},      {},     {}>,               \n'.format(xyz_i[0], xyz_i[1], xyz_i[2])
+                    text+= '    <      {},      {},     {}>                \n'.format(xyz_j[0], xyz_j[1], xyz_j[2])
+                    text+= '          0.20                                                \n'
+                    text+= '    texture { finish { Dull } }                                   \n'
+                    text+= '    pigment { rgb<      0.193545,      0.193545,      0.193545> } \n'
+                    text+= '}                                                                 \n'
+        text+= '}                                                                 \n'
+        text+='object {molecule}'
+        pov_file.write(text)
+        
+        width  = self.vm_session.vm_glcore.width 
+        height = self.vm_session.vm_glcore.height
+        
+        os.system('povray +A0.1 -UV +W{} +H{} +Itemp.pov +Otemp2.png'.format(width, height))
+        print('povray +A0.1 -UV +W{} +H{} +Itemp.pov +Otemp2.png'.format(width, height))
+        #'''
+ 
 
     def on_delete_event(self, widget, event):
         if self.p_session.changed:

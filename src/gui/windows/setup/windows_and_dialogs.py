@@ -1588,7 +1588,7 @@ class SetupORCAWindow:
         This is a dictionary that stores combobox 
         information in case you need to regenerate the window.
         '''
-
+        self.random_scratch = False
         self.comboboxes = {}
 
 
@@ -1715,7 +1715,7 @@ class SetupORCAWindow:
             self.orca_basis_set_combo.connect('changed', self.refresh_orca_parameters)
 
 
-
+            self.checkbox_ranbom_scratch = self.builder.get_object('checkbox_ranbom_scratch') 
 
             self.button_ok         = self.builder.get_object('orca_button_ok ') 
             self.button_cancel     = self.builder.get_object('orca_button_cancel ') 
@@ -1794,9 +1794,14 @@ class SetupORCAWindow:
         #print('on_button_ok')
         textbuffer = self.builder.get_object('textview_orca').get_buffer ()
         text = textbuffer.get_text (textbuffer.get_start_iter(), textbuffer.get_end_iter(), True)
-        print (text)
+        
         self.setup_QC_model_window.orca_options = text
         self.setup_QC_model_window.orca_scratch = self.builder.get_object('entry_orca_scratch_folder').get_text()
+        
+        self.setup_QC_model_window.orca_random_scratch = self.builder.get_object('checkbox_orca_random_scratch').get_active()
+        
+        print (text)
+        print ('checkbox_random_scratch', self.setup_QC_model_window.orca_random_scratch, self.builder.get_object('checkbox_orca_random_scratch').get_active())
         self.CloseWindow (None)
     
     def on_button_ok2 (self, button):
@@ -1907,7 +1912,8 @@ class EasyHybridSetupQCModelWindow:
         self.setup_dftb_window = SetupDFTBplusWindow(self.main_session, self)
         self.orca_options = ''
         self.orca_scratch = ''
-    
+        self.orca_random_scratch = False
+        
     def refresh (self, option = 'all'):
         """ Function doc """
         self.update_number_of_qc_atoms()
@@ -2112,6 +2118,8 @@ class EasyHybridSetupQCModelWindow:
         if self.method_id == 5:
             parameters['orca_options'  ] = self.orca_options
             parameters['orca_scratch'  ] = self.orca_scratch
+            parameters['random_scratch'  ]   = self.orca_random_scratch
+            #print('random_scratch QQQ', parameters['random_scratch'  ])
         elif self.method_id == 6:
             #parameters['dftb+_scratch'  ] = os.environ.get('PDYNAMO3_SCRATCH')
             #parameters['skf_path'  ]      = os.path.join(os.environ.get('PDYNAMO3_HOME'),'examples/dftbPlus/data/skf')

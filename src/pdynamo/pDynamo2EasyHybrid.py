@@ -2137,11 +2137,12 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         
         if parameters['method'] == 'ab initio - ORCA':
+            print(parameters)
             qcModel = QCModelORCA.WithOptions ( keywords       = [parameters['orca_options']], 
                                                 deleteJobFiles = False,
                                                 scratch        = parameters['orca_scratch'  ],
                                                  )
-        
+            qcModel.randomScratch = parameters['random_scratch']
         elif parameters['method'] == 'DFTB+':
             #print(parameters)
             qcModel = QCModelDFTB.WithOptions ( deleteJobFiles = parameters['delete_job_files'],
@@ -2343,6 +2344,16 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             self.psystem[self.active_id].nbModel = None
             #self.psystem[self.active_id].Summary ( )
         return True
+    
+    def remove_PES_data (self, system = False ):
+        """ Function doc """
+        if system:
+            system.e_logfile_data             = {}
+        else:
+            self.psystem[self.active_id].e_logfile_data             = {}        
+        
+        msg = 'Log data has been removed.'
+        return msg
 
     def define_NBModel (self, _type = 1 , parameters =  None, system = None):
         """ Function doc """

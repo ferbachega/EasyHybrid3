@@ -1324,10 +1324,13 @@ button position in the main treeview (active column).""".format(name,self.main.p
         assert frame >= 0
         self.frame = np.uint32(frame)
         self.vm_glcore.updated_coords = True
-        self.vm_widget.queue_draw()
         
         if self.picking_selection_mode:
+            self.picking_selections.update_pki_pkj_rep_coordinates()
             self.picking_selections.print_pk_distances()    
+        
+        self.vm_widget.queue_draw()
+
         '''
         for vobj_id, vobject in self.vm_objects_dic.items():
             for index, atom in vobject.atoms.items():

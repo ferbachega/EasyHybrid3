@@ -571,11 +571,14 @@ class ImagePlot(Canvas):
         cr.fill()
     
     def draw_smooth_square (self, cr = None, square = None, colors = None):
-        """ Function doc """
-        x0 , y0 = square[0]
-        x05, y0 = square[1]
-        x05,y05 = square[2]
-        x0 ,y05 = square[3]
+        """ Function doc 
+        
+        
+        """
+        x0 , y0 = square[0] # is tuple of two coordinates
+        x05, y0 = square[1] # is tuple of two coordinates
+        x05,y05 = square[2] # is tuple of two coordinates
+        x0 ,y05 = square[3] # is tuple of two coordinates
         
         pattern = cairo.MeshPattern()
         # Começa a definição do patch de padrão de malha
@@ -682,8 +685,6 @@ class ImagePlot(Canvas):
                     E_x0_y1 = (data[i-1][j+1]+ data[i-1][j]+ data[i][j+1] +  data[i][j])/4
                     C_x0_y1 = get_color(E_x0_y1, self.color_map)
                     
-                    #                    E_x05_y1 = (data[i][j+1] + data[i-1][j+1] +data[i+1][j+1] +  data[i][j])/4
-
                     E_x05_y1 = (data[i][j+1] +  data[i][j])/2
                     C_x05_y1 = get_color(E_x05_y1, self.color_map)
                     
@@ -700,6 +701,10 @@ class ImagePlot(Canvas):
                     E_x1_y1 = (data[i+1][j+1] +data[i][j+1] +data[i+1][j] +  data[i ][j ])/4
                     C_x1_y1 = get_color(E_x1_y1, self.color_map)
                     #C_x1_y1 = [0 ,0 ,0]
+                    
+                    
+                    
+                    '''each square is actually 4 squares that will be drawn next.'''
                     #---------------------------------------------------
                     square = [(x0 , y0),   # 
                               (x05, y0),   #  o------o------o
