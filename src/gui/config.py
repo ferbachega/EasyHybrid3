@@ -84,7 +84,7 @@ class VismolConfig                       :
         #                                   "picking_dots"}
         self.representations_available = {"dots", "lines", "nonbonded", "impostor",'dash', #"cartoon",
                                           "sticks", "spheres", 'ribbons', 'dynamic','vdw_spheres', 
-                                          'picking_spheres','static_freetype'}
+                                          'picking_spheres','static_freetype', 'surface'}
     
     
     def save_easyhybrid_config(self)                       :
