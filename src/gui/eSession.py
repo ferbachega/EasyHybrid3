@@ -1105,6 +1105,8 @@ class EasyHybridSession(VismolSession, GLMenu):
         
         if show_molecule:
             vismol_object.create_representation(rep_type="lines")
+            #vismol_object.create_representation(rep_type="surface")
+            
             #vismol_object.create_representation(rep_type="dash")
             #vismol_object.create_representation(rep_type="sticks")
 
