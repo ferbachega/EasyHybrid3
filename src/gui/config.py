@@ -71,8 +71,8 @@ class VismolConfig                       :
                               "light_specular_color"       : [1.0, 1.0, 1.0],
                               "center_on_coord_sleep_time" : 0.01,
                               "gridsize"                   : 0.8,
-                              "maxbond"                    : 2.4,
-                              "bond_tolerance"             : 1.8,
+                              "maxbond"                    : 2.6,
+                              "bond_tolerance"             : 1.4,
                               "picking_dots_color"         : [0.0, 1.0, 1.0],
                               "picking_dots_safe"          : True,
                               }
@@ -83,7 +83,8 @@ class VismolConfig                       :
         #                                   "surface", "cartoon", "freetype",
         #                                   "picking_dots"}
         self.representations_available = {"dots", "lines", "nonbonded", "impostor",'dash', #"cartoon",
-                                          "sticks", "spheres", 'ribbons', 'dynamic','vdw_spheres', 
+                                          "sticks", "spheres", 'ribbons',#'ribbon_sphere', 
+                                          'dynamic','vdw_spheres', 
                                           'picking_spheres','static_freetype', 'surface'}
     
     

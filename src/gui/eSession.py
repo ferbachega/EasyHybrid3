@@ -285,12 +285,14 @@ class GLMenu:
                 """ Function doc """
                ##print('dynamic_test')
                 self.show_or_hide( rep_type = 'ribbons', show = True)
-            
+                self.show_or_hide( rep_type = 'ribbon_sphere', show = True)
+                print('ribbon_sphere')
             def menu_hide_ribbons (_):
                 """ Function doc """
                ##print('dynamic_test')
                 self.show_or_hide( rep_type = 'ribbons', show = False)
-            
+                self.show_or_hide( rep_type = 'ribbon_sphere', show = False)
+
             def select_test (_):
                 """ Function doc """
                 self.select(indexes = 'all')
@@ -315,6 +317,7 @@ class GLMenu:
             def menu_show_sticks (_):
                 """ Function doc """
                 self.show_or_hide( rep_type = 'sticks', show = True)
+                self.show_or_hide( rep_type = 'stick_spheres', show = True)
                 #self.show_or_hide( rep_type = 'dash', show = True)
             
             def menu_show_nonbonded (_):
@@ -328,6 +331,7 @@ class GLMenu:
             def menu_hide_sticks (_):
                 """ Function doc """
                 self.show_or_hide( rep_type = 'sticks', show = False)
+                self.show_or_hide( rep_type = 'stick_spheres', show = False)
 
             def menu_show_spheres (_):
                 """ Function doc """

@@ -1756,6 +1756,17 @@ class UmbrellaSampling:
             os.mkdir(full_path_trajectory_dc)
         parameters['trajectory_path_dc'] = full_path_trajectory_dc
         #----------------------------------------------------------------------------------------
+        
+        
+        #----------------------------------------------------------------------------------------
+        full_path_trajectory_dc = os.path.join(parameters['folder'], parameters['traj_folder_name'], 'data_collection_traj')
+        isExist = os.path.exists(full_path_trajectory_dc)
+        if isExist:
+            pass
+        else:
+            os.mkdir(full_path_trajectory_dc)
+        parameters['trajectory_path_dc_traj'] = full_path_trajectory_dc
+        #----------------------------------------------------------------------------------------
 
         pprint (parameters)
         
@@ -2442,45 +2453,68 @@ def _us_molecular_dynamics (system, parameters, path_trajectory, mode = 0, i = N
         else:
             full_path_trajectory = os.path.join(path_trajectory, 'window{:d}_{:d}.ptGeo'.format ( i, j ))
         parameters['steps']  = parameters['steps_eq'] 
+        
+        
+        trajectory = ExportTrajectory(full_path_trajectory,  system , log=None )
+        trajectories = [(trajectory, parameters['trajectory_frequency'])]
     #-----------------------------------------------------------------------------------------------------
-    
+        
     
     
     
     #-----------------------------------------------------------------------------------------------------
     # . Data Collection
     elif mode == 1:
+        
         if j == None:
             full_path_trajectory = os.path.join(path_trajectory, 'window{:d}.ptRes'.format ( i ))
         else:
             full_path_trajectory = os.path.join(path_trajectory, 'window{:d}_{:d}.ptRes'.format ( i, j ))
         parameters['steps']  = parameters['steps_dc']
+        
+        path_trajectory2 =  path_trajectory + '_traj'
+        if j == None:
+            full_path_trajectory2 = os.path.join(path_trajectory2, 'window{:d}.ptGeo'.format ( i ))
+        else:
+            full_path_trajectory2 = os.path.join(path_trajectory2, 'window{:d}_{:d}.ptGeo'.format ( i, j ))
+        #parameters['steps']  = parameters['steps_dc']
+        
+        
+        trajectory1 = ExportTrajectory(full_path_trajectory,   system , log=None )
+        trajectory2 = ExportTrajectory(full_path_trajectory2,  system , log=None )
+        trajectories = [(trajectory1, parameters['trajectory_frequency_dc_ptRes']),
+                        (trajectory2, parameters['trajectory_frequency_dc_ptGeo'])]
+    
+    
     #-----------------------------------------------------------------------------------------------------
     else:
         pass
     
     
     #trajectoy instances
-    trajectory = ExportTrajectory(full_path_trajectory,  system , log=None )
+    #trajectory = ExportTrajectory(full_path_trajectory,  system , log=None )
     
     
     
     
         
     if parameters['integrator'] == 'Verlet':
-        _us_velocity_verlet_dynamics(system, trajectory, parameters)
+        #_us_velocity_verlet_dynamics(system, trajectory, parameters)
+        _us_velocity_verlet_dynamics(system, trajectories, parameters)
     
     elif parameters['integrator'] == 'LeapFrog':
-        _us_leap_frog_dynamics (system, trajectory, parameters)
+        #_us_leap_frog_dynamics (system, trajectory, parameters)
+        _us_leap_frog_dynamics (system, trajectories, parameters)
     
     elif parameters['integrator'] == 'Langevin':
-        _us_langevin_dynamics (system, trajectory, parameters)
+        #_us_langevin_dynamics (system, trajectory, parameters)
+        _us_langevin_dynamics (system, trajectories, parameters)
     
     else:
         pass
         
         
-def _us_leap_frog_dynamics (system, trajectory, parameters ):
+def _us_leap_frog_dynamics (system, trajectories, parameters ):
     """ Function doc """
     if parameters['pressureControl']:
         LeapFrogDynamics_SystemGeometry ( parameters['system']                       ,
@@ -2494,7 +2528,7 @@ def _us_leap_frog_dynamics (system, trajectory, parameters ):
                                           temperatureControl     = parameters['temperatureControl'],
                                           temperatureCoupling    = parameters['temperatureCoupling'],
                                           timeStep               = parameters['timeStep'],
-                                          trajectories           = [(trajectory, parameters['trajectory_frequency'])],
+                                          trajectories           = trajectories, #[(trajectory, parameters['trajectory_frequency'])],
                                           )
                     
 
@@ -2507,12 +2541,12 @@ def _us_leap_frog_dynamics (system, trajectory, parameters ):
                                           temperatureControl     =  parameters['temperatureControl'] ,
                                           temperatureCoupling    =  parameters['temperatureCoupling'] ,
                                           timeStep               =  parameters['timeStep'] ,
-                                          trajectories           = [(trajectory,  parameters['trajectory_frequency'])]
+                                          trajectories           = trajectories,#[(trajectory,  parameters['trajectory_frequency'])]
                                           
                                           )
                                           
 
-def _us_velocity_verlet_dynamics (system, trajectory, parameters):
+def _us_velocity_verlet_dynamics (system, trajectories, parameters):
     """ Function doc """
     # . Define a normal deviate generator in a given state.
     #normalDeviateGenerator = NormalDeviateGenerator.WithRandomNumberGenerator ( RandomNumberGenerator.WithSeed ( parameters['seed'] ) )        
@@ -2525,7 +2559,7 @@ def _us_velocity_verlet_dynamics (system, trajectory, parameters):
                                             temperatureScaleFrequency = parameters['temperatureScaleFrequency']     ,
                                             temperatureScaleOption    = "constant"                                  ,
                                             temperatureStart          = parameters['temperatureStart']              ,
-                                            trajectories              = [(trajectory, parameters['trajectory_frequency'])],
+                                            trajectories              = trajectories,#[(trajectory, parameters['trajectory_frequency'])],
                                             #log                       = self.logFile2
                                             )
 
@@ -2542,7 +2576,7 @@ def _us_langevin_dynamics (system, trajectory, parameters):
                                       steps                  = parameters['steps']                                    ,
                                       temperature            = parameters['temperatureStart']                         ,
                                       timeStep               = parameters['timeStep']                                 ,
-                                      trajectories           = [(trajectory, parameters['trajectory_frequency'])] #, (traj2, int)],
+                                      trajectories           = trajectories, #[(trajectory, parameters['trajectory_frequency'])] #, (traj2, int)],
                                       #log                    = self.logFile2
                                       )
 

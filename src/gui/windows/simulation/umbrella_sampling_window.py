@@ -618,6 +618,8 @@ class UmbrellaSamplingWindow(Gtk.Window):
                     'timeStep'                  : time_step               ,
                     #'trajectories'              : None                    ,
                     'trajectory_frequency'      : int(self.builder.get_object('entry_traj_frequency').get_text()), 
+                    'trajectory_frequency_dc_ptRes'   : int(self.builder.get_object('entry_traj_frequency_dc1').get_text()), 
+                    'trajectory_frequency_dc_ptGeo'   : int(self.builder.get_object('entry_traj_frequency_dc2').get_text()), 
                     
                     #VelocityVerletDynamics
                     'temperatureScaleFrequency' : temp_scale_factor                ,

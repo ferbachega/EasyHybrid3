@@ -2780,9 +2780,11 @@ class Atom:
         self.nonbonded      = False
         self.impostor       = False
         self.ribbons        = False
+        self.ribbon_sphere  = False
         self.dynamic        = False
         self.ball_and_stick = False
         self.sticks         = False
+        self.stick_spheres  = False
         self.spheres        = False
         self.vdw_spheres    = False
         self.dash           = False

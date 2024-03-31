@@ -63,6 +63,7 @@ class VismolSelectionTypeBox(Gtk.Box):
                 'residue' ,
                 'chain'   , 
                 'molecule',
+                'c-alpha' ,
                 'solvent' ,
                 #'protein' , 
                 #'C alpha' ,
@@ -162,6 +163,9 @@ class VismolSelectionTypeBox(Gtk.Box):
             #self.show_or_hide_entries (name = 'element', show = False)
         
         elif self.active == 4:
+            self.vm_session.viewing_selection_mode(sel_type = 'c-alpha')
+        
+        elif self.active == 5:
             self.vm_session.viewing_selection_mode(sel_type = 'solvent')
             #self.show_or_hide_entries (name = 'atom_names', show = False)
             #self.show_or_hide_entries (name = 'element', show = False)
