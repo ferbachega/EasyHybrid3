@@ -12,7 +12,7 @@ import time
 from util.geometric_analysis            import get_distance 
 from util.geometric_analysis            import get_dihedral 
 from util.geometric_analysis            import get_angle 
-from util.periodic_table import atomic_dic 
+#from util.periodic_table import atomic_dic 
 
 from util.sequence_plot import GtkSequenceViewer
 
@@ -902,14 +902,19 @@ def compute_sigma_a1_a3 (vobject, index1, index3):
          where H is the moving atom
          calculation only includes N and O ! 
     """
+    periodic_table = vobject.vm_session.periodic_table
+    
     atom1 = vobject.atoms[index1]
     atom3 = vobject.atoms[index3]
     
     symbol1 = atom1.symbol
     symbol3 = atom3.symbol    
     
-    mass1 = atomic_dic[symbol1][4]
-    mass3 = atomic_dic[symbol3][4]
+    #mass1 = atomic_dic[symbol1][4]
+    #mass3 = atomic_dic[symbol3][4]
+    mass1 = periodic_table.get_atomic_mass(symbol1)
+    mass3 = periodic_table.get_atomic_mass(symbol3)
+    
     print(atom1.name, symbol1, mass1)
     print(atom3.name, symbol3, mass3)
 

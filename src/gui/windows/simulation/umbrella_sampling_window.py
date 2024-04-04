@@ -39,7 +39,7 @@ from util.geometric_analysis            import get_distance
 
 #from gui.windows.PES_scan_window            import texto_d1 
 #from gui.windows.PES_scan_window            import texto_d2d1 
-from util.periodic_table import atomic_dic 
+#from util.periodic_table import atomic_dic 
 from pprint import pprint
 
 HOME        = os.environ.get('HOME')

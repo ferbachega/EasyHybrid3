@@ -63,11 +63,10 @@ from pSimulation               import*
 
 
 import numpy as np
-from vismol.model.molecular_properties import ATOM_TYPES
+#from vismol.model.molecular_properties import ATOM_TYPES
 from vismol.libgl.representations import DashedLinesRepresentation
 
-#from vismol.model.molecular_properties import COLOR_PALETTE
-from util.colorpalette import COLOR_PALETTE
+from util.colorpalette import CUSTOM_COLOR_PALETTE
 
 from pdynamo.p_methods import GeometryOptimization
 from pdynamo.p_methods import RelaxedSurfaceScan
@@ -1307,18 +1306,20 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         #                                  COLORS
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         if color is not None:
-            system.e_color_palette            = COLOR_PALETTE[0].copy() 
-            system.e_color_palette['C']       = color
+            system.e_color_palette            = self.vm_session.periodic_table.get_color_palette(custom = {"C":color}) #COLOR_PALETTE[0].copy() 
+            #system.e_color_palette['C']       = color
         #'''
         else:
             e_color_palette = getattr(system, 'e_color_palette', None)
             if type(e_color_palette) == dict:
                 pass
             else:
-                system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter].copy() 
+                #system.e_color_palette            = COLOR_PALETTE[self.color_palette_counter].copy() 
+                custom = CUSTOM_COLOR_PALETTE[self.color_palette_counter].copy() 
+                system.e_color_palette            = self.vm_session.periodic_table.get_color_palette(custom = custom) 
                 #When the number of available colors runs out, we have to reset the counter 
                 self.color_palette_counter        += 1
-                if self.color_palette_counter > len(COLOR_PALETTE.keys())-1:
+                if self.color_palette_counter > len(CUSTOM_COLOR_PALETTE.keys())-1:
                     self.color_palette_counter = 0
                 else:
                     pass
@@ -2722,12 +2723,14 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 class Atom:
     """ Class doc """
     
-    def __init__(self, vismol_object=None, name="Xx", index=None, residue=None,
+    def __init__(self, vismol_object, name="Xx", index=None, residue=None,
                  chain=None, pos=None, symbol=None, atom_id=None, color=None,
                  vdw_rad=None, cov_rad=None, ball_rad=None,
                  occupancy=0.0, bfactor=0.0, charge=0.0, bonds_indexes=None):
         """ Class initializer """
-        self.vm_object = vismol_object
+        self.vm_object   = vismol_object
+        self.vm_session  = vismol_object.vm_session
+        
         
         self.name     = name
         self.index    = index   # - Remember that the "index" attribute refers to the numbering of atoms (it is not a zero base, it starts at 1 for the first atom)
@@ -2796,6 +2799,8 @@ class Atom:
         
     def _get_symbol(self):
         """ Function doc """
+        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
+        
         name = self.name.strip()
         if name == "":
             return ""
@@ -2924,6 +2929,7 @@ class Atom:
         return np.array(color, dtype=np.float32)
     
     def _generate_atom_unique_color_id(self):
+        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
         """ Function doc """
         r = (self.unique_id & 0x000000FF) >> 0
         g = (self.unique_id & 0x0000FF00) >> 8
@@ -2933,6 +2939,7 @@ class Atom:
     
     def _init_vdw_rad(self):
         """ Function doc """
+        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
         try:
             vdw = ATOM_TYPES[self.name][6]
         except KeyError:
@@ -2941,6 +2948,7 @@ class Atom:
     
     def _init_cov_rad(self):
         """ Function doc """
+        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
         try:
             cov = ATOM_TYPES[self.name][5]
         except KeyError:
@@ -2949,6 +2957,7 @@ class Atom:
     
     def _init_ball_rad(self):
         """ Function doc """
+        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
         try:
             ball = ATOM_TYPES[self.name][6]
         except KeyError:
@@ -2992,6 +3001,7 @@ class Atom:
             index. If the atomname does not match any of the names
             given, it returns the default dummy value of atom X.
         """
+        
         try:
             color = color =self.vm_object.color_palette[name]
             #color = ATOM_TYPES[name][1]
@@ -3025,6 +3035,7 @@ class Atom:
     def init_radius(self, name):
         """
         """
+        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
         try:
             rad = ATOM_TYPES[name][6]/5.0
         except KeyError:

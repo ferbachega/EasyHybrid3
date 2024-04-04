@@ -55,6 +55,7 @@ from gui.windows.setup.windows_and_dialogs import SimpleDialog
 
 from gui.windows.setup.easyhybrid_terminal    import TerminalWindow
 from gui.windows.setup.selection_list_window  import *
+from gui.windows.setup.setup_interface        import EasyHybridPreferencesWindow
 
 from gui.windows.simulation.single_point_window          import SinglePointWindow
 from gui.windows.simulation.geometry_optimization_window import GeometryOptimization
@@ -338,6 +339,7 @@ class MainWindow:
 
         self.merge_system_window = MergeSystemWindow(main = self)
         self.solvate_system_window = SolvateSystemWindow(main = self)
+        self.preferences_window = EasyHybridPreferencesWindow(main = self)
 
         self.make_solvent_box_window = MakeSolventBoxWindow(main = self)
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
@@ -515,11 +517,12 @@ class MainWindow:
             self.go_to_atom_window.OpenWindow()
         
         elif menuitem == self.builder.get_object('menuitem_preferences'):
+            self.preferences_window.OpenWindow()
             #print(menuitem, 'menuitem_preferences', self.vm_session.vm_glcore.bckgrnd_color)
             #self.vm_session.vm_glcore.bckgrnd_color = [1,1,1,1]
             #print(menuitem, 'menuitem_preferences', self.vm_session.vm_glcore.bckgrnd_color)
             #self.vm_session.vm_config.gl_parameters["line_width"] =20
-            self.vm_session.vm_glcore.light_position = [0, 10, 100.0]
+            #self.vm_session.vm_glcore.light_position = [0, 10, 100.0]
         #----------------------------------------------------------------------
         
         
