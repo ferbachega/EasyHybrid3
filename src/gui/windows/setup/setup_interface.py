@@ -84,7 +84,8 @@ class EasyHybridPreferencesWindow():
             self.window.set_default_size(600, 600)  
             self.window.set_title('Preferences')  
             self.window.set_keep_above(True)
-            
+            self.window.connect('destroy-event', self.CloseWindow)
+
             
             self.elements_gtk_scrolled = self.builder.get_object('elements_gtk_scrolled')
             self.built_element_treeview()
@@ -99,7 +100,8 @@ class EasyHybridPreferencesWindow():
             
             #-------------------------------------------------------------------------------------
             #     viewing colors
-            rgba = Gdk.RGBA(0, 1, 1)
+            color = self.vm_session.vm_config.gl_parameters["picking_dots_color"]
+            rgba = Gdk.RGBA(color[0], color[1], color[2])
             self.colorbutton_viewing_selections = self.builder.get_object('color_btn_view_sel_dots')
             self.colorbutton_viewing_selections.set_rgba(rgba)
             self.colorbutton_viewing_selections.connect('color-set', self.color_set_viewing_selections)
@@ -112,29 +114,52 @@ class EasyHybridPreferencesWindow():
             #     picking selections
             #bgcolor = self.vm_session.vm_config.gl_parameters["background_color"]
             #rgba = Gdk.RGBA(bgcolor[0], bgcolor[1], bgcolor[2])
+            color = self.vm_session.vm_config.gl_parameters["pk_label_color"]
+            rgba = Gdk.RGBA(color[0], color[1], color[2])
             self.color_btn_picking_labels  = self.builder.get_object('color_btn_pk_label')
+            self.color_btn_picking_labels.set_rgba(rgba)
             self.color_btn_picking_labels.connect('color-set', self.color_set_viewing_selections)
 
+
+            color = self.vm_session.vm_config.gl_parameters["pk_dist_label_color"]
+            rgba = Gdk.RGBA(color[0], color[1], color[2])
             self.color_btn_pk_dist_label     = self.builder.get_object('color_btn_pk_dist_label')
             self.color_btn_pk_dist_label.connect('color-set', self.color_set_viewing_selections)
+            self.color_btn_pk_dist_label.set_rgba(rgba)
 
+            color = self.vm_session.vm_config.gl_parameters["dashed_dist_lines_color"]
+            rgba = Gdk.RGBA(color[0], color[1], color[2])
             self.color_btn_pk_dist_lines     = self.builder.get_object('color_btn_pk_dist_lines')
             self.color_btn_pk_dist_lines.connect('color-set', self.color_set_viewing_selections)
+            self.color_btn_pk_dist_lines.set_rgba(rgba)
             #-------------------------------------------------------------------------------------
             
             
             #-------------------------------------------------------------------------------------
+            color =  self.vm_session.picking_selections.pk_scolor['pk1']
+            rgba = Gdk.RGBA(color[0], color[1], color[2])
             self.color_button_pk1_sphr = self.builder.get_object('color_btn_pk_sphr_1')
             self.color_button_pk1_sphr.connect('color-set', self.color_set_viewing_selections)
+            self.color_button_pk1_sphr.set_rgba(rgba)
 
+            color =  self.vm_session.picking_selections.pk_scolor['pk2']
+            rgba = Gdk.RGBA(color[0], color[1], color[2])
             self.color_button_pk2_sphr = self.builder.get_object('color_btn_pk_sphr_2')
             self.color_button_pk2_sphr.connect('color-set', self.color_set_viewing_selections)
+            self.color_button_pk2_sphr.set_rgba(rgba)
 
+            color =  self.vm_session.picking_selections.pk_scolor['pk3']
+            rgba = Gdk.RGBA(color[0], color[1], color[2])
             self.color_button_pk3_sphr = self.builder.get_object('color_btn_pk_sphr_3')
             self.color_button_pk3_sphr.connect('color-set', self.color_set_viewing_selections)
+            self.color_button_pk3_sphr.set_rgba(rgba)
 
+            color =  self.vm_session.picking_selections.pk_scolor['pk4']
+            rgba = Gdk.RGBA(color[0], color[1], color[2])
             self.color_button_pk4_sphr = self.builder.get_object('color_btn_pk_sphr_4')
             self.color_button_pk4_sphr.connect('color-set', self.color_set_viewing_selections)
+            self.color_button_pk4_sphr.set_rgba(rgba)
+
             #-------------------------------------------------------------------------------------
             
             
@@ -150,7 +175,8 @@ class EasyHybridPreferencesWindow():
         #self.BackUpWindowData()
         self.window.destroy()
         self.visible    =  False
-        #print('self.visible',self.visible)
+        print('self.visible',self.visible)
+    
     def get_color_pixbuf(self, rgb_values):
         rgb = rgb_values
         
