@@ -56,8 +56,8 @@ def get_colorful_square_pixel_buffer (system = None,  atomic_symbol = 'C'):
 def getColouredPixmap( r, g, b, a=255 ):
     """ Given components, return a colour swatch pixmap """
     CHANNEL_BITS=8
-    WIDTH=10
-    HEIGHT=10
+    WIDTH= 20
+    HEIGHT=20
     swatch = GdkPixbuf.Pixbuf.new( GdkPixbuf.Colorspace.RGB, True, CHANNEL_BITS, WIDTH, HEIGHT ) 
     swatch.fill( (r<<24) | (g<<16) | (b<<8) | a ) # RGBA
     return swatch
@@ -198,43 +198,70 @@ class EasyHybridPreferencesWindow():
         self.treeview = Gtk.TreeView()
 
         # Criando as colunas
-        self.numero_atomico_column = Gtk.TreeViewColumn("Número Atômico")
-        self.simbolo_column = Gtk.TreeViewColumn("Símbolo")
-        self.cor_column = Gtk.TreeViewColumn("Cor")
+        self.numero_atomico_column = Gtk.TreeViewColumn("Number")
+        self.simbolo_column = Gtk.TreeViewColumn("symbol")
+        self.cor_column = Gtk.TreeViewColumn("Color")
+        self.mass_column = Gtk.TreeViewColumn("Mass")
+        self.rcov_column = Gtk.TreeViewColumn("r (cov)")
+        self.rvdw_column = Gtk.TreeViewColumn("r (vdw)")
 
         # Adicionando as colunas à TreeView
         self.treeview.append_column(self.numero_atomico_column)
         self.treeview.append_column(self.simbolo_column)
         self.treeview.append_column(self.cor_column)
+        self.treeview.append_column(self.mass_column)
+        self.treeview.append_column(self.rcov_column)
+        self.treeview.append_column(self.rvdw_column)
+
 
         # Criando os CellRenderers para exibir os dados nas colunas
         self.numero_atomico_cell = Gtk.CellRendererText()
         self.simbolo_cell = Gtk.CellRendererText()
         self.cor_cell = Gtk.CellRendererPixbuf()
 
+        self.mass_cell = Gtk.CellRendererText()
+        self.rcov_cell = Gtk.CellRendererText()
+        self.rvdw_cell = Gtk.CellRendererText()
+
         # Adicionando os CellRenderers às colunas
         self.numero_atomico_column.pack_start(self.numero_atomico_cell, True)
         self.simbolo_column.pack_start(self.simbolo_cell, True)
         self.cor_column.pack_start(self.cor_cell, True)
+
+        self.mass_column.pack_start(self.mass_cell, True)
+        self.rcov_column.pack_start(self.rcov_cell, True)
+        self.rvdw_column.pack_start(self.rvdw_cell, True)
 
         # Definindo os atributos dos CellRenderers para exibir os dados corretos
         self.numero_atomico_column.add_attribute(self.numero_atomico_cell, "text", 0)
         self.simbolo_column.add_attribute(self.simbolo_cell, "text", 1)
         self.cor_column.set_cell_data_func(self.cor_cell, self.render_color_square, None)
 
+
+        self.mass_column.add_attribute(self.mass_cell, "text", 3)
+        self.rcov_column.add_attribute(self.rcov_cell, "text", 4)
+        self.rvdw_column.add_attribute(self.rvdw_cell, "text", 5)
+
+
         # Criando um modelo para os dados
-        self.liststore = Gtk.ListStore(int, str, GdkPixbuf.Pixbuf)
+        self.liststore = Gtk.ListStore(int, str, GdkPixbuf.Pixbuf, str, str, str, str)
         
         # Preenchendo o modelo com os dados dos átomos
         for symbol, data in self.vm_session.periodic_table.elements_by_symbol.items():
             numero_atomico = data[0]
             cor = self.get_color_pixbuf(data[2])
-            self.liststore.append([numero_atomico, symbol, cor])
-
+            mass = str(data[3])
+            rdis = str(data[4])
+            rcov = str(data[5])
+            rvdw = str(data[6])
+            name = data[1]
+            self.liststore.append([numero_atomico, symbol, cor, mass, rcov, rvdw, name])
+        
+        
         # Conectando o modelo à TreeView
         self.treeview.set_model(self.liststore)
+        #self.treeview.set_tooltip_cell(Gtk.Tooltip(), None, self.simbolo_cell, None, 1)
         self.elements_gtk_scrolled.add(self.treeview)
-
 
 
     def color_set_viewing_selections (self, widget):
