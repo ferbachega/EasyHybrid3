@@ -79,7 +79,10 @@ class VismolConfig                       :
                               "pk_label_color"             : [1.0, 1.0, 1.0, 1.0],
                               "pk_dist_label_color"        : [1.0, 1.0, 1.0, 1.0],
                               "dashed_dist_lines_color"    : [0.1, 0.1, 0.1, 1.0],
-
+                              
+                              #"pk_label_size"              : [1.0, 1.0, 1.0, 1.0],
+                              
+                              
                               }
                               
         self.n_proc = 2

@@ -91,11 +91,13 @@ class EasyHybridPreferencesWindow():
             self.built_element_treeview()
             
             
-            #       background
-            self.colorbutton = self.builder.get_object('gtk_color_button_background')
-            bgcolor = self.vm_session.vm_config.gl_parameters["background_color"]
-            rgba = Gdk.RGBA(bgcolor[0], bgcolor[1], bgcolor[2])
-            self.colorbutton.set_rgba(rgba)
+
+            self.set_general_parameters()
+            
+            self.set_selection_parameters()
+            
+            self.set_light_parameters()
+            
             
             
             #-------------------------------------------------------------------------------------
@@ -263,7 +265,6 @@ class EasyHybridPreferencesWindow():
         #self.treeview.set_tooltip_cell(Gtk.Tooltip(), None, self.simbolo_cell, None, 1)
         self.elements_gtk_scrolled.add(self.treeview)
 
-
     def color_set_viewing_selections (self, widget):
         """ Function doc """
         color = widget.get_rgba()
@@ -325,3 +326,124 @@ class EasyHybridPreferencesWindow():
 
 
         return color
+
+    
+    def set_general_parameters (self):
+        """ Function doc """
+        #       background
+        self.colorbutton = self.builder.get_object('btn_background_color')
+        bgcolor = self.vm_session.vm_config.gl_parameters["background_color"]
+        rgba = Gdk.RGBA(bgcolor[0], bgcolor[1], bgcolor[2])
+        self.colorbutton.set_rgba(rgba)
+
+        
+        #   scroll step
+        self.entry_scroll_step = self.builder.get_object('entry_scroll_step')
+        scroll_step = self.vm_session.vm_config.gl_parameters["scroll_step"]
+        self.entry_scroll_step.set_text(str(scroll_step))
+        
+        self.entry_sleep_time_coc = self.builder.get_object('entry_sleep_time_coc')
+        sleep_time_coc = self.vm_session.vm_config.gl_parameters["center_on_coord_sleep_time"]
+        self.entry_sleep_time_coc.set_text(str(sleep_time_coc))
+        
+        
+        
+        self.entry_field_of_view = self.builder.get_object('entry_field_of_view')
+        field_of_view            = self.vm_session.vm_config.gl_parameters["field_of_view"]
+        self.entry_field_of_view.set_text(str(field_of_view))
+
+    def set_selection_parameters (self):
+        """ Function doc """
+        self.entry_view_sel_dot_size = self.builder.get_object('entry_view_sel_dot_size')
+        dot_sel_size = self.vm_session.vm_config.gl_parameters['dot_sel_size']
+        self.entry_view_sel_dot_size.set_text(str(dot_sel_size))
+        
+        
+        self.entry_pk_label_size      =  self.builder.get_object('entry_pk_label_size')
+        self.entry_pk_dist_label_size =  self.builder.get_object('entry_pk_dist_label_size')
+        self.entry_pk_dist_line_size  =  self.builder.get_object('entry_pk_dist_line_size')
+        
+        #self.entry_pk_sphr_size_1 = self.builder.get_object('entry_pk_sphr_size_1')
+        #self.entry_pk_sphr_size_2 = self.builder.get_object('entry_pk_sphr_size_2')
+        #self.entry_pk_sphr_size_3 = self.builder.get_object('entry_pk_sphr_size_3')
+        #self.entry_pk_sphr_size_4 = self.builder.get_object('entry_pk_sphr_size_4')
+        
+
+    def entry_lines_with (_):
+        """ Function doc """
+        self.entry_lines_with            =  self.builder.get_object('entry_lines_with')
+        self.entry_lines_with_selections =  self.builder.get_object('entry_lines_with_selections')
+        self.entry_lines_type            =  self.builder.get_object('entry_lines_type')
+        
+        self.entry_stick_radius           = self.builder.get_object('entry_stick_radius')         
+        self.entry_stick_type             = self.builder.get_object('entry_stick_type')          
+        self.btn_stick_unique_color       = self.builder.get_object('btn_stick_unique_color')     
+        self.checkbox_stick_unique_color  = self.builder.get_object('checkbox_stick_unique_color')
+        
+        self.entry_dbond_radius           = self.builder.get_object('entry_dbond_radius')
+        self.entry_dbond_type             = self.builder.get_object('entry_dbond_type')
+        self.btn_dbond_unique_color       = self.builder.get_object('btn_dbond_unique_color')
+        self.checkbox_dbond_unique_color  = self.builder.get_object('checkbox_dbond_unique_color')
+ 
+        self.entry_sphere_scale           = self.builder.get_object('entry_sphere_scale')
+        self.entry_sphere_quality         = self.builder.get_object('entry_sphere_quality')
+        self.entry_sphere_type            = self.builder.get_object('entry_sphere_type')
+ 
+    def set_light_parameters (self):
+        """ Function doc """
+        
+ 
+        self.entry_light_position         = self.builder.get_object('entry_light_position')
+        light_position         = self.vm_session.vm_config.gl_parameters['light_position']
+        self.entry_light_position.set_text(str(light_position))
+        
+        
+
+
+        color            = self.vm_session.vm_config.gl_parameters['light_color']
+        self.btn_light_color              = self.builder.get_object('btn_light_color')
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.btn_light_color.set_rgba(rgba)
+
+        
+        light_ambient_coef     = self.vm_session.vm_config.gl_parameters['light_ambient_coef']
+        self.btn_light_amb_coef           = self.builder.get_object('btn_light_amb_coef')
+        self.btn_light_amb_coef.set_text(str(light_ambient_coef))
+        
+        
+        self.entry_light_shiness  = self.builder.get_object('entry_light_shiness')
+        light_shininess           = self.vm_session.vm_config.gl_parameters['light_shininess']
+        self.entry_light_shiness.set_text(str(light_shininess))
+        
+        
+        self.btn_light_spec_color         = self.builder.get_object('btn_light_spec_color')
+        color = self.vm_session.vm_config.gl_parameters['light_specular_color']
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.btn_light_spec_color.set_rgba(rgba)
+        
+        
+        self.entry_light_intensity = self.builder.get_object('entry_light_intensity')
+        light_intensity        = self.vm_session.vm_config.gl_parameters['light_intensity']
+        self.entry_light_intensity.set_text(str(light_intensity))
+        
+        
+        
+    def set_bond_parameters (self):
+        """ Function doc """
+        
+        self.entry_grid_size     = self.builder.get_object('entry_grid_size')
+        self.entry_max_bond_size = self.builder.get_object('entry_max_bond_size')
+        self.entry_bond_tol      = self.builder.get_object('entry_bond_tol')
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
