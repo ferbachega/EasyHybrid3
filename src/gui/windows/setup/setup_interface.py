@@ -72,6 +72,8 @@ class EasyHybridPreferencesWindow():
         self.visible               = False        
         self.p_session             = main.p_session
         self.vm_session            = main.vm_session
+        
+        self.gl_parameters = self.vm_session.vm_config.gl_parameters
 
     def OpenWindow (self):
         """ Function doc /home/fernando/programs/VisMol/easyhybrid/gui/selection_list.glade"""
@@ -91,79 +93,30 @@ class EasyHybridPreferencesWindow():
             self.built_element_treeview()
             
             
-
+            
+            
+            #-------------------------------------------------------------------------------------
+            self.set_interface_startup_shutdown_paramters()
+            #-------------------------------------------------------------------------------------
+            
+            #-------------------------------------------------------------------------------------
             self.set_general_parameters()
             
             self.set_selection_parameters()
-            
+                        
             self.set_light_parameters()
             
+            self.set_line_parameters()
             
+            self.set_bond_parameters()
             
-            #-------------------------------------------------------------------------------------
-            #     viewing colors
-            color = self.vm_session.vm_config.gl_parameters["picking_dots_color"]
-            rgba = Gdk.RGBA(color[0], color[1], color[2])
-            self.colorbutton_viewing_selections = self.builder.get_object('color_btn_view_sel_dots')
-            self.colorbutton_viewing_selections.set_rgba(rgba)
-            self.colorbutton_viewing_selections.connect('color-set', self.color_set_viewing_selections)
-        
-            self.entry_viewing_dot_size = self.builder.get_object('entry_view_sel_dots')
-            #-------------------------------------------------------------------------------------
-
-
-            #-------------------------------------------------------------------------------------
-            #     picking selections
-            #bgcolor = self.vm_session.vm_config.gl_parameters["background_color"]
-            #rgba = Gdk.RGBA(bgcolor[0], bgcolor[1], bgcolor[2])
-            color = self.vm_session.vm_config.gl_parameters["pk_label_color"]
-            rgba = Gdk.RGBA(color[0], color[1], color[2])
-            self.color_btn_picking_labels  = self.builder.get_object('color_btn_pk_label')
-            self.color_btn_picking_labels.set_rgba(rgba)
-            self.color_btn_picking_labels.connect('color-set', self.color_set_viewing_selections)
-
-
-            color = self.vm_session.vm_config.gl_parameters["pk_dist_label_color"]
-            rgba = Gdk.RGBA(color[0], color[1], color[2])
-            self.color_btn_pk_dist_label     = self.builder.get_object('color_btn_pk_dist_label')
-            self.color_btn_pk_dist_label.connect('color-set', self.color_set_viewing_selections)
-            self.color_btn_pk_dist_label.set_rgba(rgba)
-
-            color = self.vm_session.vm_config.gl_parameters["dashed_dist_lines_color"]
-            rgba = Gdk.RGBA(color[0], color[1], color[2])
-            self.color_btn_pk_dist_lines     = self.builder.get_object('color_btn_pk_dist_lines')
-            self.color_btn_pk_dist_lines.connect('color-set', self.color_set_viewing_selections)
-            self.color_btn_pk_dist_lines.set_rgba(rgba)
+            self.set_stick_parameters()
+            
+            self.set_sphere_parameters()
             #-------------------------------------------------------------------------------------
             
-            
-            #-------------------------------------------------------------------------------------
-            color =  self.vm_session.picking_selections.pk_scolor['pk1']
-            rgba = Gdk.RGBA(color[0], color[1], color[2])
-            self.color_button_pk1_sphr = self.builder.get_object('color_btn_pk_sphr_1')
-            self.color_button_pk1_sphr.connect('color-set', self.color_set_viewing_selections)
-            self.color_button_pk1_sphr.set_rgba(rgba)
-
-            color =  self.vm_session.picking_selections.pk_scolor['pk2']
-            rgba = Gdk.RGBA(color[0], color[1], color[2])
-            self.color_button_pk2_sphr = self.builder.get_object('color_btn_pk_sphr_2')
-            self.color_button_pk2_sphr.connect('color-set', self.color_set_viewing_selections)
-            self.color_button_pk2_sphr.set_rgba(rgba)
-
-            color =  self.vm_session.picking_selections.pk_scolor['pk3']
-            rgba = Gdk.RGBA(color[0], color[1], color[2])
-            self.color_button_pk3_sphr = self.builder.get_object('color_btn_pk_sphr_3')
-            self.color_button_pk3_sphr.connect('color-set', self.color_set_viewing_selections)
-            self.color_button_pk3_sphr.set_rgba(rgba)
-
-            color =  self.vm_session.picking_selections.pk_scolor['pk4']
-            rgba = Gdk.RGBA(color[0], color[1], color[2])
-            self.color_button_pk4_sphr = self.builder.get_object('color_btn_pk_sphr_4')
-            self.color_button_pk4_sphr.connect('color-set', self.color_set_viewing_selections)
-            self.color_button_pk4_sphr.set_rgba(rgba)
-
-            #-------------------------------------------------------------------------------------
-            
+            self.btn_apply_parameters = self.builder.get_object('btn_apply_parameters')
+            self.btn_apply_parameters.connect('clicked', self.btn_apply_all_changes)
             
             self.window.show_all()                                               
             self.visible    =  True
@@ -265,8 +218,21 @@ class EasyHybridPreferencesWindow():
         #self.treeview.set_tooltip_cell(Gtk.Tooltip(), None, self.simbolo_cell, None, 1)
         self.elements_gtk_scrolled.add(self.treeview)
 
-    def color_set_viewing_selections (self, widget):
+    def btn_apply_all_changes (self, widget):
         """ Function doc """
+        self.__apply_light_parameters()
+        self.__apply_sphere_parameters()
+        self.__apply_stick_parameters()
+        self.__apply_lines_parameters() 
+        self.__apply_bond_parameters() 
+        self.__apply_viewer_selections_parameters() 
+        self.__apply_viewer_general_parameters() 
+        self.__apply_interface_general_parameters()
+    
+    def color_set_viewing_selections (self, widget):
+        """ 
+        not used anymore       
+        """
         color = widget.get_rgba()
         print("Selected color: ", list(color))
         color = list(color)
@@ -304,9 +270,7 @@ class EasyHybridPreferencesWindow():
             pass
         #-----------------------------------------------------------------------
         
-        
-        
-        
+
         #-------------------------------------------------------------------------
         #                         pk Spheres
         #-------------------------------------------------------------------------
@@ -323,10 +287,15 @@ class EasyHybridPreferencesWindow():
             self.vm_session.set_pk_sphr_selection_color(color, 4)
             pass
         #-------------------------------------------------------------------------
-
-
+        
         return color
 
+    
+    
+    
+    def set_interface_startup_shutdown_paramters (self):
+        """ Function doc """
+        pass
     
     def set_general_parameters (self):
         """ Function doc """
@@ -354,29 +323,106 @@ class EasyHybridPreferencesWindow():
 
     def set_selection_parameters (self):
         """ Function doc """
+        #-------------------------------------------------------------------------------------
+        #                          viewing colors
+        #-------------------------------------------------------------------------------------
+        color = self.vm_session.vm_config.gl_parameters["picking_dots_color"]
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.colorbutton_viewing_selections = self.builder.get_object('color_btn_view_sel_dots')
+        self.colorbutton_viewing_selections.set_rgba(rgba)   
+        
+        self.entry_viewing_dot_size = self.builder.get_object('entry_view_sel_dots')
+        #-------------------------------------------------------------------------------------
+        
+        #-------------------------------------------------------------------------------------
         self.entry_view_sel_dot_size = self.builder.get_object('entry_view_sel_dot_size')
         dot_sel_size = self.vm_session.vm_config.gl_parameters['dot_sel_size']
         self.entry_view_sel_dot_size.set_text(str(dot_sel_size))
+        #-------------------------------------------------------------------------------------
+
+        
+        #-------------------------------------------------------------------------------------
+        #                          picking selections
+        #-------------------------------------------------------------------------------------
+        color = self.vm_session.vm_config.gl_parameters["pk_label_color"]
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.color_btn_picking_labels  = self.builder.get_object('color_btn_pk_label')
+        self.color_btn_picking_labels.set_rgba(rgba)
+        #-------------------------------------------------------------------------------------
         
         
+        #-------------------------------------------------------------------------------------
+        #                    picking selections dashed list
+        #-------------------------------------------------------------------------------------
+        color = self.vm_session.vm_config.gl_parameters["pk_dist_label_color"]
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.color_btn_pk_dist_label     = self.builder.get_object('color_btn_pk_dist_label')
+        self.color_btn_pk_dist_label.set_rgba(rgba)
+        #-------------------------------------------------------------------------------------
+        color = self.vm_session.vm_config.gl_parameters["dashed_dist_lines_color"]
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.color_btn_pk_dist_lines     = self.builder.get_object('color_btn_pk_dist_lines')
+        self.color_btn_pk_dist_lines.set_rgba(rgba)
+        #-------------------------------------------------------------------------------------
+
+
+
+        #-------------------------------------------------------------------------------------
+        #                              picking spheres
+        #-------------------------------------------------------------------------------------
+        color =  self.vm_session.picking_selections.pk_scolor['pk1']
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.color_button_pk1_sphr = self.builder.get_object('color_btn_pk_sphr_1')
+        self.color_button_pk1_sphr.set_rgba(rgba)
+        #-------------------------------------------------------------------------------------
+        color =  self.vm_session.picking_selections.pk_scolor['pk2']
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.color_button_pk2_sphr = self.builder.get_object('color_btn_pk_sphr_2')
+        self.color_button_pk2_sphr.set_rgba(rgba)
+        #-------------------------------------------------------------------------------------
+        color =  self.vm_session.picking_selections.pk_scolor['pk3']
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.color_button_pk3_sphr = self.builder.get_object('color_btn_pk_sphr_3')
+        self.color_button_pk3_sphr.set_rgba(rgba)
+        #-------------------------------------------------------------------------------------
+        color =  self.vm_session.picking_selections.pk_scolor['pk4']
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.color_button_pk4_sphr = self.builder.get_object('color_btn_pk_sphr_4')
+        self.color_button_pk4_sphr.set_rgba(rgba)
+        #-------------------------------------------------------------------------------------
+        
+
+
         self.entry_pk_label_size      =  self.builder.get_object('entry_pk_label_size')
         self.entry_pk_dist_label_size =  self.builder.get_object('entry_pk_dist_label_size')
         self.entry_pk_dist_line_size  =  self.builder.get_object('entry_pk_dist_line_size')
         
-        #self.entry_pk_sphr_size_1 = self.builder.get_object('entry_pk_sphr_size_1')
-        #self.entry_pk_sphr_size_2 = self.builder.get_object('entry_pk_sphr_size_2')
-        #self.entry_pk_sphr_size_3 = self.builder.get_object('entry_pk_sphr_size_3')
-        #self.entry_pk_sphr_size_4 = self.builder.get_object('entry_pk_sphr_size_4')
-        
-
-    def entry_lines_with (_):
+    def set_line_parameters (self):
         """ Function doc """
+        gridsize             = self.vm_session.vm_config.gl_parameters['gridsize']              
+        line_width_selection = self.vm_session.vm_config.gl_parameters['line_width_selection']
+        line_type            = self.vm_session.vm_config.gl_parameters['line_type']
+        
         self.entry_lines_with            =  self.builder.get_object('entry_lines_with')
         self.entry_lines_with_selections =  self.builder.get_object('entry_lines_with_selections')
         self.entry_lines_type            =  self.builder.get_object('entry_lines_type')
+
+        self.entry_lines_with           .set_text(str(gridsize))   
+        self.entry_lines_with_selections.set_text(str(line_width_selection))   
+        self.entry_lines_type           .set_text(str(line_type))   
+    
+    def set_stick_parameters (self):
+        """ Function doc """
+        sticks_radius = self.vm_session.vm_config.gl_parameters['sticks_radius']
+        sticks_type   = self.vm_session.vm_config.gl_parameters['sticks_type']
         
-        self.entry_stick_radius           = self.builder.get_object('entry_stick_radius')         
-        self.entry_stick_type             = self.builder.get_object('entry_stick_type')          
+        self.entry_stick_radius = self.builder.get_object('entry_stick_radius')         
+        self.entry_stick_type   = self.builder.get_object('entry_stick_type')          
+        
+        self.entry_stick_radius.set_text(str(sticks_radius))
+        self.entry_stick_type  .set_text(str(sticks_type))
+        
+        
         self.btn_stick_unique_color       = self.builder.get_object('btn_stick_unique_color')     
         self.checkbox_stick_unique_color  = self.builder.get_object('checkbox_stick_unique_color')
         
@@ -384,11 +430,10 @@ class EasyHybridPreferencesWindow():
         self.entry_dbond_type             = self.builder.get_object('entry_dbond_type')
         self.btn_dbond_unique_color       = self.builder.get_object('btn_dbond_unique_color')
         self.checkbox_dbond_unique_color  = self.builder.get_object('checkbox_dbond_unique_color')
- 
-        self.entry_sphere_scale           = self.builder.get_object('entry_sphere_scale')
-        self.entry_sphere_quality         = self.builder.get_object('entry_sphere_quality')
-        self.entry_sphere_type            = self.builder.get_object('entry_sphere_type')
- 
+        
+        self.entry_dbond_radius.set_text(str(sticks_radius))
+        self.entry_dbond_type  .set_text(str(sticks_type))
+
     def set_light_parameters (self):
         """ Function doc """
         
@@ -398,8 +443,6 @@ class EasyHybridPreferencesWindow():
         self.entry_light_position.set_text(str(light_position))
         
         
-
-
         color            = self.vm_session.vm_config.gl_parameters['light_color']
         self.btn_light_color              = self.builder.get_object('btn_light_color')
         rgba = Gdk.RGBA(color[0], color[1], color[2])
@@ -407,8 +450,8 @@ class EasyHybridPreferencesWindow():
 
         
         light_ambient_coef     = self.vm_session.vm_config.gl_parameters['light_ambient_coef']
-        self.btn_light_amb_coef           = self.builder.get_object('btn_light_amb_coef')
-        self.btn_light_amb_coef.set_text(str(light_ambient_coef))
+        self.entry_light_amb_coef           = self.builder.get_object('entry_light_amb_coef')
+        self.entry_light_amb_coef.set_text(str(light_ambient_coef))
         
         
         self.entry_light_shiness  = self.builder.get_object('entry_light_shiness')
@@ -426,24 +469,258 @@ class EasyHybridPreferencesWindow():
         light_intensity        = self.vm_session.vm_config.gl_parameters['light_intensity']
         self.entry_light_intensity.set_text(str(light_intensity))
         
-        
-        
     def set_bond_parameters (self):
         """ Function doc """
-        
+        gridsize        = self.vm_session.vm_config.gl_parameters['gridsize']
+        maxbond         = self.vm_session.vm_config.gl_parameters['maxbond']
+        bond_tolerance  = self.vm_session.vm_config.gl_parameters['bond_tolerance']
+
         self.entry_grid_size     = self.builder.get_object('entry_grid_size')
         self.entry_max_bond_size = self.builder.get_object('entry_max_bond_size')
         self.entry_bond_tol      = self.builder.get_object('entry_bond_tol')
         
+        self.entry_grid_size    .set_text(str(gridsize))
+        self.entry_max_bond_size.set_text(str(maxbond))
+        self.entry_bond_tol     .set_text(str(bond_tolerance))
+        
+    def set_sphere_parameters (self):
+        """ Function doc """
+
+        sphere_type      = self.vm_session.vm_config.gl_parameters['sphere_type']
+        sphere_quality   = self.vm_session.vm_config.gl_parameters['sphere_quality']
+        sphere_scale     = self.vm_session.vm_config.gl_parameters['sphere_scale']
+
+        self.entry_sphere_scale   = self.builder.get_object('entry_sphere_scale')
+        self.entry_sphere_quality = self.builder.get_object('entry_sphere_quality')
+        self.entry_sphere_type    = self.builder.get_object('entry_sphere_type')
+
+        self.entry_sphere_scale  .set_text(str(sphere_scale))
+        self.entry_sphere_quality.set_text(str(sphere_quality))
+        self.entry_sphere_type   .set_text(str(sphere_type))
+
+    
+    
+    
+    def __apply_light_parameters (self):
+        #---------------------------------------------------------------
+        light_pos = self.entry_light_position.get_text()
+        light_pos = light_pos.replace('[', '')
+        light_pos = light_pos.replace(']', '')
+        light_pos = light_pos.split(',')
+        
+        new_pos = []
+        for pos in light_pos:
+            new_pos.append(float(pos))
+        self.gl_parameters['light_position'] = new_pos
+        #---------------------------------------------------------------
+
+        
+        #---------------------------------------------------------------
+        color = self.btn_light_color.get_rgba()
+        color = list(color)
+        color = color[:-1]
+        self.gl_parameters["light_color"] = color
+        #---------------------------------------------------------------
+
+        
+        #---------------------------------------------------------------
+        amb_coef = float(self.entry_light_amb_coef.get_text())
+        self.gl_parameters["light_ambient_coef"] = amb_coef
+        #---------------------------------------------------------------
+
+        
+        #---------------------------------------------------------------
+        light_shiness = float(self.entry_light_shiness.get_text())
+        self.gl_parameters["light_shininess"] = light_shiness
+        #---------------------------------------------------------------
+        
+        #---------------------------------------------------------------
+        light_intensity =  self.entry_light_intensity.get_text() 
+        light_intensity = light_intensity.replace('[', '')
+        light_intensity = light_intensity.replace(']', '')
+        light_intensity = light_intensity.split(',')
+        
+        new_int = []
+        for pos in light_intensity:
+            new_int.append(float(pos))
+        self.gl_parameters['light_intensity'] = new_int
+        #---------------------------------------------------------------
+        
+        #---------------------------------------------------------------
+        color = self.btn_light_spec_color.get_rgba()
+        color = list(color)
+        color = color[:-1]
+        self.gl_parameters["light_specular_color"] = color
+        #---------------------------------------------------------------
+    def __apply_sphere_parameters (self):
+        """ Function doc """
+
+        sphere_type    = int(self.entry_sphere_type   .get_text())
+        sphere_quality = int(self.entry_sphere_quality.get_text())
+        sphere_scale   = float(self.entry_sphere_scale .get_text())
+        
+        self.gl_parameters['sphere_type']    = sphere_type    
+        self.gl_parameters['sphere_quality'] = sphere_quality 
+        self.gl_parameters['sphere_scale']   = sphere_scale   
+
+    def __apply_stick_parameters (self):
+        """ Function doc """
+        stick_radius = float(self.entry_stick_radius.get_text())
+        stick_type   = float(self.entry_stick_type  .get_text())
+        
+        dbond_radius = float(self.entry_dbond_radius.get_text())
+        dbond_type   = float(self.entry_dbond_type  .get_text())
+        
+        self.gl_parameters['sticks_radius'] = stick_radius
+        self.gl_parameters['sticks_type']   = stick_type  
+        #self.gl_parameters[]
+        #self.gl_parameters[]
+
+    def __apply_lines_parameters (self):
+        lines_with            = float(self.entry_lines_with           .get_text())
+        lines_with_selections = float(self.entry_lines_with_selections.get_text())
+        lines_type            = float(self.entry_lines_type           .get_text())
+        
+        self.gl_parameters['line_width']           = lines_with           
+        self.gl_parameters['line_width_selection'] = lines_with_selections
+        self.gl_parameters['line_type']            = lines_type           
+
+    def __apply_bond_parameters (self):
+        """ Function doc """
+        #try:
+        grid_size     = float(self.entry_grid_size    .get_text())
+        max_bond_size = float(self.entry_max_bond_size.get_text())
+        bond_tol      = float(self.entry_bond_tol     .get_text())
+        
+        self.gl_parameters['gridsize']       = grid_size    
+        self.gl_parameters['maxbond']        = max_bond_size
+        self.gl_parameters['bond_tolerance'] = bond_tol     
+        
+    def __apply_viewer_selections_parameters (self):
+        """ Function doc """
+        #-----------------------------------------------------------------------
+        #                            viewing  dots
+        #-----------------------------------------------------------------------        
+        widget = self.builder.get_object('color_btn_view_sel_dots')
+        color = widget.get_rgba()
+        color = list(color)
+        color = color[:-1]
+        self.vm_session.vm_config.gl_parameters["picking_dots_color"] = color
+        for vm_object in self.vm_session.vm_objects_dic.values():
+            vm_object.core_representations["picking_dots"] = None
+        #-----------------------------------------------------------------------
         
         
         
         
+        #-----------------------------------------------------------------------
+        #                     pk labels  / distance labels
+        #-----------------------------------------------------------------------
+        btn_pk_label = self.builder.get_object('color_btn_pk_label')
+        color = btn_pk_label.get_rgba()
+        color = list(color)
+        #color = color[:-1]
+        self.vm_session.vm_config.gl_parameters["pk_label_color"] = color
+        self.vm_session.vm_glcore.vm_font.vao = None
+        #-----------------------------------------------------------------------
+
+        #-----------------------------------------------------------------------
+        widget = self.builder.get_object('color_btn_pk_dist_label')
+        color = widget.get_rgba()
+        color = list(color)
+        #color = color[:-1]
+        self.vm_session.vm_config.gl_parameters["pk_dist_label_color"] = color
+        self.vm_session.vm_glcore.vm_font_dist.vao = None
+        #-----------------------------------------------------------------------
+
+        #-----------------------------------------------------------------------
+        widget = self.builder.get_object('color_btn_pk_dist_lines')
+        color = widget.get_rgba()
+        color = list(color)
+        color = color[:-1]
+        self.vm_session.vm_config.gl_parameters["dashed_dist_lines_color"] = color
+        #self.vm_session.vm_glcore.vm_font_dist.vao = None
         
         
+        #-----------------------------------------------------------------------
+        
+
+        #-------------------------------------------------------------------------
+        #                         pk Spheres
+        #-------------------------------------------------------------------------
+        widget = self.builder.get_object('color_btn_pk_sphr_1')
+        color = widget.get_rgba()
+        color = list(color)
+        color = color[:-1]
+        self.vm_session.set_pk_sphr_selection_color(color, 1)
+
+        widget = self.builder.get_object('color_btn_pk_sphr_2')
+        color = widget.get_rgba()
+        color = list(color)
+        color = color[:-1]
+        self.vm_session.set_pk_sphr_selection_color(color, 2)
+        
+        widget = self.builder.get_object('color_btn_pk_sphr_3')
+        color = widget.get_rgba()
+        color = list(color)
+        color = color[:-1]
+        self.vm_session.set_pk_sphr_selection_color(color, 3)
+        
+        widget = self.builder.get_object('color_btn_pk_sphr_4')
+        color = widget.get_rgba()
+        color = list(color)
+        color = color[:-1]
+        self.vm_session.set_pk_sphr_selection_color(color, 4)
+        #-------------------------------------------------------------------------
+    def __apply_viewer_general_parameters (self):
+        #---------------------------------------------------------------
+        self.btn_background_color = self.builder.get_object('btn_background_color')
+        color = self.btn_background_color.get_rgba()
+        color = list(color)
+        #color = color[:-1]
+        self.gl_parameters["background_color"] = color
+        self.vm_session.vm_glcore.bckgrnd_color = color
+        #---------------------------------------------------------------
+
         
         
+        #---------------------------------------------------------------
+        scroll_step    = float(self.builder.get_object('entry_scroll_step')   .get_text() )
+        sleep_time_coc = float(self.builder.get_object('entry_sleep_time_coc').get_text() )
+        field_of_view  = float(self.builder.get_object('entry_field_of_view') .get_text() )
         
+        self.gl_parameters["scroll_step"]                = scroll_step    
+        self.gl_parameters["center_on_coord_sleep_time"] = sleep_time_coc 
+        self.gl_parameters["field_of_view"]              = field_of_view  
+        #---------------------------------------------------------------
+    def __apply_interface_general_parameters (self):
+        """ Function doc """
+        a = self.builder.get_object('checkbox_temp_autosave')
+        a = self.builder.get_object('checkbox_ask_autosave_and_unsaved')
+        a = self.builder.get_object('checkbox_save_window_size')
         
-        
-        
+        b = self.builder.get_object('entry_startup_path')
+        b = self.builder.get_object('entry_scratch_path')
+        b = self.builder.get_object('entry_tempfiles_path')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

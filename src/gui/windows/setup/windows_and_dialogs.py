@@ -551,6 +551,7 @@ class ExportDataWindow:
                        3 : 'xyz - cartesian coordinates'  ,
                        4 : 'mol'                          ,
                        5 : 'mol2'                         ,
+                       6 : 'crd' 
                        }
                        
             for key, _format in self.formats.items():
@@ -800,6 +801,7 @@ class ExportDataWindow:
             3 : 'xyz'  ,
             4 : 'mol'  ,
             5 : 'mol2' ,
+            6 : 'crd'
             }
         
         if parameters['is_single_file']:

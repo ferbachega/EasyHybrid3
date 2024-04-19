@@ -67,6 +67,7 @@ from gui.windows.simulation.normal_modes_window          import NormalModesWindo
 
 from gui.windows.analysis.WHAM_analysis_window           import WHAMWindow 
 from gui.windows.analysis.normal_modes_analysis_window   import NormalModesAnalysisWindow 
+from gui.windows.analysis.surface_analysis_window        import SurfaceAnalysisWindow 
 from gui.windows.analysis.energy_refinement_window       import EnergyRefinementWindow
 from gui.windows.analysis.PES_analysis_window            import PotentialEnergyAnalysisWindow
 
@@ -325,6 +326,7 @@ class MainWindow:
         self.window_list.append(self.chain_of_states_opt_window)
         
         self.normal_modes_analysis_window =   NormalModesAnalysisWindow (main = self)
+        self.surface_analysis_window =   SurfaceAnalysisWindow (main = self)
         
         
         self.normal_modes_window          =   NormalModesWindow (main = self)
@@ -938,6 +940,9 @@ class MainWindow:
 
         elif menuitem == self.builder.get_object('menuitem_mormal_modes_analysis'):
             self.normal_modes_analysis_window.OpenWindow()
+        
+        elif menuitem == self.builder.get_object('menuitem_surface_analysis'):
+            self.surface_analysis_window.OpenWindow()
 
 
         

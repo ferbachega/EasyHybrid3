@@ -50,7 +50,7 @@
                             <property name="row-spacing">8</property>
                             <property name="column-spacing">10</property>
                             <child>
-                              <object class="GtkCheckButton">
+                              <object class="GtkCheckButton" id="checkbox_ask_autosave_and_unsaved">
                                 <property name="label" translatable="yes">Ask about unsaved/modified projects</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
@@ -63,7 +63,7 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkCheckButton">
+                              <object class="GtkCheckButton" id="checkbox_temp_autosave">
                                 <property name="label" translatable="yes">Temporary autosave </property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
@@ -122,7 +122,7 @@
                             <property name="row-spacing">8</property>
                             <property name="column-spacing">10</property>
                             <child>
-                              <object class="GtkCheckButton">
+                              <object class="GtkCheckButton" id="checkbox_save_window_size">
                                 <property name="label" translatable="yes">Save window size</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
@@ -186,6 +186,7 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
+                                <property name="margin-start">5</property>
                                 <property name="label" translatable="yes">Scratch Folder:</property>
                                 <property name="xalign">1</property>
                               </object>
@@ -196,9 +197,10 @@
                             </child>
                             <child>
                               <object class="GtkEntry" id="entry_log_frequence">
+                                <property name="name">entry_scratch_path</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
-                                <property name="text" translatable="yes">5</property>
+                                <property name="margin-end">5</property>
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>
@@ -209,6 +211,7 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
+                                <property name="margin-start">5</property>
                                 <property name="label" translatable="yes">Startup Path:</property>
                                 <property name="xalign">1</property>
                               </object>
@@ -219,8 +222,10 @@
                             </child>
                             <child>
                               <object class="GtkEntry">
+                                <property name="name">entry_startup_path</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
+                                <property name="margin-end">5</property>
                                 <property name="hexpand">True</property>
                               </object>
                               <packing>
@@ -232,6 +237,7 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
+                                <property name="margin-start">5</property>
                                 <property name="label" translatable="yes">Temporary Files:</property>
                                 <property name="xalign">1</property>
                               </object>
@@ -242,8 +248,10 @@
                             </child>
                             <child>
                               <object class="GtkEntry">
+                                <property name="name">entry_tempfiles_path</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
+                                <property name="margin-end">5</property>
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>
@@ -344,6 +352,7 @@
                             <property name="column-spacing">10</property>
                             <child>
                               <object class="GtkColorButton" id="btn_background_color">
+                                <property name="name">btn_background_color</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">True</property>
@@ -1308,6 +1317,7 @@
                                   <object class="GtkCheckButton" id="checkbox_stick_unique_color">
                                     <property name="label" translatable="yes">Use single color</property>
                                     <property name="visible">True</property>
+                                    <property name="sensitive">False</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">False</property>
                                     <property name="draw-indicator">True</property>
@@ -1320,6 +1330,7 @@
                                 <child>
                                   <object class="GtkColorButton" id="btn_stick_unique_color">
                                     <property name="visible">True</property>
+                                    <property name="sensitive">False</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">True</property>
                                   </object>
@@ -1348,6 +1359,7 @@
                         <child>
                           <object class="GtkFrame">
                             <property name="visible">True</property>
+                            <property name="sensitive">False</property>
                             <property name="can-focus">False</property>
                             <property name="margin-left">10</property>
                             <property name="margin-right">10</property>
@@ -1423,6 +1435,7 @@
                                   <object class="GtkCheckButton" id="checkbox_dbond_unique_color">
                                     <property name="label" translatable="yes">Use single color</property>
                                     <property name="visible">True</property>
+                                    <property name="sensitive">False</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">False</property>
                                     <property name="draw-indicator">True</property>
@@ -1435,6 +1448,7 @@
                                 <child>
                                   <object class="GtkColorButton" id="btn_dbond_unique_color">
                                     <property name="visible">True</property>
+                                    <property name="sensitive">False</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">True</property>
                                   </object>
@@ -1565,6 +1579,7 @@
                                 <child>
                                   <object class="GtkEntry" id="entry_sphere_type">
                                     <property name="visible">True</property>
+                                    <property name="sensitive">False</property>
                                     <property name="can-focus">True</property>
                                   </object>
                                   <packing>
@@ -1807,7 +1822,7 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkEntry" id="btn_light_amb_coef">
+                              <object class="GtkEntry" id="entry_light_amb_coef">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                               </object>
@@ -1978,69 +1993,114 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButtonBox">
+          <object class="GtkBox">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="spacing">8</property>
-            <property name="layout-style">end</property>
             <child>
-              <object class="GtkButton">
-                <property name="label" translatable="yes">Reset</property>
+              <object class="GtkButtonBox">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">end</property>
+                <property name="margin-start">5</property>
+                <property name="margin-end">5</property>
+                <property name="margin-top">5</property>
+                <property name="margin-bottom">5</property>
+                <property name="spacing">8</property>
+                <property name="layout-style">end</property>
+                <child>
+                  <object class="GtkButton">
+                    <property name="label" translatable="yes">Cancel</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                    <property name="halign">start</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
               </object>
               <packing>
-                <property name="expand">True</property>
+                <property name="expand">False</property>
                 <property name="fill">True</property>
                 <property name="position">0</property>
               </packing>
             </child>
             <child>
-              <object class="GtkButton">
-                <property name="label" translatable="yes">Apply</property>
+              <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="can-focus">False</property>
+                <property name="hexpand">True</property>
+                <property name="label" translatable="yes">  </property>
               </object>
               <packing>
-                <property name="expand">True</property>
+                <property name="expand">False</property>
                 <property name="fill">True</property>
                 <property name="position">1</property>
               </packing>
             </child>
             <child>
-              <object class="GtkButton">
-                <property name="label" translatable="yes">Cancel</property>
+              <object class="GtkButtonBox">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">end</property>
+                <property name="margin-end">5</property>
+                <property name="hexpand">False</property>
+                <property name="spacing">8</property>
+                <property name="layout-style">end</property>
+                <child>
+                  <object class="GtkButton">
+                    <property name="label" translatable="yes">Reset</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="btn_apply_parameters">
+                    <property name="label" translatable="yes">Apply</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton">
+                    <property name="label" translatable="yes">Apply and Save</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
               </object>
               <packing>
-                <property name="expand">True</property>
+                <property name="expand">False</property>
                 <property name="fill">True</property>
                 <property name="position">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkButton">
-                <property name="label" translatable="yes">Ok</property>
-                <property name="width-request">-1</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">3</property>
               </packing>
             </child>
           </object>
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">6</property>
+            <property name="position">1</property>
           </packing>
         </child>
       </object>

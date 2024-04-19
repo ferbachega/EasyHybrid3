@@ -1483,6 +1483,16 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         system.e_qc_table = list(system.qcState.pureQCAtoms)
 
 
+    def get_coordinates_from_vobject (self, vobject = None, frame = -1):
+        """ Function doc """
+        coords = []
+        for i, atom in vobject.atoms.items():
+            #print(i, atom)
+            xyz = atom.coords(frame = frame)
+            coords.append(xyz)
+        return coords
+
+
     def get_coordinates_from_vobject_to_pDynamo_system (self, vobject = None, system_id =  None, frame = -1):
         """ Function doc """
         if system_id != None:
@@ -2514,6 +2524,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 
                 if parameters['format'] == 5:
                     ExportSystem ( os.path.join ( folder, filename+'.mol2'), system )
+                
+                if parameters['format'] == 6:
+                    ExportSystem ( os.path.join ( folder, filename+'.crd'), system )
                     
 
             
