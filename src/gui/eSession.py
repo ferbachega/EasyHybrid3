@@ -1316,7 +1316,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
                 pass
         else:
             self.vm_glcore.updated_coords = False
-    
+        #print('EEEEEEEE')
     def reverse_frame(self):
         """ Function doc """
         if self.frame - 1 >= 0:
@@ -1336,7 +1336,8 @@ button position in the main treeview (active column).""".format(name,self.main.p
             self.picking_selections.print_pk_distances()    
         
         self.vm_widget.queue_draw()
-
+        
+        #self.main.surface_analysis_window.set_frame()
         '''
         for vobj_id, vobject in self.vm_objects_dic.items():
             for index, atom in vobject.atoms.items():

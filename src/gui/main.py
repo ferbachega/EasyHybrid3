@@ -78,6 +78,22 @@ from util.sequence_plot import GtkSequenceViewer
 from pdynamo.pDynamo2EasyHybrid import pDynamoSession
 import numpy as np
 
+
+
+from pCore                     import Align                                        , \
+                                      Clone                                        , \
+                                      logFile                                      , \
+                                      Selection                                    , \
+                                      TestScript_InputDataPath                     , \
+                                      TestScript_OutputDataPath                    , \
+                                      XHTMLLogFileWriter
+
+
+
+
+
+
+
 class MainWindow:
     """ Class doc """
     def __init__ (self, vm_session = None, home = None, version = None):
@@ -880,7 +896,7 @@ class MainWindow:
             system.e_treeview_iter   = None
             system.e_liststore_iter  = None
             
-            new_system = copy.deepcopy(system)
+            new_system = Clone(system)
             system.e_treeview_iter   = backup[0]
             system.e_liststore_iter  = backup[1]
             #print('menuitem_clone')

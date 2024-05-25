@@ -1457,6 +1457,26 @@ class SetupDFTBplusWindow:
         except:
             self.skf_folder = os.environ.get('PDYNAMO3_HOME')
         
+        
+        self.Hubbard_Derivs_parameters = {
+                                        'Br': -0.0573 ,
+                                        'C' : -0.1492 ,
+                                        'Ca': -0.0340 ,
+                                        'Cl': -0.0697 ,
+                                        'F' : -0.1623 ,
+                                        'H' : -0.1857 ,
+                                        'I' : -0.0433 ,
+                                        'K' : -0.0339 ,
+                                        'Mg': -0.02   ,
+                                        'N' : -0.1535 ,
+                                        'Na': -0.0454 ,
+                                        'O' : -0.1575 ,
+                                        'P' : -0.14   ,
+                                        'S' : -0.11   ,
+                                        'Zn': -0.03   ,
+                                        }
+        
+        
 
     def OpenWindow (self, vismol_object = None):
         """ Function doc """
@@ -1485,6 +1505,8 @@ class SetupDFTBplusWindow:
             self.checkbox_delete_job_files = self.builder.get_object('checkbox_delete_job_files')
             self.checkbox_random_scratch   = self.builder.get_object('checkbox_random_scratch')
             
+            self.on_checkbox_ThirdOrderFull_toggled (None)
+            
             self.window.connect("destroy", self.CloseWindow)
             self.window.show_all()
             #self.refresh_orca_parameters (None)
@@ -1495,6 +1517,24 @@ class SetupDFTBplusWindow:
         self.window.destroy()
         self.Visible    =  False
 
+    def on_checkbox_ThirdOrderFull_toggled (self, widget):
+        """ Function doc """
+        if self.builder.get_object('checkbox_ThirdOrderFull').get_active():
+            self.builder.get_object('label_zeta').set_sensitive(True)
+            self.builder.get_object('entry_zeta').set_sensitive(True)
+            self.builder.get_object('btn_HubbardDerivs').set_sensitive(True)
+        else:
+            self.builder.get_object('label_zeta').set_sensitive(False)
+            self.builder.get_object('entry_zeta').set_sensitive(False)
+            self.builder.get_object('btn_HubbardDerivs').set_sensitive(False)
+        
+        #self.skf_folder       = self.skf_folder_chooser.get_filename()
+        #self.scratch_folder   = self.entry_dftb_scratch_folder.get_text()
+        #self.use_scc          = self.checkbox_use_scc         .get_active()
+        #self.delete_job_files = self.checkbox_delete_job_files.get_active()
+        #self.random_scratch   = self.checkbox_random_scratch  .get_active()
+        #self.CloseWindow (None, None)
+    
     def on_button_ok (self, button):
         """ Function doc """
         self.skf_folder       = self.skf_folder_chooser.get_filename()
@@ -1502,7 +1542,26 @@ class SetupDFTBplusWindow:
         self.use_scc          = self.checkbox_use_scc         .get_active()
         self.delete_job_files = self.checkbox_delete_job_files.get_active()
         self.random_scratch   = self.checkbox_random_scratch  .get_active()
+        
+        if self.builder.get_object('checkbox_ThirdOrderFull').get_active():
+            self.ThirdOrderFull = True
+            self.zeta = float(self.builder.get_object('entry_zeta').get_text())
+            self.HubbardDerivs = self.Hubbard_Derivs_parameters
+        else:
+            self.ThirdOrderFull = False
+            self.zeta           = 0.0
+            self.HubbardDerivs  = None
+
+        self.fermiTemperature     = float(self.builder.get_object('entry_fermiTemperature').get_text()     )
+        self.gaussianBlurWidth    = float(self.builder.get_object('entry_gaussianBlurWidth').get_text()    )
+        self.maximumSCCIterations =   int(self.builder.get_object('entry_maximumSCCIterations').get_text() )
+        self.sccTolerance         = float(self.builder.get_object('entry_sccTolerance').get_text()         )
+
+
         self.CloseWindow (None, None)
+    
+        
+    
     
     def on_skf_folder_chooser_changed (self, widget):
         """ Function doc """
@@ -1905,9 +1964,12 @@ class EasyHybridSetupQCModelWindow:
                                       1 : 'am1dphot'        ,
                                       2 : 'pm3'             ,
                                       3 : 'pm6'             ,
-                                      4 : 'mndo'            ,
-                                      5 : 'ab initio - ORCA',
-                                      6 : 'DFTB+'           ,
+                                      4 : 'rm1'             ,
+                                      5 : 'mndo'            ,
+                                      6 : 'ab initio - ORCA',
+                                      7 : 'DFTB+'           ,
+                                      8 : 'xTB'             ,
+                                      
                                       }
         
         self.setup_orca_window = SetupORCAWindow(self.main_session, self)
@@ -2078,23 +2140,24 @@ class EasyHybridSetupQCModelWindow:
         #
         self.method_id = self.builder.get_object('QCModel_methods_combobox').get_active()
         
-        if self.method_id in [0,1,2,3,4]:            
+        if self.method_id in [0,1,2,3,4,5, 8]:            
             self.builder.get_object('button_setup_orca').hide()
             self.builder.get_object('button_setup_dftb').hide()
             self.builder.get_object('expander_DIISSCF_converger').show()
             
-        elif self.method_id == 5:
+        elif self.method_id == 6:
             self.builder.get_object('button_setup_orca').show()
             self.builder.get_object('button_setup_dftb').hide()
             self.builder.get_object('expander_DIISSCF_converger').hide()
             self.setup_orca_window.OpenWindow()
         
-        elif self.method_id == 6:
+        elif self.method_id == 7:
             self.builder.get_object('button_setup_dftb').show()
             self.builder.get_object('button_setup_orca').hide()
             self.builder.get_object('expander_DIISSCF_converger').hide()
             self.setup_dftb_window.OpenWindow()
-        
+        else:
+            pass
         #print(self.method_id)
     
     def on_button_ok (self, button):
@@ -2117,12 +2180,13 @@ class EasyHybridSetupQCModelWindow:
                     'isSpinRestricted' : self.restricted  ,
                      }
 
-        if self.method_id == 5:
+        if self.method_id == 6:
             parameters['orca_options'  ] = self.orca_options
             parameters['orca_scratch'  ] = self.orca_scratch
             parameters['random_scratch'  ]   = self.orca_random_scratch
             #print('random_scratch QQQ', parameters['random_scratch'  ])
-        elif self.method_id == 6:
+        
+        elif self.method_id == 7:
             #parameters['dftb+_scratch'  ] = os.environ.get('PDYNAMO3_SCRATCH')
             #parameters['skf_path'  ]      = os.path.join(os.environ.get('PDYNAMO3_HOME'),'examples/dftbPlus/data/skf')
         
@@ -2132,12 +2196,23 @@ class EasyHybridSetupQCModelWindow:
             parameters['delete_job_files'  ] = self.setup_dftb_window.delete_job_files #self.setup_dftb_window.checkbox_delete_job_files.get_active()
             parameters['random_scratch'  ]   = self.setup_dftb_window.random_scratch   #self.setup_dftb_window.checkbox_random_scratch.get_active()  
         
+            parameters['ThirdOrderFull' ] = self.setup_dftb_window.ThirdOrderFull
+            parameters['zeta'           ] = self.setup_dftb_window.zeta
+            parameters['HubbardDerivs'  ] = self.setup_dftb_window.HubbardDerivs
             
             
-            
-            
-            
+            parameters['fermiTemperature'     ] = self.setup_dftb_window.fermiTemperature  
+            parameters['gaussianBlurWidth'    ] = self.setup_dftb_window.gaussianBlurWidth    
+            parameters['maximumSCCIterations' ] = self.setup_dftb_window.maximumSCCIterations 
+            parameters['sccTolerance'         ] = self.setup_dftb_window.sccTolerance        
         
+        elif self.method_id == 8:
+            parameters['gfn'     ]  =  2   
+            parameters['vfukui'  ]  =  False
+            parameters['parallel']  =  6
+            parameters['json'    ]  =  False
+            parameters['acc'     ]  =  1.0
+            parameters['lmo'     ]  =  False
         
         
         

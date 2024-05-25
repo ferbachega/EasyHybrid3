@@ -62,6 +62,15 @@ class SurfaceAnalysisWindow(Gtk.Window):
         self.visible    = False        
         self.p_session  = main.p_session
         self.vm_session = main.vm_session
+        self.frame      = self.vm_session.frame
+        
+        self.orbital_liststore_dict = {
+                                       #vm_object_id:[liststore1, liststore2...]
+                                       }
+        self.wave_function_dict = {
+                                       #vm_object_id:[orbitals, gridgenerator]
+                                      }
+        
         
         self.modes = None
         self.running = False
@@ -95,15 +104,23 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.box1 = self.builder.get_object('box_system')
             self.system_names_combo = SystemComboBox (self.main)
             self.system_names_combo.connect("changed", self.on_system_names_combobox_changed)
-            '''--------------------------------------------------------------------------------------------'''
             self.box1.pack_start(self.system_names_combo, False, False, 0)
+            '''--------------------------------------------------------------------------------------------'''
 
+            
+            
+            '''--------------------------------------------------------------------------------------------'''
             self.coordinates_liststore = Gtk.ListStore(str, int, int)
             self.box2 = self.builder.get_object('box_coordinates')
             self.coordinates_combobox = CoordinatesComboBox(self.main.vobject_liststore_dict[self.p_session.active_id]) 
-            
             self.box2.pack_start(self.coordinates_combobox, False, False, 0)
-            
+            '''--------------------------------------------------------------------------------------------'''
+
+
+            self.btn_import_wfunction =  self.builder.get_object('btn_import_wavefunction')
+            self.btn_import_wfunction.connect('clicked', self.on_button_import_wavefunction)
+
+            self.label_frame = self.builder.get_object('label_frame')
             
       
             system  = self.main.p_session.get_system()
@@ -112,83 +129,12 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 a = list (row)
                 self.coordinates_liststore.append([a[0], a[1], a[2]])
 
-            
             self.coordinates_combobox.set_model(self.coordinates_liststore)
             
-
-
-
-            '''
-            self.liststore = Gtk.ListStore(bool , #0 system_e_id           
-                                           str  , #1 vobject 
-                                           str  , #2 name 
-                    
-                                           )
-            
-            #for i in range(0,10):
-            #    self.liststore.append([False, str(i), str(i**3)])
-        
-            
-            self.treeview = self.builder.get_object('selection_treeview')
-
-
-
-            # column
-            renderer_radio = Gtk.CellRendererToggle()
-            renderer_radio.set_radio(True)
-            renderer_radio.connect("toggled", self.on_cell_active_radio_toggled)
-            column_radio = Gtk.TreeViewColumn("A", renderer_radio, active=0)
-            self.treeview.append_column(column_radio)
-
-            # column
-            renderer_text = Gtk.CellRendererText()
-            column_text = Gtk.TreeViewColumn("Mode", renderer_text, text=1)
-            column_text.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
-            column_text.set_resizable(True)
-            self.treeview.append_column(column_text)        
-
-
-
-            # column
-            renderer_text = Gtk.CellRendererText()
-            column_text = Gtk.TreeViewColumn("Frequency", renderer_text, text=2)
-            column_text.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
-            column_text.set_resizable(True)
-            self.treeview.append_column(column_text)  
-
-            self.treeview.set_model(self.liststore)
-                    
-            #self.connect('row-activated', self.on_select)
-            #self.connect('button-release-event', self.on_treeview_mouse_button_release_event )
-
-            self.spin_button =self.builder.get_object('spin_button')
-
-            #'''
-
-
-
-
-            # - - - - - - - Selection Treeview - - - - - - -
-            '''--------------------------------------------------------------------------------------------'''
-            '''
-            self.treeview = self.builder.get_object('selection_treeview')
-            for i, column_title in enumerate(['Selection',"Number of Atoms"]):
-                renderer = Gtk.CellRendererText()
-                column = Gtk.TreeViewColumn(column_title, renderer, text=i)
-                self.treeview.append_column(column)
-            self.treeview.set_model(self.selection_liststore)
-
-            self.treeview.connect('row_activated', self.on_treeview_Objects_row_activated )
-            self.treeview.connect('button-release-event', self.on_treeview_Objects_button_release_event )
-            '''
-            '''--------------------------------------------------------------------------------------------'''
-
 
             columns = [' ', 'Orbital', 'Occ.', 'Energy', 'visible']
             
             self.liststore = Gtk.ListStore(int, str, int, float, bool)
-            #for item in data:
-            #    self.liststore.append(item)
 
             self.treeview = self.builder.get_object('selection_treeview')#Gtk.TreeView(model=self.liststore)
             self.treeview.set_model(self.liststore)
@@ -214,7 +160,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
     def CloseWindow (self, button, data  = None):
         """ Function doc """
 
-        self.stop(None)
+        #self.stop(None)
         #self.running = False  
 
 
@@ -294,36 +240,9 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.coordinates_combobox.set_active(size-1)
         
         
-        system.Energy  ( )
-        orbitalsP = system.scratch.orbitalsP
-        energies  = orbitalsP.energies
+
         
-        LUMO      = orbitalsP.occupancyHandler.numberOccupied
-        HOMO      = LUMO - 1
-        
-        
-        
-        orbitals = []
-        for i,energy in enumerate(energies):
-            if i >= LUMO:
-                if i-LUMO == 0:
-                    label = 'LUMO ' 
-                else:
-                    label = 'LUMO +'+str(i-LUMO)
-            else:
-                
-                if i-HOMO == 0:
-                    label = 'HOMO' 
-                else:
-                    label = 'HOMO '+str(i-HOMO)
-            orbitals.append([i, label, orbitalsP.occupancies[i], energy, False ])
-        
-        for i in range(len(orbitals)):
-            reverse_index = -i-1 #- len(orbitals)
-            print(reverse_index, orbitals[reverse_index ])
-            self.liststore.append(orbitals[reverse_index ])
-        
-        print(index)
+        #print(index)
     
     def on_coordinates_combobox_changed(self, widget):
         """ Function doc """
@@ -347,19 +266,20 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 print('vobject has no Normal Modes data')
                 pass
 
+    
     def on_treeview_Objects_row_activated(self, tree, event, data):
 
         vobject_id    = self.coordinates_combobox.get_vobject_id()
         vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
 
-        #_id = self.system_names_combo.get_active()
-        #_, system_id = self.main.system_liststore[_id]
         _isovalue    = float(self.builder.get_object('entry_isovalue').get_text())
         _GridSpacing = float(self.builder.get_object('entry_spacing') .get_text())
         
-        system  = self.main.p_session.get_system()
         selection     = self.treeview.get_selection()
         (model, iter) = selection.get_selected()
+
+
+        system  = self.main.p_session.get_system()
         #'''
         backup = []
         try:
@@ -369,30 +289,31 @@ class SurfaceAnalysisWindow(Gtk.Window):
             system.e_liststore_iter  = None
         except:
             pass
+
+
+
         '''
         "key" is the acesses key to the dictionary containg the selection lists
         there is no two selection lists with the same name.
         indexes =  A list of atoms for selection
         '''
         key     = model.get_value(iter, 0)
-        #indexes = self.p_session.psystem[system_id].e_selections[key] 
-        #vismol_object = self.vm_session.vm_objects_dic[0]
         print(key, vismol_object.frames.shape[0])
-        
-        
+
         #_GridSpacing = 0.6
         _OrbitalTag    = "Grid Orbitals"
         _IsosurfaceTag = "Isosurface"
         
+        
         trajectory = [None]*vismol_object.frames.shape[0]
         joblist = []
+        
         for frame in range(vismol_object.frames.shape[0]):
             #self.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
             #'''
-            #print('AQUIIIII', frame)
             self.p_session.get_coordinates_from_vobject_to_pDynamo_system( vobject = vismol_object, 
-                                                                          system_id = None, 
-                                                                          frame = frame)
+                                                                           system_id = None, 
+                                                                           frame = frame)
             
             parameters = {
             '_GridSpacing'   : _GridSpacing,
@@ -405,16 +326,11 @@ class SurfaceAnalysisWindow(Gtk.Window):
             coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
             
             joblist.append([frame, system, coords, parameters])
-            
-
-        
-
-        
         
         p = multiprocessing.Pool(processes = multiprocessing.cpu_count())
         results = p.map(generate_grid_parallel, joblist)
         
-                #if interface:
+        #if interface:
         try:
             system.e_treeview_iter   = backup[0]
             system.e_liststore_iter  = backup[1]
@@ -444,6 +360,158 @@ class SurfaceAnalysisWindow(Gtk.Window):
                                                                            iso_color     = [0,0,1]                   ,
                                                                            surface_name  = 'obital_minus'           )
         self.vm_session.vm_glcore.queue_draw()
+        
+        
+        
+        
+        '''
+        for frame , data in enumerate(self.wave_function_dict[vobject_id]):
+            
+            
+            generator = data[2]
+            #system.Energy()
+            parameters = {
+            '_GridSpacing'   : _GridSpacing,
+            '_OrbitalTag'    : _OrbitalTag,
+            '_isovalue'      : _isovalue,
+            '_IsosurfaceTag' : _IsosurfaceTag,
+            'orbital_key'    : key,
+            }
+            
+            joblist.append([frame, generator, parameters])
+        
+        p = multiprocessing.Pool(processes = multiprocessing.cpu_count())
+        #'''
+        '''
+        results = p.map(generate_grid_parallel, joblist)
+        
+        print (results)
+        vismol_object.surface_trajectory = results # trajectory
+        #-----------------------------------------------------------------------
+        #generator.ExportProperty ( "/home/fernando/programs/EasyHybrid3/examples/scripts/tmp", _IsosurfaceTag )
+        vismol_object.representations["surface1"] =  SurfaceRepresentation(vismol_object = vismol_object             ,
+                                                                           vismol_glcore = self.vm_session.vm_glcore ,  
+                                                                           name          = 'surface'                 ,
+                                                                           active        = True                      ,
+                                                                           indexes       = []                        ,
+                                                                           is_dynamic    = False                     ,
+                                                                           iso_color     = [1,0,0]                   ,
+                                                                           surface_name  = 'obital_plus'                )
+                                                     
+
+        #-----------------------------------------------------------------------
+        #generator.ExportProperty ( "/home/fernando/programs/EasyHybrid3/examples/scripts/tmp", _IsosurfaceTag )
+        vismol_object.representations["surface2"] =  SurfaceRepresentation(vismol_object = vismol_object             ,
+                                                                           vismol_glcore = self.vm_session.vm_glcore ,  
+                                                                           name          = 'surface'                 ,
+                                                                           active        = True                      ,
+                                                                           indexes       = []                        ,
+                                                                           is_dynamic    = False                     ,
+                                                                           iso_color     = [0,0,1]                   ,
+                                                                           surface_name  = 'obital_minus'           )
+        self.vm_session.vm_glcore.queue_draw()
+        #'''
+    
+    
+    
+    def _update_liststore (self):
+        """ Function doc """
+        
+        vobject_id = self.coordinates_combobox.get_vobject_id()
+        print(vobject_id)
+        
+        model = self.treeview.get_model()
+        if model is not None:
+            # Remove todos os itens do modelo
+            model.clear()
+       
+        if self.frame > len(self.orbital_liststore_dict[vobject_id]):
+            self.treeview.set_model(self.orbital_liststore_dict[vobject_id][-1])
+        else:
+            
+            #for frame , data in enumerate(self.wave_function_dict[vobject_id]):
+            orbitals = self.wave_function_dict[vobject_id][self.frame][0]
+            for i in range(len(orbitals)):
+                reverse_index = -i-1 #- len(orbitals)
+                model.append(orbitals[reverse_index ])
+            
+        
+    def set_frame (self ):
+        """ Function doc """
+        self.frame =  self.vm_session.frame
+        self.label_frame.set_text('Frame = {}'.format(self.frame))
+        self._update_liststore()
+
+
+    def on_button_import_wavefunction (self, widget):
+        """ Function doc """
+        print('on_button_import_wavefunction')
+        
+        system_id = self.system_names_combo.get_system_id()
+        system  = self.main.p_session.get_system(system_id)
+        
+        vobject_id    = self.coordinates_combobox.get_vobject_id()
+        vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
+
+        backup = []
+        try:
+            backup.append(system.e_treeview_iter)
+            backup.append(system.e_liststore_iter)
+            system.e_treeview_iter   = None
+            system.e_liststore_iter  = None
+        except:
+            pass
+        
+        
+        #frame = self.vm_session.frame
+        #coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
+        #joblist = [[frame, system, coords]] 
+        
+        #'''
+        trajectory = [None]*vismol_object.frames.shape[0]
+        joblist = []
+        for frame in range(vismol_object.frames.shape[0]):
+            self.p_session.get_coordinates_from_vobject_to_pDynamo_system( vobject = vismol_object, 
+                                                                          system_id = None, 
+                                                                          frame = frame)
+            parameters = None
+            coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
+            joblist.append([frame, system, coords])
+        #'''    
+        p = multiprocessing.Pool(processes = multiprocessing.cpu_count())
+        results = p.map(generate_wavefunction_parallel, joblist)
+        
+        self.wave_function_dict[vobject_id] = results
+        
+
+        try:
+            system.e_treeview_iter   = backup[0]
+            system.e_liststore_iter  = backup[1]
+        except:
+            pass
+
+        print(self.wave_function_dict)
+
+
+        
+        #'''
+        
+        self.orbital_liststore_dict[vobject_id]= []
+        
+        for frame , data in enumerate(self.wave_function_dict[vobject_id]):
+            orbitals = data[0]
+            
+            self.liststore = Gtk.ListStore(int, str, int, float, bool)
+            for i in range(len(orbitals)):
+                reverse_index = -i-1 #- len(orbitals)
+                #print(reverse_index, orbitals[reverse_index ])
+        
+                self.liststore.append(orbitals[reverse_index ])
+                self.orbital_liststore_dict[vobject_id].append(self.liststore)
+        
+        print()
+        self.treeview.set_model(self.orbital_liststore_dict[vobject_id][self.frame])
+
 
     def on_treeview_Objects_button_release_event(self, tree, event):
         '''
@@ -513,7 +581,8 @@ def surfece_parser ( surface, iso_color):
     colors   = np.array(colors, dtype=np.float32)
     indexes  = np.array(range(len(vertices)*3), dtype=np.uint32)
     return vertices, colors, indexes
-    #active   = True
+
+
 def apply_coords_to_system (system, coords):
     """ Function doc """
     
@@ -521,6 +590,7 @@ def apply_coords_to_system (system, coords):
         system.coordinates3[i][0] = xyz[0]
         system.coordinates3[i][1] = xyz[1]
         system.coordinates3[i][2] = xyz[2]
+
 
 def generate_grid_parallel (job):
     """ Function doc 
@@ -546,10 +616,15 @@ def generate_grid_parallel (job):
     _isovalue      = parameters['_isovalue']  
     _IsosurfaceTag = parameters['_IsosurfaceTag']
     key            = parameters['orbital_key']
+    #print(parameters, type(system))
+    #-----------------------------------------------------------------------
+    # . Calculate the system grid properties.
+    #-----------------------------------------------------------------------
+    #system    = system.Energy()
+    #energies  = orbitalsP.energies
     
     apply_coords_to_system(system, coords)
     system.Energy()
-    
     
     #-----------------------------------------------------------------------
     # . Calculate the system grid properties.
@@ -581,7 +656,84 @@ def generate_grid_parallel (job):
     orbital_iso['obital_minus'] = [vertices, colors, indexes]
     
     return orbital_iso
-    #trajectory[frame] = orbital_iso
+    
+    #generator.DefineGrid    ( gridSpacing = _GridSpacing ) # . Some value in atomic units - e.g. 0.2
+    #
+    #orbital_iso = {}
+    #print ('key, _OrbitalTag:', key, _OrbitalTag)
+    #generator.GridOrbitals  ( [ key ], tag = _OrbitalTag) # . List of orbital indices (can be one only)    
+    #
+    #generator.Isosurface    ( _OrbitalTag, _isovalue, tag = _IsosurfaceTag )
+    #surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
+    #isosurface_p = surfaceProperty.isosurface # . This is the surface you can display.
+    #
+    #
+    #
+    #vertices, colors, indexes = surfece_parser ( surface = isosurface_p , iso_color = [1,0,0] )
+    #
+    #orbital_iso['obital_plus'] = [vertices, colors, indexes]
+    #
+    #generator.Isosurface    ( _OrbitalTag, _isovalue*-1, tag = _IsosurfaceTag )
+    #surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
+    #isosurface_n = surfaceProperty.isosurface # . This is the surface you can display.
+    #
+    #vertices, colors, indexes = surfece_parser ( surface = isosurface_n , iso_color = [0,0,1] )
+    #orbital_iso['obital_minus'] = [vertices, colors, indexes]
+    #
+    #return orbital_iso
+
+
+
+def generate_wavefunction_parallel(job):
+    """ Function doc """
+    generate_grid_parallel
+
+    i          = job[0]
+    system     = job[1]
+    coords     = job[2]
+    #parameters = job[3]
+    
+    apply_coords_to_system(system, coords)
+    system.Energy()
+
+    orbitalsP = system.scratch.orbitalsP
+    energies  = orbitalsP.energies
+    
+    LUMO      = orbitalsP.occupancyHandler.numberOccupied
+    HOMO      = LUMO - 1
+    
+    #generator = QCGridPropertyGenerator.FromSystem (system )
+    #generator.orbitalsP = orbitalsP
+    orbitals  = []
+    generator = QCGridPropertyGenerator.FromSystem ( system )
+    
+    for i,energy in enumerate(energies):
+        if i >= LUMO:
+            if i-LUMO == 0:
+                label = 'LUMO ' 
+            else:
+                label = 'LUMO +'+str(i-LUMO)
+        else:
+            
+            if i-HOMO == 0:
+                label = 'HOMO' 
+            else:
+                label = 'HOMO '+str(i-HOMO)
+        orbitals.append([i, label, orbitalsP.occupancies[i], energy, False ])
+        
+    return orbitals, system, generator
+    
+    
+    
+    
+    
+    '''
+    for i in range(len(orbitals)):
+        reverse_index = -i-1 #- len(orbitals)
+        print(reverse_index, orbitals[reverse_index ])
+        self.liststore.append(orbitals[reverse_index ])
+    '''
+
 
 
 

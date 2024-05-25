@@ -85,7 +85,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton">
+                  <object class="GtkButton" id="btn_import_wavefunction">
                     <property name="label" translatable="yes">Get Orbitals</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
@@ -149,7 +149,7 @@
                 <property name="orientation">vertical</property>
                 <property name="spacing">8</property>
                 <child>
-                  <object class="GtkLabel">
+                  <object class="GtkLabel" id="label_frame">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes">Frame 1</property>

@@ -2126,7 +2126,7 @@ def _run_parallel_umbrella_sampling_2D (job):
     ''' 
     
     '''
-    if hamiltonian in ['DFTB QC Model', 'ORCA QC Model', 'external']:
+    if hamiltonian in ['DFTB QC Model', 'ORCA QC Model','XTB QC Model', 'external']:
         try:
             os.mkdir(system.qcModel.scratch +'/process_'+str(i)+'_'+str(j))
         except:
@@ -2300,7 +2300,7 @@ def _run_parallel_umbrella_sampling_1D (job):
     hamiltonian = get_hamiltonian (system)
     ''' 
     '''
-    if hamiltonian in ['DFTB QC Model', 'ORCA QC Model', 'external']:
+    if hamiltonian in ['DFTB QC Model', 'ORCA QC Model', 'XTB QC Model','external']:
         try:
             os.mkdir(system.qcModel.scratch +'/process_'+str(i))
         except:
@@ -2808,7 +2808,7 @@ def _run_second_coordinate_in_parallel ( job):
     ''' 
     
     '''
-    if hamiltonian in ['DFTB QC Model', 'ORCA QC Model', 'external']:
+    if hamiltonian in ['DFTB QC Model', 'ORCA QC Model', 'XTB QC Model', 'external']:
         try:
             os.mkdir(system.qcModel.scratch +'/process_'+str(i))
         except:

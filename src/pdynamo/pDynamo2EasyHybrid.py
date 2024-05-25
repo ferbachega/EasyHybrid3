@@ -2154,13 +2154,40 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                                 scratch        = parameters['orca_scratch'  ],
                                                  )
             qcModel.randomScratch = parameters['random_scratch']
+        elif parameters['method'] == 'xTB':
+            qcModel = QCModelXTB.WithOptions ( #gfn = 2, keywords = None, vfukui = True,  randomJob = False, parallel = 10)
+                                              gfn      = parameters['gfn'     ] ,
+                                              vfukui   = parameters['vfukui'  ] ,
+                                              parallel = parameters['parallel'] ,
+                                              json     = parameters['json'    ] ,
+                                              acc      = parameters['acc'     ] ,
+                                              lmo      = parameters['lmo'     ] ,
+                                            )
+            
         elif parameters['method'] == 'DFTB+':
             #print(parameters)
             qcModel = QCModelDFTB.WithOptions ( deleteJobFiles = parameters['delete_job_files'],
                                                 randomScratch  = parameters['random_scratch']  ,
                                                 scratch        = parameters['dftb+_scratch']   ,
                                                 skfPath        = parameters['skf_path']        ,
-                                                useSCC         = parameters['use_scc']         )
+                                                useSCC         = parameters['use_scc']         ,
+                                                
+                                                ThirdOrderFull       = parameters['ThirdOrderFull'      ],
+                                                zeta                 = parameters['zeta'                ],
+                                                HubbardDerivs        = parameters['HubbardDerivs'       ],
+                                                fermiTemperature     = parameters['fermiTemperature'    ],
+                                                gaussianBlurWidth    = parameters['gaussianBlurWidth'   ],
+                                                maximumSCCIterations = parameters['maximumSCCIterations'],
+                                                sccTolerance         = parameters['sccTolerance'        ],
+                                                )
+        
+        
+        
+        
+        
+        
+        
+        
         
         else:
             converger = DIISSCFConverger.WithOptions( energyTolerance   = parameters['energyTolerance'] ,
@@ -2187,6 +2214,10 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             if system.mmModel:
                 if parameters['method'] == 'ab initio - ORCA':
                     system.DefineNBModel (NBModelORCA.WithDefaults ( ))
+                
+                elif parameters['method'] == 'xTB':
+                    system.DefineNBModel (NBModelORCA.WithDefaults ( ))
+                
                 elif parameters['method'] == 'DFTB+':
                     system.DefineNBModel (NBModelDFTB.WithDefaults ( ))
                 else:
