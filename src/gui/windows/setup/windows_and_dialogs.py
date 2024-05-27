@@ -3038,7 +3038,7 @@ class ImportANewSystemWindow(Gtk.Window):
         self.easyhybrid_main     = main
         self.home                = main.home
         self.Visible             = False        
-        
+        self.vm_session          = self.easyhybrid_main.vm_session
         self.residue_liststore = Gtk.ListStore(str, str, str)
         #self.atom_liststore    = Gtk.ListStore(bool, int, str, str, int, int)
         #self.residue_filter    = False
@@ -3102,8 +3102,16 @@ class ImportANewSystemWindow(Gtk.Window):
             # - - - - - - - - - - - working folder  - - - - - - - - - - - -
             self.folder_chooser_button = FolderChooserButton(main =  self, sel_type = 'folder', home =  self.home)
             self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
-            self.folder_chooser_button.set_folder(None)
+            try:
+                self.folder_chooser_button.set_folder(self.vm_session.vm)
+            except:
+                self.folder_chooser_button.set_folder(self.vm_session.vm_config.gl_parameters['startup_path'])
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
+            
+            
+            self.entry_system_name = self.builder.get_object('entry_system_name')
+            self.entry_system_name.connect('changed', self.on_entry_system_name_change)
+            
             
             self.window.show_all()                                               
             self.builder.connect_signals(self)                                   
@@ -3138,7 +3146,22 @@ class ImportANewSystemWindow(Gtk.Window):
         self.window.destroy()
         self.Visible    =  False
         #print('self.Visible',self.Visible)
-    
+
+    def on_entry_system_name_change (self, widget):
+        """ Function doc """
+        name = self.entry_system_name.get_text()
+        
+        tag  = name.replace(' ','')
+        size = len(tag)
+        
+        if size > 15:
+            tag = tag[:15]
+        else:
+            pass
+        
+        self.builder.get_object('entry_system_tag').set_text(tag)
+        #print(name)
+        
     def on_name_combo_changed(self, widget):
         """ Function doc """
         #fftype = self.system_types_combo.get_active()
@@ -3280,18 +3303,6 @@ class ImportANewSystemWindow(Gtk.Window):
             self.residue_liststore.append(list([_file, filetype, 'unk' ]))
         self.treeview.set_model(self.residue_liststore)
         self.files['prm_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()
-        #print(self.files)
-
-    #def on_button_import_a_new_system_clicked (self, button):
-    #    """ Function doc """
-    #    
-    #    if button == self.builder.get_object('ok_button_import_a_new_system'):
-    #        print('ok_button_import_a_new_system')
-    #        #self.on_button1_clicked_create_new_project(button)
-    #        #self.dialog.hide()
-    #    if button == self.builder.get_object('cancel_button_import_a_new_system'):
-    #        print('cancel_button_import_a_new_system')
-    #        self.dialog.hide()
             
     def on_button_import_system_clicked (self, button):
         #print('ok_button_import_a_new_system')
@@ -3304,7 +3315,9 @@ class ImportANewSystemWindow(Gtk.Window):
         else:
             return None
         self.files['prm_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()
-        name =  self.builder.get_object('entry_system_name').get_text()
+        #name =  self.builder.get_object('entry_system_name').get_text()
+        name =  self.entry_system_name.get_text()
+        
         tag  =  self.builder.get_object('entry_system_tag').get_text()
         #color  =  self.builder.get_object('button_color').get_color()
         color  =  self.builder.get_object('button_color').get_rgba()

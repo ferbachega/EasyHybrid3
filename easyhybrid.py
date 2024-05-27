@@ -49,7 +49,7 @@ def main():
     logging.basicConfig(format="%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",
                         datefmt="%Y-%m-%d:%H:%M:%S", level=logging.DEBUG)
 
-    vconfig = VismolConfig()
+    vconfig = VismolConfig(home = EASYHYBRID_HOME)
 
     vm_session = EasyHybridSession(vm_config = vconfig)
     vm_session.vm_widget.insert_glmenu()

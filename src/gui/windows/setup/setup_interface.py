@@ -92,9 +92,16 @@ class EasyHybridPreferencesWindow():
             self.elements_gtk_scrolled = self.builder.get_object('elements_gtk_scrolled')
             self.built_element_treeview()
             
-            
-            
-            
+            self.tmp_autosave             = self.builder.get_object('checkbox_tmp_autosave') 
+            self.ask_autosave_and_unsaved = self.builder.get_object('checkbox_ask_autosave_and_unsaved')            
+            #----------------------------------------------------------------------
+            #. Paths
+            #----------------------------------------------------------------------
+            self.entry_startup_path = self.builder.get_object('entry_startup_path')
+            self.entry_scratch_path = self.builder.get_object('entry_scratch_path')
+            self.entry_tmp_path     = self.builder.get_object('entry_tmp_path')
+            #----------------------------------------------------------------------
+
             #-------------------------------------------------------------------------------------
             self.set_interface_startup_shutdown_paramters()
             #-------------------------------------------------------------------------------------
@@ -113,10 +120,21 @@ class EasyHybridPreferencesWindow():
             self.set_stick_parameters()
             
             self.set_sphere_parameters()
+            
+            self.set_paths_and_folders()
             #-------------------------------------------------------------------------------------
             
-            self.btn_apply_parameters = self.builder.get_object('btn_apply_parameters')
-            self.btn_apply_parameters.connect('clicked', self.btn_apply_all_changes)
+            
+
+            
+            self.btn_apply_changes = self.builder.get_object('btn_apply_changes')
+            self.btn_apply_changes.connect('clicked', self.on_btn_apply_all_changes)
+            
+            self.btn_apply_and_save_changes = self.builder.get_object('btn_apply_and_save_changes')
+            self.btn_apply_and_save_changes.connect('clicked', self.on_btn_apply_and_save_changes)
+            
+            self.btn_reset_parms = self.builder.get_object('btn_reset_parameters')
+            self.btn_reset_parms.connect('clicked', self.on_btn_reset_parms)
             
             self.window.show_all()                                               
             self.visible    =  True
@@ -218,7 +236,7 @@ class EasyHybridPreferencesWindow():
         #self.treeview.set_tooltip_cell(Gtk.Tooltip(), None, self.simbolo_cell, None, 1)
         self.elements_gtk_scrolled.add(self.treeview)
 
-    def btn_apply_all_changes (self, widget):
+    def __apply_all_changes (self):
         """ Function doc """
         self.__apply_light_parameters()
         self.__apply_sphere_parameters()
@@ -228,6 +246,44 @@ class EasyHybridPreferencesWindow():
         self.__apply_viewer_selections_parameters() 
         self.__apply_viewer_general_parameters() 
         self.__apply_interface_general_parameters()
+        self.vm_session.vm_glcore.queue_draw()
+    
+    def on_btn_reset_parms (self, widget):
+        """ Function doc """
+        #print('on_btn_reset_parms')
+        isOK = self.vm_session.vm_config.reset_parameters()
+     
+        if isOK:
+            #-------------------------------------------------------------------------------------
+            self.set_interface_startup_shutdown_paramters()
+            #-------------------------------------------------------------------------------------
+
+            self.set_general_parameters()
+            self.set_selection_parameters()
+            self.set_light_parameters()
+            self.set_line_parameters()
+            self.set_bond_parameters()
+            self.set_stick_parameters()
+            self.set_sphere_parameters()
+            #-------------------------------------------------------------------------------------
+            self.vm_session.vm_glcore.queue_draw()
+    
+    def on_btn_apply_all_changes (self, widget):
+        """ Function doc """
+        self.__apply_all_changes()
+    
+    def on_btn_apply_and_save_changes (self, widget):
+        """ Function doc """
+        self.__apply_all_changes()
+        #self.__apply_light_parameters()
+        #self.__apply_sphere_parameters()
+        #self.__apply_stick_parameters()
+        #self.__apply_lines_parameters() 
+        #self.__apply_bond_parameters() 
+        #self.__apply_viewer_selections_parameters() 
+        #self.__apply_viewer_general_parameters() 
+        #self.__apply_interface_general_parameters()
+        self.vm_session.vm_config.save_easyhybrid_config()
     
     def color_set_viewing_selections (self, widget):
         """ 
@@ -295,6 +351,11 @@ class EasyHybridPreferencesWindow():
     
     def set_interface_startup_shutdown_paramters (self):
         """ Function doc """
+        a = self.vm_session.vm_config.gl_parameters['autosave']      
+        b = self.vm_session.vm_config.gl_parameters['askSaveUnsave'] 
+        
+        self.tmp_autosave            .set_active(a)
+        self.ask_autosave_and_unsaved.set_active(b)
         pass
     
     def set_general_parameters (self):
@@ -498,6 +559,10 @@ class EasyHybridPreferencesWindow():
         self.entry_sphere_quality.set_text(str(sphere_quality))
         self.entry_sphere_type   .set_text(str(sphere_type))
 
+    def set_paths_and_folders (self):
+        """ Function doc """
+        startup_path = self.vm_session.vm_config.gl_parameters['startup_path']
+        self.entry_startup_path.set_text(startup_path)
     
     
     
@@ -695,13 +760,43 @@ class EasyHybridPreferencesWindow():
         #---------------------------------------------------------------
     def __apply_interface_general_parameters (self):
         """ Function doc """
-        a = self.builder.get_object('checkbox_temp_autosave')
-        a = self.builder.get_object('checkbox_ask_autosave_and_unsaved')
-        a = self.builder.get_object('checkbox_save_window_size')
+        path = self.entry_startup_path.get_text()
         
-        b = self.builder.get_object('entry_startup_path')
-        b = self.builder.get_object('entry_scratch_path')
-        b = self.builder.get_object('entry_tempfiles_path')
+        if os.path.isdir(path):
+            self.vm_session.vm_config.gl_parameters['startup_path'] = path
+            print('Defining New Startup Path:', path)
+        else:
+            dialog = Gtk.MessageDialog(
+                                flags=0,
+                                message_type=Gtk.MessageType.ERROR,
+                                buttons=Gtk.ButtonsType.OK,
+                                text="ERROR: Folder not found.",
+                            )
+
+            dialog.format_secondary_text(
+                                    "If the desired path is correct, create the folder using your file manager."
+                                        )
+            dialog.run()
+            #print("ERROR dialog closed")
+            dialog.destroy()
+        
+        
+        a = self.builder.get_object('checkbox_tmp_autosave').get_active()
+        b = self.builder.get_object('checkbox_ask_autosave_and_unsaved').get_active()
+        c = self.builder.get_object('checkbox_save_window_size').get_active()
+        
+        
+        self.vm_session.vm_config.gl_parameters['autosave']      = a
+        self.vm_session.vm_config.gl_parameters['askSaveUnsave'] = b
+        print(a,b)
+        #self.vm_session.vm_config.gl_parameters['startup_path'] =
+        
+        
+        
+        #
+        #b = self.builder.get_object('entry_startup_path')
+        #b = self.builder.get_object('entry_scratch_path')
+        #b = self.builder.get_object('entry_tempfiles_path')
 
 
 

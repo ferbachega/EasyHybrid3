@@ -21,6 +21,9 @@ import time
 import numpy as np
 import copy
 
+import random
+import string
+
 from pprint import pprint
 
 #VISMOL_HOME = os.environ.get('VISMOL_HOME')
@@ -107,8 +110,13 @@ class LoadAndSaveData:
         pass
 
 
-    def save_easyhybrid_session (self, filename = 'session.easy'):
-        """ Function doc """
+    def save_easyhybrid_session (self, filename = 'session.easy', tmp = False):
+        """   
+        When the interface makes some modification to the session, 
+        a temporary file "filename.easy~" is saved. When the session 
+        is saved by the user, the interface checks if there is a 
+        temporary file and deletes it.
+        """
         easyhybrid_session_data = {}
         backup = {}
         
@@ -156,9 +164,39 @@ class LoadAndSaveData:
                             
                 easyhybrid_session_data['systems'].append(data)
         
-        with open(filename,'wb') as outfile:
-            pickle.dump(easyhybrid_session_data, outfile)
+        #---------------------------------------------------------------
+        """   
+        When the interface makes some modification to the session, 
+        a temporary file "filename.easy~" is saved. When the session 
+        is saved by the user, the interface checks if there is a 
+        temporary file and deletes it.
+        """
+        if tmp:
             
+            #.Saves a temporary file with the same name as the original session + "~"
+            if filename:
+                tmpfile = filename+'~'
+                with open(tmpfile,'wb') as outfile:
+                    pickle.dump(easyhybrid_session_data, outfile)
+            
+            #.Saves a temporary file when there is no previous session name.
+            else:
+                tmpfile = os.path.join(self.vm_session.vm_config.easyhybrid_tmp, 
+                                       self.random_code+'.easy')
+                with open(tmpfile,'wb') as outfile:
+                    pickle.dump(easyhybrid_session_data, outfile)
+                
+
+
+        else:
+            with open(filename,'wb') as outfile:
+                pickle.dump(easyhybrid_session_data, outfile)
+                self.changed = False
+            if os.path.exists(filename+'~'):
+                os.remove(filename+'~')
+            else:
+                pass
+        #---------------------------------------------------------------
             
         for e_id, data in backup.items():
             self.psystem[e_id]
@@ -191,7 +229,7 @@ class LoadAndSaveData:
         #easyhybrid_session_data['vobjects'] = vobjects
         #'''- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
 
-    def load_easyhybrid_serialization_file (self, filename = None):
+    def load_easyhybrid_serialization_file (self, filename = None, tmp = False):
         self.main.restart() 
         self.main.bottom_notebook.status_teeview_add_new_item(message = ':  {}  loaded'.format(filename), 
                                                                system =  None )
@@ -236,8 +274,11 @@ class LoadAndSaveData:
                     system.e_logfile_data[vm_object.index] = vobj['logfile_data']
                 if 'idx_2D_xy' in vobj.keys():
                     vm_object.idx_2D_xy  = vobj['idx_2D_xy']
-        
-        self.main.session_filename = filename
+        if tmp:
+            filename = filename.replace('~', '')
+            self.main.session_filename = filename
+        else:
+            self.main.session_filename = filename
 
 
 
@@ -642,9 +683,6 @@ class pSimulations:
         
         elif parameters['simulation_type'] == 'Energy_Refinement':
             self.energy_refinement = EnergyRefinement()
-            
-            #thread1 = threading.Thread(self.energy_refinement.run(parameters))
-            #thread1.start()
             energy = self.energy_refinement.run(parameters)
             new_vobject = False
 
@@ -657,7 +695,6 @@ class pSimulations:
             #pprint(parameters)
             self.molecular_dynamics_object = MolecularDynamics()
             self.molecular_dynamics_object.run(parameters)
-        
         
         elif parameters['simulation_type'] == 'Relaxed_Surface_Scan':
             self.relaxed_surface_scan = RelaxedSurfaceScan()
@@ -689,7 +726,7 @@ class pSimulations:
         
         
         
-        
+        #. Updating the path to the working folder.
         if parameters['folder']:
             self.psystem[self.active_id].e_working_folder = parameters['folder']
         else:
@@ -698,9 +735,9 @@ class pSimulations:
         
         
 
-    
+        
         if energy:
-            self.main.bottom_notebook.status_teeview_add_new_item(message = 'New VObejct:  {}   Energy:  {:.3f}'.format(parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter), energy), system = parameters['system'])
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'New VObejct:  {}   Energy:  {:.3f} kJ/mol'.format(parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter), energy), system = parameters['system'])
         else:
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'New VObejct:  {} '.format(parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter)), system = parameters['system'])
         
@@ -721,6 +758,11 @@ class pSimulations:
 
         parameters['system'].e_step_counter += 1
         self.changed = True
+        
+        #if self.main.session_filename:
+        #print('\n\n',  self.main.session_filename, '\n\n')
+        self.save_easyhybrid_session( filename = self.main.session_filename, tmp = True)
+            
         return energy
         
         
@@ -1074,6 +1116,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         closed without question. If it is set to True, the 
         GUI asks the user if they want to save the session.
         "'''
+        self.random_code = generate_random_code(10)
         self.changed = False
 
     def set_active(self, system_e_id = None):
@@ -3099,6 +3142,11 @@ class Atom:
 
 
 
-
+def generate_random_code(length):
+    # Define the character set: uppercase letters, lowercase letters, and digits
+    characters = string.ascii_letters + string.digits
+    # Generate the random code by randomly selecting characters from the set
+    random_code = ''.join(random.choice(characters) for _ in range(length))
+    return random_code
 
 

@@ -1038,6 +1038,7 @@ class MainWindow:
         filters.append(filter)
         #'''
         
+
         filter = Gtk.FileFilter()  
         filter.set_name("pDynamo3 files - *.pkl")
         filter.add_mime_type("PKL files")
@@ -1057,6 +1058,18 @@ class MainWindow:
     
         if filename:
             if filename[-4:] == 'easy':
+                if os.path.exists(filename+'~'):
+                    msg = 'There is a newer temporary file for the project you are loading.\n Would you like to load the most current file?'
+                    dialog = SimpleDialog(self)
+                    yes_or_no = dialog.question (msg)
+                    if yes_or_no:
+                        self.p_session.load_easyhybrid_serialization_file(filename+'~', tmp = True)
+                    else:
+                        self.p_session.load_easyhybrid_serialization_file(filename)
+                else:
+                    self.p_session.load_easyhybrid_serialization_file(filename)
+
+            elif filename[-5:] == 'easy~':
                 #print('ehf file')            
                 #self.save_vismol_file = filename
                 self.p_session.load_easyhybrid_serialization_file(filename)            

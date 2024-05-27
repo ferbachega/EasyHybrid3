@@ -63,7 +63,7 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkCheckButton" id="checkbox_temp_autosave">
+                              <object class="GtkCheckButton" id="checkbox_tmp_autosave">
                                 <property name="label" translatable="yes">Temporary autosave </property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
@@ -155,7 +155,7 @@
                           <object class="GtkLabel">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Shutdow</property>
+                            <property name="label" translatable="yes">Shutdown</property>
                           </object>
                         </child>
                       </object>
@@ -196,7 +196,7 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkEntry" id="entry_log_frequence">
+                              <object class="GtkEntry" id="entry_scratch_path">
                                 <property name="name">entry_scratch_path</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
@@ -221,7 +221,7 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkEntry">
+                              <object class="GtkEntry" id="entry_startup_path">
                                 <property name="name">entry_startup_path</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
@@ -247,7 +247,7 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkEntry">
+                              <object class="GtkEntry" id="entry_tmp_path">
                                 <property name="name">entry_tempfiles_path</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
@@ -2051,7 +2051,7 @@
                 <property name="spacing">8</property>
                 <property name="layout-style">end</property>
                 <child>
-                  <object class="GtkButton">
+                  <object class="GtkButton" id="btn_reset_parameters">
                     <property name="label" translatable="yes">Reset</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
@@ -2064,7 +2064,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton" id="btn_apply_parameters">
+                  <object class="GtkButton" id="btn_apply_changes">
                     <property name="label" translatable="yes">Apply</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
@@ -2077,7 +2077,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton">
+                  <object class="GtkButton" id="btn_apply_and_save_changes">
                     <property name="label" translatable="yes">Apply and Save</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>

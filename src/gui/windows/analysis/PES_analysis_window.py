@@ -68,7 +68,7 @@ class PotentialEnergyAnalysisWindow:
         for i, cmap in enumerate(cmaps):
             self.cmap_store.append([cmap])
             self.cmap_ref_dict[i] = cmap
-            print(cmap)
+            #print(cmap)
         
         #----------------------- RC labels -----------------------------
         self.RC_label_list = ['frames', 'rc distances']
