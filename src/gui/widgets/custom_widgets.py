@@ -545,7 +545,7 @@ class VismolTrajectoryFrame(Gtk.Frame):
         """ Class initialiser """
         self.vm_session = vm_session 
         
-        self.frame      =Gtk.Frame()
+        self.frame      = Gtk.Frame()
         #self.frame.set_shadow_type(Gtk.SHADOW_IN)
         self.frame.set_border_width(4)
         
@@ -724,6 +724,7 @@ class VismolTrajectoryFrame(Gtk.Frame):
         #last_obj = len(self.vm_session.vobjects) -1
         last_obj = len(self.vm_session.vobjects_dic.items()) -1
         self.combobox_vobjects.set_active(last_obj)
+    
     def change_range (self, upper = 100):
         """ Function doc """
         #print('upper =', upper)

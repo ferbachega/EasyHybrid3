@@ -56,7 +56,7 @@ def main():
     main_window = MainWindow(vm_session = vm_session,
                              home       =  EASYHYBRID_HOME,
                              version    = EASYHYBRID_VERSION)
-                             
+    vm_session.main_session = main_window                  
     #main_window.window.connect('destroy', Gtk.main_quit)
     
     

@@ -526,9 +526,6 @@ class ExportDataWindow:
         self.window.destroy()
         self.Visible    =  False
 
-
-
-
     def OpenWindow (self, sys_selected = None):
         """ Function doc """
         if self.Visible  ==  False:
@@ -546,12 +543,13 @@ class ExportDataWindow:
             self.format_store = Gtk.ListStore(str)
             self.formats = {
                        0 : 'pkl - pDynamo system'         ,
-                       1 : 'pkl - pDynamo coordinates'    ,
-                       2 : 'pdb - Protein Data Bank'      ,
-                       3 : 'xyz - cartesian coordinates'  ,
-                       4 : 'mol'                          ,
-                       5 : 'mol2'                         ,
-                       6 : 'crd' 
+                       1 : 'yaml - pDynamo system'        ,
+                       2 : 'pkl - pDynamo coordinates'    ,
+                       3 : 'pdb - Protein Data Bank'      ,
+                       4 : 'xyz - cartesian coordinates'  ,
+                       5 : 'mol'                          ,
+                       6 : 'mol2'                         ,
+                       7 : 'crd' 
                        }
                        
             for key, _format in self.formats.items():
@@ -594,6 +592,8 @@ class ExportDataWindow:
             self.combobox_starting_coordinates = CoordinatesComboBox(coordinates_liststore = self.main.vobject_liststore_dict[sys_selected]) #self.builder.get_object('coordinates_combobox')
             self.box_coordinates.pack_start(self.combobox_starting_coordinates, False, False, 0)
             size = len(self.main.vobject_liststore_dict[sys_selected])
+            
+            self.combobox_starting_coordinates.connect("changed", self.on_vobject_combo_changed)
             self.combobox_starting_coordinates.set_active(size-1)
             #------------------------------------------------------------------------------------
             
@@ -627,13 +627,29 @@ class ExportDataWindow:
             if folder:
                 self.folder_chooser_button.set_folder(folder = folder)
 
-    
-    
-    
     def on_vobject_combo_changed (self, widget):
         '''this combobox has the reference to the starting coordinates of a simulation'''
         #combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
         tree_iter = self.combobox_starting_coordinates.get_active_iter()
+        if tree_iter is not None:
+            model = self.combobox_starting_coordinates.get_model()
+            name, vobject_id = model[tree_iter][:2]
+            vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
+        
+            if getattr ( vismol_object, 'idx_2D_xy', False):
+                print('2D traj')
+                self.builder.get_object('label_y_rc'   ).hide()
+                self.builder.get_object('entry_first2' ).hide()
+                self.builder.get_object('entry_last2'  ).hide()
+                self.builder.get_object('entry_stride2').hide()
+                
+            else:
+                self.builder.get_object('label_y_rc'   ).show()
+                self.builder.get_object('entry_first2' ).show()
+                self.builder.get_object('entry_last2'  ).show()
+                self.builder.get_object('entry_stride2').show()
+                pass
+        """
         if tree_iter is not None:
             
             '''selecting the vismol object from the content that is in the combobox '''
@@ -669,7 +685,7 @@ class ExportDataWindow:
             self.builder.get_object('label_first').set_sensitive(False)
             self.builder.get_object('entry_stride').set_sensitive(False)
             self.builder.get_object('label_stride').set_sensitive(False)
-        
+        #"""
     def on_combobox_fileformat (self, widget):
         """ Function doc """
         print('on_combobox_fileformat')
@@ -796,12 +812,13 @@ class ExportDataWindow:
         
         format_dict = {
             0 : 'pkl'  ,
-            1 : 'pkl'  ,
-            2 : 'pdb'  ,
-            3 : 'xyz'  ,
-            4 : 'mol'  ,
-            5 : 'mol2' ,
-            6 : 'crd'
+            1 : 'yaml' ,
+            2 : 'pkl'  ,
+            3 : 'pdb'  ,
+            4 : 'xyz'  ,
+            5 : 'mol'  ,
+            6 : 'mol2' ,
+            7 : 'crd'
             }
         
         if parameters['is_single_file']:
@@ -1434,7 +1451,102 @@ class PDynamoSelectionWindow:
         pass
 
 
+class SetupXTBplusWindow:
+    """ Class doc """
+    
+    def __init__ (self, main, setup_QC_model_window):
+        """ Class initialiser """
+        self.main_session     = main
+        self.home             = main.home
+        self.Visible          = False        
+        self.vismol_object    = None 
+        
+        self.parameters = {
+                          'gfn'          : 1  ,
+                          'parallel'     : 1  ,
+                          'acc'          : 1.0,
+                          'iterations'   : 300,
+                          'fermi_temp'   : 300.0,
+                          'add_keywords' : ''
+                          }
+        
+        self.setup_QC_model_window = setup_QC_model_window
 
+    def OpenWindow (self, vismol_object = None):
+        """ Function doc """
+        if self.Visible  ==  False:
+            self.builder = Gtk.Builder()
+            self.builder.add_from_file(os.path.join(self.home, 'src/gui/windows/setup/setup_qc_model_window.glade'))
+            #self.builder.connect_signals(self)
+            
+            self.window = self.builder.get_object('window_setup_xtb')
+            self.window.set_keep_above(True)
+            self.window.set_default_size(450, 200)
+            
+            self.button_ok         = self.builder.get_object('btn_xtb_ok') 
+            self.button_cancel     = self.builder.get_object('btn_xtb_cancel') 
+            self.button_ok.connect("clicked", self.on_button_ok)
+            self.button_cancel.connect("clicked", self.CloseWindow)
+            
+            self.box_gfn = self.builder.get_object('box_gfn_type')
+            
+            #-----------------------------------------------------------
+            self.gfn_cbox = Gtk.ComboBoxText()
+            self.gfn_cbox.set_entry_text_column(0)
+            #self.gfn_cbox.connect("changed", self.on_combobox_changed)
+
+            # Add items to the ComboBox
+            self.gfn_cbox.append_text("GFN1-xTB")
+            self.gfn_cbox.append_text("GFN2-xTB")
+            #self.gfn_cbox.append_text("Option 3")
+            self.box_gfn.pack_start(self.gfn_cbox, False, False, 0)
+            
+            #.Interface Widgets
+            self.spinbtn_parallel     = self.builder.get_object('spinbtn_parallel')
+            self.entry_xtb_acc        = self.builder.get_object('entry_xtb_acc')
+            self.entry_xtb_iterations = self.builder.get_object('entry_xtb_iterations')
+            
+            self.entry_xtb_fermi_temp = self.builder.get_object('entry_xtb_fermi_temp')
+            self.entry_keywords       = self.builder.get_object('entry_keywords')
+            
+            
+            #.Interface Show All
+            self.window.connect("destroy", self.CloseWindow)
+            self.window.show_all()
+            
+            
+            #.Assigning the previously adjusted parameters to the respective widgets.            
+            self.gfn_cbox.set_active(self.parameters['gfn']-1)
+            self.spinbtn_parallel.set_value(self.parameters['parallel'])
+            
+            self.entry_xtb_acc       .set_text(str(self.parameters['acc'         ]))    
+            self.entry_xtb_iterations.set_text(str(self.parameters['iterations'  ]))
+            self.entry_xtb_fermi_temp.set_text(str(self.parameters['fermi_temp'  ]))
+            self.entry_keywords      .set_text(str(self.parameters['add_keywords']))
+            
+            
+            #self.refresh_orca_parameters (None)
+            self.Visible  =  True
+            
+    def on_button_ok (self, widget):
+        """ Function doc """
+        self.parameters['gfn']      = (self.gfn_cbox        .get_active() + 1)
+        self.parameters['parallel'] = int(self.spinbtn_parallel.get_value ())
+        
+        self.parameters['acc'         ] = float(self.entry_xtb_acc       .get_text())
+        self.parameters['iterations'  ] = int(self.entry_xtb_iterations.get_text())
+        self.parameters['fermi_temp'  ] = float(self.entry_xtb_fermi_temp.get_text())
+        self.parameters['add_keywords'] = self.entry_keywords      .get_text()
+        
+        print(self.parameters)
+        print('on_button_ok')
+        self.CloseWindow (widget,None)
+        
+    def CloseWindow (self, button, data  = None):
+        """ Function doc """
+        self.window.destroy()
+        self.Visible    =  False
+        
 class SetupDFTBplusWindow:
     """ Class doc """
     
@@ -1476,15 +1588,36 @@ class SetupDFTBplusWindow:
                                         'Zn': -0.03   ,
                                         }
         
-        
+        #self.parameters =
+
+        #self.skf_folder           = None
+        #self.scratch_folder       = None
+        self.use_scc              = True
+        self.delete_job_files     = True
+        self.random_scratch       = False
+                                  
+        self.ThirdOrderFull       = False
+        self.zeta                 = 4.00
+        self.HubbardDerivs        = None
+
+        self.fermiTemperature     = 300
+        self.gaussianBlurWidth    = 0.0
+        self.maximumSCCIterations = 300
+        self.sccTolerance         = 1.0e-8
+
+
+
+
 
     def OpenWindow (self, vismol_object = None):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
             self.builder.add_from_file(os.path.join(self.home, 'src/gui/windows/setup/setup_qc_model_window.glade'))
-            self.builder.connect_signals(self)
+            #self.builder.connect_signals(self)
             
+            
+            #.Interface Widgets
             self.window = self.builder.get_object('window_setup_dftb')
             self.window.set_keep_above(True)
             self.window.set_default_size(450, 200)
@@ -1495,23 +1628,54 @@ class SetupDFTBplusWindow:
             self.button_cancel.connect("clicked", self.CloseWindow)
             
             
-            self.skf_folder_chooser = self.builder.get_object('folder_chooser_skf_files')
-            self.skf_folder_chooser.set_filename(self.skf_folder)
-            
+            self.skf_folder_chooser = self.builder.get_object('folder_chooser_skf_files')            
             self.entry_dftb_scratch_folder = self.builder.get_object('entry_dftb_scratch_folder')
-            self.entry_dftb_scratch_folder.set_text(self.scratch_folder)
             
             self.checkbox_use_scc          = self.builder.get_object('checkbox_use_scc')
             self.checkbox_delete_job_files = self.builder.get_object('checkbox_delete_job_files')
             self.checkbox_random_scratch   = self.builder.get_object('checkbox_random_scratch')
             
-            self.on_checkbox_ThirdOrderFull_toggled (None)
+            self.checkbox_ThirdOrderFull   = self.builder.get_object('checkbox_ThirdOrderFull')
+            self.checkbox_ThirdOrderFull.connect("toggled", self.on_checkbox_ThirdOrderFull_toggled)
             
+            self.on_checkbox_ThirdOrderFull_toggled(None)
+            
+            
+            self.entry_fermiTemperature      = self.builder.get_object('entry_fermiTemperature')       
+            self.entry_gaussianBlurWidth     = self.builder.get_object('entry_gaussianBlurWidth')   
+            self.entry_maximumSCCIterations  = self.builder.get_object('entry_maximumSCCIterations')
+            self.entry_sccTolerance          = self.builder.get_object('entry_sccTolerance')        
+            
+            
+            #. Interface Sholl All
             self.window.connect("destroy", self.CloseWindow)
             self.window.show_all()
+    
+            
+            #.Assigning the previously adjusted parameters to the respective widgets.            
+
+            self.skf_folder_chooser.set_filename(self.skf_folder)
+            self.entry_dftb_scratch_folder.set_text(self.scratch_folder)
+
+            self.checkbox_use_scc         .set_active(self.use_scc         )
+            self.checkbox_delete_job_files.set_active(self.delete_job_files)
+            self.checkbox_random_scratch  .set_active(self.random_scratch  )
+
+
+            self.checkbox_ThirdOrderFull.set_active(self.ThirdOrderFull)
+            self.builder.get_object('entry_zeta').set_text(str(self.zeta))
+            
+            self.entry_fermiTemperature    .set_text(str(self.fermiTemperature    ))     
+            self.entry_gaussianBlurWidth   .set_text(str(self.gaussianBlurWidth   ))    
+            self.entry_maximumSCCIterations.set_text(str(self.maximumSCCIterations)) 
+            self.entry_sccTolerance        .set_text(str(self.sccTolerance        ))         
+  
+    
             #self.refresh_orca_parameters (None)
             self.Visible  =  True
     
+    
+
     def CloseWindow (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
@@ -1519,7 +1683,10 @@ class SetupDFTBplusWindow:
 
     def on_checkbox_ThirdOrderFull_toggled (self, widget):
         """ Function doc """
-        if self.builder.get_object('checkbox_ThirdOrderFull').get_active():
+        
+        self.builder.get_object('entry_zeta').set_text(str(4.00))
+        
+        if self.checkbox_ThirdOrderFull.get_active():
             self.builder.get_object('label_zeta').set_sensitive(True)
             self.builder.get_object('entry_zeta').set_sensitive(True)
             self.builder.get_object('btn_HubbardDerivs').set_sensitive(True)
@@ -1543,7 +1710,7 @@ class SetupDFTBplusWindow:
         self.delete_job_files = self.checkbox_delete_job_files.get_active()
         self.random_scratch   = self.checkbox_random_scratch  .get_active()
         
-        if self.builder.get_object('checkbox_ThirdOrderFull').get_active():
+        if self.checkbox_ThirdOrderFull.get_active():
             self.ThirdOrderFull = True
             self.zeta = float(self.builder.get_object('entry_zeta').get_text())
             self.HubbardDerivs = self.Hubbard_Derivs_parameters
@@ -1926,8 +2093,7 @@ class SetupORCAWindow:
 
         new_text = '{} {} {} {} {} {}'.format(self.restrited_label,  method, basis, scf_conv, e_states, ncpu )
         textbuffer.set_text(new_text)
-        #print(new_text)
-        #print('!',self.restrited_label,  method, basis, scf_conv, e_states, )
+
 class EasyHybridSetupQCModelWindow:
     """ Class doc """
     
@@ -1974,6 +2140,7 @@ class EasyHybridSetupQCModelWindow:
         
         self.setup_orca_window = SetupORCAWindow(self.main_session, self)
         self.setup_dftb_window = SetupDFTBplusWindow(self.main_session, self)
+        self.setup_xtb_window  = SetupXTBplusWindow(self.main_session, self)
         self.orca_options = ''
         self.orca_scratch = ''
         self.orca_random_scratch = False
@@ -1982,7 +2149,6 @@ class EasyHybridSetupQCModelWindow:
         """ Function doc """
         self.update_number_of_qc_atoms()
        
-        
     def OpenWindow (self, vismol_object = None):
         """ Function doc """
         if self.Visible  ==  False:
@@ -2078,9 +2244,6 @@ class EasyHybridSetupQCModelWindow:
             self.update_number_of_qc_atoms ()
             self.window.present()
     
-    
-
-
     def update_number_of_qc_atoms (self):
         """ Function doc """
         self.entry_number_of_qc_atoms = self.builder.get_object('entry_number_of_qc_atoms')
@@ -2140,7 +2303,7 @@ class EasyHybridSetupQCModelWindow:
         #
         self.method_id = self.builder.get_object('QCModel_methods_combobox').get_active()
         
-        if self.method_id in [0,1,2,3,4,5, 8]:            
+        if self.method_id in [0,1,2,3,4,5]:            
             self.builder.get_object('button_setup_orca').hide()
             self.builder.get_object('button_setup_dftb').hide()
             self.builder.get_object('expander_DIISSCF_converger').show()
@@ -2152,14 +2315,21 @@ class EasyHybridSetupQCModelWindow:
             self.setup_orca_window.OpenWindow()
         
         elif self.method_id == 7:
+            self.builder.get_object('button_setup_dftb').set_label('DFTB+ Setup')
             self.builder.get_object('button_setup_dftb').show()
             self.builder.get_object('button_setup_orca').hide()
             self.builder.get_object('expander_DIISSCF_converger').hide()
             self.setup_dftb_window.OpenWindow()
+        
+        elif self.method_id == 8:
+            self.builder.get_object('button_setup_dftb').set_label('xTB Setup')
+            self.builder.get_object('button_setup_dftb').show()
+            self.builder.get_object('button_setup_orca').hide()
+            self.builder.get_object('expander_DIISSCF_converger').hide()
+            self.setup_xtb_window.OpenWindow()
         else:
             pass
-        #print(self.method_id)
-    
+
     def on_button_ok (self, button):
         """ Function doc """
         
@@ -2207,15 +2377,13 @@ class EasyHybridSetupQCModelWindow:
             parameters['sccTolerance'         ] = self.setup_dftb_window.sccTolerance        
         
         elif self.method_id == 8:
-            parameters['gfn'     ]  =  2   
-            parameters['vfukui'  ]  =  False
-            parameters['parallel']  =  6
-            parameters['json'    ]  =  False
-            parameters['acc'     ]  =  1.0
-            parameters['lmo'     ]  =  False
-        
-        
-        
+            parameters['gfn'       ] = self.setup_xtb_window.parameters['gfn']  
+            parameters['parallel'  ] = self.setup_xtb_window.parameters['parallel'] 
+            parameters['acc'       ] = self.setup_xtb_window.parameters['acc']
+            parameters['iterations'] = self.setup_xtb_window.parameters['iterations']
+            parameters['fermi_temp'] = self.setup_xtb_window.parameters['fermi_temp'  ] 
+            parameters['keywords'  ] = self.setup_xtb_window.parameters['add_keywords'] 
+
         
         
         parameters['energyTolerance'  ] = float(self.builder.get_object('entry_energyTolerance').get_text())
@@ -2235,15 +2403,22 @@ class EasyHybridSetupQCModelWindow:
     
     def on_button_setup_dftb (self, button):
         """ Function doc """
-        self.setup_dftb_window.OpenWindow()
+        if self.method_id == 7:
+            self.setup_dftb_window.OpenWindow()
         
-
-
-
+        elif self.method_id == 8:
+            print(self.method_id, self.setup_xtb_window)
+            self.setup_xtb_window.OpenWindow() 
+        
+        else:
+            pass
+        
+        
+        
     def update (self):
         """ Function doc """
-        #print('VismolGoToAtomWindow2 update')
-        #self._starting_coordinates_model_update()
+        pass
+        
 class EasyHybridGoToAtomWindow(Gtk.Window):
     def __init__(self, main = None, system_liststore = None):
         """ Class initialiser """
@@ -3686,7 +3861,9 @@ class TrajectoryPlayerWindow:
         self.p_session  = main.p_session
             
         self.Visible = False
-    
+        self.upper = 1
+        
+        
     def OpenWindow (self):
         """ Function doc """
         if self.Visible  ==  False:
@@ -3694,7 +3871,8 @@ class TrajectoryPlayerWindow:
             self.window.connect('destroy-event', self.CloseWindow)
             self.window.connect('delete-event', self.CloseWindow)
             self.vm_traj_obj = VismolTrajectoryFrame(self.vm_session)
-            
+            self.vm_traj_obj.change_range(upper = self.upper)
+            self.vm_traj_obj.scale.set_value(self.vm_session.frame)
             self.window.add(self.vm_traj_obj.get_box())
             
             self.window.set_default_size(300, 50)  

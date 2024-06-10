@@ -132,7 +132,7 @@
                                     <property name="left-padding">10</property>
                                     <property name="right-padding">10</property>
                                     <child>
-                                      <!-- n-columns=3 n-rows=3 -->
+                                      <!-- n-columns=4 n-rows=3 -->
                                       <object class="GtkGrid">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
@@ -145,7 +145,7 @@
                                             <property name="label" translatable="yes">First:</property>
                                           </object>
                                           <packing>
-                                            <property name="left-attach">0</property>
+                                            <property name="left-attach">1</property>
                                             <property name="top-attach">0</property>
                                           </packing>
                                         </child>
@@ -156,7 +156,7 @@
                                             <property name="label" translatable="yes">Last:</property>
                                           </object>
                                           <packing>
-                                            <property name="left-attach">1</property>
+                                            <property name="left-attach">2</property>
                                             <property name="top-attach">0</property>
                                           </packing>
                                         </child>
@@ -167,7 +167,7 @@
                                             <property name="label" translatable="yes">Stride:</property>
                                           </object>
                                           <packing>
-                                            <property name="left-attach">2</property>
+                                            <property name="left-attach">3</property>
                                             <property name="top-attach">0</property>
                                           </packing>
                                         </child>
@@ -178,7 +178,7 @@
                                             <property name="text" translatable="yes">0</property>
                                           </object>
                                           <packing>
-                                            <property name="left-attach">0</property>
+                                            <property name="left-attach">1</property>
                                             <property name="top-attach">1</property>
                                           </packing>
                                         </child>
@@ -189,7 +189,7 @@
                                             <property name="text" translatable="yes">-1</property>
                                           </object>
                                           <packing>
-                                            <property name="left-attach">1</property>
+                                            <property name="left-attach">2</property>
                                             <property name="top-attach">1</property>
                                           </packing>
                                         </child>
@@ -200,15 +200,64 @@
                                             <property name="text" translatable="yes">1</property>
                                           </object>
                                           <packing>
-                                            <property name="left-attach">2</property>
+                                            <property name="left-attach">3</property>
                                             <property name="top-attach">1</property>
                                           </packing>
                                         </child>
                                         <child>
-                                          <placeholder/>
+                                          <object class="GtkLabel" id="label_x_rc">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="label" translatable="yes">x:</property>
+                                          </object>
+                                          <packing>
+                                            <property name="left-attach">0</property>
+                                            <property name="top-attach">1</property>
+                                          </packing>
                                         </child>
                                         <child>
-                                          <placeholder/>
+                                          <object class="GtkLabel" id="label_y_rc">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="label" translatable="yes">y:</property>
+                                          </object>
+                                          <packing>
+                                            <property name="left-attach">0</property>
+                                            <property name="top-attach">2</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkEntry" id="entry_first2">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">True</property>
+                                            <property name="text" translatable="yes">0</property>
+                                          </object>
+                                          <packing>
+                                            <property name="left-attach">1</property>
+                                            <property name="top-attach">2</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkEntry" id="entry_last2">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">True</property>
+                                            <property name="text" translatable="yes">-1</property>
+                                          </object>
+                                          <packing>
+                                            <property name="left-attach">2</property>
+                                            <property name="top-attach">2</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkEntry" id="entry_stride2">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">True</property>
+                                            <property name="text" translatable="yes">1</property>
+                                          </object>
+                                          <packing>
+                                            <property name="left-attach">3</property>
+                                            <property name="top-attach">2</property>
+                                          </packing>
                                         </child>
                                         <child>
                                           <placeholder/>

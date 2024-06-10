@@ -232,8 +232,8 @@ class MainWindow:
             #self.HBOX = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 6)
             self.HBOX = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 0)
             self.HBOX.pack_start(self.notebook_H1, True, True, 0)
-            
-            
+            #self.label_frame = Gtk.Label('Frame Number: 0')
+            #self.HBOX.pack_start(self.label_frame, False, False, 0)
             #self.HBOX.pack_start(self.traj_frame, False, False, 1)
 
             #self.paned_H.add(self.notebook_H1)
@@ -1032,7 +1032,7 @@ class MainWindow:
         
         #'''
         filter = Gtk.FileFilter()  
-        filter.set_name("EasyHybrid3 files - *.easy")
+        filter.set_name("EasyHybrid3 session files - *.easy")
         filter.add_mime_type("Easy files files")
         filter.add_pattern("*.easy")
         filters.append(filter)
@@ -1040,9 +1040,15 @@ class MainWindow:
         
 
         filter = Gtk.FileFilter()  
-        filter.set_name("pDynamo3 files - *.pkl")
+        filter.set_name("pDynamo3 system files - *.pkl")
         filter.add_mime_type("PKL files")
         filter.add_pattern("*.pkl")
+        filters.append(filter)
+        
+        filter = Gtk.FileFilter()  
+        filter.set_name("pDynamo3 system files - *.yaml")
+        filter.add_mime_type("YAML files")
+        filter.add_pattern("*.yaml")
         filters.append(filter)
         
         filter = Gtk.FileFilter()
@@ -1697,7 +1703,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
             pass
 
         self.expand_row(row.path, True)
-        
+        self.refresh_trajectory_scalebar()
     
     def _create_treeview (self):
         """ Function doc """
@@ -1754,6 +1760,26 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         self.selectedID  = int(self.treestore[path][1])
         vismol_object = self.main.vm_session.vm_objects_dic[self.selectedID]
         vismol_object.active = self.treestore[path][6]
+        
+        self.refresh_trajectory_scalebar()
+        '''
+        higher = 1
+        for index, vobject in self.main.vm_session.vm_objects_dic.items():
+            treeview_iter = vobject.e_treeview_iter
+            if vobject.active:
+                size = len(vobject.frames)
+                if size > higher:
+                    higher = size
+                else:
+                    pass
+            else:
+                pass
+            
+            #self.treestore[treeview_iter][8] = size
+            #print(index, self.treestore[treeview_iter][2], 'frames', len(vobject.frames))
+        self.main.trajectory_player_window.change_range(upper = higher)
+        self.main.trajectory_player_window.upper = higher
+        #'''
         self.main.vm_session.vm_glcore.queue_draw()
 
     
@@ -1863,6 +1889,23 @@ class EasyHybridMainTreeView(Gtk.TreeView):
             size = len(vobject.frames)
             self.treestore[treeview_iter][8] = size
             #print(index, self.treestore[treeview_iter][2], 'frames', len(vobject.frames))
+
+
+    def refresh_trajectory_scalebar (self):
+        """ Function doc """
+        higher = 1
+        for index, vobject in self.main.vm_session.vm_objects_dic.items():
+            treeview_iter = vobject.e_treeview_iter
+            if vobject.active:
+                size = len(vobject.frames)
+                if size > higher:
+                    higher = size
+                else:
+                    pass
+            else:
+                pass
+        self.main.trajectory_player_window.change_range(upper = higher)
+        self.main.trajectory_player_window.upper = higher
 
 
     def refresh (self):
@@ -2041,7 +2084,7 @@ class TreeViewMenu:
         (model, iter) = selection.get_selected()
         e_id          = int(model.get_value(iter, 0))
         self.main.p_session.clone_system(e_id)
-    
+        self._save_backup_file()
     
     def _menu_go_to_atom (self, vobject = None):
         """ Function doc """
@@ -2103,7 +2146,8 @@ class TreeViewMenu:
                                                  e_id = e_id     ,
                                                  v_id = v_id     )
             self.preferences.set_names (old_name, tag)
-
+        self._save_backup_file()
+        
     def destroy (self, widget):
         """ Function doc """
         self.rename_window_visible = False
@@ -2111,12 +2155,14 @@ class TreeViewMenu:
     def _menu_delete_vm_object (self, widget):
         """ Function doc """
         self.main.delete_vm_object ( vm_object_index = self.vobject_index)
-    
+        self._save_backup_file()
     
     def _menu_delete_system (self, widget):
         """ Function doc """
         self.main.delete_system (system_e_id = self.system_e_id )
-
+        self._save_backup_file()
+        #self.save_easyhybrid_session( filename = self.main.session_filename, tmp = True)
+        
     def build_tree_view_menu (self, menu_items = None):
         """ Function doc """
         tree_view_menu = Gtk.Menu()
@@ -2169,6 +2215,11 @@ class TreeViewMenu:
             self.tree_view_vobj_menu.popup(None, None, None, None, 0, 0)
                 
 
+    def _save_backup_file (self):
+        """ Function doc """
+        self.main.p_session.save_easyhybrid_session( filename = self.main.session_filename, tmp = True)
+        
+        
 class BottomNoteBook:
     
     def __init__ (self, main):

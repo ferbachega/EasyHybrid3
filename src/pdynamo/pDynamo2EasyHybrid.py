@@ -205,8 +205,10 @@ class LoadAndSaveData:
         
         self.main.session_filename = filename
         
-        
-        self.main.bottom_notebook.status_teeview_add_new_item(message = ':  {}  saved'.format(filename), 
+        if tmp:
+            pass
+        else:
+            self.main.bottom_notebook.status_teeview_add_new_item(message = ':  {}  saved'.format(filename), 
                                                                system =  system )
         
         #'''- - - - - - - - - - - - vismol obejcts - - - - - - - - - - - '''
@@ -279,7 +281,6 @@ class LoadAndSaveData:
             self.main.session_filename = filename
         else:
             self.main.session_filename = filename
-
 
 
 
@@ -2199,13 +2200,16 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             qcModel.randomScratch = parameters['random_scratch']
         elif parameters['method'] == 'xTB':
             qcModel = QCModelXTB.WithOptions ( #gfn = 2, keywords = None, vfukui = True,  randomJob = False, parallel = 10)
-                                              gfn      = parameters['gfn'     ] ,
-                                              vfukui   = parameters['vfukui'  ] ,
-                                              parallel = parameters['parallel'] ,
-                                              json     = parameters['json'    ] ,
-                                              acc      = parameters['acc'     ] ,
-                                              lmo      = parameters['lmo'     ] ,
-                                            )
+                                              gfn        = parameters['gfn'       ] ,
+                                              parallel   = parameters['parallel'  ] ,
+                                              acc        = parameters['acc'       ] ,
+                                              fermi_temp = parameters['fermi_temp'] ,
+                                              iterations = parameters['iterations'] ,
+                                              keywords   = parameters['keywords'  ] ,
+                                              #lmo      = parameters['lmo'     ] ,
+                                              #json     = parameters['json'    ] ,
+                                              #vfukui   = parameters['vfukui'  ] ,
+                                              )
             
         elif parameters['method'] == 'DFTB+':
             #print(parameters)
@@ -2502,7 +2506,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         active_id = self.active_id 
         self.active_id = parameters['system_id']
         
-        if parameters['format'] == 0:
+        if parameters['format'] == 0 or parameters['format'] == 1:
             self.get_coordinates_from_vobject_to_pDynamo_system(vobject       = vobject, 
                                                                 system_id     = parameters['system_id'], 
                                                                 frame         = parameters['last'])
@@ -2520,16 +2524,17 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             
             system.e_treeview_iter   = None
             system.e_liststore_iter  = None
-
-            ExportSystem ( os.path.join ( folder, filename+'.pkl'), system )
-
+            if parameters['format'] == 0:
+                ExportSystem ( os.path.join ( folder, filename+'.pkl'), system )
+            else:
+                YAMLPickle (os.path.join ( folder, filename+'.yaml'), system )
             system.e_treeview_iter   = backup[0]
             system.e_liststore_iter  = backup[1]
             system.e_logfile_data    = backup[2]
         
         
         
-        if parameters['format'] == 1:
+        if parameters['format'] == 2:
             
             #'''   When is Single File     '''
             if parameters['is_single_file']:
@@ -2587,19 +2592,19 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 
                 system = self.psystem[parameters['system_id']]
                 
-                if parameters['format'] == 2:
+                if parameters['format'] == 3:
                     ExportSystem ( os.path.join ( folder, filename+'.pdb'), system )
                 
-                if parameters['format'] == 3:
+                if parameters['format'] == 4:
                     ExportSystem ( os.path.join ( folder, filename+'.xyz'), system )
                 
-                if parameters['format'] == 4:
+                if parameters['format'] == 5:
                     ExportSystem ( os.path.join ( folder, filename+'.mol'), system )
                 
-                if parameters['format'] == 5:
+                if parameters['format'] == 6:
                     ExportSystem ( os.path.join ( folder, filename+'.mol2'), system )
                 
-                if parameters['format'] == 6:
+                if parameters['format'] == 7:
                     ExportSystem ( os.path.join ( folder, filename+'.crd'), system )
                     
 
@@ -2627,16 +2632,16 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
                     system   = self.psystem[parameters['system_id']]
                     
-                    if parameters['format'] == 2:
+                    if parameters['format'] == 3:
                         ExportSystem ( os.path.join ( folder, '{}{}.pdb'.format(filename,i) ), system )
                     
-                    if parameters['format'] == 3:
+                    if parameters['format'] == 4:
                         ExportSystem ( os.path.join ( folder, '{}{}.xyz'.format(filename,i)), system )
                     
-                    if parameters['format'] == 4:
+                    if parameters['format'] == 5:
                         ExportSystem ( os.path.join ( folder, '{}{}.mol'.format(filename,i)), system )
                     
-                    if parameters['format'] == 5:
+                    if parameters['format'] == 6:
                         ExportSystem ( os.path.join ( folder, '{}{}.mol2'.format(filename,i)), system )
                     
                     
@@ -2804,7 +2809,6 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                           dtype=np.float32)
         #-----------------------------------------------------------------------------------------------------------------------------
         return vismol_object
-
 
 
 class Atom:
@@ -3139,7 +3143,6 @@ class Atom:
             else:
                 rad = 0.30
         return rad
-
 
 
 def generate_random_code(length):

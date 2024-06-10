@@ -1305,7 +1305,14 @@ button position in the main treeview (active column).""".format(name,self.main.p
 
     def forward_frame(self):
         """ Function doc """
+        #if self.main_session:
+        #    print('here')
+        #    self.main_session.trajectory_player_window.self.vm_traj_obj.forward()
+        #else:
         frame = self.frame + 1
+        self.set_frame(frame=frame)
+
+        '''
         #print('frame',frame)
         for i, vm_object in enumerate(self.vm_objects_dic.values()):
             if frame < vm_object.frames.shape[0]:
@@ -1316,14 +1323,30 @@ button position in the main treeview (active column).""".format(name,self.main.p
                 pass
         else:
             self.vm_glcore.updated_coords = False
+        #'''
         #print('EEEEEEEE')
     def reverse_frame(self):
         """ Function doc """
+        
+        #if self.main_session.trajectory_player_window.Visible:
+        #    self.main_session.trajectory_player_window.self.vm_traj_obj.reverse()
+        #else:
+       
+        frame = self.frame
+        if self.frame - 1 >= 0:
+            frame -= 1
+        else:
+            frame  = 0
+        self.set_frame(frame=frame)
+        
+        '''
         if self.frame - 1 >= 0:
             self.frame -= 1
             self.vm_glcore.updated_coords = True
         else:
             self.vm_glcore.updated_coords = False
+        #'''
+        #print('aqui')
     
     def set_frame(self, frame=0):
         """ Function doc """
@@ -1335,8 +1358,9 @@ button position in the main treeview (active column).""".format(name,self.main.p
             self.picking_selections.update_pki_pkj_rep_coordinates()
             self.picking_selections.print_pk_distances()    
         
+        #self.main_session.label_frame.set_text('Frame Number: ' + str(frame)) 
         self.vm_widget.queue_draw()
-        
+        #print('aqui')
         #self.main.surface_analysis_window.set_frame()
         '''
         for vobj_id, vobject in self.vm_objects_dic.items():

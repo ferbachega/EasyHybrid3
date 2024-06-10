@@ -458,6 +458,316 @@
       </object>
     </child>
   </object>
+  <object class="GtkAdjustment" id="adjustment1">
+    <property name="lower">1</property>
+    <property name="upper">1000</property>
+    <property name="value">1</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkWindow" id="window_setup_xtb">
+    <property name="can-focus">False</property>
+    <child>
+      <object class="GtkBox">
+        <property name="can-focus">False</property>
+        <property name="hexpand">True</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child>
+          <object class="GtkAlignment">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="top-padding">10</property>
+            <property name="bottom-padding">10</property>
+            <property name="left-padding">10</property>
+            <property name="right-padding">10</property>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="hexpand">True</property>
+                <property name="orientation">vertical</property>
+                <property name="spacing">11</property>
+                <child>
+                  <!-- n-columns=2 n-rows=6 -->
+                  <object class="GtkGrid">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="hexpand">True</property>
+                    <property name="row-spacing">8</property>
+                    <property name="column-spacing">10</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Number of CPUs:</property>
+                        <property name="xalign">1</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label_sccTolerance1">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Iterations:</property>
+                        <property name="xalign">1</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">3</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkEntry" id="entry_xtb_iterations">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="text" translatable="yes">300</property>
+                        <property name="primary-icon-tooltip-text" translatable="yes">The number of iterations allowed for the SCC calculation.
+</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">3</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Accuracy:</property>
+                        <property name="xalign">1</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkEntry" id="entry_xtb_acc">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="text" translatable="yes">1.0</property>
+                        <property name="primary-icon-tooltip-text" translatable="yes">The accuracy of the xTB calculation can be adjusted by the commandline option --acc. The accuracy determines the integral screening thresholds and the SCC convergence criteria and can be adjusted continuous in a range from 0.0001 to 1000, where tighter criteria are set for lower values of accuracy.</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Fermi Temperature:</property>
+                        <property name="xalign">1</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">4</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkEntry" id="entry_xtb_fermi_temp">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="text" translatable="yes">300</property>
+                        <property name="primary-icon-tooltip-text" translatable="yes">The electronic temperature is used as an adjustable parameter, employing so-called Fermi smearing to achieve fractional occupations for systems with almost degenerate orbital levels. This is mainly used to take static correlation into account or to e.g. investigate thermally forbidden reaction pathways.</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">4</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">GFN type:</property>
+                        <property name="xalign">1</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkEntry" id="entry_keywords">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="primary-icon-tooltip-text" translatable="yes">--pop
+    requests printout of Mulliken population analysis
+
+--dipole
+    requests dipole printout
+
+--wbo
+    requests Wiberg bond order printout
+
+--lmo
+    requests localization of orbitals
+
+--fod
+    requests FOD calculation
+
+--vip
+    performs calculation of ionisation potential. This needs the param_ipea-xtb.txt
+    parameters and a GFN1 Hamiltonian.
+
+--vea
+    performs calculation of electron affinity. This needs the param_ipea-xtb.txt
+    parameters and a GFN1 Hamiltonian.
+
+--vipea
+    performs calculation of electron affinity and ionisation potential.
+    This needs the param_ipea-xtb.txt parameters and a GFN1 Hamiltonian.
+
+--vfukui
+    performs calculation of Fukui indices.
+
+--vomega
+    performs calculation of electrophilicity index. This needs the param_ipea-xtb.txt
+    parameters and a GFN1 Hamiltonian.</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">5</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">additional keywords:</property>
+                        <property name="xalign">1</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">5</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkBox" id="box_gfn_type">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <placeholder/>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="spinbtn_parallel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="hexpand">True</property>
+                        <property name="adjustment">adjustment1</property>
+                        <property name="value">1</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSeparator">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkAlignment">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="top-padding">5</property>
+            <property name="bottom-padding">5</property>
+            <property name="left-padding">5</property>
+            <property name="right-padding">5</property>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="spacing">7</property>
+                <property name="homogeneous">True</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes"> </property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="btn_xtb_cancel">
+                    <property name="label" translatable="yes">Cancel</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                    <property name="image-position">right</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="btn_xtb_ok">
+                    <property name="label" translatable="yes">OK</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                    <property name="image-position">right</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
   <object class="GtkTextBuffer" id="textbuffer_orca"/>
   <object class="GtkWindow" id="window_setup_orca">
     <property name="can-focus">False</property>
@@ -577,7 +887,7 @@
                       <object class="GtkLabel">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">Number of Processors</property>
+                        <property name="label" translatable="yes">Number of CPUs:</property>
                         <property name="xalign">1</property>
                       </object>
                       <packing>
@@ -659,6 +969,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">Scratch Folder:</property>
+                        <property name="xalign">1</property>
                       </object>
                       <packing>
                         <property name="left-attach">0</property>
@@ -731,6 +1042,7 @@
                               <object class="GtkTextView" id="textview_orca">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
+                                <property name="tooltip-text" translatable="yes">Keywords for calculations with ORCA. pDynamo will add some keywords automatically (BOHRS, ENERGY, ENGRAD, %pointcharges as well as charge and multiplicity.). Don't add "!" the first line. You can add an extra command line, for example, assigning a specific base to a certain type of atom.</property>
                                 <property name="buffer">textbuffer_orca</property>
                               </object>
                             </child>
@@ -1093,9 +1405,8 @@
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="receives-default">False</property>
-                        <property name="tooltip-text" translatable="yes">If set to Yes the full 3rd order correction is switched on. This corrects the SCC-Hamiltonian with the derivatives of the Hubbard U parameters, which you have to specify for every element in HubbardDerivs. (DFTB+ manual, p. 67)</property>
+                        <property name="tooltip-text" translatable="yes">If set to Yes the full 3rd order correction is switched on. This corrects the SCC-Hamiltonian with the derivatives of the Hubbard U parameters, which you have to specify for every element in HubbardDerivs. (DFTB+ manual, p. 67) . EasyHybrid automatically assigns default parameters as indicated at: https://dftb.org/parameters/download/3ob/3ob-3-1-cc</property>
                         <property name="draw-indicator">True</property>
-                        <signal name="toggled" handler="on_checkbox_ThirdOrderFull_toggled" swapped="no"/>
                       </object>
                       <packing>
                         <property name="left-attach">0</property>
@@ -1118,6 +1429,8 @@
                       <object class="GtkEntry" id="entry_zeta">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <property name="tooltip-text" translatable="yes">The following zeta (Coulomb damping) parameter should be used for DFTB3 calculations (atomic units).
+Default is = 4.00 	</property>
                         <property name="hexpand">True</property>
                         <property name="text" translatable="yes">4.00</property>
                       </object>
