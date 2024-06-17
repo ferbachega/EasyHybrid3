@@ -2687,11 +2687,14 @@ class ChainOfStatesOptimizePath:
         system = parameters['system']
 
         # . Assign the reactant and product coordinates.
-        reactants = parameters['reac_coordinates']#ImportCoordinates3 ( os.path.join ( xyzPath, "cyclohexane_chair.xyz"     ) )
-        products  = parameters['prod_coordinates']#ImportCoordinates3 ( os.path.join ( xyzPath, "cyclohexane_twistboat.xyz" ) )
+        if parameters['external_coords']:
+            reactants = ImportCoordinates3 (parameters['reac_coordinates'])
+            products  = ImportCoordinates3 (parameters['prod_coordinates'])
+        else:
+            reactants = parameters['reac_coordinates']
+            products  = parameters['prod_coordinates']
 
         # . Get an initial path.
-
         GrowingStringInitialPath ( system                         , 
                                    parameters['number_of_structures'], 
                                    reactants                      , 

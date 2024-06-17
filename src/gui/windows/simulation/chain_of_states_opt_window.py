@@ -31,6 +31,7 @@ import copy
 from gui.widgets.custom_widgets import FolderChooserButton
 from gui.widgets.custom_widgets import SaveTrajectoryBox
 from gui.widgets.custom_widgets import CoordinatesComboBox
+from gui.windows.setup.windows_and_dialogs import ExportScriptDialog
 
 VISMOL_HOME = os.environ.get('VISMOL_HOME')
 HOME        = os.environ.get('HOME')
@@ -144,13 +145,14 @@ class ChainOfStatesOptWindow(Gtk.Window):
             
             self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
             self.builder.get_object('button_run').connect('clicked', self.run)
-            
+            self.builder.get_object('button_export').connect('clicked', self.on_btn_export)
             self.window.show_all()
             self.Visible  = True   
 
 
         else:
             self.window.present()
+       
             
     def CloseWindow (self, button, data  = None):
         """ Function doc """
@@ -158,9 +160,8 @@ class ChainOfStatesOptWindow(Gtk.Window):
         self.Visible    =  False
 
 
-    def run(self, button):
+    def get_parameters (self):
         """ Function doc """
-        
         '''this combobox has the reference to the starting coordinates of a simulation'''
         parameters={    "simulation_type"                 :"Nudged_Elastic_Band"  ,
                         "number_of_structures"            : 11                    , 
@@ -221,7 +222,12 @@ class ChainOfStatesOptWindow(Gtk.Window):
             parameters["prod_coordinates"] = copy.deepcopy(self.main.p_session.psystem[self.main.p_session.active_id].coordinates3)
             #print (list(parameters["prod_coordinates"]))
         '''---------------------------------------------------------------------------------'''
-        
+        return parameters
+
+    def run(self, button):
+        """ Function doc """
+        parameters = self.get_parameters()
+        parameters['external_coords'] = False
         
         isExist = os.path.exists(parameters['folder'])
         if isExist:
@@ -237,6 +243,18 @@ class ChainOfStatesOptWindow(Gtk.Window):
         self.Visible    =  False
 
     
+    def on_btn_export (self, parameters):
+        """ Function doc """
+        parameters = self.get_parameters()
+        parameters['external_coords'] = True
+        try:
+            parameters.pop('vobject_name')
+        except:
+            pass
+        #pprint.pprint(parameters)
+        export_dialog =  ExportScriptDialog(self.main, parameters = parameters)
+        
+        
     def _starting_coordinates_model_update (self, init = False):
         """ Function doc """
         #------------------------------------------------------------------------------------
@@ -263,6 +281,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
             else:
                 pass
 
+
     def on_name_combo_changed(self, widget):
         """ Function doc """
         #print('eba - apagar')
@@ -281,6 +300,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
         )
         dialog.run()
         dialog.destroy()
+
 
     def update (self, parameters = None):
         """ Function doc """

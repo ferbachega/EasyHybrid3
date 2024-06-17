@@ -32,9 +32,10 @@ import os
 from gui.widgets.custom_widgets import FolderChooserButton
 from gui.widgets.custom_widgets import CoordinatesComboBox
 from gui.widgets.custom_widgets import ReactionCoordinateBox
+from gui.windows.setup.windows_and_dialogs import ExportScriptDialog
 
 #from gui.windows.geometry_optimization_window import  FolderChooserButton
-from pprint import pprint
+import pprint
 VISMOL_HOME = os.environ.get('VISMOL_HOME')
 HOME        = os.environ.get('HOME')
 
@@ -151,6 +152,8 @@ class PotentialEnergyScanWindow():
             
 
             self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+            self.builder.get_object('button_export').connect('clicked', self.on_btn_export)
+            
             self.RC_box1.set_rc_type(0)
             self.RC_box2.set_rc_type(0)
             self.Visible  = True
@@ -176,6 +179,7 @@ class PotentialEnergyScanWindow():
             self.builder.get_object('n_CPUs_spinbutton').set_sensitive(False)
             self.builder.get_object('n_CPUs_label')     .set_sensitive(False)
 
+
     def run_dialog (self, text = None, secondary_text = None):
         """ Function doc """
         
@@ -196,8 +200,45 @@ class PotentialEnergyScanWindow():
 
     #======================================================================================
     def run_scan(self,button):
+        parameters = self.get_parameters()
+        
+        pprint.pprint(parameters)
+
+        '''    
+        # Create a PrettyPrinter instance
+        pp = pprint.PrettyPrinter(indent=4)
+        # Format the dictionary using pformat
+        formatted_data = pp.pformat(parameters)
+
+        # Write the formatted string to a text file
+        with open('output.txt', 'w') as file:
+            file.write(formatted_data)
         '''
-        Get infotmation and run the simulation
+        
+        isExist = os.path.exists(parameters['folder'])
+        if isExist:
+            pass
+        else:
+            self.run_dialog()
+            return None
+        
+        
+        isExist = os.path.exists(os.path.join( parameters['folder'], parameters['traj_folder_name']+".ptGeo"))
+        if isExist:
+
+            self.run_dialog(text = 'Trajectory name not valid!', secondary_text ='Please provide a new trajectory name as the specified folder already exists' )
+            return None
+        else:
+            pass
+        
+        #here!
+        self.p_session.run_simulation( parameters = parameters )
+       
+    
+    def get_parameters (self):
+        """ Function doc """
+        '''
+        Get infotmation 
         '''         
         parameters = {"simulation_type":"Relaxed_Surface_Scan"             ,
                       #"ndim":1                                             ,
@@ -271,32 +312,10 @@ class PotentialEnergyScanWindow():
             parameters["NmaxThreads"] = 1
             parameters["traj_type"]   = 'pklfolder'
         
-        
+        return parameters
 
-        pprint(parameters)
-        #a = input('')
-        
-        
-        isExist = os.path.exists(parameters['folder'])
-        if isExist:
-            pass
-        else:
-            self.run_dialog()
-            return None
-        
-        
-        isExist = os.path.exists(os.path.join( parameters['folder'], parameters['traj_folder_name']+".ptGeo"))
-        if isExist:
-
-            self.run_dialog(text = 'Trajectory name not valid!', secondary_text ='Please provide a new trajectory name as the specified folder already exists' )
-            return None
-        else:
-            pass
-        
-        #here!
-        self.p_session.run_simulation( parameters = parameters )
-       
-       
+    
+    
     def _starting_coordinates_model_update (self, init = False):
         """ Function doc """
         #------------------------------------------------------------------------------------
@@ -335,9 +354,6 @@ class PotentialEnergyScanWindow():
                 pass
             #------------------------------------------------------------------------------------------------
 
-
-
-
     def update_working_folder_chooser (self, folder = None):
         """ Function doc """
         if folder:
@@ -352,7 +368,30 @@ class PotentialEnergyScanWindow():
                 pass
 
 
+    def on_btn_export (self, widget):
+        """ Function doc """
 
+        #header += '\nparameters = '
+        parameters = self.get_parameters()
+        parameters.pop('vobject_name')
+        #pprint.pprint(parameters)
+
+        export_dialog =  ExportScriptDialog(self.main, parameters = parameters)
+        
+
+        
+        
+        
+        
+        #self.builder2 = Gtk.Builder()
+        #self.builder2.add_from_file(os.path.join(self.home,'src/gui/windows/simulation/PES_scan_window.glade'))
+        #self.builder2.connect_signals(self)
+        ##
+        #self.window2 = self.builder.get_object('pes_scan_window')
+        #self.window2.set_title('Reaction Coordinate Scans')
+        #self.window2.set_keep_above(True)
+        
+        
 
 def get_distance (vobject, index1, index2):
     """ Function doc """

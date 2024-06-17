@@ -47,7 +47,7 @@ from pScientific.Symmetry      import*
 #---------------------------------------                              
 from pSimulation               import*
 #---------------------------------------
-
+#import Pickle
 
 
 
@@ -70,7 +70,7 @@ import util.orca_qc_keywords as orca_keys
 
 from util.file_parser import get_file_type  
 from util.file_parser import read_MOL2  
-from pprint import pprint
+import pprint
 import numpy as np
 import gc
 import os
@@ -210,6 +210,163 @@ class SimpleDialog:
             return False
         
         
+
+class ExportScriptDialog:
+    """ Class doc """
+    
+    def __init__ (self, main =  None, parameters = None ):
+        """ Class initialiser """
+        self.main       = main
+        self.home       = main.home
+        self.parameters = parameters
+        
+        self.builder = Gtk.Builder()
+        self.builder.add_from_file(os.path.join(self.home,'src/gui/windows/setup/export_script_window2.glade'))
+        self.builder.get_object('dialog').connect('destroy', self.CloseWindow)
+        
+        self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+        self.builder.get_object('button_export').connect('clicked', self.on_button_export_clicked)
+        self.folder_chooser = self.builder.get_object('btn_folder_chooser')
+        self.folder_chooser.set_current_folder(self.parameters['folder'])
+        #system_id = self.p_session.active_id
+        self.builder.get_object('dialog').set_default_size(400, 100)
+        self.builder.get_object('dialog').run()
+    
+    def on_button_export_clicked (self, widget):
+        """ Function doc """
+        #print('on_button_export_clicked')
+        
+        pmethod_path = os.path.join (self.main.home,'src/pdynamo')
+        filename = self.builder.get_object('entry_filename').get_text()
+        outputfolder = self.builder.get_object('btn_folder_chooser').get_current_folder()
+        
+        
+        
+        
+        
+        exp_parameters = {} 
+        exp_parameters['vobject_id'] = 0
+        exp_parameters['folder']     = outputfolder
+        exp_parameters['filename']   = filename
+        exp_parameters['format']     = 0
+        exp_parameters['last']       = -1
+        exp_parameters['system_id']  = self.main.p_session.active_id
+        self.main.p_session.export_system ( exp_parameters , False)
+        fullfilename = os.path.join (outputfolder, filename+'.pkl')
+
+        #'Nudged_Elastic_Band'
+        if self.parameters['simulation_type'] == 'Nudged_Elastic_Band':
+            Pickle( os.path.join ( outputfolder, filename+'reac_coordinates.pkl'), self.parameters['reac_coordinates'])
+            Pickle( os.path.join ( outputfolder, filename+'prod_coordinates.pkl'), self.parameters['prod_coordinates'])
+            self.parameters['reac_coordinates'] = os.path.join ( outputfolder, filename+'reac_coordinates.pkl')
+            self.parameters['prod_coordinates'] = os.path.join ( outputfolder, filename+'prod_coordinates.pkl')
+            
+
+
+        header =''' 
+#---------------------------------------
+from pBabel                    import*                                     
+from pCore                     import*  
+#---------------------------------------
+from pMolecule                 import*                              
+from pMolecule.MMModel         import*
+from pMolecule.NBModel         import*                                     
+from pMolecule.QCModel         import*
+#---------------------------------------
+from pScientific               import*                                     
+from pScientific.Arrays        import*                                     
+from pScientific.Geometry3     import*                                     
+from pScientific.RandomNumbers import*                                     
+from pScientific.Statistics    import*
+from pScientific.Symmetry      import*
+#---------------------------------------                              
+from pSimulation               import*
+#---------------------------------------
+import sys
+
+# This section should be edited
+#.Enter the path to the folder ../EasyHybid/pDynamo here
+sys.path.insert(1, '{}')
+import p_methods  as pMethods
+
+
+
+
+#  importing system
+#  If the system was set to use ORCA /DFTB+ or xTB, you will probably
+#  need to change the path that was set to the scratch folder.
+# 
+#  Something like:
+system = ImportSystem ('{}')
+# system.qcState.DeterminePaths('/home/usr/scratch') # only for ORCA /DFTB+ or xTB
+
+# summary
+system.Summary()
+
+
+
+
+# This section should be edited
+# If the simulation will be run on another machine, 
+# you will probably need to change the "folder" variable, 
+# which defines where the trajectory will be written.
+
+'''.format(pmethod_path,fullfilename)
+        
+        header += '\nparameters = '
+        # Create a PrettyPrinter instance
+        pp = pprint.PrettyPrinter(indent=4)
+        # Format the dictionary using pformat
+        formatted_data = pp.pformat(self.parameters)
+        
+        header += formatted_data
+        header +="\nparameters['system'] = system"
+        
+        #'Umbrella_Sampling
+        if self.parameters['simulation_type'] == 'Umbrella_Sampling':
+            header +='\n\nsimObj =  pMethods.UmbrellaSampling()'
+        
+        #'Relaxed_Surface_Scan'
+        elif self.parameters['simulation_type'] == 'Relaxed_Surface_Scan':
+            header +='\n\nsimObj =  pMethods.RelaxedSurfaceScan()'
+        
+        #'Nudged_Elastic_Band'
+        elif self.parameters['simulation_type'] == 'Nudged_Elastic_Band':
+            #Pickle( os.path.join ( outputfolder, filename+'reac_coordinates.pkl'), self.parameters['reac_coordinates'])
+            #Pickle( os.path.join ( outputfolder, filename+'prod_coordinates.pkl'), self.parameters['prod_coordinates'])
+            #self.parameters['reac_coordinates'] = os.path.join ( outputfolder, filename+'reac_coordinates.pkl')
+            #self.parameters['prod_coordinates'] = os.path.join ( outputfolder, filename+'prod_coordinates.pkl')
+            header +='\n\nsimObj =  pMethods.ChainOfStatesOptimizePath()'
+        
+        header +='\nsimObj.run(parameters)' 
+        
+        fullfilename = os.path.join (outputfolder, filename+'.py')
+        # Write the formatted string to a text file
+        with open(fullfilename, 'w') as file:
+            file.write(header)
+        
+
+        self.builder.get_object('dialog').destroy()
+        self.Visible    =  False
+        
+        
+        
+        
+        
+        
+        
+
+        
+    def CloseWindow (self, button, data  = None):
+        """ Function doc """
+        self.builder.get_object('dialog').destroy()
+        self.Visible    =  False
+        #print(self.ok)
+
+
+
+
+
 
 
         

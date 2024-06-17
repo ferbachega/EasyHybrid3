@@ -31,6 +31,7 @@ from gui.widgets.custom_widgets import FolderChooserButton
 from gui.widgets.custom_widgets import SaveTrajectoryBox
 from gui.widgets.custom_widgets import CoordinatesComboBox
 from gui.widgets.custom_widgets import ReactionCoordinateBox
+from gui.windows.setup.windows_and_dialogs import ExportScriptDialog
 
 from gui.windows.simulation.PES_scan_window            import compute_sigma_a1_a3 
 from util.geometric_analysis            import get_dihedral 
@@ -210,6 +211,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             
             self.builder.get_object('button_run').connect("clicked", self.run)
             self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+            self.builder.get_object('button_export').connect('clicked', self.on_btn_export)
             #---------------------------------------------------------------------------------------------
             
             
@@ -236,6 +238,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
         else:
             self.window.present()
             
+
     def CloseWindow (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
@@ -298,8 +301,6 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.RC_box2.label_step_size.set_sensitive(False)
             self.RC_box2.label_nsteps   .set_sensitive(False)        
             self.RC_box2.label_dmin     .set_sensitive(False)
-
-
 
 
     def on_md_integrator_combobox (self, widget = None):
@@ -437,6 +438,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             else:
                 pass
 
+
     def update_working_folder_chooser (self, folder = None):
         """ Function doc """
         if folder:
@@ -453,6 +455,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             except:
                 self.folder_chooser_button2.set_folder(folder = self.home )
    
+
     def on_checkbox_reaction_coordinate2 (self, widget):
         """ Function doc """
         if widget.get_active():
@@ -486,19 +489,22 @@ class UmbrellaSamplingWindow(Gtk.Window):
             
         
         return parameters
-            
+    
         
-    def run (self, button):
+    def get_parameters (self, ):
+        
         """ Function doc """
         
         '''this combobox has the reference to the starting coordinates of a simulation'''
         parameters = {"simulation_type" : "Umbrella_Sampling"}
 
-        
-        
         parameters = self.get_input_setup_box_info ( parameters)
         parameters["folder"] = self.folder_chooser_button2.get_folder()        
 
+
+        #vobject_id = self.combobox_starting_coordinates.get_vobject_id()
+        #vobject = self.main.vm_session.vm_objects_dic[vobject_id]
+        #self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
 
         '''
         
@@ -545,10 +551,19 @@ class UmbrellaSamplingWindow(Gtk.Window):
         
         parameters['traj_folder_name'] = self.builder.get_object('entry_traj_name').get_text()
         
-        #pprint(parameters)
+        return parameters
+    
+
 
 
         
+    def run (self, button):
+        """ Function doc """
+        
+        parameters = self.get_parameters()
+        
+        #pprint(parameters)
+
         isExist = os.path.exists(parameters['folder'])
         if isExist:
             pass
@@ -561,6 +576,22 @@ class UmbrellaSamplingWindow(Gtk.Window):
         self.window.destroy()
         self.Visible    =  False
 
+
+    def on_btn_export (self, widget):
+        """ Function doc """
+
+        #header += '\nparameters = '
+        parameters = self.get_parameters()
+        try:
+            parameters.pop('vobject_name')
+        except:
+            pass
+        #pprint.pprint(parameters)
+
+        export_dialog =  ExportScriptDialog(self.main, parameters = parameters)
+        
+
+        
 
 
     def _define_OPT_parameters (self):

@@ -1477,6 +1477,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         that will be delivered later to build the 
         vismolObj
         
+        Now chemical symbols are defined based on atomic numbers 
+        (pdynamo's task of providing atomic numbers).
+        
         """
         entityLabel = atom.parent.parent.label
         useSegmentEntityLabels = False
@@ -1500,10 +1503,16 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         at_resi      = int(resSeq)
         at_resn      = resName
         at_ch        = chainID
+        
+        
+        '''
+        Now chemical symbols are defined based on atomic numbers 
+        (pdynamo's task of providing atomic numbers).
+        '''
         try:
-            at_symbol    = ATOM_TYPES_BY_ATOMICNUMBER[atom.atomicNumber] # at.get_symbol(at_name)
+            at_symbol    = self.vm_session.periodic_table.check_symbol (symbol =None, number = atom.atomicNumber)
         except:
-            at_symbol = "O"
+            at_symbol = "X"
         
         at_occup     = 0.0
         at_bfactor   = 0.0
@@ -1519,7 +1528,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
               'bfactor'    : at_bfactor , 
               'charge'     : at_charge   
               }
-        
+        #print(at_symbol)
         return atom
 
 
@@ -1741,6 +1750,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             atom = Atom(vismol_object = vm_object,#
                         name          =_atom["name"] , 
                         index         =_atom["index"],
+                        symbol        =_atom["symbol"],
                         residue       =_residue      , 
                         chain         =_chain, 
                         atom_id       = atom_id,
@@ -2483,7 +2493,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         Pickle( os.path.join ( folder, filename), system.coordinates3 )
     
     
-    def export_system (self,  parameters ): 
+    def export_system (self,  parameters = {}, coords_from_vobject = True): 
                               
         """  
         Export system model, as pDynamo serization files or Cartesian coordinates.
@@ -2495,22 +2505,32 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             5 : 'mol2'                         ,
         
         """
-        vobject  = self.vm_session.vm_objects_dic[parameters['vobject_id']]
+        if coords_from_vobject:
+            vobject  = self.vm_session.vm_objects_dic[parameters['vobject_id']]
+            if parameters['last'] == -1:
+                parameters['last'] = len(vobject.frames)-1
+            else:
+                parameters['last'] =None
+        else:
+            vobject = None
+            
         folder   = parameters['folder'] 
         filename = parameters['filename'] 
         
         
-        if parameters['last'] == -1:
-            parameters['last'] = len(vobject.frames)-1
+
         
         active_id = self.active_id 
         self.active_id = parameters['system_id']
         
         if parameters['format'] == 0 or parameters['format'] == 1:
-            self.get_coordinates_from_vobject_to_pDynamo_system(vobject       = vobject, 
-                                                                system_id     = parameters['system_id'], 
-                                                                frame         = parameters['last'])
-            
+            if coords_from_vobject:
+                self.get_coordinates_from_vobject_to_pDynamo_system(vobject       = vobject, 
+                                                                    system_id     = parameters['system_id'], 
+                                                                    frame         = parameters['last'])
+            else:
+                pass
+                
             system = self.psystem[parameters['system_id']]
             
             '''
@@ -2534,7 +2554,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         
         
-        if parameters['format'] == 2:
+        elif parameters['format'] == 2:
             
             #'''   When is Single File     '''
             if parameters['is_single_file']:
@@ -2962,6 +2982,15 @@ class Atom:
                     symbol = "Si"
                 elif name[1] == "e":
                     symbol = "Se"
+                
+                elif name[1] == "O":
+                    try:
+                        if name[2] == "D":
+                            symbol = "Na"
+                        else:
+                            pass
+                    except:
+                        symbol = "S"
                 else:
                     symbol = "S"
             
