@@ -2811,7 +2811,7 @@ def _run_second_coordinate_in_parallel ( job):
     ''' 
     
     '''
-    if hamiltonian in ['DFTB QC Model', 'ORCA QC Model', 'XTB QC Model', 'external']:
+    if hamiltonian in ['DFTB QC Model', 'ORCA QC Model', 'XTB QC Model', 'external']: #
         try:
             os.mkdir(system.qcModel.scratch +'/process_'+str(i))
         except:
