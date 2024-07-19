@@ -1,3 +1,4 @@
 [submodule "graphics_engine"]
 	path = src/graphics_engine
-	url = https://github.com/casebor/graphics_engine/tree/vismol_easyhybrid
+	url = https://github.com/casebor/graphics_engine
+	branch = vismol_easyhybrid
