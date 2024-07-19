@@ -1,4 +1,14 @@
 
+def get_simple_distance (a1_coord, a2_coord):
+    """ Function doc """ 
+    dx = a1_coord[0] - a2_coord[0]
+    dy = a1_coord[1] - a2_coord[1]
+    dz = a1_coord[2] - a2_coord[2]
+    dist = (dx**2+dy**2+dz**2)**0.5
+    #print('distance a1 - a2:', dist)
+    return dist
+
+
 def get_distance (vobject, index1, index2):
     """ Function doc """
     #print( index1, index2)

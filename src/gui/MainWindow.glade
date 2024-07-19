@@ -992,11 +992,12 @@
                       </object>
                     </child>
                     <child>
-                      <object class="GtkMenuItem">
+                      <object class="GtkMenuItem" id="test_item">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">IR spectrum</property>
                         <property name="use-underline">True</property>
+                        <signal name="activate" handler="run_menu_item_test" swapped="no"/>
                       </object>
                     </child>
                     <child>

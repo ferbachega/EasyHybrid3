@@ -136,6 +136,10 @@ class EasyHybridPreferencesWindow():
             self.btn_reset_parms = self.builder.get_object('btn_reset_parameters')
             self.btn_reset_parms.connect('clicked', self.on_btn_reset_parms)
             
+            
+            self.btn_cancel = self.builder.get_object('btn_cancel')
+            self.btn_cancel.connect('clicked', self.CloseWindow)
+
             self.window.show_all()                                               
             self.visible    =  True
             '''--------------------------------------------------------------------------------------------'''
@@ -367,6 +371,11 @@ class EasyHybridPreferencesWindow():
         self.colorbutton.set_rgba(rgba)
 
         
+        # mouse_rotation_sensibility
+        self.entry_rot_sensibililty = self.builder.get_object('entry_rot_sensibililty')
+        entry_rot_sensibililty = self.vm_session.vm_config.gl_parameters["mouse_rotation_sensibility"]
+        self.entry_rot_sensibililty.set_text(str(entry_rot_sensibililty))
+        
         #   scroll step
         self.entry_scroll_step = self.builder.get_object('entry_scroll_step')
         scroll_step = self.vm_session.vm_config.gl_parameters["scroll_step"]
@@ -460,7 +469,7 @@ class EasyHybridPreferencesWindow():
         
     def set_line_parameters (self):
         """ Function doc """
-        gridsize             = self.vm_session.vm_config.gl_parameters['gridsize']              
+        lines_with           = self.vm_session.vm_config.gl_parameters['line_width']              
         line_width_selection = self.vm_session.vm_config.gl_parameters['line_width_selection']
         line_type            = self.vm_session.vm_config.gl_parameters['line_type']
         
@@ -468,7 +477,7 @@ class EasyHybridPreferencesWindow():
         self.entry_lines_with_selections =  self.builder.get_object('entry_lines_with_selections')
         self.entry_lines_type            =  self.builder.get_object('entry_lines_type')
 
-        self.entry_lines_with           .set_text(str(gridsize))   
+        self.entry_lines_with           .set_text(str(lines_with))   
         self.entry_lines_with_selections.set_text(str(line_width_selection))   
         self.entry_lines_type           .set_text(str(line_type))   
     
@@ -750,13 +759,15 @@ class EasyHybridPreferencesWindow():
         
         
         #---------------------------------------------------------------
-        scroll_step    = float(self.builder.get_object('entry_scroll_step')   .get_text() )
-        sleep_time_coc = float(self.builder.get_object('entry_sleep_time_coc').get_text() )
-        field_of_view  = float(self.builder.get_object('entry_field_of_view') .get_text() )
+        scroll_step      = float(self.builder.get_object('entry_scroll_step')   .get_text() )
+        sleep_time_coc   = float(self.builder.get_object('entry_sleep_time_coc').get_text() )
+        field_of_view    = float(self.builder.get_object('entry_field_of_view') .get_text() )
+        rot_sensibililty = float(self.builder.get_object('entry_rot_sensibililty') .get_text() )
         
         self.gl_parameters["scroll_step"]                = scroll_step    
         self.gl_parameters["center_on_coord_sleep_time"] = sleep_time_coc 
         self.gl_parameters["field_of_view"]              = field_of_view  
+        self.gl_parameters["mouse_rotation_sensibility"] = rot_sensibililty  
         #---------------------------------------------------------------
     def __apply_interface_general_parameters (self):
         """ Function doc """

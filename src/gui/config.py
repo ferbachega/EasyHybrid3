@@ -45,7 +45,7 @@ class VismolConfig                       :
                                       "dot_sel_size"               : 2.0,
                                       "line_width"                 : 3,
                                       "line_width_selection"       : 10,
-                                      "line_type"                  : 0,
+                                      "line_type"                  : 1,
                                       "line_color"                 : 0,
                                       
                                       "ribbon_width"               : 0.4, # Now being used (defined in the shader)
@@ -66,6 +66,7 @@ class VismolConfig                       :
                                       "sticks_color"               : 0,
                                       "sticks_type"                : 0,
                                       "antialias"                  : True,
+                                      "mouse_rotation_sensibility" : 1.5,
                                       "scroll_step"                : 0.9,
                                       "field_of_view"              : 10,
                                       "light_position"             : [0, 0, 10.0],
@@ -166,6 +167,16 @@ class VismolConfig                       :
                     print("Loading EasyHybrid config file.")
                     with open(config, 'r', encoding='utf-8') as f:
                         self.gl_parameters = json.load(f)
+                
+                        for key in self.gl_parameters_default.keys():
+                            if key in self.gl_parameters.keys():
+                                pass
+                            else:
+                                self.gl_parameters[key] = self.gl_parameters_default[keys]
+                
+                
+                
+                
                 except:
                     print("Failed to open EasyHybrid configuration file. Loading default settings.")
                     self.gl_parameters = self.gl_parameters_default

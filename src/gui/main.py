@@ -71,7 +71,7 @@ from gui.windows.analysis.surface_analysis_window        import SurfaceAnalysisW
 from gui.windows.analysis.energy_refinement_window       import EnergyRefinementWindow
 from gui.windows.analysis.PES_analysis_window            import PotentialEnergyAnalysisWindow
 
-
+from util.geometric_analysis import get_simple_distance
 from util.sequence_plot import GtkSequenceViewer
 
 
@@ -1327,6 +1327,38 @@ class MainWindow:
         #print(self.box_reac)
         parm = self.box_reac.get_rc_data()
 
+    def run_menu_item_test (self, widget):
+        """ Function doc """
+        #print(self.vm_session.picking_selections.picking_selections_list)
+        pklist = self.vm_session.picking_selections.picking_selections_list
+        if pklist[0]  and pklist[1]:
+            print(pklist[0], pklist[1])
+            vobject = pklist[0].vm_object
+            size = len(vobject.frames)
+            
+            dist1 = None
+            dist2 = None
+            dist3 = None
+            
+            for i in range(size):
+
+                a1_coord = pklist[0].coords(frame=i)
+                a2_coord = pklist[1].coords(frame=i)
+                
+                dist1 = get_simple_distance(a1_coord, a2_coord)
+                
+                
+                if pklist[1] and pklist[2]:
+                    a1_coord = pklist[1].coords(frame=i)
+                    a2_coord = pklist[2].coords(frame=i)
+                    dist2 = get_simple_distance(a1_coord, a2_coord)
+                
+                if pklist[2] and pklist[3]:
+                    a1_coord = pklist[2].coords(frame=i)
+                    a2_coord = pklist[3].coords(frame=i)
+                    dist3 = get_simple_distance(a1_coord, a2_coord)
+                print(dist1, dist2, dist3)
+                
     def run_test (self, widget):
 
         #'''
