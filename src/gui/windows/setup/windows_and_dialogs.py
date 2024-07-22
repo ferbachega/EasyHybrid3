@@ -3029,9 +3029,12 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             self.liststore_residues.append(['all'])
             
             resn_labels = {}
+            for chain in self.VObj.chains.keys():
+                for resi, residue in self.VObj.chains[chain].residues.items():
+                    resn_labels[residue.name] = True
             
-            for resi, residue in self.VObj.residues.items():
-                resn_labels[residue.name] = True
+            #for resi, residue in self.VObj.residues.items():
+            #    resn_labels[residue.name] = True
             
             for resn in resn_labels.keys():
                 #print (resn)
@@ -3110,10 +3113,13 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         '''centering and selecting'''
 
         if self.shift:
-            for index, residue in self.VObj.residues.items():
-                if residue.name == res.name:
-                    atom_keys = list(residue.atoms.values())
-                    self.vm_session._selection_function_set({atom_keys[0]})
+            
+            for chain in self.VObj.chains.keys():
+                for resi, residue in self.VObj.chains[chain].residues.items():
+                #for index, residue in self.VObj.residues.items():
+                    if residue.name == res.name:
+                        atom_keys = list(residue.atoms.values())
+                        self.vm_session._selection_function_set({atom_keys[0]})
                     #print('here', res.name, res.index)
         else:
             #self.vm_session.vm_glcore.center_on_coordinates(res.vm_object, res.mass_center)

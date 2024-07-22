@@ -1740,7 +1740,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             if _atom["resi"] not in _chain.residues.keys():
                 #print(_atom["resn"], _atom["chain"],_atom["resi"] )
                 _r = Residue(vm_object, name=_atom["resn"], index=_atom["resi"], chain=_chain)
-                vm_object.residues[_atom["resi"]] = _r
+                #vm_object.residues[_atom["resi"]] = _r
                 _chain.residues[_atom["resi"]] = _r
             
             _residue = _chain.residues[_atom["resi"]]
@@ -2330,19 +2330,15 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         but are in the same residues as those atoms within the QC part.'''  
 
         #self._check_ref_vobject_in_pdynamo_system()
-        if vismol_object:
-            
-            
-            for resi in vismol_object.residues.keys():
-                
+        for chain in vismol_object.chains:
+            for resi, residue in vismol_object.chains[chain].residues.items():
                 if resi in qc_residue_table.keys():
-                    
                     mm_residue_table[resi] = []
                     
-                    for index, atom in vismol_object.residues[resi].atoms.items():
+                    for index, atom in residue.atoms.items():
                         index_v = atom.index-1
                         charge  = system.mmState.charges[index_v]
-                        resn    = vismol_object.residues[resi].name 
+                        resn    = residue.name 
                         atom.charge = system.mmState.charges[index_v]
                         
                         if index_v in qc_residue_table[resi]:

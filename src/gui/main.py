@@ -1329,6 +1329,11 @@ class MainWindow:
 
     def run_menu_item_test (self, widget):
         """ Function doc """
+        pklist = self.vm_session.picking_selections.picking_selections_list
+        vobj =  pklist[0].vm_object
+        print(vobj.residues)
+        print(vobj.chains)
+        
         #print(self.vm_session.picking_selections.picking_selections_list)
         pklist = self.vm_session.picking_selections.picking_selections_list
         if pklist[0]  and pklist[1]:
@@ -1374,6 +1379,7 @@ class MainWindow:
         for key, vobj in self.vm_session.vm_objects_dic.items():
             print(vobj.model_mat)
             print(vobj.trans_mat)
+
         
         
         #inv_mat = mop.get_inverse_matrix(self.vm_session.vm_glcore.glcamera.view_matrix )
