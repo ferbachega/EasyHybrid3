@@ -1331,7 +1331,7 @@ class MainWindow:
         """ Function doc """
         pklist = self.vm_session.picking_selections.picking_selections_list
         vobj =  pklist[0].vm_object
-        print(vobj.residues)
+        #print(vobj.residues)
         print(vobj.chains)
         
         #print(self.vm_session.picking_selections.picking_selections_list)

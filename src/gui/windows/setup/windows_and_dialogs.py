@@ -75,9 +75,9 @@ import numpy as np
 import gc
 import os
 
-VISMOL_HOME = os.environ.get('VISMOL_HOME')
-HOME        = os.environ.get('HOME')
-
+VISMOL_HOME      = os.environ.get('VISMOL_HOME')
+HOME             = os.environ.get('HOME')
+PDYNAMO3_SCRATCH = os.environ.get('PDYNAMO3_SCRATCH')
 
 #from GTKGUI.gtkWidgets.main_treeview import GtkMainTreeView
 def call_message_dialog (text1 = '', text2 = '', transient_for = None):
@@ -411,262 +411,6 @@ class AddHarmonicRestraintDialog:
         """ Function doc """
         self.builder.get_object('dialog').destroy()
         self.Visible    =  False
-        #print(self.ok)
-#
-#class SinglePointwindow:
-#    """ Class doc """
-#    
-#    def __init__(self, main = None):
-#        """ Class initialiser """
-#        self.main    = main
-#        self.p_session    = main.p_session
-#        self.home    = main.home
-#        self.Visible =  False        
-#        self.starting_coords_liststore = Gtk.ListStore(str, int)
-#        self.is_single_frame  = True
-#    
-#    def OpenWindow (self, sys_selected = None):
-#        """ Function doc """
-#        if self.Visible  ==  False:
-#            self.builder = Gtk.Builder()
-#            self.builder.add_from_file(os.path.join(self.home,'src/gui/windows/simulation/single_point_window.glade'))
-#            self.builder.connect_signals(self)
-#            
-#            
-#            self.window = self.builder.get_object('window')
-#            self.window.set_title('Single Point Window')
-#            self.window.set_keep_above(True)
-#            self.window.set_default_size(400, 200)
-#            '''--------------------------------------------------------------------------------------------'''
-#            
-#            
-#            '''--------------------------------------------------------------------------------------------'''     
-#            self.folder_chooser_button = FolderChooserButton(main =  self.main, 
-#                                                         sel_type = 'folder', 
-#                                                             home =  self.home)
-#                                                             
-#            self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
-#            system_id      = self.p_session.active_id
-#            
-#            #------------------------------------------------------------------------------------------------
-#            if self.main.p_session.psystem[self.p_session.active_id]:
-#                if self.main.p_session.psystem[self.p_session.active_id].e_working_folder == None:
-#                    folder = HOME
-#                else:
-#                    folder = self.main.p_session.psystem[self.p_session.active_id].e_working_folder
-#                self.folder_chooser_button.set_folder(folder = folder)
-#                #self.update_working_folder_chooser(folder = folder)            
-#            #------------------------------------------------------------------------------------------------
-#            
-#            
-#            
-#            # - - - - - - - - - - - - - Starting Coordinates ComboBox - - - - - - - - - - - - - - - - -
-#            '''--------------------------------------------------------------------------------------------'''
-#            #self.combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
-#            ##---------------------------------------------------------------------------------------------
-#            #self._starting_coordinates_model_update(init = True)
-#            #renderer_text = Gtk.CellRendererText()
-#            #self.combobox_starting_coordinates.pack_start(renderer_text, True)
-#            #self.combobox_starting_coordinates.add_attribute(renderer_text, "text", 0)
-#            #----------------------------------------------------------------------------------------------
-#            
-#            #----------------------------------------------------------------------------------------------
-#            self.box_coordinates = self.builder.get_object('box_coordinates')
-#            self.combobox_starting_coordinates = CoordinatesComboBox() #self.builder.get_object('coordinates_combobox')
-#            #self.combobox_starting_coordinates.connect("changed", self.on_name_combo_changed)
-#            self.box_coordinates.pack_start(self.combobox_starting_coordinates, False, False, 0)
-#            self._starting_coordinates_model_update(init = True)
-#            #----------------------------------------------------------------------------------------------
-#            
-#            
-#            
-#            
-#            
-#            self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
-#            self.builder.get_object('button_run').connect('clicked', self.on_button_run_clicked)
-#            self.window.connect('destroy', self.CloseWindow)
-#
-#            if  self.p_session.psystem[self.p_session.active_id]:
-#                output_name = self.p_session.get_output_filename_from_system('single_point')
-#                self.builder.get_object('entry_logfile_name').set_text(output_name)
-#
-#
-#            self.window.show_all()
-#            self.Visible  = True
-#    
-#        else:
-#            self.window.present()
-#    
-#    def CloseWindow (self, button, data  = None):
-#        """ Function doc """
-#        self.window.destroy()
-#        self.Visible    =  False
-#
-#    def on_button_run_clicked (self, button):
-#        """ Function doc """
-#        parameters={ "simulation_type":"Energy_Single_Point"   ,
-#                     "filename"       : None            , 
-#                     "folder"         : os.getcwd()     , 
-#                     }
-#        
-#        frame = int(self.builder.get_object('entry_frame').get_text())
-#        #----------------------------------------------------------------------------------
-#        tree_iter = self.combobox_starting_coordinates.get_active_iter()
-#        if tree_iter is not None:
-#            
-#            '''selecting the vismol object from the content that is in the combobox '''
-#            model = self.combobox_starting_coordinates.get_model()
-#            name, vobject_id = model[tree_iter][:2]
-#            vobject = self.main.vm_session.vm_objects_dic[vobject_id]
-#            
-#            '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
-#            self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject = vobject, frame = frame)
-#        
-#        
-#        parameters["folder"]          = self.folder_chooser_button.get_folder()
-#        parameters["filename"] = self.builder.get_object('entry_logfile_name').get_text()
-#
-#        
-#        
-#        #------------------------------------------------------------------#
-#        #                      RUN ENERGY CALCULATION                      #
-#        #------------------------------------------------------------------#
-#        energy = self.p_session.run_simulation( parameters = parameters )
-#        #------------------------------------------------------------------#
-#        
-#        
-#        
-#        #------------------------------------------------------------------#
-#        #                          DIALOG MESSAGE                          #
-#        #------------------------------------------------------------------#
-#        dialog = Gtk.MessageDialog(
-#            transient_for=None,
-#            flags=0,
-#            message_type=Gtk.MessageType.INFO,
-#            buttons=Gtk.ButtonsType.OK,
-#            text="Energy(kJ/mol): "+str(energy),
-#        )
-#        
-#        
-#
-#        psystem = parameters['system']
-#            
-#        string = ''
-#        name    = psystem.label
-#        size    = len(psystem.atoms)
-#        string = '\nsystem: {}    \natoms: {}    '.format(name, size)
-#
-#        if psystem.qcModel:
-#            hamiltonian   = getattr(psystem.qcModel, 'hamiltonian', False)
-#            
-#            if hamiltonian:
-#                pass
-#            else:
-#                try:
-#                    itens = psystem.qcModel.SummaryItems()
-#                    hamiltonian = itens[0][0]
-#                except:
-#                    hamiltonian = 'external'
-#            n_QC_atoms    = len(list(psystem.qcState.pureQCAtoms))
-#            summary_items = psystem.electronicState.SummaryItems()
-#            
-#            string += '\nhamiltonian: {}    \nQC atoms: {}    \nQC charge: {}    \nspin multiplicity {}    '.format(  hamiltonian, 
-#                                                                                                              n_QC_atoms,
-#                                                                                                              summary_items[1][1],
-#                                                                                                              summary_items[2][1],
-#                                                                                                                 )
-#                
-#        n_fixed_atoms = len(psystem.e_fixed_table)
-#        string += '\nfixed atoms: {}    '.format(n_fixed_atoms)
-#            
-#        if psystem.mmModel:
-#            forceField = psystem.mmModel.forceField
-#            string += '\nforceField: {}    '.format(forceField)
-#        
-#            if psystem.nbModel:
-#                nbmodel = psystem.mmModel.forceField
-#                string += 'nbModel: True    '
-#                
-#                summary_items = psystem.nbModel.SummaryItems()
-#                
-#            
-#            else:
-#                string += 'nbModel: False    '
-#                
-#                
-#            if psystem.symmetry:
-#                #nbmodel = psystem.mmModel.forceField
-#                string += '\nsymmetry: {}    '.format( psystem.symmetry.crystalSystem.label)
-#                #print(psystem.symmetry)
-#                #print(psystem.symmetryParameters)
-#                
-#                #summary_items = psystem.nbModel.SummaryItems()
-#                    
-#                
-#            else:
-#                string += ''
-#            
-#        
-#        string += 'frame: {}'.format (frame)
-#        string += '\n\nfile: {}'.format(os.path.join(parameters["folder"],parameters["filename"]+'.log' ))
-#        
-#        
-#        dialog.format_secondary_text(
-#            string
-#        )
-#        dialog.run()
-#        dialog.destroy()
-#        #--------------------------------------------------------------------
-#    
-#    
-#    
-#    def _starting_coordinates_model_update (self, init = False):
-#        """ Function doc """
-#        #------------------------------------------------------------------------------------
-#        '''The combobox accesses, according to the id of the active system, 
-#        listostore of the dictionary object_list state_dict'''
-#        if self.Visible:
-#
-#            e_id = self.main.p_session.active_id 
-#            self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[e_id])
-#            #------------------------------------------------------------------------------------
-#            size = len(self.main.vobject_liststore_dict[e_id])
-#            self.combobox_starting_coordinates.set_active(size-1)
-#            #------------------------------------------------------------------------------------
-#        else:
-#            if init:
-#                e_id = self.main.p_session.active_id 
-#                self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[e_id])
-#                #------------------------------------------------------------------------------------
-#                size = len(self.main.vobject_liststore_dict[e_id])
-#                self.combobox_starting_coordinates.set_active(size-1)
-#                #------------------------------------------------------------------------------------
-#            else:
-#                pass
-#
-#    def update (self, parameters = None):
-#        """ Function doc """
-#        self._starting_coordinates_model_update()
-#        if self.Visible:
-#            self.update_working_folder_chooser()
-#            
-#            if  self.p_session.psystem[self.p_session.active_id]:
-#                output_name = self.p_session.get_output_filename_from_system('single_point')
-#                self.builder.get_object('entry_logfile_name').set_text(output_name)
-#
-#    def update_working_folder_chooser (self, folder = None):
-#        """ Function doc """
-#        if folder:
-#            #print('update_working_folder_chooser')
-#            self.folder_chooser_button.set_folder(folder = folder)
-#        else:
-#            
-#            folder = self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder
-#            if folder:
-#                self.folder_chooser_button.set_folder(folder = folder)
-#            else:
-#                pass
-#
 
 class ExportDataWindow:
     """ Class doc """
@@ -1014,7 +758,6 @@ class ExportDataWindow:
         #print('VismolGoToAtomWindow2 update')
         pass
 
-
 class EasyHybridSelectionWindow:
     """ Class doc """
     def __init__(self, main = None):
@@ -1149,7 +892,6 @@ class EasyHybridSelectionWindow:
             #self.main.simple_dialog.info(msg = msg )
         else:
             self.main.simple_dialog.error(msg = msg )
-
 
 class SolvateSystemWindow:
     """ Class doc """
@@ -1617,14 +1359,15 @@ class SetupXTBplusWindow:
         self.home             = main.home
         self.Visible          = False        
         self.vismol_object    = None 
-        
+        self.window           = None
         self.parameters = {
                           'gfn'          : 1  ,
                           'parallel'     : 1  ,
                           'acc'          : 1.0,
                           'iterations'   : 300,
                           'fermi_temp'   : 300.0,
-                          'add_keywords' : ''
+                          'add_keywords' : '',
+                          'scratch'      : os.path.join(PDYNAMO3_SCRATCH,'XTBScratch')
                           }
         
         self.setup_QC_model_window = setup_QC_model_window
@@ -1665,6 +1408,7 @@ class SetupXTBplusWindow:
             
             self.entry_xtb_fermi_temp = self.builder.get_object('entry_xtb_fermi_temp')
             self.entry_keywords       = self.builder.get_object('entry_keywords')
+            self.entry_scratch        = self.builder.get_object('entry_scratch')
             
             
             #.Interface Show All
@@ -1680,7 +1424,7 @@ class SetupXTBplusWindow:
             self.entry_xtb_iterations.set_text(str(self.parameters['iterations'  ]))
             self.entry_xtb_fermi_temp.set_text(str(self.parameters['fermi_temp'  ]))
             self.entry_keywords      .set_text(str(self.parameters['add_keywords']))
-            
+            self.entry_scratch       .set_text(str(self.parameters['scratch']))
             
             #self.refresh_orca_parameters (None)
             self.Visible  =  True
@@ -1694,6 +1438,7 @@ class SetupXTBplusWindow:
         self.parameters['iterations'  ] = int(self.entry_xtb_iterations.get_text())
         self.parameters['fermi_temp'  ] = float(self.entry_xtb_fermi_temp.get_text())
         self.parameters['add_keywords'] = self.entry_keywords      .get_text()
+        self.parameters['scratch']      = self.entry_scratch       .get_text()
         
         print(self.parameters)
         print('on_button_ok')
@@ -1701,7 +1446,8 @@ class SetupXTBplusWindow:
         
     def CloseWindow (self, button, data  = None):
         """ Function doc """
-        self.window.destroy()
+        if self.window:
+            self.window.destroy()
         self.Visible    =  False
         
 class SetupDFTBplusWindow:
@@ -1713,7 +1459,7 @@ class SetupDFTBplusWindow:
         self.home             = main.home
         self.Visible          = False        
         self.vismol_object    = None 
-        
+        self.window           = None
         self.setup_QC_model_window = setup_QC_model_window
         
         try:
@@ -1835,9 +1581,11 @@ class SetupDFTBplusWindow:
 
     def CloseWindow (self, button, data  = None):
         """ Function doc """
-        self.window.destroy()
+        if self.window:
+            self.window.destroy()
         self.Visible    =  False
 
+    
     def on_checkbox_ThirdOrderFull_toggled (self, widget):
         """ Function doc """
         
@@ -2171,7 +1919,8 @@ class SetupORCAWindow:
 
     def CloseWindow (self, button, data  = None):
         """ Function doc """
-        self.window.destroy()
+        if self.window:
+            self.window.destroy()
         self.Visible    =  False
     
     def on_button_ok (self, button):
@@ -2260,7 +2009,7 @@ class EasyHybridSetupQCModelWindow:
         self.home             = main.home
         self.Visible          = False        
         self.vismol_object    = None 
-        
+        self.window           = None
         self.methods_liststore = Gtk.ListStore(str, str, str)
         
         self.method_id    = 0    # 0 for am1, 1 for pm3  and...
@@ -2448,7 +2197,17 @@ class EasyHybridSetupQCModelWindow:
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
-    
+
+        if self.setup_orca_window.Visible:
+            self.setup_orca_window.CloseWindow ( None,  None)
+        
+        if self.setup_dftb_window.Visible:
+            self.setup_dftb_window.CloseWindow ( None,  None)
+        
+        if self.setup_xtb_window.Visible:
+            self.setup_dftb_window.CloseWindow ( None,  None)
+
+            
     def on_spian_button_change (self, widget):
         """ Function doc """
         self.charge       = self.spinbutton_charge.get_value_as_int()
@@ -2540,6 +2299,7 @@ class EasyHybridSetupQCModelWindow:
             parameters['iterations'] = self.setup_xtb_window.parameters['iterations']
             parameters['fermi_temp'] = self.setup_xtb_window.parameters['fermi_temp'  ] 
             parameters['keywords'  ] = self.setup_xtb_window.parameters['add_keywords'] 
+            parameters['scratch'   ] = self.setup_xtb_window.parameters['scratch'] 
 
         
         

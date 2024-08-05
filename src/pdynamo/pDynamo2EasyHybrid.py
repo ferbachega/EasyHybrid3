@@ -883,37 +883,44 @@ class ModifyRepInVismol:
         
 
         if self.psystem[system_id].qcModel:
-
+            
+            #if self.psystem[system_id].mmModel:
             self.psystem[system_id].e_qc_table = list(self.psystem[system_id].qcState.pureQCAtoms)
-            
-            
-            
+          
             '''
                 This part of the code identifies which atoms in the QC 
             region are connected to atoms in the MM region (MM_QC_atoms). 
-            Then build a list containing only atoms from the QC region with no 
-            connection to the MM part. the line representation will be 
-            erased for the atoms in this new list.
+            Then build a list containing only atoms from the QC region 
+            with no connection to the MM part. the line representation 
+            will be erased for the atoms in this new list.
             '''
             #------------------------------------------------------------------
             MM_QC_atoms = []
-            for index in self.psystem[system_id].e_qc_table:
-                for bond in vismol_object.atoms[index].bonds:
-                    a1 = bond.atom_i.index -1
-                    a2 = bond.atom_j.index-1
-                    #print (index, bond.atom_i.index-1, bond.atom_j.index-1 )
-                    
-                    if a1 in self.psystem[system_id].e_qc_table :
-                        pass
-                    else:
-                        MM_QC_atoms.append(index)
-                    
-                    
-                    if a2 in self.psystem[system_id].e_qc_table :
-                        pass
-                    else:
-                        MM_QC_atoms.append(index)
             
+            #print(self.psystem[system_id].e_qc_table)
+            #psystem = self.p_session.psystem[self.p_session.active_id]
+            if len(self.psystem[system_id].atoms) == len(self.psystem[system_id].e_qc_table ):
+                #print('\n\n\n\n\n\n\n\naquiiiii\n\n\n\n\n')
+                pass
+            else:
+            
+                for index in self.psystem[system_id].e_qc_table:
+                    for bond in vismol_object.atoms[index].bonds:
+                        a1 = bond.atom_i.index -1
+                        a2 = bond.atom_j.index-1
+                        #print (index, bond.atom_i.index-1, bond.atom_j.index-1 )
+                        
+                        if a1 in self.psystem[system_id].e_qc_table :
+                            pass
+                        else:
+                            MM_QC_atoms.append(index)
+                        
+                        
+                        if a2 in self.psystem[system_id].e_qc_table :
+                            pass
+                        else:
+                            MM_QC_atoms.append(index)
+                
             
             # list containing only atoms from the QC region with no connection to the MM part
             delete_lines = [] 
@@ -960,8 +967,41 @@ class ModifyRepInVismol:
             for atom in vismol_object.atoms.values():
                 atom.selected  =  False
                 atom.vm_object.selected_atom_ids.discard(atom.atom_id)
-
-
+            
+            '''
+            else:
+                
+                print('AQUIIIIIIIIIIIIIIIIIIIIIIIIIII')
+                selection = self.vm_session.create_new_selection()
+                selection.selecting_by_indexes(vismol_object, self.psystem[system_id].e_qc_table, clear=True)
+                
+                # 
+                #for _id , vismol_object in self.vm_session.vm_objects_dic.items():
+                #    selection.selecting_by_indexes(vismol_object, self.psystem[system_id].e_qc_table, clear=False)
+                #
+                # 
+    
+                self.vm_session.show_or_hide (rep_type = 'spheres',selection= selection ,  show = True )
+                #self.vm_session.show_or_hide (rep_type = 'spheres', show = True )
+    
+                if static:
+    
+                    #selection2 = self.vm_session.create_new_selection()
+                    #selection2.selecting_by_indexes(vismol_object, delete_lines, clear=True)
+    
+                    #self.vm_session.show_or_hide(rep_type = 'sticks',selection= selection , show = True )
+                    self.vm_session.show_or_hide(rep_type = 'dynamic',selection= selection , show = True )
+                    #self.vm_session.show_or_hide(rep_type = 'lines',selection= selection2 , show = False )
+                    #self.vm_session.show_or_hide(rep_type = 'sticks' , show = True )
+    
+                else:
+                    pass
+                    #self.vm_session.show_or_hide(_type = 'dynamic_bonds' , vobject = vobject, selection_table = self.systems[system_id]['qc_table'] , show = True )
+    
+                for atom in vismol_object.atoms.values():
+                    atom.selected  =  False
+                    atom.vm_object.selected_atom_ids.discard(atom.atom_id)
+            '''
 class Restraints:
     """ Class doc """
     
@@ -2209,6 +2249,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                                  )
             qcModel.randomScratch = parameters['random_scratch']
         elif parameters['method'] == 'xTB':
+            print(parameters)
             qcModel = QCModelXTB.WithOptions ( #gfn = 2, keywords = None, vfukui = True,  randomJob = False, parallel = 10)
                                               gfn        = parameters['gfn'       ] ,
                                               parallel   = parameters['parallel'  ] ,
@@ -2216,6 +2257,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                               fermi_temp = parameters['fermi_temp'] ,
                                               iterations = parameters['iterations'] ,
                                               keywords   = parameters['keywords'  ] ,
+                                              scratch    = parameters['scratch'],
                                               #lmo      = parameters['lmo'     ] ,
                                               #json     = parameters['json'    ] ,
                                               #vfukui   = parameters['vfukui'  ] ,
@@ -2353,7 +2395,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 ##print(atom.index, atom.atomicNumber, system.mmState.charges[idx],self.psystem[self.active_id]['vobject'].atoms[idx].resn )
             
         ##print('mm_residue_table',mm_residue_table)
-        '''Here we are going to do a charge rescaling of atoms within the MM part 
+        '''Here we are going to do the charge rescaling of atoms within the MM part 
         but that the residues do not add up to an entire charge.''' 
         
         #print(mm_residue_table)
