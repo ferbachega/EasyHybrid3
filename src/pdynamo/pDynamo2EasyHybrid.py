@@ -2811,23 +2811,26 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
             vobj_tmp = self._build_vobject_from_pDynamo_system (system = system)
             n = 0
-            for res_index, residue in vobj_tmp.residues.items():
-                n = 0.0
-                res_charge = 0.0
-                for atom_index, atom in residue.atoms.items():
-                    res_charge += system.mmState.charges[atom_index]
-                    n += 1
-                
-                
-                difference = res_charge - float(round(res_charge))
-                fraction = difference/n
+            for chain in vobj_tmp.chains:
+                for resi, residue in vobj_tmp.chains[chain].residues.items():
+            
+                #for res_index, residue in vobj_tmp.residues.items():
+                    n = 0.0
+                    res_charge = 0.0
+                    for atom_index, atom in residue.atoms.items():
+                        res_charge += system.mmState.charges[atom_index]
+                        n += 1
+                    
+                    
+                    difference = res_charge - float(round(res_charge))
+                    fraction = difference/n
 
-                res_charge2 = 0.0
-                for atom_index, atom in residue.atoms.items():
-                    system.mmState.charges[atom_index] -= fraction
-                    res_charge2 += system.mmState.charges[atom_index]
-                
-                n += 1
+                    res_charge2 = 0.0
+                    for atom_index, atom in residue.atoms.items():
+                        system.mmState.charges[atom_index] -= fraction
+                        res_charge2 += system.mmState.charges[atom_index]
+                    
+                    n += 1
                 
                 #print('Initial charge: {}, Differente{} {}'.format(res_charge, difference, res_charge2))
 
