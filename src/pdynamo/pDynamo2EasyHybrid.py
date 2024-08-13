@@ -2543,12 +2543,44 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             5 : 'mol2'                         ,
         
         """
+        reverse_idx_2D_xy = {}
+        
         if coords_from_vobject:
             vobject  = self.vm_session.vm_objects_dic[parameters['vobject_id']]
-            if parameters['last'] == -1:
-                parameters['last'] = len(vobject.frames)-1
+            
+            
+            #. This block refers to a vobject containing a 2D trajectory.
+            if getattr ( vobject, 'idx_2D_xy', False):
+                max_x = 0
+                max_y = 0
+                
+                #. Checking the dimensions of each coordinate
+                for key in vobject.idx_2D_xy.keys():
+                    index = vobject.idx_2D_xy[key]
+                    if key[0] > max_x:
+                        max_x = key[0]
+                    if key[1] > max_y:
+                        max_y = key[1]
+                    reverse_idx_2D_xy[index] = key
+
+
+                
+                print (max_x, max_y)
+                print (reverse_idx_2D_xy)
+                #max_x += 1 
+                #max_y += 1
+                if parameters['last'] == -1:
+                    parameters['last'] = max_x
+                if parameters['last2'] == -1:
+                    parameters['last2'] = max_y
+
+            #. This block refers to a vobject containing a 1D trajectory.
             else:
-                parameters['last'] =None
+                if parameters['last'] == -1:
+                    parameters['last'] = len(vobject.frames)-1  #.pDynamo is zero base
+                else:
+                    pass
+                    #parameters['last'] =None
         else:
             vobject = None
             
@@ -2561,11 +2593,24 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         active_id = self.active_id 
         self.active_id = parameters['system_id']
         
+        '''
+            When 0 or 1, we will export the pDynamo system, and in this 
+        case, only the last coordinates are considered. If the coordinate 
+        reference is a vobject with two dimensions, this needs to be 
+        taken into account when exporting the coordinates.
+        '''
         if parameters['format'] == 0 or parameters['format'] == 1:
+            
             if coords_from_vobject:
+                
+                #.Checking is vobject has 2 dimenstions 
+                if getattr ( vobject, 'idx_2D_xy', False):
+                    frame =  vobject.idx_2D_xy[(parameters['last'],parameters['last2'])]
+                else:
+                    frame = parameters['last']   
                 self.get_coordinates_from_vobject_to_pDynamo_system(vobject       = vobject, 
                                                                     system_id     = parameters['system_id'], 
-                                                                    frame         = parameters['last'])
+                                                                    frame         = frame)
             else:
                 pass
                 
@@ -2582,10 +2627,18 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             
             system.e_treeview_iter   = None
             system.e_liststore_iter  = None
-            if parameters['format'] == 0:
-                ExportSystem ( os.path.join ( folder, filename+'.pkl'), system )
+            
+            if parameters['export_QC_atoms_only']:
+                system2 = system.PruneToQCRegion()
+                if parameters['format'] == 0:
+                    ExportSystem ( os.path.join ( folder, filename+'.pkl'), system2 )
+                else:
+                    YAMLPickle (os.path.join ( folder, filename+'.yaml'),   system2 )
             else:
-                YAMLPickle (os.path.join ( folder, filename+'.yaml'), system )
+                if parameters['format'] == 0:
+                    ExportSystem ( os.path.join ( folder, filename+'.pkl'), system )
+                else:
+                    YAMLPickle (os.path.join ( folder, filename+'.yaml'), system )
             system.e_treeview_iter   = backup[0]
             system.e_liststore_iter  = backup[1]
             system.e_logfile_data    = backup[2]
@@ -2596,11 +2649,19 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             
             #'''   When is Single File     '''
             if parameters['is_single_file']:
+                if getattr ( vobject, 'idx_2D_xy', False):
+                    frame =  vobject.idx_2D_xy[(parameters['last'] ,parameters['last2'] )]
+                else:
+                    frame = parameters['last'] 
+                
                 self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
                                                                     system_id = parameters['system_id'], 
-                                                                    frame     = parameters['last'])
+                                                                    frame     = frame)
                 
                 system   = self.psystem[parameters['system_id']]
+                if parameters['export_QC_atoms_only']:
+                    system = system.PruneToQCRegion()
+                
                 
                 Pickle( os.path.join ( folder, filename+'.pkl'), 
                         system.coordinates3 )
@@ -2619,20 +2680,45 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 
                 folder = os.path.join ( folder,filename+".ptGeo")
                 
+                #.Means that this is a 2D trajectory
+                if getattr ( vobject, 'idx_2D_xy', False):
+                    i = 0
+                    for frame_i in range(parameters['first'], parameters['last']+1, parameters['stride']):
+                        j = 0
+                        for frame_j in range(parameters['first2'], parameters['last2']+1, parameters['stride2']):
+                    
+                            frame = vobject.idx_2D_xy[(frame_i, frame_j)]
+                            self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
+                                                                                system_id = parameters['system_id'], 
+                                                                                frame     = frame)                
+                            system   = self.psystem[parameters['system_id']]
+                            
+                            if parameters['export_QC_atoms_only']:
+                                system = system.PruneToQCRegion()
+                            
+                            Pickle( os.path.join ( folder, "frame{}_{}.pkl".format(i, j)), 
+                                    system.coordinates3 )
+                            
+                            j+=1
+                        
+                        i+=1
                 
-                i = 0
-                for frame in range(parameters['first'], parameters['last'], parameters['stride']):
-                    
-                    self.get_coordinates_from_vobject_to_pDynamo_system(vobject = vobject, 
-                                                                              system_id     = parameters['system_id'], 
-                                                                              frame         = frame)
-                    
-                    system   = self.psystem[parameters['system_id']]
-                    
-                    Pickle( os.path.join ( folder, "frame{}.pkl".format(i) ), 
-                            system.coordinates3 )
-                    
-                    i += 1
+                
+                #.Means that is not a 2D trajectory
+                else:
+                    i = 0
+                    for frame in range(parameters['first'], parameters['last']+1, parameters['stride']):
+                        
+                        self.get_coordinates_from_vobject_to_pDynamo_system(vobject = vobject, 
+                                                                                  system_id     = parameters['system_id'], 
+                                                                                  frame         = frame)
+                        
+                        system   = self.psystem[parameters['system_id']]
+                        
+                        Pickle( os.path.join ( folder, "frame{}.pkl".format(i) ), 
+                                system.coordinates3 )
+                        
+                        i += 1
         
         
         
@@ -2642,8 +2728,6 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             #'''   When is Single File     '''
             if parameters['is_single_file']:
                 
-
-
                 self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
                                                                     system_id = parameters['system_id'], 
                                                                     frame     = parameters['last'])
@@ -2681,32 +2765,71 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 folder = os.path.join ( folder,filename+".ptGeo")
                 
                 
-                i = 0
-                for frame in range(parameters['first'], parameters['last'], parameters['stride']):
+                
+                #.Means that this is a 2D trajectory
+                if getattr ( vobject, 'idx_2D_xy', False):
+                    i = 0
+                    for frame_i in range(parameters['first'], parameters['last']+1, parameters['stride']):
+                        j = 0
+                        for frame_j in range(parameters['first2'], parameters['last2']+1, parameters['stride2']):
                     
-                    self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
-                                                                        system_id = parameters['system_id'], 
-                                                                        frame     = frame)
+                            frame = vobject.idx_2D_xy[(frame_i, frame_j)]
+                            self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
+                                                                                system_id = parameters['system_id'], 
+                                                                                frame     = frame)                
+                            system   = self.psystem[parameters['system_id']]
+                            
+                            
+                            if parameters['export_QC_atoms_only']:
+                               system = system.PruneToQCRegion()
+                            
+                            #Pickle( os.path.join ( folder, "frame{}_{}.pkl".format(i, j)), 
+                            #        system.coordinates3 )
+                            if parameters['format'] == 3:
+                                ExportSystem ( os.path.join ( folder, "frame{}_{}.pdb".format(i, j) ), system )
+                            
+                            if parameters['format'] == 4:
+                                ExportSystem ( os.path.join ( folder, "frame{}_{}.xyz".format(i, j) ), system )
+                            
+                            if parameters['format'] == 5:
+                                ExportSystem ( os.path.join ( folder, "frame{}_{}.mol".format(i, j) ), system )
+                            
+                            if parameters['format'] == 6:
+                                ExportSystem ( os.path.join ( folder, "frame{}_{}.mol2".format(i, j) ), system )
 
-                    system   = self.psystem[parameters['system_id']]
-                    
-                    if parameters['format'] == 3:
-                        ExportSystem ( os.path.join ( folder, '{}{}.pdb'.format(filename,i) ), system )
-                    
-                    if parameters['format'] == 4:
-                        ExportSystem ( os.path.join ( folder, '{}{}.xyz'.format(filename,i)), system )
-                    
-                    if parameters['format'] == 5:
-                        ExportSystem ( os.path.join ( folder, '{}{}.mol'.format(filename,i)), system )
-                    
-                    if parameters['format'] == 6:
-                        ExportSystem ( os.path.join ( folder, '{}{}.mol2'.format(filename,i)), system )
-                    
-                    
-                    #Pickle( os.path.join ( folder, "frame{}.pkl".format(i) ), 
-                    #        system.coordinates3 )
-                    
-                    i += 1
+                            j+=1
+                        i+=1
+                else:
+                    i = 0
+                    for frame in range(parameters['first'], parameters['last']+1, parameters['stride']):
+                        
+                        self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
+                                                                            system_id = parameters['system_id'], 
+                                                                            frame     = frame)
+
+                        system   = self.psystem[parameters['system_id']]
+                        
+                        if parameters['export_QC_atoms_only']:
+                           system = system.PruneToQCRegion()
+
+
+                        if parameters['format'] == 3:
+                            ExportSystem ( os.path.join ( folder, 'frame{}.pdb'.format( i) ), system )
+                        
+                        if parameters['format'] == 4:
+                            ExportSystem ( os.path.join ( folder, 'frame{}.xyz'.format( i)), system )
+                        
+                        if parameters['format'] == 5:
+                            ExportSystem ( os.path.join ( folder, 'frame{}.mol'.format( i)), system )
+                        
+                        if parameters['format'] == 6:
+                            ExportSystem ( os.path.join ( folder, 'frame{}.mol2'.format( i)), system )
+                        
+                        
+                        #Pickle( os.path.join ( folder, "frame{}.pkl".format(i) ), 
+                        #        system.coordinates3 )
+                        
+                        i += 1
         
 
 

@@ -412,6 +412,7 @@ class AddHarmonicRestraintDialog:
         self.builder.get_object('dialog').destroy()
         self.Visible    =  False
 
+
 class ExportDataWindow:
     """ Class doc """
     def __init__(self, main = None):
@@ -421,7 +422,8 @@ class ExportDataWindow:
         self.Visible =  False        
         self.starting_coords_liststore = Gtk.ListStore(str, int)
         self.is_single_frame  = True
-    
+        self.is_2D_trajectory = False
+        
     def CloseWindow (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
@@ -429,6 +431,11 @@ class ExportDataWindow:
 
     def OpenWindow (self, sys_selected = None):
         """ Function doc """
+        #if sys_selected:
+        #    pass
+        #else:
+        #    sys_selected = 0
+        
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
             self.builder.add_from_file(os.path.join(self.home,'src/gui/windows/setup/export_system_window.glade'))
@@ -436,7 +443,7 @@ class ExportDataWindow:
             
             self.window = self.builder.get_object('export_data_window')
             self.window.set_title('Export Data Window')
-            self.window.set_keep_above(True)
+            #self.window.set_keep_above(True)
             '''--------------------------------------------------------------------------------------------'''
             
             
@@ -510,10 +517,21 @@ class ExportDataWindow:
                 self.folder_chooser_button.set_folder(folder = folder)
             #------------------------------------------------------------------------------------
 
-            self.combobox_fileformat.set_active(0)
+            
             self.window.show_all()
+            self.is_single_file = True
+            #.this is not the best place to let this code (change later)
+            self.builder.get_object('entry_first').set_sensitive(False)
+            self.builder.get_object('label_first').set_sensitive(False)
+            self.builder.get_object('entry_stride').set_sensitive(False)
+            self.builder.get_object('label_stride').set_sensitive(False)
+            self.builder.get_object('entry_first2').set_sensitive(False)
+            self.builder.get_object('entry_stride2').set_sensitive(False)
+            
+            self.combobox_fileformat.set_active(0)
             self.Visible  = True
-    
+        else:
+            self.window.present()
     def combobox_pdynamo_system (self, widget):
         """ Function doc """
         #print('combobox_pdynamo_system aqui')
@@ -538,90 +556,48 @@ class ExportDataWindow:
             vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
         
             if getattr ( vismol_object, 'idx_2D_xy', False):
-                print('2D traj')
-                self.builder.get_object('label_y_rc'   ).hide()
-                self.builder.get_object('entry_first2' ).hide()
-                self.builder.get_object('entry_last2'  ).hide()
-                self.builder.get_object('entry_stride2').hide()
-                
-            else:
+                print(vismol_object.idx_2D_xy )
                 self.builder.get_object('label_y_rc'   ).show()
                 self.builder.get_object('entry_first2' ).show()
                 self.builder.get_object('entry_last2'  ).show()
                 self.builder.get_object('entry_stride2').show()
-                pass
-        """
-        if tree_iter is not None:
-            
-            '''selecting the vismol object from the content that is in the combobox '''
-            model = self.combobox_starting_coordinates.get_model()
-            name, vobject_id = model[tree_iter][:2]
-            #print (name, model[tree_iter][:2])
-            #name, vobject_id = model[tree_iter][:2]
-        
-        
-        if len(self.main.vm_session.vm_objects_dic[vobject_id].frames) > 1:
-            print(self.main.vm_session.vm_objects_dic[vobject_id].name,
-                  len(self.main.vm_session.vm_objects_dic[vobject_id].frames),'True')
-            self.is_single_frame = True
-            
-            if self.combobox_fileformat.get_active( ) == 0:
-                self.builder.get_object('entry_first').set_sensitive(False)
-                self.builder.get_object('label_first').set_sensitive(False)
-                self.builder.get_object('entry_stride').set_sensitive(False)
-                self.builder.get_object('label_stride').set_sensitive(False)
+                self.is_2D_trajectory = True
             else:
-                self.builder.get_object('entry_first').set_sensitive(True)
-                self.builder.get_object('label_first').set_sensitive(True)            
-                self.builder.get_object('entry_stride').set_sensitive(True)
-                self.builder.get_object('label_stride').set_sensitive(True)
+                self.builder.get_object('label_y_rc'   ).hide()
+                self.builder.get_object('entry_first2' ).hide()
+                self.builder.get_object('entry_last2'  ).hide()
+                self.builder.get_object('entry_stride2').hide()
+                self.is_2D_trajectory = False
+                pass
+        self._fileformat_update()
             
-            
-        else:
-            print(self.main.vm_session.vm_objects_dic[vobject_id].name,
-                  len(self.main.vm_session.vm_objects_dic[vobject_id].frames),'False')
-            
-            self.is_single_frame = False
-            self.builder.get_object('entry_first').set_sensitive(False)
-            self.builder.get_object('label_first').set_sensitive(False)
-            self.builder.get_object('entry_stride').set_sensitive(False)
-            self.builder.get_object('label_stride').set_sensitive(False)
-        #"""
     def on_combobox_fileformat (self, widget):
         """ Function doc """
-        print('on_combobox_fileformat')
+        self._fileformat_update()
+    
+    def _fileformat_update (self):
+        """ Function doc """
         tree_iter = self.combobox_starting_coordinates.get_active_iter()
         if tree_iter is not None:
             
             '''selecting the vismol object from the content that is in the combobox '''
             model = self.combobox_starting_coordinates.get_model()
             name, vobject_id = model[tree_iter][:2]
-            #print (name, model[tree_iter][:2])
-            
+        
         if len(self.main.vm_session.vm_objects_dic[vobject_id].frames) > 1:
-            print(self.main.vm_session.vm_objects_dic[vobject_id].name,
-                  len(self.main.vm_session.vm_objects_dic[vobject_id].frames),'True')
             self.is_single_frame = True
-            if self.combobox_fileformat.get_active( ) == 0:
-                self.builder.get_object('entry_first').set_sensitive(False)
-                self.builder.get_object('label_first').set_sensitive(False)
-                self.builder.get_object('entry_stride').set_sensitive(False)
-                self.builder.get_object('label_stride').set_sensitive(False)
+            if self.combobox_fileformat.get_active( ) in [0,1]:
+                self.builder.get_object('radiobutton_singlefile').set_active(True)
+                self.builder.get_object('radiobutton_multiplefile').set_sensitive(False)
             else:
-                self.builder.get_object('entry_first').set_sensitive(True)
-                self.builder.get_object('label_first').set_sensitive(True)            
-                self.builder.get_object('entry_stride').set_sensitive(True)
-                self.builder.get_object('label_stride').set_sensitive(True)
+                self.builder.get_object('radiobutton_multiplefile').set_sensitive(True)
         else:
-            print(self.main.vm_session.vm_objects_dic[vobject_id].name,
-                  len(self.main.vm_session.vm_objects_dic[vobject_id].frames),'False')
-            
-            self.is_single_frame = False
-            self.builder.get_object('entry_first').set_sensitive(False)
-            self.builder.get_object('label_first').set_sensitive(False)
-            self.builder.get_object('entry_stride').set_sensitive(False)
-            self.builder.get_object('label_stride').set_sensitive(False)
-   
+            #print(self.main.vm_session.vm_objects_dic[vobject_id].name,
+            #      len(self.main.vm_session.vm_objects_dic[vobject_id].frames),'False')
+            self.builder.get_object('radiobutton_singlefile').set_active(True)
+            self.builder.get_object('radiobutton_multiplefile').set_sensitive(False)
+            self.is_single_frame = True
+    
     def on_name_combo_changed (self, widget):
         """ Function doc """
         if  widget.get_active() == 0:
@@ -633,24 +609,43 @@ class ExportDataWindow:
         """ Function doc """
         if self.builder.get_object('radiobutton_singlefile').get_active():
             self.is_single_file = True
+            self.builder.get_object('entry_first').set_sensitive(False)
+            self.builder.get_object('label_first').set_sensitive(False)
+            self.builder.get_object('entry_stride').set_sensitive(False)
+            self.builder.get_object('label_stride').set_sensitive(False)
+            
+            self.builder.get_object('entry_first2').set_sensitive(False)
+            self.builder.get_object('entry_stride2').set_sensitive(False)
+
         else:
             self.is_single_file = False
+            self.builder.get_object('entry_first')  .set_sensitive(True)
+            self.builder.get_object('label_first')  .set_sensitive(True)
+            self.builder.get_object('entry_stride') .set_sensitive(True)
+            self.builder.get_object('label_stride') .set_sensitive(True)
+            
+            self.builder.get_object('entry_first2') .set_sensitive(True)
+            self.builder.get_object('entry_stride2').set_sensitive(True)
 
     def export_data (self, button):
         """ Function doc """
-        
         parameters = {
                       'system_id'       : None,
                       'vobject_id'      : None, 
                       'format'          : None,
                       'is_single_file'  : True,
+                      'is_2D_trajectory':False,
+                      'first'           :  0 ,
+                      'last'            : -1 ,
+                      'stride'          :  1 ,
                       
-                      'fist'            : 0   ,
-                      'last'            : -1  ,
-                      'stride'          : 1   ,
+                      'first2'          :  0 ,
+                      'last2'           : -1 ,
+                      'stride2'         :  1 ,
                       
-                      'filename'        :'exported_system',
-                      'folder'          :None, 
+                      'export_QC_atoms_only': False,
+                      'filename'            :'exported_system',
+                      'folder'              : None, 
                       
                       }
         
@@ -700,13 +695,23 @@ class ExportDataWindow:
             parameters['is_single_file'] = False
         '''------------------------------------------------------------------------------'''
         
-        
+        parameters['is_2D_trajectory'] = self.is_2D_trajectory
         
         '''----------------------   FIRST  LAST and STRIDE   -----------------------------'''
         parameters['first']  = int(self.builder.get_object('entry_first').get_text() )
         parameters['last']   = int(self.builder.get_object('entry_last').get_text()  )
         parameters['stride'] = int(self.builder.get_object('entry_stride').get_text())
         '''-------------------------------------------------------------------------------'''
+        
+        '''----------------------   FIRST  LAST and STRIDE   -----------------------------'''
+        parameters['first2']  = int(self.builder.get_object('entry_first2').get_text() )
+        parameters['last2']   = int(self.builder.get_object('entry_last2').get_text()  )
+        parameters['stride2'] = int(self.builder.get_object('entry_stride2').get_text())
+        '''-------------------------------------------------------------------------------'''
+        
+        parameters['export_QC_atoms_only'] =  self.builder.get_object('checkbox_export_QC_atoms_only').get_active()
+
+        
         parameters['system'] = self.main.p_session.psystem[parameters['system_id']]
         #print(parameters)
         '''------------------------------------------------------------------------------'''
@@ -729,7 +734,9 @@ class ExportDataWindow:
         
         
         
-        
+        print(parameters)
+        self.main.p_session.export_system (parameters)
+        '''
         try:
             self.main.p_session.export_system (parameters)
             self.main.bottom_notebook.status_teeview_add_new_item(message = ':  {}  saved'.format(os.path.join ( 
@@ -745,7 +752,7 @@ class ExportDataWindow:
         else:
             self.window.destroy()
             self.Visible    =  False
-        
+        #'''
         '''------------------------------------------------------------------------------'''
     
     def CloseWindow (self, button, data  = None):

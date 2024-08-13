@@ -276,7 +276,7 @@
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>
-                                <property name="top-attach">5</property>
+                                <property name="top-attach">4</property>
                               </packing>
                             </child>
                             <child>
@@ -350,7 +350,7 @@
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>
-                                <property name="top-attach">4</property>
+                                <property name="top-attach">3</property>
                               </packing>
                             </child>
                             <child>
@@ -382,7 +382,17 @@
                               </packing>
                             </child>
                             <child>
-                              <placeholder/>
+                              <object class="GtkCheckButton" id="checkbox_export_QC_atoms_only">
+                                <property name="label" translatable="yes">Export QC atoms only</property>
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">False</property>
+                                <property name="draw-indicator">True</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">1</property>
+                                <property name="top-attach">5</property>
+                              </packing>
                             </child>
                             <child>
                               <placeholder/>

@@ -515,7 +515,7 @@ class MainWindow:
             self.gtk_save_as_file (menuitem)
 
         elif menuitem == self.builder.get_object('menuitem_export'):
-            self.export_data_window.OpenWindow()
+            self.export_data_window.OpenWindow(sys_selected = self.p_session.active_id)
         
         elif menuitem == self.builder.get_object('menuitem_import'):
             self.import_trajectory_window.OpenWindow()
@@ -2067,9 +2067,12 @@ class TreeViewMenu:
 
     def _menu_export_data_window (self,vobject = None ):
         """ Function doc """
-        self.treeview.main.export_data_window.OpenWindow()
-    
-    
+        selection     = self.treeview.get_selection()
+        (model, iter) = selection.get_selected()
+        e_id          = int(model.get_value(iter, 0)) 
+        #print(e_id)
+        self.treeview.main.export_data_window.OpenWindow(sys_selected = e_id)
+        
     def _menu_load_data_to_system (self, vobject = None ):
         """ Function doc """
         selection        = self.treeview.get_selection()
