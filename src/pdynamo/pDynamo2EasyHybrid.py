@@ -2543,6 +2543,11 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             5 : 'mol2'                         ,
         
         """
+        if 'export_QC_atoms_only' in parameters.keys():
+            pass
+        else:
+            parameters['export_QC_atoms_only'] = False
+        
         reverse_idx_2D_xy = {}
         
         if coords_from_vobject:
