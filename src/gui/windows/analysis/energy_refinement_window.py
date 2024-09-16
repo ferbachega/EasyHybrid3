@@ -229,6 +229,7 @@ class EnergyRefinementWindow():
                       "system_name": self.p_session.psystem[self.p_session.active_id].label,
                       "initial_coordinates": None                          ,                       
                       "traj_type":'pklfolder'                              ,
+                      'ignore_mm_charges': False                           ,
                       "NmaxThreads":1                                      ,
                       "show":False                                         }
 
@@ -274,6 +275,11 @@ class EnergyRefinementWindow():
         else:
             pass
         #----------------------------------------------------------------------
+        
+        if self.builder.get_object('check_box_MM_chrg_to_zero').get_active():
+            parameters["ignore_mm_charges"] = True
+        else:
+            pass
         
         parameters["RC1"] = self.RC_box1.get_rc_data()
         

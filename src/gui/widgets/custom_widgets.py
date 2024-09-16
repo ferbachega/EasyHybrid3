@@ -544,7 +544,7 @@ class VismolTrajectoryFrame(Gtk.Frame):
     def __init__ (self, vm_session = None):
         """ Class initialiser """
         self.vm_session = vm_session 
-        
+        self.frame_forward = True
         self.frame      = Gtk.Frame()
         #self.frame.set_shadow_type(Gtk.SHADOW_IN)
         self.frame.set_border_width(4)
@@ -578,7 +578,7 @@ class VismolTrajectoryFrame(Gtk.Frame):
         
         self.vbox =  Gtk.Box(orientation = Gtk.Orientation.HORIZONTAL, spacing = 6)
         
-        self.functions = [self.reverse,self.stop, self.play, self.forward ]
+        self.functions = [self.reverse, self.stop, self.play, self.forward ]
         c = 0
         for label in ['<<','#', '>','>>']:
             button = Gtk.Button(label)
@@ -608,6 +608,7 @@ class VismolTrajectoryFrame(Gtk.Frame):
         #----------------------------------------------------------------------------
         self.vbox2 = Gtk.Box(orientation = Gtk.Orientation.HORIZONTAL, spacing = 6)
         self.label = Gtk.Label('FPS:')
+        self.label_step = Gtk.Label('Step:')
         
         #self.entry = Gtk.Entry()
         #self.entry.set_text(str(25))
@@ -616,6 +617,13 @@ class VismolTrajectoryFrame(Gtk.Frame):
                                              upper          = 10000, 
                                              step_increment = 1  , 
                                              page_increment = 10 )
+        
+        self.step_adjustment = Gtk.Adjustment(value          = 1 , 
+                                             upper          = 10000, 
+                                             step_increment = 1  , 
+                                             page_increment = 10 )
+        
+        
         #self.fps_adjustment = Gtk.Adjustment(value         = float, 
         #                                     lower         = float, 
         #                                     upper         = float, 
@@ -625,10 +633,17 @@ class VismolTrajectoryFrame(Gtk.Frame):
         self.entry = Gtk.SpinButton()
         self.entry.set_adjustment ( self.fps_adjustment)
         
+        self.entry_step = Gtk.SpinButton()
+        self.entry_step.set_adjustment ( self.step_adjustment)
+        
         #self.vbox2.pack_start(self.label2, True, True, 0)
         #self.vbox2.pack_start(self.combobox_vobjects, True, True, 0)
         self.vbox2.pack_start(self.label, True, True, 0)
         self.vbox2.pack_start(self.entry, True, True, 0)
+        
+        self.vbox2.pack_start(self.label_step, True, True, 0)
+        self.vbox2.pack_start(self.entry_step, True, True, 0)
+        
         self.box.pack_start(self.vbox2, True, True, 0)
         #----------------------------------------------------------------------------
 
@@ -638,12 +653,41 @@ class VismolTrajectoryFrame(Gtk.Frame):
             pass
         
         else:
-            thread = threading.Thread(target=self.long_task)
+            #thread = threading.Thread(target=self.long_task)
+            thread = threading.Thread(target=self.long_task_boomerang)
             thread.start()
             
             self.running = True
         
+    def long_task_boomerang(self):
+        self.stop_thread = False
+        i = 0
         
+        while self.stop_thread == False:
+            if self.stop_thread:
+                return
+            
+            if self.frame_forward:
+            
+                value = self.forward(step =  self.entry_step.get_value()) 
+                #value = self.reverse(None) 
+
+                if value >= self.upper-1:
+                    #value = 0
+                    self.frame_forward = False
+                    self.scale.set_value(int(value))
+                    self.vm_session.set_frame(int(value))
+                #time.sleep(0.01)
+                time.sleep(1/self.entry.get_value())
+            
+            else:
+                value = self.reverse(step =  self.entry_step.get_value()) 
+                if value <= 0:
+                    self.frame_forward = True
+                    self.scale.set_value(int(value))
+                    self.vm_session.set_frame(int(value))
+                time.sleep(1/self.entry.get_value())
+    
     def long_task(self):
         # This flag is used to stop the thread
         self.stop_thread = False
@@ -652,6 +696,7 @@ class VismolTrajectoryFrame(Gtk.Frame):
             if self.stop_thread:
                 return
             value = self.forward(None) 
+            #value = self.reverse(None) 
 
             if value >= self.upper-1:
                 value = 0
@@ -665,27 +710,32 @@ class VismolTrajectoryFrame(Gtk.Frame):
         self.stop_thread = True
         self.running = False    
 
-    def forward (self, button):
+    def forward (self, button = None, step = 1):
         """ Function doc """
         value =  int(self.scale.get_value())
-        value = value+1
+        value = value+step
         self.scale.set_value(int(value))
         self.vm_session.set_frame(int(value))
         #print(value)
         return value
         
         
-    def reverse (self, button):
+    def reverse (self, button =  None, step = 1):
         """ Function doc """
         value = int(self.scale.get_value())
-        
+        print(value)
         if value == 0:
             pass
         else:
-           value = value-1
-        
+            value = value-step
+            if value < 0:
+                value = 0
+            else: 
+                pass
+                
         self.vm_session.set_frame(int(value))
         self.scale.set_value(value)
+        return value
         #print(value)
     
     def get_box (self):

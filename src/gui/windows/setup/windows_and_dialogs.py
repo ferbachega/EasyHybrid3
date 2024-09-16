@@ -3472,7 +3472,8 @@ class ImportTrajectoryWindow:
                         7:'xyz',
                         8:'mol2',
                         9:'netcdf',
-                       10:'log_file'  }
+                       10:'log_file',
+                       11:'charges'  }
         
         self.folder_type_list = ['pklfolder', 'pklfolder2D', 'pdbfolder']
 
@@ -3568,7 +3569,7 @@ class ImportTrajectoryWindow:
             self.combox = self.builder.get_object('combobox_coordinate_type')
             self.combox.connect("changed", self.on_combobox_coordinate_type)
     
-            self.folder_chooser_button.btn.connect('clicked', self.print_test)
+            self.folder_chooser_button.btn.connect('clicked', self.update_logfile_chooser_btn)
             self.on_combobox_pdynamo_system(None)
             self.combox.set_active(0)
             self.window.show_all()
@@ -3582,30 +3583,34 @@ class ImportTrajectoryWindow:
         self.window.destroy()
         self.Visible    =  False
     
-    def print_test (self, widget):
+    def update_logfile_chooser_btn (self, widget):
         """ Function doc """
         #print(self.folder_chooser_button.folder)
-        trajfolder  = self.folder_chooser_button.get_folder()
+        trajfolder = self.folder_chooser_button.get_folder()
         #print(trajfolder)
-        files = os.listdir(trajfolder)
         
-        logfiles = []
-        for file_name in files:
-            if file_name.endswith("log"):
-                logfiles.append(file_name)
+        
+        isdir = os.path.isdir(trajfolder)
+        if isdir:
+            files = os.listdir(trajfolder)
+        
+        
+            logfiles = []
+            for file_name in files:
+                if file_name.endswith("log"):
+                    logfiles.append(file_name)
 
 
-        #basename  = os.path.basename(trajfolder)
-        #logfile   = basename[:-5]+'log'
-        #
-        #logfile   = os.path.join(trajfolder, logfile)
-        #
-        #if exists(logfiles[0]):
-        if len(logfiles):
-            fullpath = os.path.join(trajfolder, logfiles[0])
-            self.builder.get_object('file_chooser_btn_logfile').set_filename(fullpath)
-        #else:
-        #    pass
+            #basename  = os.path.basename(trajfolder)
+            #logfile   = basename[:-5]+'log'
+
+            #logfile   = os.path.join(trajfolder, logfile)
+            #if exists(logfiles[0]):
+            if len(logfiles):
+                fullpath = os.path.join(trajfolder, logfiles[0])
+                self.builder.get_object('file_chooser_btn_logfile').set_filename(fullpath)
+            #else:
+            #    pass
         
     def on_combobox_pdynamo_system (self, widget):
         """ Function doc """
@@ -3636,6 +3641,12 @@ class ImportTrajectoryWindow:
             self.builder.get_object('entry_create_a_new_vobj').set_sensitive(False)
             self.builder.get_object('vobjects_combobox').set_sensitive(True)
 
+        
+        elif data_type == 11:
+            self.builder.get_object('frame_stride_box').set_sensitive(False) 
+            self.builder.get_object('folder_chooser_box').set_sensitive(True) 
+            self.builder.get_object('entry_create_a_new_vobj').set_sensitive(False)
+            self.builder.get_object('vobjects_combobox').set_sensitive(False)
         
         elif data_type == 0:
             self.builder.get_object('frame_stride_box').set_sensitive(False) 
@@ -3749,7 +3760,7 @@ class ImportTrajectoryWindow:
         #    print ('Error: Please select a pDynamo system before continuing. ')
         #-----------------------------------------------------------------------------
         
-        
+        #print(parameters)
         
         #----------------------------------------------------------------------------------------------
         '''Here, we determine whether it is necessary to create a new object 

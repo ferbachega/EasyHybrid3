@@ -14,6 +14,9 @@ from gi.repository import Gtk
 import glob, math, os, os.path, sys, shutil
 import pickle
 import threading
+from util.file_parser import read_MOL2  
+from util.file_parser import read_SIMPLE_txt  
+from util.file_parser import read_MOPAC_aux  
 
 from datetime import date
 import time
@@ -283,7 +286,6 @@ class LoadAndSaveData:
             self.main.session_filename = filename
 
 
-
 class EasyHybridImportTrajectory:
     """ Class doc """
     
@@ -317,7 +319,6 @@ class EasyHybridImportTrajectory:
             parameters['vobject'].frames = np.vstack((parameters['vobject'].frames, v_coords))
             self._apply_QC_representation_to_vobject(vismol_object = parameters['vobject'])
 
-    
     def _import_coordinates_from_pklfolder (self, parameters):
         files = os.listdir( parameters['data_path'])
         
@@ -557,6 +558,16 @@ class EasyHybridImportTrajectory:
         elif parameters['data_type'] == 'pdbfile':
             self._import_coordinates_from_file (parameters)
         
+        elif parameters['data_type'] == 'charges':
+            charges = self.chrg_file_parser (parameters['data_path'])
+
+            for index, chg in enumerate(charges):
+                self.psystem[self.active_id].mmState.charges[index] = float(chg)
+            
+            #if len(charges) and len(self.psystem[self.system_id]):
+            #    pass
+            
+            
         elif parameters['data_type'] == 'normal_modes':
             data = self._import_normal_modes_data (parameters)
             self.main.main_treeview.refresh_number_of_frames()
@@ -613,7 +624,42 @@ class EasyHybridImportTrajectory:
         
         self.main.main_treeview.refresh_number_of_frames()
 
+    def chrg_file_parser (self,_file = None, _type = None):
+        """ Function doc 
+        
+        for index, chg in enumerate(input_files['charges']):
+            system.mmState.charges[index] = chg
+        
+        """
+        #
+        
+        _type = _file.split('.')
+        if len(_type) == 2:
+            _type = _type[-1]
+        else:
+            _type = 'unk'
+        
+        if _type == 'MOL2' or _type == 'mol2':
+            atoms, bonds = read_MOL2(_file)
+            charges = atoms['charges']
+        
+        elif _type == 'txt' or _type == 'unk':
+            charges = read_SIMPLE_txt (_file)
+            
 
+        elif _type == 'aux':
+            HEAT_OF_FORMATION, ATOM_CORE, ATOM_X_OPT, GRADIENTS, CHARGES = read_MOPAC_aux (_file)
+            charges = CHARGES
+        else:
+            pass
+        #data = open(_file, 'r')
+        #for line in data:
+        #    print(line)
+        
+        print (charges)
+        
+        return charges
+        
 class pSimulations:
     """ Class doc """
     
@@ -1002,6 +1048,8 @@ class ModifyRepInVismol:
                     atom.selected  =  False
                     atom.vm_object.selected_atom_ids.discard(atom.atom_id)
             '''
+
+
 class Restraints:
     """ Class doc """
     
@@ -1236,6 +1284,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 print('\nGetting atomic charges from mol2 file!\n')
                 for index, chg in enumerate(input_files['charges']):
                     system.mmState.charges[index] = chg
+            
+            #for i, atom in enumerate(system.atoms):
+            #    print(i, atom.atomicNumber, atom.label)
             
         elif system_type == 3 or system_type == 4 :
             system = ImportSystem (input_files['coordinates'])
@@ -1501,8 +1552,16 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             sequence = getattr ( system, "sequence", None )
             
             if sequence is None: 
-                sequence = Sequence.FromAtoms (system.atoms, componentLabel = "UNK.1" )
+                '''If there is no sequence, easyhybrid will look for 
+                the sequence_from_mol2 attribute that comes from the 
+                modified MOL2FileReader.'''
+                is_from_mol2 = getattr(system, 'sequence_from_mol2', False)
+                if is_from_mol2:
+                    sequence = system.sequence_from_mol2
+                else:
+                    sequence = Sequence.FromAtoms (system.atoms, componentLabel = "UNK.1" )
             else:
+                #print('if sequence is None: - else')
                 pass
         else:
             sequence = None
@@ -1510,7 +1569,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         return sequence
 
 
-    def _get_atom_info_from_pdynamo_atom_obj (self, sequence = None, atom = None):
+    def _get_atom_info_from_pdynamo_atom_obj (self, sequence = None, atom = None, is_from_mol2 = False):
         """
         To extract information from atom objects, 
         belonging to pdynamo, and to  organize it as a list
@@ -1521,22 +1580,36 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         (pdynamo's task of providing atomic numbers).
         
         """
-        entityLabel = atom.parent.parent.label
-        useSegmentEntityLabels = False
-        if useSegmentEntityLabels:
-            chainID = ""
-            segID   = entityLabel[0:4]
-        else:
-            chainID = entityLabel[0:1]
-            segID   = ""
+
 
         
-        if sequence:
-            resName, resSeq, iCode = sequence.ParseLabel ( atom.parent.label, fields = 3 )
+        if is_from_mol2:
+            #':DFX.1:C1'
+            resdata = sequence[atom.index].split(':')
+            resdata = resdata[1].split('.')
+            
+            resName = resdata[0]
+            resSeq  = resdata[1]
+            chainID = 'X'
         else:
-            sequence = None
+            
+            entityLabel = atom.parent.parent.label
+            #entityLabel = atom.label
+            useSegmentEntityLabels = False
+            if useSegmentEntityLabels:
+                chainID = ""
+                segID   = entityLabel[0:4]
+            else:
+                chainID = entityLabel[0:1]
+                segID   = ""            
+
+
+            if sequence:
+                resName, resSeq, iCode = sequence.ParseLabel ( atom.parent.label, fields = 3 )
+            else:
+                sequence = None
         
-        ###print(atom.index, atom.label,resName, resSeq, iCode,chainID, segID,  atom.atomicNumber, atom.connections)#, xyz[0], xyz[1], xyz[2] )
+        #print(atom.index, atom.label,resName, resSeq)#, iCode,chainID, segID,  atom.atomicNumber, atom.connections)#, xyz[0], xyz[1], xyz[2] )
         
         index        = atom.index+1
         at_name      = atom.label
@@ -1745,7 +1818,15 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                             #add_vobject_to_vm_session = True             ,
                                             frames                    = None
                                            ):
+        
+        #for i, atom in enumerate(system.atoms):
+        #    print(i, atom.atomicNumber, atom.label)
+        
         sequence  = self._get_sequence_from_pDynamo_system(system)
+        
+        #for i, atom in enumerate(system.atoms):
+        #    print(i, atom.atomicNumber, atom.label)
+        
         atoms     = []     
         atom_qtty = len(system.atoms.items) 
         coords    = np.empty([1, atom_qtty, 3], dtype=np.float32)
@@ -1756,8 +1837,10 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             y = np.float32(xyz[1])
             z = np.float32(xyz[2])
             coords[0,j,:] = x, y, z
-
-            atoms.append(self._get_atom_info_from_pdynamo_atom_obj(sequence =  sequence, atom   = atom))
+            
+            is_from_mol2 = getattr(system, 'sequence_from_mol2', False)
+            #print(atom, atom.label )
+            atoms.append(self._get_atom_info_from_pdynamo_atom_obj(sequence =  sequence, atom = atom, is_from_mol2 = is_from_mol2))
             j += 1
             
         vm_object = VismolObject(self.vm_session, 
@@ -3349,5 +3432,9 @@ def generate_random_code(length):
     # Generate the random code by randomly selecting characters from the set
     random_code = ''.join(random.choice(characters) for _ in range(length))
     return random_code
+
+
+
+
 
 

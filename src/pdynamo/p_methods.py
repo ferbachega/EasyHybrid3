@@ -120,7 +120,47 @@ class EnergyCalculation:
         
         parameters['system'].Summary(log = self.logFile2)
         #try:
-        energy = parameters['system'].Energy(log = self.logFile2)
+        energy  = parameters['system'].Energy(log = self.logFile2)
+        
+        #---------------------------------------------------------------
+        print_MM   = True # print MM charges
+        print_QC   = True # print QC charges (does not inclue boundary atoms)
+        print_QCMM = True # print QC/MM 
+        
+        charges = list(parameters['system'].AtomicCharges())
+        #atomTypes  = parameters['system'].mmState.atomTypes
+        if getattr( parameters['system'], 'qcState', False):
+            qcAtoms = list(parameters['system'].qcState.qcAtoms)
+            e_qc_table = list(parameters['system'].qcState.pureQCAtoms)
+        else:
+            qcAtoms =[]
+            e_qc_table = []
+        
+        #print(len(qcAtoms), len(parameters['system'].atoms), len(charges)) 
+        print('-----------------------------')
+        print('Index  Atom  Type     Charge')
+        print('-----------------------------')
+
+        for index, atom in enumerate(parameters['system'].atoms):
+            #{:<3s} {:20.10f} 1 {:20.10f}
+            if index in qcAtoms:
+                if index in e_qc_table:
+                    if print_QC: 
+                        line = ' {:<3d}    {:<5s} QC   {:10.6f}'.format(index ,atom.label, charges[index])
+                else:
+                    if print_QCMM:
+                        line = ' {:<3d}    {:<5s} QC*  {:10.6f}'.format(index ,atom.label, charges[index])
+
+            else:
+                if print_MM:
+                    line = ' {:<3d}    {:<5s} MM   {:10.6f}'.format(index ,atom.label, charges[index])
+            print(line)
+        print('-----------------------------')
+
+            #print(index ,atom.label, charges[index])
+        #---------------------------------------------------------------
+        
+        
         #except :
         #    msg = 'Error!'
         #    return False, msg
@@ -161,6 +201,25 @@ class EnergyRefinement:
         
         logfile = self.write_header (parameters = parameters,
                                      logfile    = os.path.join(full_path_trajectory, 'output.log') )
+        
+        #-------------------------------------------------------------------------------
+        original_charges = None
+        if parameters['ignore_mm_charges']:
+            print('Adjusting electrical charges in the MM region to zero.')
+            
+            original_charges = parameters['system'].e_charges_backup.copy()
+            
+            for index, charge in enumerate(original_charges):
+                parameters['system'].mmState.charges[index] = 0.0
+            print(parameters['system'].mmState.charges)
+            
+            for i, charge in enumerate(parameters['system'].mmState.charges):
+                parameters['system'].mmState.charges[i] = 0.0
+            print(list(parameters['system'].mmState.charges))
+        else:
+            pass
+        #-------------------------------------------------------------------------------
+        
         
         if parameters['traj_type'] == 'pklfolder':
             data_energy = {}
@@ -280,6 +339,18 @@ class EnergyRefinement:
 
                     text = "\nDATA  %4i  %4i     %13.12f       %13.12f       %13.12f"% (int(i), int(j),  float(data[(i,j)][0]), float(data[(i,j)][1]), float(data[(i,j)][2]))
                     logfile.write(text)
+
+        
+        #-------------------------------------------------------------------------------
+        if parameters['ignore_mm_charges']:
+            print('Restoring electrical charges in the MM.')
+            for index, charge in enumerate(original_charges):
+                parameters['system'].mmState.charges[index]   = original_charges[index]
+        else:
+            pass
+        #-------------------------------------------------------------------------------
+        
+        
 
     def write_header (self, parameters, logfile = 'output.log'):
         """ Function doc """
