@@ -126,37 +126,42 @@ class EnergyCalculation:
         print_MM   = True # print MM charges
         print_QC   = True # print QC charges (does not inclue boundary atoms)
         print_QCMM = True # print QC/MM 
-        
-        charges = list(parameters['system'].AtomicCharges())
-        #atomTypes  = parameters['system'].mmState.atomTypes
-        if getattr( parameters['system'], 'qcState', False):
-            qcAtoms = list(parameters['system'].qcState.qcAtoms)
-            e_qc_table = list(parameters['system'].qcState.pureQCAtoms)
-        else:
-            qcAtoms =[]
-            e_qc_table = []
-        
-        #print(len(qcAtoms), len(parameters['system'].atoms), len(charges)) 
-        print('-----------------------------')
-        print('Index  Atom  Type     Charge')
-        print('-----------------------------')
-
-        for index, atom in enumerate(parameters['system'].atoms):
-            #{:<3s} {:20.10f} 1 {:20.10f}
-            if index in qcAtoms:
-                if index in e_qc_table:
-                    if print_QC: 
-                        line = ' {:<3d}    {:<5s} QC   {:10.6f}'.format(index ,atom.label, charges[index])
-                else:
-                    if print_QCMM:
-                        line = ' {:<3d}    {:<5s} QC*  {:10.6f}'.format(index ,atom.label, charges[index])
-
+        try:
+            charges = list(parameters['system'].AtomicCharges())
+            #except:
+            #    charges = []
+            
+            
+            #atomTypes  = parameters['system'].mmState.atomTypes
+            if getattr( parameters['system'], 'qcState', False):
+                qcAtoms = list(parameters['system'].qcState.qcAtoms)
+                e_qc_table = list(parameters['system'].qcState.pureQCAtoms)
             else:
-                if print_MM:
-                    line = ' {:<3d}    {:<5s} MM   {:10.6f}'.format(index ,atom.label, charges[index])
-            print(line)
-        print('-----------------------------')
-
+                qcAtoms =[]
+                e_qc_table = []
+            
+            #print(len(qcAtoms), len(parameters['system'].atoms), len(charges)) 
+            print('-----------------------------')
+            print('Index  Atom  Type     Charge')
+            print('-----------------------------')
+    
+            for index, atom in enumerate(parameters['system'].atoms):
+                #{:<3s} {:20.10f} 1 {:20.10f}
+                if index in qcAtoms:
+                    if index in e_qc_table:
+                        if print_QC: 
+                            line = ' {:<3d}    {:<5s} QC   {:10.6f}'.format(index ,atom.label, charges[index])
+                    else:
+                        if print_QCMM:
+                            line = ' {:<3d}    {:<5s} QC*  {:10.6f}'.format(index ,atom.label, charges[index])
+    
+                else:
+                    if print_MM:
+                        line = ' {:<3d}    {:<5s} MM   {:10.6f}'.format(index ,atom.label, charges[index])
+                print(line)
+            print('-----------------------------')
+        except:
+            print('Ops!')
             #print(index ,atom.label, charges[index])
         #---------------------------------------------------------------
         
