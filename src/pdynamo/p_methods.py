@@ -121,7 +121,7 @@ class EnergyCalculation:
         parameters['system'].Summary(log = self.logFile2)
         #try:
         energy  = parameters['system'].Energy(log = self.logFile2)
-        
+        '''
         #---------------------------------------------------------------
         print_MM   = True # print MM charges
         print_QC   = True # print QC charges (does not inclue boundary atoms)
@@ -130,7 +130,7 @@ class EnergyCalculation:
             charges = list(parameters['system'].AtomicCharges())
             #except:
             #    charges = []
-            
+            MM_charges = list(parameters['system'].mmState.charges)
             
             #atomTypes  = parameters['system'].mmState.atomTypes
             if getattr( parameters['system'], 'qcState', False):
@@ -139,32 +139,35 @@ class EnergyCalculation:
             else:
                 qcAtoms =[]
                 e_qc_table = []
-            
-            #print(len(qcAtoms), len(parameters['system'].atoms), len(charges)) 
-            print('-----------------------------')
-            print('Index  Atom  Type     Charge')
-            print('-----------------------------')
+            print(qcAtoms, e_qc_table)
+            print(len(e_qc_table), len(qcAtoms), len(parameters['system'].atoms), len(charges)) 
+            print('---------------------------------------------')
+            print(' Index  Atom  Type   Charge QC/MM  Charge MM ')
+            print('---------------------------------------------')
     
             for index, atom in enumerate(parameters['system'].atoms):
                 #{:<3s} {:20.10f} 1 {:20.10f}
                 if index in qcAtoms:
                     if index in e_qc_table:
                         if print_QC: 
-                            line = ' {:<3d}    {:<5s} QC   {:10.6f}'.format(index ,atom.label, charges[index])
+                            line = ' {:<3d}    {:<5s} QC   {:10.6f}  {:10.6f}'.format(index ,
+                                                                                    atom.label, 
+                                                                                    charges[index], 
+                                                                                    MM_charges[index])
                     else:
                         if print_QCMM:
-                            line = ' {:<3d}    {:<5s} QC*  {:10.6f}'.format(index ,atom.label, charges[index])
+                            line = ' {:<3d}    {:<5s} QC*  {:10.6f}  {:10.6f}'.format(index ,atom.label, charges[index], MM_charges[index])
     
                 else:
                     if print_MM:
-                        line = ' {:<3d}    {:<5s} MM   {:10.6f}'.format(index ,atom.label, charges[index])
+                        line = ' {:<3d}    {:<5s} MM   {:10.6f}  {:10.6f}'.format(index ,atom.label, charges[index], MM_charges[index])
                 print(line)
-            print('-----------------------------')
+            print('---------------------------------------------')
         except:
             print('Ops!')
             #print(index ,atom.label, charges[index])
         #---------------------------------------------------------------
-        
+        '''
         
         #except :
         #    msg = 'Error!'
