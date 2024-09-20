@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.40.0 -->
+<!-- Generated with glade 3.38.2 -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
   <object class="GtkAdjustment" id="adjustment1">
@@ -217,12 +217,14 @@
               <object class="GtkBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
+                <property name="valign">start</property>
                 <property name="spacing">10</property>
                 <property name="homogeneous">True</property>
                 <child>
                   <object class="GtkBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
+                    <property name="valign">start</property>
                     <property name="orientation">vertical</property>
                     <property name="spacing">5</property>
                     <property name="homogeneous">True</property>
@@ -230,33 +232,28 @@
                       <object class="GtkLabel" id="RC1_RC2_label">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="valign">start</property>
                         <property name="label" translatable="yes">RC1 / RC2</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
-                        <property name="fill">True</property>
+                        <property name="fill">False</property>
                         <property name="position">0</property>
                       </packing>
                     </child>
                     <child>
-                      <placeholder/>
-                    </child>
-                    <child>
-                      <object class="GtkBox">
+                      <object class="GtkButton" id="button_export">
+                        <property name="label" translatable="yes">Export visualization object</property>
                         <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="spacing">5</property>
-                        <child>
-                          <placeholder/>
-                        </child>
-                        <child>
-                          <placeholder/>
-                        </child>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">True</property>
+                        <property name="valign">start</property>
+                        <signal name="clicked" handler="on_button_export_trajectory" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">2</property>
+                        <property name="fill">False</property>
+                        <property name="position">1</property>
                       </packing>
                     </child>
                   </object>
@@ -273,11 +270,14 @@
                   <object class="GtkBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
+                    <property name="valign">start</property>
                     <property name="orientation">vertical</property>
+                    <property name="homogeneous">True</property>
                     <child>
                       <object class="GtkScale" id="scale_trajectory_from_PES">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <property name="valign">start</property>
                         <property name="round-digits">1</property>
                         <property name="value-pos">right</property>
                         <signal name="value-changed" handler="on_scaler_frame_value_changed" swapped="no"/>
@@ -289,21 +289,16 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkButton" id="button_export">
-                        <property name="label" translatable="yes">Export visualization object</property>
+                      <object class="GtkLabel" id="label_energy">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
-                        <property name="receives-default">True</property>
-                        <signal name="clicked" handler="on_button_export_trajectory" swapped="no"/>
+                        <property name="label" translatable="yes">E = </property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">True</property>
                         <property name="position">1</property>
                       </packing>
-                    </child>
-                    <child>
-                      <placeholder/>
                     </child>
                   </object>
                   <packing>

@@ -2,7 +2,7 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk
 import cairo
-
+import random
 import numpy as np
 import sys
 
@@ -307,10 +307,12 @@ class Canvas(Gtk.DrawingArea):
         if int(x_on_plot) < 0 or int(x_on_plot) >= self.size_x :
             print('canvas')
             self.points = []
+            self.selected_dot = None
             return False
         elif int(y_on_plot) < 0 or int(y_on_plot) >= self.size_y :
             print('canvas')
             self.points = []
+            self.selected_dot = None #set no None the redot at IJ matrix
             return False
         
         else:
@@ -338,14 +340,16 @@ class Canvas(Gtk.DrawingArea):
 
         
         if int(x_on_plot) < 0 or int(x_on_plot) >= self.size_x :
-            print('canvas')
+            #print('canvas2222')
             self.points = []
+            self.selected_dot = None
+        
         elif int(y_on_plot) < 0 or int(y_on_plot) >= self.size_y :
-            print('canvas')
+            #print('canvas1111')
             self.points = []
+            self.selected_dot = None
+        
         else:
-            
-            
             self.points.append((x_on_plot, y_on_plot))
         
         print("Mouse clicker at:",  x, y, int(x_on_plot), int(y_on_plot), 
@@ -387,6 +391,9 @@ class ImagePlot(Canvas):
         self.RC_label = None
         self.label_mode = 0
         self.is_discrete = True
+        
+        self.selected_dot = None #it is the i and j coordinates at the energey matrix
+        self.sel_dot_rgb  = [1,0,0]
         
     def define_datanorm (self):
         """ Function doc """
@@ -846,12 +853,21 @@ class ImagePlot(Canvas):
     def draw_dots (self, cr, color = [0,0,0]):
         """ Function doc """
         cr.set_source_rgb( color[0], color[1], color[2])
-        
-        for x, y in self.points:
+        #print(self.points)
+        for x,y in self.points:
+            #else:
+            cr.set_source_rgb( color[0], color[1], color[2])
+            cr.arc(((x+0.5)*self.factor_x)+ self.bx, ((y+0.5)*self.factor_y)+self.by , 5, 0, 2 * 3.14)
+            #cr.stroke ()
+            cr.fill()
+        # draws the red dot at the energey matrix
+        if len(self.points) and self.selected_dot:
+            x = self.selected_dot[0]
+            y = self.selected_dot[1]
+            cr.set_source_rgb( self.sel_dot_rgb[0], self.sel_dot_rgb[1], self.sel_dot_rgb[2])
             cr.arc(((x+0.5)*self.factor_x)+ self.bx, ((y+0.5)*self.factor_y)+self.by , 5, 0, 2 * 3.14)
             cr.fill()
-
-
+    
     def draw_lines (self, cr, line_width = 2, color = [0,0,0]):
         """ Function doc """
         cr.set_source_rgb( color[0], color[1], color[2])
@@ -918,7 +934,11 @@ class ImagePlot(Canvas):
         self.draw_dots (cr)
 
         self.draw_lines (cr, line_width = 2, color = [0,0,0])
-
+    
+        #width, height = 300, 300
+        #surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+        #surface.write_to_png("mesh_pattern_example.png")
+        
     def on_motion (self, widget, event):
         """ Function doc """
         if self.norm_data is not None:
@@ -1319,16 +1339,32 @@ class XYPlot(Gtk.DrawingArea):
             
             self.draw_XY_scale ( cr, line_width = 3.0 , color = line_color)#color = [1, 1, 1] )
             
+            #---------------------------------------------------------------- 
+            #                          LINES                                  
+            #---------------------------------------------------------------- 
+            cr.set_line_width (2.0)                                           
+            #---------------------------------------------------------------- 
             
             
-            #----------------------------------------------------------------------
-            cr.set_line_width (2.0)
-            #----------------------------------------------------------------------
+  
+            cx = 0#self.bx - self.norm_X[0]                                   
+            #---------------------------------------------------------------- 
             cr.set_source_rgb( line_color[0], line_color[1], line_color[2])
-            cx = 0#self.bx - self.norm_X[0]
-            #----------------------------------------------------------------------
             for data in self.data:
                 cx = self.bx -  data['Xnorm'][0]
+                
+                
+                #r = random.random()
+                #g = random.random()
+                #b = random.random()
+                #rgb = [r,g,b,]
+                
+                
+                line_color = data['line_color']
+                #line_color = rgb
+                #print(line_color)
+                cr.set_source_rgb( line_color[0], line_color[1], line_color[2]) 
+                
                 
                 for i in range(len(data['Ynorm'])):           
                     x = data['Xnorm'][i]    
@@ -1342,7 +1378,9 @@ class XYPlot(Gtk.DrawingArea):
                             #(self.new_Ymax + self.y_box_size + self.by ) - (y+self.y_box_size))
                             (1*self.y_box_size + self.by) - (y*self.y_box_size))
                 cr.stroke ()
-                
+            #---------------------------------------------------------------- 
+            #                          DOTS                                  
+            #---------------------------------------------------------------- 
             #'''
             for data in self.data:
                 cx = self.bx -  data['Xnorm'][0]

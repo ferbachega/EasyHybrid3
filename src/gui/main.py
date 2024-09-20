@@ -965,6 +965,130 @@ class MainWindow:
         elif menuitem == self.builder.get_object('menuitem_energy_refinement'):
             self.energy_refinement_window.OpenWindow()
         
+        elif menuitem == self.builder.get_object('menuiten_uvvis'):
+            from util.easyplot import ImagePlot, XYPlot
+            import random
+            self.plot = XYPlot()
+            
+            
+            logs = [
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_0.ptRes_Values.dat'  ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_1.ptRes_Values.dat'  ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_2.ptRes_Values.dat'  ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_3.ptRes_Values.dat'  ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_4.ptRes_Values.dat'  ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_5.ptRes_Values.dat'  ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_6.ptRes_Values.dat'  ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_7.ptRes_Values.dat'  ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_8.ptRes_Values.dat'  ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_9.ptRes_Values.dat'  ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_10.ptRes_Values.dat' ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_11.ptRes_Values.dat' ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_12.ptRes_Values.dat' ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_13.ptRes_Values.dat' ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_14.ptRes_Values.dat' ,
+             '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_15.ptRes_Values.dat' ,
+            '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_16.ptRes_Values.dat' ,
+            '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_17.ptRes_Values.dat' ,
+            '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_18.ptRes_Values.dat' ,
+            '/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_19.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_20.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_21.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_22.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_23.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_24.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_25.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_26.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_27.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_28.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_29.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_30.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_31.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_32.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_33.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_34.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_35.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_0.ptRes_Values.dat'  ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_1.ptRes_Values.dat'  ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_2.ptRes_Values.dat'  ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_3.ptRes_Values.dat'  ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_4.ptRes_Values.dat'  ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_5.ptRes_Values.dat'  ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_6.ptRes_Values.dat'  ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_7.ptRes_Values.dat'  ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_8.ptRes_Values.dat'  ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_9.ptRes_Values.dat'  ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_10.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_11.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_12.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_13.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_14.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_15.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_16.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_17.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_18.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_19.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_20.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_21.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_22.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_23.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_24.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_25.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_26.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_27.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_28.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_29.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_30.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_31.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_32.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_33.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_34.ptRes_Values.dat' ,
+            #'/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_psi_35.ptRes_Values.dat' ,           
+            ]
+            
+            
+            
+            
+            for i , log in enumerate(logs):
+                
+                X = [] 
+                Y = [] 
+                
+                r = random.random()
+                g = random.random()
+                b = random.random()
+                rgb = [r,g,b,]
+                
+                #print(rgb)
+                data = open(log, 'r')
+                for line in data:
+                    line2 = line.split()
+                    X.append(float(line2[0]) )
+                    Y.append(float(line2[1]))
+                #for i  in range(10):
+                #    X.append(i ) 
+                #    Y.append(i**2)
+                self.plot.add ( X = X, Y = Y,
+                                symbol = None, sym_color = [1,1,1], sym_fill = False, 
+                                line = 'solid', line_color = rgb, energy_label = None)
+            
+            #X = []
+            #Y = []
+            #data = open('/home/fernando/programs/pDynamo3/scratch/examples-3.1.2/bAlaPhiPsiPMF/generatedFiles/bAla_phi_14.ptRes_Values.dat', 'r')
+            #
+            #for line in data:
+            #    line2 = line.split()
+            #    X.append(float(line2[0]) )
+            #    Y.append(float(line2[1]))
+            #self.plot.add ( X = X, Y = Y)
+            #self.plot.Ymax = 100
+            #print(self.plot.Ymax_list)
+            
+            self.plot.Ymax_list= [100]
+            window =  Gtk.Window()
+            window.add(self.plot)
+            window.show_all()
+        
         
         elif menuitem == self.builder.get_object('menuitem_WHAM'):
             self.WHAM_window.OpenWindow()
@@ -1605,7 +1729,6 @@ class MainWindow:
         print('povray +A0.1 -UV +W{} +H{} +Itemp.pov +Otemp2.png'.format(width, height))
         #'''
  
-
     def on_delete_event(self, widget, event):
         if self.p_session.changed:
             if self.session_filename == None:

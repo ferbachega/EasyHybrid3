@@ -255,6 +255,7 @@ class PotentialEnergyAnalysisWindow:
             self.plot.queue_draw()
         except:
             pass
+   
     def on_checkbox_smooth_toggle (self, widget):
         """ Function doc """
         if widget.get_active():
@@ -369,7 +370,7 @@ class PotentialEnergyAnalysisWindow:
             
             '''
             checks if the place where click happened is outside the graphic or not. 
-            If not, the function returns Flase and the click points are erased.
+            If not, the function returns False and the click points are erased.
             '''
             if widget.check_clicked_points( i_on_plot, j_on_plot):
                 
@@ -412,7 +413,7 @@ class PotentialEnergyAnalysisWindow:
                     x.append(i)
                     y.append(widget.data[point[0]][point[1]])
                 
-                self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [0,1,1], line = 'solid', line_color = [0,1,1] )
+                self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [0,0,1], line = 'solid', line_color = [0,0,0] )
                 
                 
                 
@@ -450,17 +451,31 @@ class PotentialEnergyAnalysisWindow:
         #self.plot.points
         
         if self.data['type'] == 'plot2D':
-
+            #print(self.plot.data)
             #print(self.xy_traj[int(value)])
-            xy = self.plot.points[int(value)]
-            #print(xy, self.zdata[int(value)])
-            #print(xy, self.plot.data[xy[0]][xy[1]])
-            x = [value]
-            y = [  self.plot.data[xy[0]][xy[1]]   ]
-            frame = self.vobject.idx_2D_xy[(xy[1], xy[0])]
+            
+            if len(self.plot.points) >1:
+                xy = self.plot.points[int(value)]
+                
+                self.plot.selected_dot = [xy[0],xy[1]]
+
+                #print(xy, self.plot.data[xy[0]][xy[1]])
+                x = [value]
+                y = [  self.plot.data[xy[0]][xy[1]]   ]
+
+                text = 'E = {:<15.6f}'.format(y[0])
+                self.builder.get_object('label_energy').set_text(text)
+
+                frame = self.vobject.idx_2D_xy[( xy[0],xy[1])]
+            else:
+                pass
         else:
             x = [int(value)]
             y = [self.data['Z'][int(value)]]
+            
+            text = 'E = {:<15.6f}'.format(y)
+            self.builder.get_object('label_energy').set_text(str(y))
+            
             frame = int(value)
         
         
@@ -469,9 +484,14 @@ class PotentialEnergyAnalysisWindow:
         if len(self.plot2.data) > 1:
             self.plot2.data.pop(-1)
         
-        self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = True, sym_color = [1,0,0], line = 'solid', line_color = [0,1,1] )
-        self.plot2.queue_draw()
         
+        try:
+            self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = True, sym_color = [1,0,0], line = 'solid', line_color = [0,1,1] )
+            self.plot2.queue_draw()
+        except:
+            pass
+            
+        self.plot.queue_draw()
         #print('E = {}'.format( y[0]) )
         #v = y[0]
         #text = 'E = {6.3f}'.format(v)

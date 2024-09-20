@@ -121,7 +121,7 @@ class EnergyCalculation:
         parameters['system'].Summary(log = self.logFile2)
         #try:
         energy  = parameters['system'].Energy(log = self.logFile2)
-        '''
+        #'''
         #---------------------------------------------------------------
         print_MM   = True # print MM charges
         print_QC   = True # print QC charges (does not inclue boundary atoms)
@@ -167,7 +167,7 @@ class EnergyCalculation:
             print('Ops!')
             #print(index ,atom.label, charges[index])
         #---------------------------------------------------------------
-        '''
+        #'''
         
         #except :
         #    msg = 'Error!'
