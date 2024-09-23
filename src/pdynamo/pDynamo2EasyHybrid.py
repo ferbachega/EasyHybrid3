@@ -818,28 +818,174 @@ class pAnalysis:
     
     def __init__ (self):
         """ Class initialiser """
-        pass
+        self.imgPlot = None
+        
+    def on_mouse_button_press (self, widget, event):
+        print (widget, event )
     
+    def on_motion (self, widget, event):
+        """ Function doc """
+        #print(widget, event)
+
+        x_on_plot, y_on_plot, x, y = self.imgPlot.get_i_and_j_from_click_event (event)
+        i = y_on_plot
+        j = x_on_plot
+        
+        j_size = len(self.imgPlot.norm_data)
+        i_size = len(self.imgPlot.norm_data[0])
+        
+        if i < 0 or j < 0:
+            pass
+        else:
+            if i < i_size and j < j_size:
+                text = 'i {}    |    j {}    |    rc1 {:4.2f}    |    rc2 {:4.2f}    |    E = {:6.3f}'.format(i, j,  
+                                                                                         self.imgPlot.dataRC1[j][i], 
+                                                                                         self.imgPlot.dataRC2[j][i],  
+                                                                                         self.imgPlot.data[j][i])
+                print(text)
+                    #self.RC_label.set_text(text)
+
+
+
+
+
+
     def run_analysis (self, parameters):
         """ Function doc """
         if parameters['analysis_type'] == 'wham':
             wham_analysis = WHAMAnalysis()
-            TrueFalse, msg = wham_analysis.run ( parameters )
+            TrueFalse, results = wham_analysis.run ( parameters )
             
             
             if TrueFalse:
-                self.main.simple_dialog.info(msg = msg )
-                #dialog = Gtk.MessageDialog(
-                #        parent=self.main.window,
-                #        flags=Gtk.DialogFlags.MODAL,
-                #        type=Gtk.MessageType.INFO,
-                #        buttons=Gtk.ButtonsType.OK,
-                #        message_format=msg
-                #    )
-                #dialog.run()
-                #dialog.destroy()
+                self.main.simple_dialog.info(msg = results['msg'] )
+                
+                if results['type'] == 0:
+                    from util.easyplot import ImagePlot, XYPlot
+                    import random
+                    
+                    '''                 Histograms                 '''
+                    #self.plot = XYPlot(bg_color = [0,0,0])
+                    self.plot = XYPlot( )
+                    
+                    for i , log in enumerate(results['histograms']):
+                        
+                        X = [] 
+                        Y = [] 
+                        
+                        r = random.random()
+                        g = random.random()
+                        b = random.random()
+                        rgb = [r,g,b,]
+                        data = open(log, 'r')
+                        for line in data:
+                            line2 = line.split()
+                            X.append(float(line2[0]) )
+                            Y.append(float(line2[1]))
+                        self.plot.add ( X = X, Y = Y,
+                                        symbol = None, sym_color = [1,1,1], sym_fill = False, 
+                                        line = 'solid', line_color = rgb, energy_label = None)
+                    
+                    #self.plot.Ymax_list= [100]
+                    window =  Gtk.Window()
+                    window.set_default_size(800, 300)
+                    window.move(900, 300)
+                    window.set_title('Histograms')
+                    window.add(self.plot)
+                    window.show_all()
+                    
+                    X = []
+                    Y = []
+                    
+                    '''                   PMF plot                  '''
+                    #self.plot2 = XYPlot(bg_color = [0,0,0])
+                    self.plot2 = XYPlot( )
+                    print(results['pmf'])
+                    data2 = open(results['pmf'], 'r')
+                    for line in data2:
+                        line2 = line.split()
+                        if line2[1] == 'inf':
+                            pass
+                        else:
+                            X.append(float(line2[0]) )
+                            Y.append(float(line2[1]))
+
+                    
+                    
+                    self.plot2.add ( X = X, Y = Y,
+                                    symbol = 'dot', sym_color = [0,0,0], sym_fill = False, 
+                                    line = 'solid', line_color = [0,0,0], energy_label = None)
+                    
+                    window2 =  Gtk.Window()
+                    window2.set_default_size(800, 300)
+                    window2.move(100, 300)
+                    window2.set_title(results['pmf'])
+                    window2.add(self.plot2)
+                    window2.show_all()
+                    
+                if results['type'] == 1:
+                    from util.easyplot import ImagePlot, XYPlot
+                    data = open(results['pmf'], 'r')
+                    self.imgPlot = ImagePlot()
+                    self.imgPlot.connect("button_press_event", self.on_mouse_button_press)
+                    self.imgPlot.connect("motion-notify-event", self.on_motion)
+                    X =[]
+                    Y =[]
+                    Z =[]
+                    for line in data:
+                        line2 = line.split()
+
+                        X.append(float(line2[0]) )
+                        Y.append(float(line2[1]))
+                        Z.append(float(line2[2]))
+
+
+                    sizex = X.count(X[0])
+                    sizey = Y.count(Y[0])
+
+                    RC1 = []
+                    RC2 = []
+                    _Z  = []
+                    for i in range(sizex):
+                        RC1.append(X[sizey*i:sizey*(i+1)])
+                        _Z.append( Z[sizey*i:sizey*(i+1)] )
+                            #print(i,j, X[sizey*i:sizey*(i+1)])
+
+                    for j in range(len(RC1)):
+                        RC2.append(  Y[sizey*j:sizey*(j+1)]  )
+
+                    #print(len(RC1),len(RC1[1]) )
+                    #print(len(RC2),len(RC2[1]) )
+                    #
+                    #print(RC1[1])
+                    #print(RC2[1])
+                    #print(_Z )
+                    data = {
+                            'name': 'output.log', 
+                            'type': 'self.imgPlot2D', 
+                            'RC1': RC1,
+                            'RC2': RC2,
+                            'Z'  : _Z,
+                           }
+
+                    self.imgPlot.show()
+                    self.imgPlot.data    =  data['Z']
+                    self.imgPlot.dataRC1 =  data['RC1']
+                    self.imgPlot.dataRC2 =  data['RC2']
+                    self.imgPlot.set_label_mode(mode = 1)
+
+                    #self.imgPlot.set_threshold_color ( _min = 0, _max = 100, cmap = 'jet')
+                    window =  Gtk.Window()
+                    window.set_default_size(800, 300)
+                    window.move(900, 300)
+                    window.set_title(results['pmf'])
+                    window.add(self.imgPlot)
+                    window.show_all()
+                    
+                    
+
             else:
-                self.main.simple_dialog.error(msg = msg )
+                self.main.simple_dialog.error(msg = results['msg'] )
                 #dialog = Gtk.MessageDialog(
                 #        parent=self.main.window,
                 #        flags=Gtk.DialogFlags.MODAL,

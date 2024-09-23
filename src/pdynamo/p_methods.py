@@ -2684,7 +2684,7 @@ class WHAMAnalysis:
         else:
             pass
 
-        
+        results = {}
         
         try:
             state = WHAM_ConjugateGradientMinimize ( parameters['fileNames']                                  ,
@@ -2696,27 +2696,51 @@ class WHAMAnalysis:
                                                      
                                                      log = self.logFile2
                                                      )
+            
         except TypeError:
             return False, 'Error on pDynamo WHAM_ConjugateGradientMinimize! \n\nPlease, check your input data.'
         
         
         
-        try:
-            # . Write the PMF to a file.
-            histogram = state["Histogram"]
-            pmf       = state["PMF"      ]
-            
-            PMF_file = os.path.join(parameters['folder'], parameters['logfile']+'_pmf.log')
-            if parameters['type'] == 1:
-                histogram.ToTextFileWithData (  PMF_file , [ pmf ], format = "{:20.3f} {:20.3f} {:20.3f}\n" )
-            else:
-                histogram.ToTextFileWithData (  PMF_file , [ pmf ], format = "{:20.3f} {:20.3f}\n" )
+        #try:
+        # . Write the PMF to a file.
+        histogram = state["Histogram"]
+        pmf       = state["PMF"      ]
         
-        except TypeError:
-            return False, 'Error on Write the PMF to a file!\n\n Please, check your input data.'
+        PMF_file = os.path.join(parameters['folder'], parameters['logfile']+'_pmf.log')
+        if parameters['type'] == 1:
+            histogram.ToTextFileWithData (  PMF_file , [ pmf ], format = "{:20.3f} {:20.3f} {:20.3f}\n" )
+        else:
+            histogram.ToTextFileWithData (  PMF_file , [ pmf ], format = "{:20.3f} {:20.3f}\n" )
+        results['pmf'] = PMF_file
+        #except TypeError:
+        #    return False, 'Error on Write the PMF to a file!\n\n Please, check your input data.'
 
-        msg = 'WHAM calculation performed successfully! \n\nPlease check:'
-        return True, msg+PMF_file
+
+        results['type'] = parameters['type']
+        results['histograms'] = []
+        
+        #try:
+        files = parameters['fileNames']
+        try:
+            for _file in files:
+                print (_file)
+                basename = os.path.basename(_file)
+                output_file = os.path.join(parameters['folder'], parameters['logfile']+'_'+basename+'_histogram.dat')
+                # . Histogram the trajectory data.
+                handler   = SystemRestraintTrajectoryDataHandler.FromTrajectoryPaths ( [_file] )
+                histogram = handler.HistogramData ( [ 360 ] )
+                counts    = [ float ( count ) for count    in histogram.counts ]
+                histogram.ToTextFileWithData ( output_file , [ counts ], format = "{:20.3f} {:20.3f}\n" )
+                results['histograms'].append(output_file)
+        except:
+            pass
+
+
+        msg = 'WHAM calculation performed successfully! \n\nPlease check:' + PMF_file
+        results['msg'] = msg
+
+        return True, results
 
 
 '''

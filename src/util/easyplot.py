@@ -6,8 +6,10 @@ import random
 import numpy as np
 import sys
 
-
-from util.colormaps import COLOR_MAPS  
+try:
+    from util.colormaps import COLOR_MAPS  
+except:
+    from colormaps import COLOR_MAPS
 from pprint import pprint
 
 def interpolate_color(color1, color2, fraction):
@@ -15,7 +17,8 @@ def interpolate_color(color1, color2, fraction):
 
 def get_color(value, color_map):#, factor = 2):   
     
-    
+    if value == float('inf'):
+        return [1,1,1]
     #value = (value+1)/factor   
     
     cutoffs = list(color_map.keys())
@@ -370,7 +373,13 @@ class ImagePlot(Canvas):
     """ Class doc """
     
     def __init__ (self, data = None):
-        """ Class initialiser """
+        """ Class initialiser 
+        
+        Now the class can receive an energy matrix "Z" with 
+        infinite value "inf". To do this it was necessary 
+        to modify the get_color method.
+        
+        """
         super().__init__( )
 
         self.bx = 50 
@@ -396,13 +405,49 @@ class ImagePlot(Canvas):
         self.sel_dot_rgb  = [1,0,0]
         
     def define_datanorm (self):
-        """ Function doc """
-        self.norm_data = self.data - np.min(self.data)
+        """ Function doc 
+        When you have a 2D umbrella sampling data, 
+        some points have energy estimated with inf (infinity).
+        
+        In python, "float('inf') is allowed - accepted as a float.
+        
+        When the value in the matrix is ​​given by inf, IMAGEPLOT 
+        should draw a white square (showing that there is no energy 
+        calculated at the point)
+        
+        In this case it is necessary to temporarily replace the inf 
+        values ​​with 0 (so that it is possible to extract the maximum 
+        and minimum values ​​of the matrix)
+        """
+        
+        
+        temp_data = self.data.copy()
+        a = len(temp_data)
+        b = len(temp_data[0])
+        inf = float('inf')
+        
+        #replacing the inf values ​​of the matrix  
+        inf_list = []
+        for i in range(a):
+            for j in range(b):
+                if temp_data[i][j] == inf:
+                    temp_data[i][j] = 0
+                    inf_list.append([i, j])
+        #print(temp_data)
+        self.norm_data = temp_data - np.min(temp_data)
+        #self.norm_data = self.data - np.min(self.data)
 
         self.data_min = np.min(self.norm_data)
         self.data_max = np.max(self.norm_data)
         delta = (self.data_max - self.data_min)
         self.norm_data = self.norm_data/delta
+        
+        #resetting the matrix inf values
+        for inf_item in inf_list:
+            i = inf_item[0]
+            j = inf_item[1]
+            self.norm_data[i][j] = float('inf')
+        
         return self.data_min, self.data_max, delta , self.norm_data
         
     def set_threshold_color (self, _min = 0, _max = None, cmap = 'jet'):
@@ -565,11 +610,17 @@ class ImagePlot(Canvas):
 
     def draw_discrete_square (self, i, j, cr):
         """ Function doc """
+        #z is the nergey value
         z = self.norm_data[i][j]
-
         color = get_color(z, self.color_map)
-
-        cr.set_source_rgb( color[0], color[1], color[2]   )
+        
+        
+        if color:
+            cr.set_source_rgb( color[0], color[1], color[2]   )
+        else:
+            #.Associates the color white when color is null 
+            #.(due to matrix points with value inf)
+            cr.set_source_rgb( 1, 1, 1   )
         
         cr.rectangle(self.bx+i*self.factor_x -1,
                      self.by+j*self.factor_y -1, 
@@ -951,28 +1002,32 @@ class ImagePlot(Canvas):
         
         j_size = len(self.norm_data)
         i_size = len(self.norm_data[0])
-
+        
         if i < 0 or j < 0:
             pass
         else:
             if i < i_size and j < j_size:
+                text = 'i {}    |    j {}    |    rc1 {:4.2f}    |    rc2 {:4.2f}    |    E = {:6.3f}'.format(i, j,  self.dataRC1[j][i], self.dataRC2[j][i],  self.data[j][i])
+
                 if self.RC_label:
-                    text = 'i {}    |    j {}    |    rc1 {:4.2f}    |    rc2 {:4.2f}    |    E = {:6.3f}'.format(i, j,  self.dataRC1[j][i], self.dataRC2[j][i],  self.data[j][i])
                     self.RC_label.set_text(text)
+                else:
+                    print(text)
+                    #print(text)
                 #print( 'i = ', i, 'j = ', j)
 
 
 class XYPlot(Gtk.DrawingArea):
     """ Class doc """
     
-    def __init__ (self, bg_color = [1,1,1] ):
+    def __init__ (self, bg_color = [1,1,1], mode = None ):
         """ Class initialiser """
         super().__init__( )
 
         
         self.data = []
         
-        self.bg_color = None
+        self.bg_color = bg_color
         self.decimal = 2
 
         
@@ -1004,7 +1059,7 @@ class XYPlot(Gtk.DrawingArea):
 
 
         self.line_color     = [0,0,0]
-        self.bg_color       = [1,1,1]
+        #self.bg_color       = [1,1,1]
         self.sel_color      = [1,0,0]
         
         #self.line_color     = [1,1,1]
@@ -1015,6 +1070,8 @@ class XYPlot(Gtk.DrawingArea):
         self.bx = 100#80
         self.by = 50#50 
 
+        self.y_botton = -1
+        self.y_top    =  1
 
     def data_update (self, data):
         """ Function doc """
@@ -1082,8 +1139,7 @@ class XYPlot(Gtk.DrawingArea):
         self.data.append(data)
         self.define_xy_limits()
     
-
-    def define_xy_limits (self):
+    def define_xy_limits (self, y_botton = -3, y_top = 2):
         """ Function doc """
         
         self.Ymin = min(self.Ymin_list)
@@ -1093,8 +1149,8 @@ class XYPlot(Gtk.DrawingArea):
         
         self.Ymin = self.Ymin + self.Ymin/self.Y_space
         self.Ymax = self.Ymax + self.Ymax/self.Y_space
-        self.Ymin = int(self.Ymin) - 3 #round(delta/20)
-        self.Ymax = int(self.Ymax) + 2 #round(delta/20)
+        self.Ymin = int(self.Ymin) + self.y_botton #- 3 #round(delta/20)
+        self.Ymax = int(self.Ymax) + self.y_top    #+ 2 #round(delta/20)
         delta = self.Ymax - self.Ymin
 
         
@@ -1407,15 +1463,6 @@ class XYPlot(Gtk.DrawingArea):
                     else:
                         cr.set_source_rgb( self.line_color[0], self.line_color[1], self.line_color[2])
                         cr.stroke ()
-            #'''
-            #print(
-            #'\nself.Ymax     ', self.Ymax      ,
-            #'\nself.Ymin     ', self.Ymin      ,
-            #'\nself.Xmax     ', self.Xmax      ,
-            #'\nself.Xmin     ', self.Xmin      ,
-            #'\nself.deltaY   ', self.deltaY    ,
-            #'\nself.deltaX   ', self.deltaX    ,
-            #)
     
     def on_motion(self, widget, event):
         '''(i/self.x_major_ticks)*self.deltaX + self.Xmin'''
@@ -1425,25 +1472,318 @@ class XYPlot(Gtk.DrawingArea):
         else:
             (x, y) = int(event.x), int(event.y)
             
-            print("Mouse moved to:", 
-                #x, y,  
-                #x-self.bx, y-self.by, 
+            print("Mouse moved to:", 'x = {:10.5f} y = {:10.5f}'.format( 
                 
-                #((((x-self.bx)) / self.x_box_size)  *  self.deltaX + self.Xmin),
+                ((((x-self.bx)) / self.x_box_size)  *  self.deltaX + self.Xmin),
                 
                 ((self.y_box_size-(y-self.by)) / self.y_box_size)  *  self.deltaY + self.Ymin)
-            
+                )
     
     def on_mouse_button_press (self, widget, event):
         """ Function doc """
         pass
-        #self.Ymin = -1.5 -1
-        #self.Ymax =  1.5 +1
-        ##print(self.Ymin, self.Ymax)
-        ##self.define_xy_limits ()
-        #self.deltaY  = self.Ymax - self.Ymin
-        #self.deltaX  = self.Xmax - self.Xmin
+
         
         
         
         
+
+
+class XYScatterPlot(Gtk.DrawingArea) :
+    """ Class doc """
+    
+    def __init__ (self):
+        """ Class initialiser """
+        pass
+        super().__init__( )
+        self.data = []
+        
+        self.bg_color = [0,0,0]
+        self.decimal = 2
+
+        
+        self.x_minor_ticks = 6
+        self.x_major_ticks = 5
+        
+        self.y_minor_ticks = 5
+        self.y_major_ticks = 10
+        
+        self.Xmin_list = []
+        self.Ymin_list = []
+        
+        self.Xmax_list = []
+        self.Ymax_list = []
+
+
+
+
+
+        self.Y_space = 10
+
+
+        #self.set_bg_color (bg_color[0], bg_color[1], bg_color[2])
+        self.set_events(Gdk.EventMask.ALL_EVENTS_MASK)
+        
+        self.connect("draw", self.on_draw)
+        #self.connect("button_press_event", self.on_mouse_button_press)
+        #self.connect("motion-notify-event", self.on_motion)
+
+
+        self.line_color     = [0,0,0]
+        #self.bg_color       = [1,1,1]
+        self.sel_color      = [1,0,0]
+        
+        #self.line_color     = [1,1,1]
+        #self.bg_color       = [0,0,0]
+        #self.sel_color      = [1,0,0]
+        
+        self.bglines_color  = [0.5,0.5,0.5]
+        self.bx = 100#80
+        self.by = 50#50 
+        
+        self.y_botton = 0
+        self.y_top    = 0     
+
+    def define_xy_limits (self, y_botton = -3, y_top = 2):
+        """ Function doc """
+        
+        self.Ymin = min(self.Ymin_list)
+        self.Ymax = max(self.Ymax_list)
+        
+
+        
+        self.Ymin = self.Ymin + self.Ymin/self.Y_space
+        self.Ymax = self.Ymax + self.Ymax/self.Y_space
+        self.Ymin = int(self.Ymin) + self.y_botton #- 3 #round(delta/20)
+        self.Ymax = int(self.Ymax) + self.y_top    #+ 2 #round(delta/20)
+        delta = self.Ymax - self.Ymin
+
+        
+        #self.Ymin = -2.5
+        #self.Ymax =  2.5
+        
+        self.Xmax = max(self.Xmax_list)
+        self.Xmin = min(self.Xmin_list)
+        #self.Xmax = self.Xmax - self.Xmax/20
+        #self.Xmin = self.Xmin - self.Xmin/20
+        
+        self.deltaY  = self.Ymax - self.Ymin
+        self.deltaX  = self.Xmax - self.Xmin
+        
+        if self.deltaX == 0:
+            self.deltaX = 1
+        
+        if self.deltaY == 0:
+            self.deltaY = 1
+
+    def add (self, X = None, Y = None, Z = None,
+              symbol = 'dot', sym_color = [1,1,1], sym_fill = True, 
+              line = 'solid', line_color = [1,1,1], energy_label = None):
+        
+        """ Function doc """
+
+        data = {
+                'X'          : X     ,
+                'Y'          : Y     ,
+                'Z'          : Z     ,
+                'Xmin'       : None,
+                'Ymin'       : None,
+                'Xmax'       : None,
+                'Ymax'       : None,
+                'sym'        : symbol,
+                'sym_color'  : sym_color,
+                'sym_fill'   : sym_fill,
+                'line'       : line  ,
+                'line_color' : line_color
+               }
+
+        data = self.data_update( data)
+        
+        
+        tempZ = Z.copy()
+        n = tempZ.count(None)
+        for i in range(n):
+            tempZ.remove(None)
+        
+        data['Zmax'] = max(tempZ)
+        data['Zmin'] = min(tempZ)
+        
+        self.c_factor =  1/(data['Zmax']-data['Zmin'])
+        
+        
+        self.energy_label = energy_label
+        self.data.append(data)
+        self.define_xy_limits()
+  
+    def data_update (self, data):
+        """ Function doc """
+        X = data['X']
+        Y = data['Y']
+        
+        self.Xmin_list.append(min(X))
+        self.Ymin_list.append(min(Y))
+        self.Xmax_list.append(max(X))
+        self.Ymax_list.append(max(Y))
+        
+        
+        data['Xmin'] =  min(X)
+        data['Ymin'] =  min(Y)
+        data['Xmax'] =  max(X)
+        data['Ymax'] =  max(Y)
+        
+        return data
+
+    def draw_box (self, cr, line_width = 3.0 , color = [1, 1, 1] ):
+        """ Function doc """
+        cr.set_line_width (3.0)
+        #----------------------------------------------------------------------
+        #retangle
+        print('draw_box')
+        cr.set_source_rgb( color[0], color[1], color[2])
+        cr.rectangle(self.bx,
+                     self.by, 
+                     self.x_box_size,
+                     self.y_box_size)
+        cr.stroke ()
+        #----------------------------------------------------------------------
+
+    def on_draw(self, widget, cr):
+        self.cr =  cr
+        self.width = widget.get_allocated_width()
+        self.height = widget.get_allocated_height()
+
+        line_color = self.line_color
+        #bg_color   = self.bg_color  
+        bg_color   = [1,1,1]  
+        #print(bg_color)
+        cr.set_source_rgb( bg_color[0], bg_color[1], bg_color[2])
+        #line_color = [0,0,0]
+        cr.paint()
+
+        self.x = self.width
+        self.y = self.height
+
+        #self.data['sym_fill'] = True
+
+
+
+        self.x_box_size = self.width  - (self.bx*1.5)
+        self.y_box_size = self.height - (self.by*1.8)
+
+        self.draw_box    (cr, line_width = 3.0 , color = line_color) #color = [1, 1, 1])
+        #self.draw_XY_axes(cr, line_width = 3.0 , color = line_color) #color = [1, 1, 1])
+            
+        if self.data == []:
+            return False
+        else:
+            pass
+            #print(
+            #'\nself.Ymax     ', self.Ymax      ,
+            #'\nself.Ymin     ', self.Ymin      ,
+            #'\nself.Xmax     ', self.Xmax      ,
+            #'\nself.Xmin     ', self.Xmin      ,
+            #'\nself.deltaY   ', self.deltaY    ,
+            #'\nself.deltaX   ', self.deltaX    ,
+            #)
+            
+            
+    
+            if self.deltaY > 0:
+                for data in self.data:
+                    data['Ynorm'] = [(y-self.Ymin)/self.deltaY for y in data['Y']]
+                    data['Xnorm'] = [(x-self.Xmin)/self.deltaX for x in data['X']]
+            else:
+                for data in self.data:
+                    data['Ynorm'] = data['Y']
+                    data['Xnorm'] = data['X']
+                
+                
+                
+            #self.Ynorm_max = max(self.norm_data)
+            
+            #self.draw_XY_scale ( cr, line_width = 3.0 , color = line_color)#color = [1, 1, 1] )
+            
+            #---------------------------------------------------------------- 
+            #                          LINES                                  
+            #---------------------------------------------------------------- 
+            cr.set_line_width (2.0)                                           
+            #---------------------------------------------------------------- 
+            
+            
+  
+            cx = 0 #self.bx - self.norm_X[0]                                   
+            #---------------------------------------------------------------- 
+            cr.set_source_rgb( line_color[0], line_color[1], line_color[2])
+            '''
+            for data in self.data:
+                cx = self.bx -  data['Xnorm'][0]
+                
+                
+                #r = random.random()
+                #g = random.random()
+                #b = random.random()
+                #rgb = [r,g,b,]
+                
+                
+                line_color = data['line_color']
+                #line_color = rgb
+                #print(line_color)
+                cr.set_source_rgb( line_color[0], line_color[1], line_color[2]) 
+                
+                
+                for i in range(len(data['Ynorm'])):           
+                    x = data['Xnorm'][i]    
+                    y = data['Ynorm'][i]
+                    
+                    #color = data['line_color']
+                    #color = [0,0,0]
+                    #cr.set_source_rgb( color[0], color[1], color[2])
+                    
+                    cr.line_to (x*self.x_box_size + cx, 
+                            #(self.new_Ymax + self.y_box_size + self.by ) - (y+self.y_box_size))
+                            (1*self.y_box_size + self.by) - (y*self.y_box_size))
+                cr.stroke ()
+            #'''
+            #---------------------------------------------------------------- 
+            #                          DOTS                                  
+            #---------------------------------------------------------------- 
+            #'''
+            for data in self.data:
+                cx = self.bx -  data['Xnorm'][0]
+                
+                for i in range(len(data['Ynorm'])):           
+                    x = data['Xnorm'][i]    
+                    y = data['Ynorm'][i]
+                    color = data['line_color']
+                    color = [0,0,0]
+                    data['sym_fill'] = True
+                    
+                    if data['sym'] is not None:
+                        color = data['sym_color']
+                        
+                        #cr.set_source_rgb( color[0], color[1], color[2])
+                        #cr.set_source_rgb( self.sel_color[0], self.sel_color[1], self.sel_color[2])
+                        
+                        cr.arc (x*self.x_box_size + cx, 
+                                #(self.new_Ymax + self.y_box_size + self.by ) - (y+self.y_box_size))
+                                (1*self.y_box_size + self.by) - (y*self.y_box_size), 5, 0, 2*3.14)
+                    
+                        if data['sym_fill']:
+                            
+                            if data['Z'][i]:
+                                #print(data['Z'][i]* 1/42.0)
+                                f = data['Z'][i] * 1/42.0
+                                #self.sel_color[0]
+                                cr.set_source_rgb( f, 0, f)
+                                cr.fill()
+                            else:
+                                cr.set_source_rgb( 1, 1, 1)
+                            
+                                cr.fill()
+                    cr.stroke ()
+                    #else:
+                    #    cr.set_source_rgb( self.line_color[0], self.line_color[1], self.line_color[2])
+                        
+
+
+

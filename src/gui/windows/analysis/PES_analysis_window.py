@@ -341,7 +341,7 @@ class PotentialEnergyAnalysisWindow:
                 minlist.append(min(line))
             
             _min = min(minlist)
-            
+            print(self.data)
             for i in range(0, len(self.data['Z'])):
                 for j in range(0, len(self.data['Z'][i])):
                     self.data['Z'][i][j] = self.data['Z'][i][j]-_min 
@@ -632,7 +632,7 @@ class PotentialEnergyAnalysisWindow:
             x.append(i)
             y.append(self.plot.data[point[0]][point[1]])
         
-        self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [0,1,1], line = 'solid', line_color = [0,1,1] )
+        self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [1,1,1], line = 'solid', line_color = [0,0,0] )
 
         if len(x)-1 == 0:
             self.plot2.x_major_ticks = 1
