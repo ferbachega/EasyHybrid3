@@ -24,6 +24,7 @@ def get_distance (vobject, index1, index2):
     #print('distance a1 - a2:', dist)
     return dist
 
+
 def get_angle (vobject, index1, index2, index3):
     
     atom1 = vobject.atoms[index1]
@@ -55,6 +56,7 @@ def get_angle (vobject, index1, index2, index3):
     angle = np.degrees(angle)
 
     return angle 
+
 
 def get_dihedral(vobject, index1, index2, index3, index4):
     # Convert the coordinates to numpy arrays

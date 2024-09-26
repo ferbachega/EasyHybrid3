@@ -373,6 +373,8 @@ class EasyHybridImportTrajectory:
                 p_coords = self.psystem[parameters['system_id']].coordinates3
                 v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
                 vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
+                system = self.psystem[parameters['system_id']]
+            #vismol_object = self.interpolate_frames_of_a_vobject (system, vismol_object)
 
             trajectory.ReadFooter ( )
             trajectory.Close ( )
@@ -659,6 +661,7 @@ class EasyHybridImportTrajectory:
         print (charges)
         
         return charges
+   
         
 class pSimulations:
     """ Class doc """
@@ -1354,6 +1357,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self.random_code = generate_random_code(10)
         self.changed = False
 
+    
     def set_active(self, system_e_id = None):
         """ Function doc """
         if system_e_id != None:
@@ -1458,7 +1462,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             name = name[-70:]
         
         
-
+        self.remove_PES_data (system = system )
         
         '''Storing the system source files'''
         system.e_input_files = input_files
@@ -1483,7 +1487,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         #self.main.refresh_active_system_liststore()
         #self.main.refresh_system_liststore ()
-        
+        ''' '''
+   
     
     def _add_vismol_object_to_easyhybrid_session (self, system, show_molecule=True, name = 'new_coords'):
         """ Function doc """
@@ -1794,6 +1799,74 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
     def _get_qc_table_from_pDynamo_system(self, system):
         system.e_qc_table = list(system.qcState.pureQCAtoms)
 
+    
+    def interpolate_frames_of_a_vobject (self,system, vobject):
+        """ Function doc """
+        #for 
+        #p_coords = ImportCoordinates3 ( parameters['data_path'] )
+        #v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+        #print (parameters['vobject'].frames)
+        #coords = np.vstack((coords, f))
+        
+        
+        atom_qtty = len(system.atoms.items)
+        size = len(vobject.frames)
+        coords    = np.empty([(size*2)-1, atom_qtty, 3], dtype=np.float32)
+        i = 0
+        for index in range(0, len(vobject.frames)-1,2):
+            frame1 = self.get_coordinates_from_vobject ( vobject, index)
+            frame2 = self.get_coordinates_from_vobject ( vobject, index+1)
+            newframe = self._interpolate_frames (frame1, frame2)
+        
+            j = 0
+            for xyz in frame1:
+                x = np.float32(xyz[0])
+                y = np.float32(xyz[1])
+                z = np.float32(xyz[2])
+                coords[i,j,:] = x, y, z
+                j += 1
+            
+            i += 1
+            
+            j = 0
+            for xyz in newframe:
+                x = np.float32(xyz[0])
+                y = np.float32(xyz[1])
+                z = np.float32(xyz[2])
+                coords[i,j,:] = x, y, z
+                j += 1
+            
+            i += 1
+            
+            j = 0
+            for xyz in frame2:
+                x = np.float32(xyz[0])
+                y = np.float32(xyz[1])
+                z = np.float32(xyz[2])
+                coords[i,j,:] = x, y, z
+                j += 1
+            i += 1
+        
+        vobject.frames = coords
+        
+        return vobject
+        
+        #vobject.frames = np.vstack((parameters['vobject'].frames, v_coords))
+    
+    def _interpolate_frames (self, frame1, frame2):
+        """ Function doc """
+        newframe = []
+        
+        for index in range(len(frame1)):
+            xyz1 = frame1[index]
+            xyz2 = frame2[index]
+            
+            x = xyz2[0] - xyz1[0]
+            y = xyz2[1] - xyz1[1]
+            z = xyz2[2] - xyz1[2]
+            newframe.append([x,y,z])
+        return newframe
+            
 
     def get_coordinates_from_vobject (self, vobject = None, frame = -1):
         """ Function doc """
@@ -1861,6 +1934,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 self.psystem[system_id].e_fixed_table  = list(selection_fixed)
         
         return self.psystem[system_id].e_fixed_table
+    
     
     def get_output_filename_from_system (self, stype = None):
         """ Function doc """
@@ -1945,6 +2019,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         #filename = '{}-{}_{}_{}_{}'str(psystem.e_step_counter)+'-'+system.e_tag +'_'+mm_string+ '_'+qc_string+' '+ stype
         return filename
     
+    
     def get_color_palette (self, system_id = None):
         """ Function doc """
         if system_id:
@@ -1953,6 +2028,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         else:
             system = self.psystem[self.active_id]
             return  system.e_color_palette 
+    
     
     def _build_vobject_from_pDynamo_system (self                                          , 
                                             system                    = None              , 
@@ -2177,6 +2253,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         else:
             return False
     
+    
     def set_symmetry_parameters (self, system_e_id = None, 
                                        a     = 0.0,
                                        b     = 0.0,
@@ -2240,7 +2317,6 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(new_system.label, new_system.e_tag, ff), system = new_system)
         self._add_vismol_object_to_easyhybrid_session (new_system, True) #, name = 'olha o  coco')
         return solvent
-
 
 
     def solvate_system (self, e_id = None, parameters = None):
@@ -2314,10 +2390,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(new_system.label, new_system.e_tag, ff), system = new_system)
         self._add_vismol_object_to_easyhybrid_session (new_system, True) #, name = 'olha o  coco')
         #--------------------------------------------------------------------------------------------
-    
 
-
-    
     def clone_system (self, e_id = None):
         if e_id:
             system = self.psystem[e_id]
@@ -2344,7 +2417,6 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(new_system.label, new_system.e_tag, ff), system = new_system)
         self._add_vismol_object_to_easyhybrid_session (new_system, True) #, name = 'olha o  coco')
    
-    
 
     def merge_system (self,  e_id1   = None , 
                              e_id2   = None , 
@@ -2408,8 +2480,6 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         self._add_vismol_object_to_easyhybrid_session (system, True)
         #self.main.refresh_active_system_liststore()
-        #self.main.refresh_system_liststore ()
-
 
     def add_a_new_item_to_selection_list (self, system_id = None, indexes = [], name  = None):
         """ Function doc """
@@ -2711,6 +2781,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             #self.psystem[self.active_id].Summary ( )
         return True
     
+    
     def remove_PES_data (self, system = False ):
         """ Function doc """
         if system:
@@ -2720,6 +2791,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         msg = 'Log data has been removed.'
         return msg
+
 
     def define_NBModel (self, _type = 1 , parameters =  None, system = None):
         """ Function doc """

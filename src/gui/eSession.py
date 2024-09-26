@@ -52,10 +52,9 @@ class CommandLine:
         self.vm_session  = vm_session
         #self.main        = self.vm_session.main
         #self.p_session   = self.vm_session.main.p_session
-         
+        '''''' 
         
-        
-        
+
     def command_line_parser (self, cmd_text):
         """             
             command:
@@ -103,6 +102,7 @@ class CommandLine:
             logger.error(ae)
             log = "Command '{}' not implemented".format(func)
         return log
+    
             
     def list (self, args = None):
         """ Function doc """
@@ -148,11 +148,7 @@ class CommandLine:
         select 
         
         """
-        #for arg in kwargs:
-            
-        
-        
-        
+
     
     def show (self, args):
         """ Function doc 
@@ -1057,6 +1053,7 @@ class EasyHybridSession(VismolSession, GLMenu):
         ##print('\n\n\n',a, '\n\n\n')
         self.selection_box_frame = None
         self.cmd = CommandLine(self)
+   
     
     def restart (self):
         """ Function doc """
@@ -1210,39 +1207,6 @@ button position in the main treeview (active column).""".format(name,self.main.p
             return False
         else:
             return True
-        
-
-    
-    #def set_color (self, color = [0.5 , 0.5 , 0.5]):
-    #    """ Function doc """
-    #    selection         = self.selections[self.current_selection]
-    #
-    #    vm_object_list = []
-    #
-    #    for atom in selection.selected_atoms:
-    #        if atom.symbol == 'C':
-    #            atom.color = color
-    #            if atom.vm_object in vm_object_list:
-    #                pass
-    #            else:
-    #                vm_object_list.append(atom.vm_object)
-    #    
-    #    self.vm_glcore.queue_draw()
-    #    for vm_object in vm_object_list:
-    #        vm_object._generate_color_vectors(True)
-    #        
-    #        for rep  in vm_object.representations.keys():
-    #            if vm_object.representations[rep]:
-    #                try:
-    #                    vm_object.representations[rep]._load_color_vbo(vm_object.colors)
-    #                #
-    #                except:
-    #                    pass
-    #                    print("VisMol/vModel/Representations.py, line 123, in _set_colors_to_buffer GL.glBindBuffer(GL.GL_ARRAY_BUFFER, ctypes.ArgumentError: argument 2: <class 'TypeError'>: wrong type'")
-    #                    
-    #
-    #    self.vm_glcore.queue_draw()
-    #    return True
 
 
     def set_color_by_index (self, vobject = None, indexes = [ ], color = [0.9, 0.9, 0.9] ):
@@ -1301,8 +1265,6 @@ button position in the main treeview (active column).""".format(name,self.main.p
         return VMSele(self)
 
 
-
-
     def forward_frame(self):
         """ Function doc """
         #if self.main_session:
@@ -1324,7 +1286,8 @@ button position in the main treeview (active column).""".format(name,self.main.p
         else:
             self.vm_glcore.updated_coords = False
         #'''
-        #print('EEEEEEEE')
+  
+
     def reverse_frame(self):
         """ Function doc """
         
@@ -1346,7 +1309,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
         else:
             self.vm_glcore.updated_coords = False
         #'''
-        #print('aqui')
+
     
     def set_frame(self, frame=0):
         """ Function doc """
@@ -1368,6 +1331,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
                 for bond in atom.bonds:
                     print(index-1, atom.name, bond.get_indexes() )
         '''
+  
         
     def define_vismol_object_molecules (self, vobject):
         """ Function doc """
@@ -1376,45 +1340,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
         
         self.molecules = {0 : []}
         
-        
-        #def func (bond):
-        #    """ Function doc """
-        #    verified = []
-        #    
-        #    for bond in bonds:
-        #        verified.append(bond.atom_index_i)
-        #        verified.append(bond.atom_index_j)
-        #        
-        #        for bond.atom_i.bonds:
-        #            func (bond)
-                
-        #def func(atom)
-        #
-        #
-        #for index , atom in vobject.atoms.items():
-        #    
-        #    if index in verified:
-        #        pass
-        #    else:
-        #        
-        #        for bond in atom.bonds:
-        #            print (bond)
-        
-        #for bond in vobject.bonds:
-            
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
     def _define_inner_box (self, selection, grid_size):
         """  
         Establishes the inner box (smallest box in Cartesian space) that encompasses the selected atoms
@@ -1593,7 +1519,6 @@ button position in the main treeview (active column).""".format(name,self.main.p
         return selectable_indexes
 
         
-    
     def advanced_selection (self, selection = None, _type = 'Around' ,selecting_by = 'Residue',   radius = 10, grid_size = 10):
         """ Function doc """
         
@@ -1677,6 +1602,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
             self.vm_glcore.queue_draw()
 
         return True, 'Selection done!'
+ 
     
     def _complement_by_residue (self, new_selected_indexes, vobject ):
         """ Function doc """
@@ -1690,6 +1616,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
                                                            new_selected_indexes, 
                                                            clear=True)
         return new_selected_indexes
+ 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -         
     def _complement_by_molecule (self, new_selected_indexes, vobject ):
         """ Function doc """
@@ -1713,10 +1640,6 @@ button position in the main treeview (active column).""".format(name,self.main.p
         
         bonds = self.vm_objects_dic[0].find_bonded_and_nonbonded_atoms( selection=selection, frame=self.frame)
                                         
-        #print(bonds)
-        #self.advanced_selection(selection = None, _type = 'around' , radius = 10, grid_size = 10)
-
-
 
     def show_cell (self, vismol_object):
         """ Function doc """
@@ -1731,6 +1654,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
                 print (vismol_object.cell_parameters)
                 vismol_object.representations["cell_lines"] =  CellLineRepresentation(vismol_object, self.vm_glcore,name  = 'lines', active=True, indexes = vismol_object.cell_bonds)
         self.vm_glcore.queue_draw()
+   
     
     def hide_cell (self, vismol_object):
         if  "cell_lines" in  vismol_object.representations.keys():

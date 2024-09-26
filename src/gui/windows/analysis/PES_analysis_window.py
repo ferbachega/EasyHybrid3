@@ -330,7 +330,7 @@ class PotentialEnergyAnalysisWindow:
                 self.data['Z'][index] = value-_min
             
             
-            self.plot2.add( X = range(0, len(self.data['Z'])), Y = self.data['Z'], symbol = 'dot', sym_fill = False, sym_color = [0,1,1], line = 'solid', line_color = [0,1,1] )
+            self.plot2.add( X = range(0, len(self.data['Z'])), Y = self.data['Z'], symbol = 'dot', sym_fill = False, sym_color = [0,1,1], line = 'solid', line_color = [0,0,0] )
             self.plot.hide()
             self.scale_traj_new_definitions(set_range = len(self.data['Z']))
         
@@ -466,15 +466,16 @@ class PotentialEnergyAnalysisWindow:
                 text = 'E = {:<15.6f}'.format(y[0])
                 self.builder.get_object('label_energy').set_text(text)
 
-                frame = self.vobject.idx_2D_xy[( xy[0],xy[1])]
+                #frame = self.vobject.idx_2D_xy[( xy[0],xy[1])]
+                frame = self.vobject.idx_2D_xy[( xy[1],xy[0])]
             else:
                 pass
         else:
             x = [int(value)]
             y = [self.data['Z'][int(value)]]
-            
-            text = 'E = {:<15.6f}'.format(y)
-            self.builder.get_object('label_energy').set_text(str(y))
+            print(x,y)
+            text = 'E = {:<15.6f}'.format(y[0])
+            self.builder.get_object('label_energy').set_text(str(y[0]))
             
             frame = int(value)
         
@@ -486,7 +487,7 @@ class PotentialEnergyAnalysisWindow:
         
         
         try:
-            self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = True, sym_color = [1,0,0], line = 'solid', line_color = [0,1,1] )
+            self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = True, sym_color = [1,0,0], line = 'solid', line_color = [0,0,0] )
             self.plot2.queue_draw()
         except:
             pass

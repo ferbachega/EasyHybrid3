@@ -1813,7 +1813,15 @@ class UmbrellaSampling:
         
         self.write_parameters(parameters = parameters, logfile = os.path.join(full_path_trajectory, 'output.log'))
 
-
+        #----------------------------------------------------------------------------------------
+        full_path_trajectory_opt = os.path.join(parameters['folder'], parameters['traj_folder_name'], 'optmization.ptGeo')
+        isExist = os.path.exists(full_path_trajectory_opt)
+        if isExist:
+            pass
+        else:
+            os.mkdir(full_path_trajectory_opt)
+        parameters['trajectory_path_opt'] = full_path_trajectory_opt
+        #----------------------------------------------------------------------------------------
         
         #----------------------------------------------------------------------------------------
         full_path_trajectory_eq = os.path.join(parameters['folder'], parameters['traj_folder_name'], 'equilibration')
@@ -2033,6 +2041,8 @@ class UmbrellaSampling:
         #Setting some local vars to ease the notation in the pDynamo methods
         #----------------------------------
         opt_parameters  = parameters['OPT_parm']
+        opt_parameters['trajectory_path_opt'] = parameters['trajectory_path_opt']
+        
         md_paramters    = parameters['MD_parm']
         
         atom1 = parameters['RC1']['ATOMS'][0]
@@ -2109,7 +2119,9 @@ class UmbrellaSampling:
             '''             G E O M E T R Y   O P T I M I Z A T I O N            '''
             if parameters['OPT_parm'] is not None:
                 _us_geo_opt(parameters['system'], opt_parameters)
-            
+                Pickle( os.path.join(parameters['trajectory_path_opt'], 
+                                                 "frame{}.pkl".format(i) ), 
+                                        parameters['system'].coordinates3 )
             
             
             '''                M O L E C U L A R   D Y N A M I C S               '''
@@ -2346,7 +2358,9 @@ def _run_parallel_umbrella_sampling_2D (job):
     '''             G E O M E T R Y   O P T I M I Z A T I O N            '''
     if parameters['OPT_parm'] is not None:
         _us_geo_opt(parameters['system'], opt_parameters)
-
+        Pickle( os.path.join(parameters['trajectory_path_opt'], 
+                                         "frame{}_{}.pkl".format(i, j) ), 
+                                parameters['system'].coordinates3 )
 
 
     '''                M O L E C U L A R   D Y N A M I C S               '''
@@ -2465,7 +2479,12 @@ def _run_parallel_umbrella_sampling_1D (job):
     '''             G E O M E T R Y   O P T I M I Z A T I O N            '''
     if parameters['OPT_parm'] is not None:
         _us_geo_opt(parameters['system'], opt_parameters)
-
+        
+        if parameters['trajectory_path_opt']:
+            Pickle( os.path.join(parameters['trajectory_path_opt'], 
+                                 "frame{}.pkl".format(i) ), 
+                        parameters['system'].coordinates3 ) 
+        #opt_parameters['trajectory_path_opt']
 
 
     '''                M O L E C U L A R   D Y N A M I C S               '''
