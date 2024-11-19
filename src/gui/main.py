@@ -52,6 +52,7 @@ from gui.windows.setup.windows_and_dialogs import InfoWindow
 from gui.windows.setup.windows_and_dialogs import MergeSystemWindow
 from gui.windows.setup.windows_and_dialogs import SolvateSystemWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
+from gui.windows.setup.edit_frames_dialog import EditFrameDialog
 
 from gui.windows.setup.easyhybrid_terminal    import TerminalWindow
 from gui.windows.setup.selection_list_window  import *
@@ -354,7 +355,7 @@ class MainWindow:
 
         self.simple_dialog =  SimpleDialog(main = self)
 
-
+        self.edit_frames_dialog = EditFrameDialog(main = self)
         self.merge_system_window = MergeSystemWindow(main = self)
         self.solvate_system_window = SolvateSystemWindow(main = self)
         self.preferences_window = EasyHybridPreferencesWindow(main = self)
@@ -2153,6 +2154,7 @@ class TreeViewMenu:
                                 'Rename'                : self._menu_rename ,
                                 '_separator'            : ''      ,
                                 'Show / Hide Cell'      : self.show_or_hide_cell,
+                                'Edit Frames'           : self.call_editframe_window,
                                 #'Load Data Into System' : self._menu_load_data_to_system,
                                 #'Change Color'  : self.change_system_color_palette ,
                                 'Go To Atom'            : self._menu_go_to_atom ,
@@ -2226,9 +2228,16 @@ class TreeViewMenu:
         else:
             self.main.vm_session.show_cell (vobject)
             
-
-
-
+    def call_editframe_window (self, widget):
+        """ Function doc """
+        selection        = self.treeview.get_selection()
+        (model, iter)    = selection.get_selected()
+        e_id             = int(model.get_value(iter, 0))
+        vm_object_index  = int(model.get_value(iter, 1))
+        self.main.edit_frames_dialog.OpenWindow (vm_object_index)
+        
+        
+        
     def _show_info (self, widget):
         """ Function doc """
         selection     = self.treeview.get_selection()
@@ -2237,8 +2246,7 @@ class TreeViewMenu:
         #----------------------------------------------------------------------        
         system = self.main.p_session.psystem[e_id]
         window = InfoWindow(system)
-    
-
+        
     def _menu_export_data_window (self,vobject = None ):
         """ Function doc """
         selection     = self.treeview.get_selection()
@@ -2253,7 +2261,6 @@ class TreeViewMenu:
         model, iter      = selection.get_selected()
         #print (list(model))
         self.main.import_trajectory_window.OpenWindow(sys_selected = model.get_value(iter, 0))
-
 
     def _menu_change_color_palette (self, widget):
         """ Function doc """
@@ -2283,7 +2290,6 @@ class TreeViewMenu:
             
             self.main.change_reference_color(system, new_color)
 
-    
     def _menu_merge_system (self, widget):
         """ Function doc """
         selection     = self.treeview.get_selection()
@@ -2291,7 +2297,6 @@ class TreeViewMenu:
         e_id          = int(model.get_value(iter, 0)) 
         self.main.merge_system_window.selected_system_id = e_id
         self.main.merge_system_window.OpenWindow()
-    
     
     def _menu_clone_system (self, widget):
         """ Function doc """
@@ -2307,7 +2312,6 @@ class TreeViewMenu:
         #self._show_lines(vobject = self.vobjects[0], indices = [0,1,2,3,4] )
         self.treeview.main.go_to_atom_window.OpenWindow()
         #self.treeview.vm_session.go_to_atom_window.OpenWindow()
-
     def f3 (self, vobject = None):
         """ Function doc """
         
@@ -2335,7 +2339,6 @@ class TreeViewMenu:
             model.append(data)
         self.treeview.vm_session.glwidget.queue_draw()
 
-    
     def _menu_rename (self, menu_item = None ):
         """  
         menu_item = Gtk.MenuItem object at 0x7fbdcc035700 (GtkMenuItem at 0x37cf6c0)
@@ -2377,7 +2380,6 @@ class TreeViewMenu:
         self.main.delete_system (system_e_id = self.system_e_id )
         self._save_backup_file()
         #self.save_easyhybrid_session( filename = self.main.session_filename, tmp = True)
-        
     def build_tree_view_menu (self, menu_items = None):
         """ Function doc """
         tree_view_menu = Gtk.Menu()
@@ -2408,7 +2410,6 @@ class TreeViewMenu:
         tree_view_menu.show_all()
         return tree_view_menu, menu_header
 
-
     def open_menu (self, system_e_id = None , vobject_index = None):
         """ Function doc """
         self.system_e_id     = system_e_id    
@@ -2429,7 +2430,6 @@ class TreeViewMenu:
             
             self.tree_view_vobj_menu.popup(None, None, None, None, 0, 0)
                 
-
     def _save_backup_file (self):
         """ Function doc """
         self.main.p_session.save_easyhybrid_session( filename = self.main.session_filename, tmp = True)
@@ -2532,8 +2532,6 @@ class BottomNoteBook:
         # Scroll the TreeView to the newly added row
         self.treeview.scroll_to_cell(path, None, True, 0.5, 0.5)
 
-    
-    
     def set_active_system_text_to_textbuffer (self):
         e_id = self.main.p_session.active_id
         new_text = self.main.p_session.psystem[e_id].e_annotations
@@ -2547,7 +2545,6 @@ class BottomNoteBook:
         
         e_id = self.main.p_session.active_id
         self.main.p_session.psystem[e_id].e_annotations = extracted_text
-
 
     def change_annotations_textbuffer (self, before, after):
         """ Function doc """

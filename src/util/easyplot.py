@@ -264,6 +264,7 @@ class ColorSquareBilinearInterpolation:
                              round(self.factor_y)+1)
                 cr.fill()
 
+
 class Canvas(Gtk.DrawingArea):
     """ Class doc """
     
@@ -279,19 +280,18 @@ class Canvas(Gtk.DrawingArea):
         
         self.set_events(Gdk.EventMask.ALL_EVENTS_MASK)
         self.connect("draw", self.on_draw)
-        #self.connect("button_press_event", self.on_mouse_button_press)
-        #self.connect("motion-notify-event", self.on_motion)
-    
 
         
     def set_bg_color (self, r = 1 , g = 1 , b = 1):
         """ Function doc """
         self.bg_color = [r, g, b]
     
+    
     def _make_bg (self, cr):
         """ Function doc """
         cr.set_source_rgb( self.bg_color[0],self.bg_color[1], self.bg_color[2])
         cr.paint()
+    
     
     def get_i_and_j_from_click_event (self, event):
         """ Function doc """
@@ -302,7 +302,6 @@ class Canvas(Gtk.DrawingArea):
         
         return x_on_plot, y_on_plot, x, y
 
-    
     
     def check_clicked_points(self, x_on_plot, y_on_plot):
         """ Function doc """
@@ -328,8 +327,6 @@ class Canvas(Gtk.DrawingArea):
                                     (y-self.by)/self.factor_y) #/(self.y_final-self.by) ) #, x - self.x_final , y - self.y_final , self.x_final ,  self.y_final ,   (x-self.bx) /self.factor_x ,    (y-self.by)/self.factor_y )
         print(self.points)
 
-    
-    
     
     def on_mouse_button_press(self, widget, event):
         #(x, y) = int(event.x), int(event.y)
@@ -368,6 +365,21 @@ class Canvas(Gtk.DrawingArea):
         y_on_plot = int((y-self.by)/self.factor_y)
         #print("Mouse moved to:", x, y, int(x_on_plot), int(y_on_plot))
 
+    def get_pixel_rgb(self, x, y):
+        # Converte os dados da superfície para um array de bytes
+        buf = self.surface.get_data()
+
+        # Cairo usa um formato ARGB32, onde cada pixel é representado por 4 bytes (A, R, G, B)
+        array = np.frombuffer(buf, dtype=np.uint8)
+        array = array.reshape((self.height, self.width, 4))  # Reshape para uma matriz 2D com 4 valores por pixel
+
+        # Pegar o valor do pixel em x, y
+        pixel = array[y, x]
+
+        # O formato é ARGB, então extraímos apenas R, G e B
+        a, r, g, b = pixel
+        return (r, g, b)
+
 
 class ImagePlot(Canvas):
     """ Class doc """
@@ -403,6 +415,7 @@ class ImagePlot(Canvas):
         
         self.selected_dot = None #it is the i and j coordinates at the energey matrix
         self.sel_dot_rgb  = [1,0,0]
+        
         
     def define_datanorm (self):
         """ Function doc 
@@ -450,6 +463,7 @@ class ImagePlot(Canvas):
         
         return self.data_min, self.data_max, delta , self.norm_data
         
+        
     def set_threshold_color (self, _min = 0, _max = None, cmap = 'jet'):
         """ Function doc """
         self.color_map = COLOR_MAPS[self.cmap]
@@ -468,16 +482,17 @@ class ImagePlot(Canvas):
         #pprint(self.color_map)
         #pprint( new_colormap)
         self.color_map = new_colormap
+    
         
     def set_cmap (self, cmap = 'jet'):
         """ Function doc """
         self.color_map = COLOR_MAPS[cmap]
     
+    
     def set_label_mode (self, mode = 0):
         """ Function doc """
         self.label_mode = mode
         
-        #self.plot.set_cmap (cmap = self.cmap_ref_dict[self.cmap_id])
     
     def draw_color_bar (self, cr, res, gap = 20, label_spacing = 2, font_size = 12, num_labels = 10):
         """ Function doc """
@@ -608,6 +623,7 @@ class ImagePlot(Canvas):
                      round(self.size_y * self.factor_y))
         cr.stroke ()
 
+
     def draw_discrete_square (self, i, j, cr):
         """ Function doc """
         #z is the nergey value
@@ -627,6 +643,7 @@ class ImagePlot(Canvas):
                      round(self.factor_x)+1, 
                      round(self.factor_y)+1)
         cr.fill()
+    
     
     def draw_smooth_square (self, cr = None, square = None, colors = None):
         """ Function doc 
@@ -672,7 +689,6 @@ class ImagePlot(Canvas):
         pattern.end_patch()
         cr.set_source(pattern)
         cr.paint()          
-
 
     
     def draw_inter_square (self, surface, x, y, size, c1, c2, c3, c4, cr):
@@ -822,7 +838,6 @@ class ImagePlot(Canvas):
                     self.draw_smooth_square(cr = cr, square = square, colors = colors)
                     #---------------------------------------------------
                              
-
     def draw_image_box (self, cr, line_width = 1, color = [0,0,0]):
         cr.set_line_width (line_width)
         cr.set_source_rgb(color[0], color[1], color[2])
@@ -918,6 +933,7 @@ class ImagePlot(Canvas):
             cr.set_source_rgb( self.sel_dot_rgb[0], self.sel_dot_rgb[1], self.sel_dot_rgb[2])
             cr.arc(((x+0.5)*self.factor_x)+ self.bx, ((y+0.5)*self.factor_y)+self.by , 5, 0, 2 * 3.14)
             cr.fill()
+   
     
     def draw_lines (self, cr, line_width = 2, color = [0,0,0]):
         """ Function doc """
@@ -956,7 +972,7 @@ class ImagePlot(Canvas):
         self.x_plot_edge = self.size_x*self.factor_x-self.factor_x
         self.y_plot_edge = self.size_y*self.factor_y-self.factor_y
         
-        if self.data_max == None:
+        if self.data_max is None:
             self.define_datanorm()
         
         '''
@@ -971,20 +987,30 @@ class ImagePlot(Canvas):
         
         self.set_threshold_color ( _min = 0, _max = 200)
         '''
-
+        
+        # Criar uma superfície de imagem temporária
+        self.temp_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.width, self.height)
+        self.temp_cr = cairo.Context(self.temp_surface)
+        
         #print(np.min(self.norm_data), np.max(self.norm_data) )
         
-        self.draw_color_bar (cr, res = self.size_y)
+        self.draw_color_bar (self.temp_cr, res = self.size_y)#(cr, res = self.size_y)
 
-        self.draw_image (cr)
+        self.draw_image (self.temp_cr)#(cr)
         
-        self.draw_image_box (cr, line_width = 1, color = [0,0,0])
+        self.draw_image_box (self.temp_cr, line_width = 1, color = [0,0,0])#(cr, line_width = 1, color = [0,0,0])
 
-        self.draw_scale(cr)
+        self.draw_scale(self.temp_cr)#(cr)
 
-        self.draw_dots (cr)
+        self.draw_dots (self.temp_cr)#(cr)
 
-        self.draw_lines (cr, line_width = 2, color = [0,0,0])
+        self.draw_lines (self.temp_cr, line_width = 2, color = [0,0,0])#(cr, line_width = 2, color = [0,0,0])
+    
+        cr.set_source_surface(self.temp_surface, 0, 0)
+        cr.paint()
+    
+        #rgb = self.get_pixel_rgb_from_surface(self.temp_surface, 0, 0)
+        #print(f"RGB at (0, 0): {rgb}")
     
         #width, height = 300, 300
         #surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
@@ -1002,7 +1028,10 @@ class ImagePlot(Canvas):
         
         j_size = len(self.norm_data)
         i_size = len(self.norm_data[0])
-        
+
+        #rgb = self.get_pixel_rgb_from_surface(self.temp_surface, x, y)
+        #print(f"RGB at ({x}, {y}): {rgb}")
+
         if i < 0 or j < 0:
             pass
         else:
@@ -1013,8 +1042,25 @@ class ImagePlot(Canvas):
                     self.RC_label.set_text(text)
                 else:
                     print(text)
-                    #print(text)
-                #print( 'i = ', i, 'j = ', j)
+
+
+    def get_pixel_rgb_from_surface(self, surface, x, y):
+        """Lê o valor RGB de um pixel dentro de uma cairo.ImageSurface."""
+        
+        # Pega os dados da superfície de Cairo
+        buf = surface.get_data()
+
+        # Converte os dados em uma array numpy (ARGB formato, 4 bytes por pixel)
+        array = np.frombuffer(buf, dtype=np.uint8)
+        array = array.reshape((surface.get_height(), surface.get_width(), 4))
+
+        # Pega o valor do pixel na posição especificada (x, y) (formato ARGB)
+        pixel = array[y, x]
+
+        # Extraímos os valores de Red, Green e Blue
+        r, g, b = pixel[1], pixel[2], pixel[3]
+
+        return (r, g, b)
 
 
 class XYPlot(Gtk.DrawingArea):
@@ -1073,6 +1119,7 @@ class XYPlot(Gtk.DrawingArea):
         self.y_botton = -1
         self.y_top    =  1
 
+    
     def data_update (self, data):
         """ Function doc """
         X = data['X']
@@ -1090,6 +1137,7 @@ class XYPlot(Gtk.DrawingArea):
         data['Ymax'] =  max(Y)
         
         return data
+
 
     def add (self, X = None, Y = None, 
               symbol = 'dot', sym_color = [1,1,1], sym_fill = True, 
@@ -1138,6 +1186,7 @@ class XYPlot(Gtk.DrawingArea):
         
         self.data.append(data)
         self.define_xy_limits()
+    
     
     def define_xy_limits (self, y_botton = -3, y_top = 2):
         """ Function doc """
@@ -1368,18 +1417,7 @@ class XYPlot(Gtk.DrawingArea):
         if self.data == []:
             return False
         else:
-            pass
-            #print(
-            #'\nself.Ymax     ', self.Ymax      ,
-            #'\nself.Ymin     ', self.Ymin      ,
-            #'\nself.Xmax     ', self.Xmax      ,
-            #'\nself.Xmin     ', self.Xmin      ,
-            #'\nself.deltaY   ', self.deltaY    ,
-            #'\nself.deltaX   ', self.deltaX    ,
-            #)
-            
-            
-    
+
             if self.deltaY > 0:
                 for data in self.data:
                     data['Ynorm'] = [(y-self.Ymin)/self.deltaY for y in data['Y']]
@@ -1464,6 +1502,7 @@ class XYPlot(Gtk.DrawingArea):
                         cr.set_source_rgb( self.line_color[0], self.line_color[1], self.line_color[2])
                         cr.stroke ()
     
+    
     def on_motion(self, widget, event):
         '''(i/self.x_major_ticks)*self.deltaX + self.Xmin'''
         if self.data == []:
@@ -1479,14 +1518,10 @@ class XYPlot(Gtk.DrawingArea):
                 ((self.y_box_size-(y-self.by)) / self.y_box_size)  *  self.deltaY + self.Ymin)
                 )
     
+    
     def on_mouse_button_press (self, widget, event):
         """ Function doc """
         pass
-
-        
-        
-        
-        
 
 
 class XYScatterPlot(Gtk.DrawingArea) :
