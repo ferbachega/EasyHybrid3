@@ -68,7 +68,7 @@ class EditFrameDialog():
             self.button_apply.connect('clicked', self.apply)
             
             self.check_button_reverse = self.builder.get_object('check_button_reverse')
-            
+            self.check_create_new_vobject = self.builder.get_object('check_create_new_vobject')
             
             self.window.show_all()                                               
             self.visible    =  True
@@ -88,8 +88,76 @@ class EditFrameDialog():
         """ Function doc """
         text = self.entry_delete_frames.get_text()
         print(text,  self.vobj_id )
+        vobject = self.main_session.vm_session.vm_objects_dic[self.vobj_id]
+        frames  = vobject.frames
         
-        print(self.main_session.vm_session.vm_objects_dic)
+        
+        indices_to_remove = []
+        
+        #processing the text data (frames to be deleted)
+        rawdata = text.split(',')
+        
+        for data in rawdata:
+           
+            # este parte  processa um range de indexes que deve ser deletado
+            # exemplot  2-5 (intervalo entre 2 e 5).
+            if ':' in data:
+                index_range = data.split(':')
+                
+                if len(index_range) == 2:
+                    first   = int(index_range[0])
+                    last    = int(index_range[1])
+                    indexes = range(first, last)
+                    
+                    for index in indexes:
+                        if index in indices_to_remove:
+                            pass
+                        else:
+                            indices_to_remove.append(index)
+                else:
+                    pass
+            
+            # esta parte processa os indexes que deve ser deletados.
+            else:
+                data = data.strip()
+                
+                if data == '':
+                    pass
+                else:
+                    index = int(data)
+                    if index in indices_to_remove:
+                        pass
+                    else:
+                        indices_to_remove.append(index)
+                
+        
+        if self.check_create_new_vobject.get_active():
+            system = self.main_session.p_session.psystem[vobject.e_id]
+            vobject = self.main_session.p_session._add_vismol_object_to_easyhybrid_session (system, show_molecule=True, name = 'edited_coords')
+
+
+        coords = np.delete(frames, indices_to_remove, axis=0)
+        #print( frames.shape )
+        vobject.frames = coords
+
         if self.check_button_reverse.get_active():
+            #reverser (invert order)
+            coords_inverted = coords[::-1]
+            vobject.frames = coords_inverted
             print('do reverse')
+        
+        
+        # Apply fixed representation to the VisMol object
+        self.main_session.p_session._apply_fixed_representation_to_vobject(vismol_object =vobject)
+        
+        # Apply QC representation to the VisMol object
+        self.main_session.p_session._apply_QC_representation_to_vobject(vismol_object =vobject)
+        
+        # Refresh the widgets in the main window
+        self.main_session.main_treeview.refresh_number_of_frames()
+        #self.main_session.p_session.main.refresh_widgets()        
+        
+        
+        
+        
         self.CloseWindow(None, None)

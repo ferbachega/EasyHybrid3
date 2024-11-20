@@ -2184,13 +2184,13 @@ class TreeViewMenu:
                                                           
                                 'Rename'                  : self._menu_rename               ,
                                 'Import Data...'          : self._menu_load_data_to_system  ,
-                                'Reference Color'           : self._menu_change_color_palette ,
-                                #'Edit Parameters'         : self.f2                         ,
+                                'Reference Color'         : self._menu_change_color_palette ,
+                                #'Edit Parameters'        : self.f2                         ,
                                 'Export As...'            : self._menu_export_data_window    ,
                                 
                                 '_separator'              : ''                              ,
                                 'Merge With...'           : self._menu_merge_system         ,
-                                'Clone'                   : self._menu_clone_system         ,
+                                'Clone System'            : self._menu_clone_system         ,
                                 
                                 '_separator'              : ''                              ,
                                 
