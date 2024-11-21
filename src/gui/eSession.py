@@ -898,11 +898,23 @@ class GLMenu:
         
         if obj_menu is None:
             ''' Standard Obj Menu'''
+            
+            def center_on_atom (_):
+                """ Function doc """
+                print('center')
+                print(self.vm_glcore.info_atom)
+                
             obj_menu = { 
                     'OBJ menu' : ['MenuItem', None],
                     
                     
                     'separator1':['separator', None],
+                    
+                    'Center' : ['MenuItem', center_on_atom],
+                    #'Zoom' : ['MenuItem', active_selection],
+                    #'Orient' : ['MenuItem', active_selection],
+                    
+                    'separator2':['separator', None],
                     
                     
                     'show'   : [
@@ -928,7 +940,7 @@ class GLMenu:
                                 ],
                     
                     
-                    'separator2':['separator', None],
+                    'separator3':['separator', None],
 
                     
                     
