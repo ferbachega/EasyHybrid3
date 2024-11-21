@@ -901,9 +901,9 @@ class GLMenu:
             
             def center_on_atom (_):
                 """ Function doc """
-                print('center')
-                print(self.vm_glcore.info_atom)
-                
+                #print('center')
+                #print(self.vm_glcore.info_atom)
+                self.vm_glcore.center_on_atom(self.vm_glcore.info_atom)
             obj_menu = { 
                     'OBJ menu' : ['MenuItem', None],
                     
