@@ -66,11 +66,12 @@ from gui.windows.simulation.umbrella_sampling_window     import UmbrellaSampling
 from gui.windows.simulation.chain_of_states_opt_window   import ChainOfStatesOptWindow 
 from gui.windows.simulation.normal_modes_window          import NormalModesWindow 
 
-from gui.windows.analysis.WHAM_analysis_window           import WHAMWindow 
-from gui.windows.analysis.normal_modes_analysis_window   import NormalModesAnalysisWindow 
-from gui.windows.analysis.surface_analysis_window        import SurfaceAnalysisWindow 
-from gui.windows.analysis.energy_refinement_window       import EnergyRefinementWindow
-from gui.windows.analysis.PES_analysis_window            import PotentialEnergyAnalysisWindow
+from gui.windows.analysis.WHAM_analysis_window                    import WHAMWindow 
+from gui.windows.analysis.normal_modes_analysis_window            import NormalModesAnalysisWindow 
+from gui.windows.analysis.surface_analysis_window                 import SurfaceAnalysisWindow 
+from gui.windows.analysis.energy_refinement_window                import EnergyRefinementWindow
+from gui.windows.analysis.PES_analysis_window                     import PotentialEnergyAnalysisWindow
+from gui.windows.analysis.distance_angle_dihedral_analysis_window import DistanceAngleDihedralAnalysisWindow
 
 from util.geometric_analysis import get_simple_distance
 from util.sequence_plot import GtkSequenceViewer
@@ -344,6 +345,7 @@ class MainWindow:
         
         self.normal_modes_analysis_window =   NormalModesAnalysisWindow (main = self)
         self.surface_analysis_window =   SurfaceAnalysisWindow (main = self)
+        self.distance_angle_dihedral_analysis_window = DistanceAngleDihedralAnalysisWindow (main = self)
         
         
         self.normal_modes_window          =   NormalModesWindow (main = self)
@@ -565,10 +567,6 @@ class MainWindow:
                 self.picking_selection_mode = True
             self.vm_session.vm_glcore.queue_draw()
         
-        
-        
-
-
         
         elif menuitem == self.builder.get_object('menuitem_send_to_sel_list'):
             sel_list, sel_resi_table = self.vm_session.build_index_list_from_atom_selection()
@@ -966,7 +964,10 @@ class MainWindow:
         elif menuitem == self.builder.get_object('menuitem_energy_refinement'):
             self.energy_refinement_window.OpenWindow()
         
-        elif menuitem == self.builder.get_object('menuiten_uvvis'):
+        elif menuitem == self.builder.get_object('menuitem_d_a_d_analysis'):
+            self.distance_angle_dihedral_analysis_window.OpenWindow()
+        
+        elif menuitem == self.builder.get_object('test_histograms'):
             from util.easyplot import ImagePlot, XYPlot
             import random
             self.plot = XYPlot()

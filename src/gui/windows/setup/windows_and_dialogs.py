@@ -95,6 +95,41 @@ def call_message_dialog (text1 = '', text2 = '', transient_for = None):
     dialog.destroy()
 
 
+class TextWindow:
+    """ Class doc """
+    
+    def __init__ (self, text = 'No text'):
+        """ Class initialiser """
+        self.window = Gtk.Window(title="System Summary")
+        self.window.set_default_size(1100, 600)
+        
+        self.textview = Gtk.TextView()
+        self.textbuffer = self.textview.get_buffer()
+        self.textbuffer.set_text(text)
+        
+        
+        # Create a Pango font description with the desired font family and size
+        fontdesc = Pango.FontDescription()
+        fontdesc.set_family("Monospace")
+        fontdesc.set_size(12 * Pango.SCALE)  # 12 point size
+        
+        # Apply the font description to the text view
+        self.textview.modify_font(fontdesc)
+        
+        # Set the text color to black
+        style = self.textview.get_style_context()
+        style.add_class("text-black")
+        
+        
+        scrolledwindow = Gtk.ScrolledWindow()
+        scrolledwindow.set_hexpand(True)
+        scrolledwindow.set_vexpand(True)
+        scrolledwindow.add(self.textview)
+        
+        self.window.add(scrolledwindow)
+        self.window.show_all()
+        
+        
 
 
 class InfoWindow:
@@ -121,39 +156,32 @@ class InfoWindow:
             header = '' 
         
         text = header+text
-        
-        self.window = Gtk.Window(title="System Summary")
-        self.window.set_default_size(1100, 600)
-
-        self.textview = Gtk.TextView()
-        self.textbuffer = self.textview.get_buffer()
-        self.textbuffer.set_text(text)
-
-
-        # Create a Pango font description with the desired font family and size
-        fontdesc = Pango.FontDescription()
-        fontdesc.set_family("Monospace")
-        fontdesc.set_size(12 * Pango.SCALE)  # 12 point size
-
-        # Apply the font description to the text view
-        self.textview.modify_font(fontdesc)
-
-        # Set the text color to black
-        style = self.textview.get_style_context()
-        style.add_class("text-black")
-
-
-
-
-
-        scrolledwindow = Gtk.ScrolledWindow()
-        scrolledwindow.set_hexpand(True)
-        scrolledwindow.set_vexpand(True)
-        scrolledwindow.add(self.textview)
-
-        self.window.add(scrolledwindow)
-        #self.window.connect("destroy", Gtk.main_quit)
-        self.window.show_all()
+        textwindow = TextWindow(text)
+        #self.window = Gtk.Window(title="System Summary")
+        #self.window.set_default_size(1100, 600)
+        #
+        #self.textview = Gtk.TextView()
+        #self.textbuffer = self.textview.get_buffer()
+        #self.textbuffer.set_text(text)
+        ## Create a Pango font description with the desired font family and size
+        #fontdesc = Pango.FontDescription()
+        #fontdesc.set_family("Monospace")
+        #fontdesc.set_size(12 * Pango.SCALE)  # 12 point size
+        #
+        ## Apply the font description to the text view
+        #self.textview.modify_font(fontdesc)
+        #
+        ## Set the text color to black
+        #style = self.textview.get_style_context()
+        #style.add_class("text-black")
+        #scrolledwindow = Gtk.ScrolledWindow()
+        #scrolledwindow.set_hexpand(True)
+        #scrolledwindow.set_vexpand(True)
+        #scrolledwindow.add(self.textview)
+        #
+        #self.window.add(scrolledwindow)
+        ##self.window.connect("destroy", Gtk.main_quit)
+        #self.window.show_all()
 
 
 class SimpleDialog:

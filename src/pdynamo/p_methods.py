@@ -2827,17 +2827,38 @@ class ChainOfStatesOptimizePath:
         # . Optimization.
         trajectory = ExportTrajectory ( trajectoryPath, system, append = True )
         
+        
+        #poolfactory
+        if parameters["poolFactory"] == None or parameters["poolFactory"] <=1:
+            parameters["poolFactory"] = None
+        else:
+            mProc = parameters["poolFactory"]
+            #parameters["poolFactory"] = SGOFProcessPoolFactory ( maximumProcesses = 6, poolType = "Multiprocessing" )
+            parameters["poolFactory"] = SGOFProcessPoolFactory ( maximumProcesses = mProc, poolType = "Multiprocessing" )
+        
         ChainOfStatesOptimizePath_SystemGeometry ( system                                                   ,
                                                    trajectory                                               ,
-                                                   logFrequency         = parameters['log_frequency']       ,
-                                                   maximumIterations    = parameters['maximumIterations']   ,
-                                                   rmsGradientTolerance = parameters['rmsGradientTolerance'],
                                                    
-                                                   springForceConstant           = parameters['spring_force_constant']          ,
-                                                   splineRedistributionTolerance = parameters['spline_redistribution_tolerance'],
+                                                   logFrequency                  = parameters['log_frequency']       ,
+                                                   maximumIterations             = parameters['maximumIterations']   ,
+                                                   rmsGradientTolerance          = parameters['rmsGradientTolerance'],
                                                    
-                                                   forceSplineRedistributionCheckPerIteration = parameters['force_spline_redistribution_check_per_iteration'],
-                                                   fixedTerminalImages                        = parameters['fixed_terminal_images']                          ,
+                                                   springForceConstant           = parameters['springForceConstant']          ,
+                                                   splineRedistributionTolerance = parameters['splineRedistributionTolerance'],
+                                                   useSplineRedistribution       = parameters["useSplineRedistribution"        ],
+
+                                                   fixedTerminalImages                 = parameters['fixedTerminalImages']                          ,
+                                                   
+                                                   forceOneSingleImageOptimization     = parameters['forceOneSingleImageOptimization'],            
+                                                   forceSingleImageOptimizations       = parameters['forceSingleImageOptimizations'],    
+                                                   forceSplineRedistributionCheckPerIteration = parameters['forceSplineRedistributionCheckPerIteration'],
+                                                   
+                                                   freezeRMSGradientTolerance = parameters['freezeRMSGradientTolerance'],
+                                                   
+                                                   optimizer                 = parameters["optimizer"                 ] ,
+                                                   poolFactory               = parameters["poolFactory"               ] ,
+                                                   rmsGradientToleranceScale = parameters["rmsGradientToleranceScale" ] ,
+                                                   
                                                    
                                                    
                                                    log                                        = self.logFile2                     )

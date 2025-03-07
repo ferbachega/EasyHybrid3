@@ -992,6 +992,15 @@
                       </object>
                     </child>
                     <child>
+                      <object class="GtkMenuItem" id="menuitem_d_a_d_analysis">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Distances, Angles and Dihedrals</property>
+                        <property name="use-underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkMenuItem" id="test_item">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
@@ -1001,12 +1010,19 @@
                       </object>
                     </child>
                     <child>
-                      <object class="GtkMenuItem" id="menuiten_uvvis">
+                      <object class="GtkMenuItem" id="menuitem_RMSD_traj_tool">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">UV spectrum</property>
+                        <property name="label" translatable="yes">RMSD tool</property>
                         <property name="use-underline">True</property>
-                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menuitem_rama">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Ramachandran Plot</property>
+                        <property name="use-underline">True</property>
                       </object>
                     </child>
                     <child>

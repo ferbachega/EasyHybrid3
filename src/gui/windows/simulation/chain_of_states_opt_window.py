@@ -163,31 +163,84 @@ class ChainOfStatesOptWindow(Gtk.Window):
     def get_parameters (self):
         """ Function doc """
         '''this combobox has the reference to the starting coordinates of a simulation'''
-        parameters={    "simulation_type"                 :"Nudged_Elastic_Band"  ,
-                        "number_of_structures"            : 11                    , 
-                        "log_frequency"                   : 1                     , 
-                        "maximumIterations"               : 600                   ,
-                        "rmsGradientTolerance"            : 0.1                   ,
-                        "spring_force_constant"           : 500                   ,
-                        "spline_redistribution_tolerance" : 1.5                   ,
-                        
-                        "fixed_terminal_images"                           : True  ,
-                        "force_spline_redistribution_check_per_iteration" : False ,           
-                        
-                        "trajectory_name"        : 'new_trajectory'       ,
-                        "folder"                 : os.getcwd()            , 
-                     }
+        
+        parameters={       "simulation_type"                            :"Nudged_Elastic_Band"  ,
+                           "number_of_structures"                       : 11                    ,
+                           "log_frequency"                              : 1                     ,
+                           "maximumIterations"                          : 600                   ,
+                           "rmsGradientTolerance"                       : 0.1                   ,
+                           "trajectory_name"                            : 'new_trajectory'       ,
+                           "folder"                                     : os.getcwd()            ,
+                           
+                           #pdynamo default parameters
+                           "fixedTerminalImages"                        : True                                ,
+                           "forceOneSingleImageOptimization"            : False                               ,
+                           "forceSingleImageOptimizations"              : False                               ,
+                           "forceSplineRedistributionCheckPerIteration" : False                               ,
+                           "freezeRMSGradientTolerance"                 :   0.0                               ,
+                           "optimizer"                                  : None                                ,
+                           "poolFactory"                                : None                                ,
+                           "rmsGradientToleranceScale"                  :   0.25                              ,
+                           "splineRedistributionTolerance"              :   1.5                               ,
+                           "springForceConstant"                        : 500.0                               ,
+                           "useSplineRedistribution"                    : False                               }
+        
+        
+        
+        '''        
+        #parameters={    #"simulation_type"                 :"Nudged_Elastic_Band"  ,
+        #                #"number_of_structures"            : 11                    , 
+        #                #"log_frequency"                   : 1                     , 
+        #                #"maximumIterations"               : 600                   ,
+        #                #"rmsGradientTolerance"            : 0.1                   ,
+        #                #"spring_force_constant"           : 500                   ,
+        #                #"spline_redistribution_tolerance" : 1.5                   ,
+        #                
+        #                #"fixed_terminal_images"                           : True  ,
+        #                #"force_spline_redistribution_check_per_iteration" : False ,           
+        #                
+        #                #"trajectory_name"        : 'new_trajectory'       ,
+        #                #"folder"                 : os.getcwd()            , 
+        #             }
+        
+        
+
         #----------------------------------------------------------------------------------
-        parameters['number_of_structures'           ] = int  (self.builder.get_object('entry_mun_of_structures').get_text()              )
-        parameters["log_frequency"                  ] = int  (self.builder.get_object('entry_log_frequency').get_text()                  )
-        parameters["maximumIterations"              ] = int  (self.builder.get_object('entry_max_int').get_text()                        )
+        #parameters['number_of_structures'           ] = int  (self.builder.get_object('entry_mun_of_structures').get_text()              )
+        #parameters["log_frequency"                  ] = int  (self.builder.get_object('entry_log_frequency').get_text()                  )
+        #parameters["maximumIterations"              ] = int  (self.builder.get_object('entry_max_int').get_text()                        )
+        #parameters["rmsGradientTolerance"           ] = float(self.builder.get_object('entry_rmsd_tol').get_text()                       )
+        #parameters["spring_force_constant"          ] = int  (self.builder.get_object('entry_spring_force_constant').get_text()          )
+        #parameters["spline_redistribution_tolerance"] = float(self.builder.get_object('entry_spline_redistribution_tolerance').get_text())
+        #
+        #parameters["fixed_terminal_images"                          ] = self.builder.get_object('check_fixed_terminal_images').get_active()
+        #parameters["force_spline_redistribution_check_per_iteration"] = self.builder.get_object('check_force_spline_redistribution_check_per_iteration').get_active()
+        #
+        #parameters["trajectory_name"] = self.builder.get_object('traj_name').get_text()
+        #parameters["folder"         ] = self.folder_chooser_button.get_folder()
+        '''
+        parameters['number_of_structures'           ] = int  (self.builder.get_object('entry_mun_of_structures').get_text()              )  
+        parameters["log_frequency"                  ] = int  (self.builder.get_object('entry_log_frequency').get_text()                  )  
+        parameters["maximumIterations"              ] = int  (self.builder.get_object('entry_max_int').get_text()                        )  
         parameters["rmsGradientTolerance"           ] = float(self.builder.get_object('entry_rmsd_tol').get_text()                       )
-        parameters["spring_force_constant"          ] = int  (self.builder.get_object('entry_spring_force_constant').get_text()          )
-        parameters["spline_redistribution_tolerance"] = float(self.builder.get_object('entry_spline_redistribution_tolerance').get_text())
         
-        parameters["fixed_terminal_images"                          ] = self.builder.get_object('check_fixed_terminal_images').get_active()
-        parameters["force_spline_redistribution_check_per_iteration"] = self.builder.get_object('check_force_spline_redistribution_check_per_iteration').get_active()
+        parameters["fixedTerminalImages"            ] = self.builder.get_object('check_fixed_terminal_images').get_active()
         
+        parameters["forceOneSingleImageOptimization"           ] = self.builder.get_object('check_force_one_single_image_optimization').get_active() # True/Fase
+        parameters["forceSingleImageOptimizations"             ] = self.builder.get_object('check_force_single_image_optimizations').get_active() # True/False
+        parameters["forceSplineRedistributionCheckPerIteration"] = self.builder.get_object('check_force_spline_redistribution_check_per_iteration').get_active()# True/False
+        
+        parameters["freezeRMSGradientTolerance"     ] = float(self.builder.get_object('entry_freeze_RMS_gradient_tolerance').get_text() )# #0.0
+        
+        parameters["optimizer"                      ] =  None
+        parameters["poolFactory"                    ] =  int(self.builder.get_object('entry_poolfactory').get_text())
+        parameters["rmsGradientToleranceScale"      ] =  0.25
+        
+        parameters["splineRedistributionTolerance"  ] = float(self.builder.get_object('entry_spline_redistribution_tolerance').get_text())
+        parameters["springForceConstant"            ] = float(self.builder.get_object('entry_spring_force_constant').get_text()          )
+        parameters["useSplineRedistribution"        ] = self.builder.get_object('check_use_spline_redistribution').get_active() # True/False
+        
+
         parameters["trajectory_name"] = self.builder.get_object('traj_name').get_text()
         parameters["folder"         ] = self.folder_chooser_button.get_folder()
         
