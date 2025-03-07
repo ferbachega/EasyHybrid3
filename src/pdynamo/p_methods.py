@@ -2835,7 +2835,7 @@ class ChainOfStatesOptimizePath:
             mProc = parameters["poolFactory"]
             #parameters["poolFactory"] = SGOFProcessPoolFactory ( maximumProcesses = 6, poolType = "Multiprocessing" )
             parameters["poolFactory"] = SGOFProcessPoolFactory ( maximumProcesses = mProc, poolType = "Multiprocessing" )
-        
+                                                                 
         ChainOfStatesOptimizePath_SystemGeometry ( system                                                   ,
                                                    trajectory                                               ,
                                                    

@@ -147,6 +147,11 @@ class ChainOfStatesOptWindow(Gtk.Window):
             self.builder.get_object('button_run').connect('clicked', self.run)
             self.builder.get_object('button_export').connect('clicked', self.on_btn_export)
             self.window.show_all()
+            
+            self.builder.get_object('label_poolfactory').hide()
+            self.builder.get_object('entry_poolfactory').hide()
+            
+            
             self.Visible  = True   
 
 
