@@ -19,7 +19,7 @@
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="orientation">vertical</property>
-            <property name="spacing">7</property>
+            <property name="spacing">2</property>
             <child>
               <object class="GtkFrame" id="dftp_setup_box3">
                 <property name="visible">True</property>
@@ -39,7 +39,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="orientation">vertical</property>
-                        <property name="spacing">11</property>
+                        <property name="spacing">5</property>
                         <child>
                           <!-- n-columns=3 n-rows=2 -->
                           <object class="GtkGrid">
@@ -181,7 +181,7 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">Log Frequency</property>
+                                <property name="label" translatable="yes">Log Frequency:</property>
                                 <property name="xalign">1</property>
                               </object>
                               <packing>
@@ -539,7 +539,7 @@
                     <property name="left-padding">10</property>
                     <property name="right-padding">10</property>
                     <child>
-                      <!-- n-columns=3 n-rows=3 -->
+                      <!-- n-columns=3 n-rows=2 -->
                       <object class="GtkGrid">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
@@ -600,15 +600,6 @@
                         <child>
                           <placeholder/>
                         </child>
-                        <child>
-                          <placeholder/>
-                        </child>
-                        <child>
-                          <placeholder/>
-                        </child>
-                        <child>
-                          <placeholder/>
-                        </child>
                       </object>
                     </child>
                   </object>
@@ -626,9 +617,6 @@
                 <property name="fill">True</property>
                 <property name="position">3</property>
               </packing>
-            </child>
-            <child>
-              <placeholder/>
             </child>
             <child>
               <object class="GtkButtonBox">
