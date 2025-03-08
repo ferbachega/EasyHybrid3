@@ -239,7 +239,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
         
         parameters["optimizer"                      ] =  None
         parameters["poolFactory"                    ] =  int(self.builder.get_object('entry_poolfactory').get_text())
-        parameters["rmsGradientToleranceScale"      ] =  0.25
+        parameters["rmsGradientToleranceScale"      ] =  float(self.builder.get_object('entry_optimizer_tolerance_scaling').get_text())#0.25
         
         parameters["splineRedistributionTolerance"  ] = float(self.builder.get_object('entry_spline_redistribution_tolerance').get_text())
         parameters["springForceConstant"            ] = float(self.builder.get_object('entry_spring_force_constant').get_text()          )

@@ -41,7 +41,7 @@
                         <property name="orientation">vertical</property>
                         <property name="spacing">11</property>
                         <child>
-                          <!-- n-columns=3 n-rows=3 -->
+                          <!-- n-columns=3 n-rows=2 -->
                           <object class="GtkGrid">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
@@ -101,15 +101,6 @@
                                 <property name="left-attach">1</property>
                                 <property name="top-attach">1</property>
                               </packing>
-                            </child>
-                            <child>
-                              <placeholder/>
-                            </child>
-                            <child>
-                              <placeholder/>
-                            </child>
-                            <child>
-                              <placeholder/>
                             </child>
                             <child>
                               <placeholder/>
@@ -180,11 +171,11 @@
                         <property name="orientation">vertical</property>
                         <property name="spacing">11</property>
                         <child>
-                          <!-- n-columns=3 n-rows=6 -->
+                          <!-- n-columns=2 n-rows=6 -->
                           <object class="GtkGrid">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="row-spacing">7</property>
+                            <property name="row-spacing">2</property>
                             <property name="column-spacing">10</property>
                             <child>
                               <object class="GtkLabel">
@@ -326,24 +317,6 @@
                                 <property name="top-attach">5</property>
                               </packing>
                             </child>
-                            <child>
-                              <placeholder/>
-                            </child>
-                            <child>
-                              <placeholder/>
-                            </child>
-                            <child>
-                              <placeholder/>
-                            </child>
-                            <child>
-                              <placeholder/>
-                            </child>
-                            <child>
-                              <placeholder/>
-                            </child>
-                            <child>
-                              <placeholder/>
-                            </child>
                           </object>
                           <packing>
                             <property name="expand">False</property>
@@ -388,7 +361,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="orientation">vertical</property>
-                        <property name="spacing">11</property>
+                        <property name="spacing">9</property>
                         <child>
                           <object class="GtkCheckButton" id="check_use_spline_redistribution">
                             <property name="label" translatable="yes">Use Spline Redistribution</property>
@@ -421,11 +394,11 @@
                           </packing>
                         </child>
                         <child>
-                          <!-- n-columns=3 n-rows=2 -->
+                          <!-- n-columns=2 n-rows=3 -->
                           <object class="GtkGrid">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="row-spacing">7</property>
+                            <property name="row-spacing">2</property>
                             <property name="column-spacing">10</property>
                             <child>
                               <object class="GtkLabel" id="splineRedistributionTolerance1">
@@ -443,6 +416,7 @@
                               <object class="GtkEntry" id="entry_spline_redistribution_tolerance">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
+                                <property name="hexpand">True</property>
                                 <property name="text" translatable="yes">1.5</property>
                               </object>
                               <packing>
@@ -473,10 +447,26 @@
                               </packing>
                             </child>
                             <child>
-                              <placeholder/>
+                              <object class="GtkLabel" id="label_optimizer_tolerance_scaling">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="label" translatable="yes">Optimizer Tolerance Scaling:</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">2</property>
+                              </packing>
                             </child>
                             <child>
-                              <placeholder/>
+                              <object class="GtkEntry" id="entry_optimizer_tolerance_scaling">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="text" translatable="yes">0.25</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">1</property>
+                                <property name="top-attach">2</property>
+                              </packing>
                             </child>
                           </object>
                           <packing>
@@ -553,7 +543,7 @@
                       <object class="GtkGrid">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="row-spacing">6</property>
+                        <property name="row-spacing">3</property>
                         <property name="column-spacing">10</property>
                         <child>
                           <object class="GtkLabel">
