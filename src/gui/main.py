@@ -72,6 +72,7 @@ from gui.windows.analysis.surface_analysis_window                 import Surface
 from gui.windows.analysis.energy_refinement_window                import EnergyRefinementWindow
 from gui.windows.analysis.PES_analysis_window                     import PotentialEnergyAnalysisWindow
 from gui.windows.analysis.distance_angle_dihedral_analysis_window import DistanceAngleDihedralAnalysisWindow
+from gui.windows.analysis.RMSD_tool                               import RMSDToolWindow
 
 from util.geometric_analysis import get_simple_distance
 from util.sequence_plot import GtkSequenceViewer
@@ -346,6 +347,8 @@ class MainWindow:
         self.normal_modes_analysis_window =   NormalModesAnalysisWindow (main = self)
         self.surface_analysis_window =   SurfaceAnalysisWindow (main = self)
         self.distance_angle_dihedral_analysis_window = DistanceAngleDihedralAnalysisWindow (main = self)
+        
+        self.rmsd_tool_window = RMSDToolWindow (main = self, system_liststore = self.system_liststore)
         
         
         self.normal_modes_window          =   NormalModesWindow (main = self)
@@ -966,6 +969,9 @@ class MainWindow:
         
         elif menuitem == self.builder.get_object('menuitem_d_a_d_analysis'):
             self.distance_angle_dihedral_analysis_window.OpenWindow()
+        
+        elif menuitem == self.builder.get_object('menuitem_RMSD_tool'):
+            self.rmsd_tool_window.OpenWindow()
         
         elif menuitem == self.builder.get_object('test_histograms'):
             from util.easyplot import ImagePlot, XYPlot

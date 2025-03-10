@@ -1010,11 +1010,12 @@
                       </object>
                     </child>
                     <child>
-                      <object class="GtkMenuItem" id="menuitem_RMSD_traj_tool">
+                      <object class="GtkMenuItem" id="menuitem_RMSD_tool">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">RMSD tool</property>
                         <property name="use-underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                       </object>
                     </child>
                     <child>
