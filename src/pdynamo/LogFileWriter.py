@@ -318,10 +318,12 @@ class LogFileReader:
             
             for line in data2[start:]: 
                 line2  = line.split()
-                if len(line2) == 9:
-                    Z.append(float(line2[1]))
-                    RC1.append(float(line2[-1]))
-
+                if len(line2) >= 9:
+                    try:
+                        Z.append(float(line2[1]))
+                        RC1.append(float(line2[-1]))
+                    except:
+                        print('Logfile parsing. Line is not a valid data')
             data = {
                    'name': self.basename,
                    'type': "plot1D",
