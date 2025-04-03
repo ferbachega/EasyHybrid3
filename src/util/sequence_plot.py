@@ -45,7 +45,8 @@ one_letter_res_dict = {'C':'CYS',
                        'V':'VAL', 
                        'E':'GLU', 
                        'Y':'TYR', 
-                       'M':'MET'}
+                       'M':'MET',
+                       '-':'gap',}
 
 
 
@@ -105,7 +106,9 @@ class SeqResidue:
     def change_rtype_color (self):
         """ Function doc """
         pass
+    
 
+        
 
 class TextDrawingArea(Gtk.DrawingArea):
 
@@ -298,7 +301,9 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
         self.motion_y = 0.0
 
         #-------------------------------------------------------------------------------
-        self.sequence ='MISYLASIFLLATVSAVPSGRVEVVFPSVETSRSGVKTVKFTA' 
+        self.sequence  ='---MISYLASIFLLATVSA-VPSGRVEVVFPSVETSRSGVK--TVKFTARVEVVFPSVETSRSGVK--TVKFTA' 
+        self.sequence2 ='---MISYLASIFLLTTTTT-VPSGRVEVVFPSVETSRSGVK--TVKFTA-------------------------' 
+        
         if self.mode ==1:
             self.set_canvas_width_and_height( width = (len(self.sequence)*12*4)+12  , height = 800)
         elif self.mode ==0:
@@ -309,10 +314,42 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
         self.sequences = []
         #'''
         sequence       = []
+        
+        counter = 0
         for rnum, res in enumerate(self.sequence):
-            res3l = one_letter_res_dict[res]
-            residue = SeqResidue(rname = res3l , rcode = res, rnum = rnum)
-            sequence.append(residue)
+            
+            if res == '-':
+                pass
+                res3l = one_letter_res_dict[res]
+                residue = SeqResidue(rname = res3l , rcode = res, rnum = None)
+                sequence.append(residue)
+            else:
+                res3l = one_letter_res_dict[res]
+                
+                residue = SeqResidue(rname = res3l , rcode = res, rnum = counter)
+                sequence.append(residue)
+                counter+=1
+
+        self.sequences.append(sequence)
+
+        sequence       = []
+        counter = 0
+        for rnum, res in enumerate(self.sequence2):
+            
+            if res == '-':
+                pass
+                res3l = one_letter_res_dict[res]
+                residue = SeqResidue(rname = res3l , rcode = res, rnum = None)
+                sequence.append(residue)
+            else:
+                res3l = one_letter_res_dict[res]
+                
+                residue = SeqResidue(rname = res3l , rcode = res, rnum = counter)
+                sequence.append(residue)
+                counter+=1
+
+
+
         self.sequences.append(sequence)
         '''
         self.sequence ='MISYLASIFTTTTHHHHHHHHHHHEVVFPSVETSRSGVKTVKFTA' 
@@ -407,33 +444,46 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
 
     def button_press (self, button, event):
         """ Function doc """
-        
+        print("here!")
         canvas_x, canvas_y= self.get_canvas_xy(event)
         
         if event.button == 1:
             self.is_button_1_pressed = True # mouse left button
-
             
-            
+            if self.sequences[canvas_y][canvas_x].rcode == '-':
+                print(canvas_x, canvas_y,
+                     self.sequences[canvas_y][canvas_x].rname  ,
+                     self.sequences[canvas_y][canvas_x].rcode  ,
+                     self.sequences[canvas_y][canvas_x].rnum   ,
+                     self.sequences[canvas_y][canvas_x].chain  ,
+                     )
+            else:
+                print(canvas_x, canvas_y,
+                     self.sequences[canvas_y][canvas_x].rname  ,
+                     self.sequences[canvas_y][canvas_x].rcode  ,
+                     self.sequences[canvas_y][canvas_x].rnum+1 ,
+                     self.sequences[canvas_y][canvas_x].chain  ,
+                     )  
+            #print('uhuuuuu')
             if self.sequences[canvas_y][canvas_x].is_selected:
-                print(canvas_x,canvas_y, self.sequences[canvas_y][canvas_x].rname)
+                #print(canvas_x,canvas_y, self.sequences[canvas_y][canvas_x].rname)
                 self.sequences[canvas_y][canvas_x].is_selected = False
                 self.select_in_motion = False
                 print('if dentro',self.sequences[0][canvas_x].is_selected) 
                 print('if dentro',self.sequences[1][canvas_x].is_selected)
             else:
-                print('else dentro',self.sequences[0][canvas_x].is_selected) 
-                print('else dentro',self.sequences[1][canvas_x].is_selected)
+                #print('else dentro',self.sequences[0][canvas_x].is_selected) 
+                #print('else dentro',self.sequences[1][canvas_x].is_selected)
                 self.sequences[canvas_y][canvas_x].is_selected = True
                 self.select_in_motion = True
-                print('else dentro',self.sequences[0][canvas_x].is_selected) 
-                print('else dentro',self.sequences[1][canvas_x].is_selected)
-                
-            print('fora1',self.sequences[0][canvas_x].is_selected) 
-            print('fora1',self.sequences[1][canvas_x].is_selected) 
+            #    print('else dentro',self.sequences[0][canvas_x].is_selected) 
+            #    print('else dentro',self.sequences[1][canvas_x].is_selected)
+            #    
+            #print('fora1',self.sequences[0][canvas_x].is_selected) 
+            #print('fora1',self.sequences[1][canvas_x].is_selected) 
             
+            #self.text_drawing_area.queue_draw()
             self.text_drawing_area.queue_draw()
-
         if event.button == 2:
             self.is_button_2_pressed = True # mouse middle button
         
@@ -507,5 +557,5 @@ if __name__ == '__main__':
     main.add(notebook) 
     main.show_all()
     Gtk.main()
-    print ('uhuuu')
+    #print ('uhuuu')
     #'''
