@@ -427,7 +427,7 @@ class MainWindow:
             self.gtk_save_as_file (button)
         
         if button  == self.builder.get_object('_show_cell'):
-            print('aqui')
+            #print('aqui')
             self.run_test(None)
             
         if button == self.builder.get_object('toolbutton_terminal'):
@@ -1669,7 +1669,7 @@ class MainWindow:
         pov_file.write(text)
         #print(text)
         #os.system('povray +A0.3 -UV +W1000 +H1000 +Itemp.pov +Otemp2.png')
-        print('povray +A0.3 -UV +W1000 +H1000 +Itemp.pov +Otemp2.png')
+        #print('povray +A0.3 -UV +W1000 +H1000 +Itemp.pov +Otemp2.png')
         
         
         print(self.vm_session.vm_glcore.glcamera.z_near, self.vm_session.vm_glcore.glcamera.z_far)
@@ -1896,7 +1896,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         system.e_liststore_iter = self.main.system_liststore.append([str(system.e_id)+' - '+ system.label, system.e_id, sqr_color])
         self.main.vobject_liststore_dict[system.e_id] = Gtk.ListStore(str, int, int,sqr_color)
         self.main.bottom_notebook.set_active_system_text_to_textbuffer()
-    
+
     def add_vismol_object_to_treeview(self, vismol_object):
         """ Function doc """
         e_id   = vismol_object.e_id
@@ -1924,7 +1924,9 @@ class EasyHybridMainTreeView(Gtk.TreeView):
 
         self.expand_row(row.path, True)
         self.refresh_trajectory_scalebar()
-    
+        # sequence 
+        self.main.bottom_notebook.seqview.refresh_vobject_sequence_list(self.main.vm_session.vm_objects_dic)
+
     def _create_treeview (self):
         """ Function doc """
         #treeview = Gtk.TreeView(model=self.treestore)
@@ -1980,6 +1982,34 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         self.selectedID  = int(self.treestore[path][1])
         vismol_object = self.main.vm_session.vm_objects_dic[self.selectedID]
         vismol_object.active = self.treestore[path][6]
+        
+        '''
+        #---------------------------------------------------------------
+        sequence = []
+        chains = vismol_object.chains.keys()
+        for key in chains:
+            chain = vismol_object.chains[key]
+            for resi in chain.residues.keys():
+                residue = chain.residues[resi]
+                sequence.append(residue.name)
+                print(chain, resi, residue.name)
+        #print(sequence)
+        #---------------------------------------------------------------
+        #'''
+        
+        self.main.bottom_notebook.seqview.refresh_vobject_sequence_list(self.main.vm_session.vm_objects_dic)
+        
+        ##self.main.bottom_notebook.seqview.add_new_3lettercode_sequence(sequence)
+        #
+        #self.main.bottom_notebook.seqview.clear_sequence_list()
+        #for index, vobject in self.main.vm_session.vm_objects_dic.items():
+        #    if vobject.active:
+        #        self.main.bottom_notebook.seqview.add_sequence_from_vobject(vobject)
+        #    else:
+        #        pass
+        #
+        ##sequence  ='---MISYLASIFLLATVSA-VPSGRVEVVFPSVETSRSGVK--TVKFTARVEVVFPSVETSRSGVK--TVKFTA' 
+        ##self.main.bottom_notebook.seqview.add_new_sequence(sequence)
         
         self.refresh_trajectory_scalebar()
         '''
@@ -2452,29 +2482,36 @@ class BottomNoteBook:
         self.builder.add_from_file(os.path.join(self.home,'src/gui/MainWindow_text_and_logs.glade'))
         
         self.widget = self.builder.get_object('notebook_text_and_logs')
-
         self._define_status_treeview()
     
-
+        #-----------------------------------------------------------------------
         self.annotations_textviewer = self.builder.get_object('annontations_textviewer')
         self.annotations_textbuffer = self.annotations_textviewer.get_buffer()
-
         #-----------------------------------------------------------------------
-        seqview =  SequenceViewerBox(main = self.main)
+        
+        
+        
+        #-----------------------------------------------------------------------
+        self.seqview =  GtkSequenceViewer(main = self.main)
         notebook = self.widget
-        tab_label = Gtk.Label("sequence")
-        notebook.append_page(seqview, tab_label)
+        tab_label = Gtk.Label("Label")
+        tab_label1 = Gtk.Label("sequence")
+        self.seqview.label = tab_label
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
+        #vbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        vbox.pack_start(tab_label, False, False, 0)
+        vbox.pack_start(self.seqview, True, True, 0)
+        
+        #notebook.append_page(self.seqview, tab_label)
+        notebook.append_page(vbox, tab_label1)
         #-----------------------------------------------------------------------
-        
-        
-        
-        #seqview.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
-        #seqview.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
-        #seqview.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
+        self.seqview.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+        self.seqview.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        self.seqview.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
         #
-        #seqview.connect("motion-notify-event" , seqview.on_motion)
-        #seqview.connect("button_press_event"  , seqview.button_press)
-        #seqview.connect("button-release-event", seqview.button_release)
+        self.seqview.connect("motion-notify-event" , self.seqview.on_motion)
+        self.seqview.connect("button_press_event"  , self.seqview.button_press)
+        self.seqview.connect("button-release-event", self.seqview.button_release)
         ##-----------------------------------------------------------------------
 
 
