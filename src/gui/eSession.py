@@ -1065,7 +1065,11 @@ class EasyHybridSession(VismolSession, GLMenu):
         ##print('\n\n\n',a, '\n\n\n')
         self.selection_box_frame = None
         self.cmd = CommandLine(self)
-   
+        #self.vm_widget.connect_after("button-press-event", self.meu_evento_personalizado)
+        
+        
+        
+    
     
     def restart (self):
         """ Function doc """
@@ -1091,6 +1095,20 @@ class EasyHybridSession(VismolSession, GLMenu):
         else:
             self.selections[self.current_selection].selection_function_viewing(selected, _type, disable)
 
+
+    def _selection_function_set(self, selected, _type=None, disable=True):
+        """ Function doc """
+        if self.picking_selection_mode: # True for picking mode
+            if selected:
+                assert len(selected) == 1
+                selected = list(selected)[0]
+                self.picking_selections.selection_function_picking(selected)
+            else:
+                self.picking_selections.selection_function_picking(None)
+        else: # False for viewing mode
+            self.selections[self.current_selection].selection_function_viewing_set(selected, _type, disable)
+        #this will refresh the sequence canvas
+        self.main.bottom_notebook.seqview.text_drawing_area.queue_draw()
     
     def viewing_selection_mode(self, sel_type="atom"):
         """ Function doc """

@@ -2494,7 +2494,7 @@ class BottomNoteBook:
         #-----------------------------------------------------------------------
         self.seqview =  GtkSequenceViewer(main = self.main)
         notebook = self.widget
-        tab_label = Gtk.Label("Label")
+        tab_label = Gtk.Label("-")
         tab_label1 = Gtk.Label("sequence")
         self.seqview.label = tab_label
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
@@ -2514,9 +2514,15 @@ class BottomNoteBook:
         self.seqview.connect("button-release-event", self.seqview.button_release)
         ##-----------------------------------------------------------------------
 
-
-
-
+        self.main.vm_session.vm_widget.connect_after("button-release-event", self.meu_evento_personalizado)
+    
+    def meu_evento_personalizado (self, widget, event):
+        """ Function doc """
+        #print(widget, event)
+        
+        #self.main.bottom_notebook.seqview.text_drawing_area.queue_draw()
+        #print(self.main.vm_session.selections[self.main.vm_session.current_selection].active)
+    
     def _define_status_treeview (self):
         """   
         This function builds the status treeview

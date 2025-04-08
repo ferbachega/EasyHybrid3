@@ -94,12 +94,11 @@ class SeqResidue:
         self.rcode  = rcode
         self.rnum   = rnum 
         self.chain  = chain
+        self.vres   = False #vismol residues object
         
         self.is_selected = False
         self.rtype_color = color 
         self.is_solvent  = False 
-        
-        #self.
         
     def change_rtype_color (self):
         """ Function doc """
@@ -109,6 +108,26 @@ class SeqResidue:
         """ Function doc """
         self.is_selected = is_selected
 
+    def _is_selected (self, ):
+        """ Function doc """
+        # Checks if **only one** item has selected = True
+        self.is_selected = False
+        
+        if self.vres:
+            
+            for i in self.vres.atoms.values():
+                if i.selected:
+                    self.is_selected = True
+                else:
+                    pass
+                
+                #print (i, i.selected)
+            #self.is_selected = sum(obj.selected for obj in self.vres.atoms.values()) == 1
+            
+            #print(self.vres.atoms.values())
+        else:
+            pass
+        
         
 class TextDrawingArea(Gtk.DrawingArea):
 
@@ -140,14 +159,10 @@ class TextDrawingArea(Gtk.DrawingArea):
         #self.connect("motion-notify-event", self.on_motion)
         #self.connect("button_press_event" , self.button_press)
         #self.connect("clicked" , self.button_press)
-        
-        
         #sefl.on_motion = main.on_motion
-    
     
     def on_motion (self, widget, event):
         """ Function doc """
-        #print('uhuu')
     
     def get_char_size (self,cr):
         """ Function doc """
@@ -225,47 +240,70 @@ class TextDrawingArea(Gtk.DrawingArea):
                 
                 #print('xmax', xmax,'ymax', ymax)
                 #print(marker, k, x, y)
+                show_selection = True
+                if self.main.main.vm_session.selections[self.main.main.vm_session.current_selection].active:
+                    pass
+                else:
+                    show_selection = False
+                
                 
                 '''   Draw the resiues - one letter code.     '''
                 k = 0
                 for residue in sequence:
-                    if residue.is_selected:
-                        x, y = k, i*3 +i*index
-                        #- - - - - - selection box - - - - - - - -
-                        cr.set_source_rgb(0, 0, 1)
-                        cr.set_source_rgb(residue.rtype_color[0],residue.rtype_color[1],residue.rtype_color[2] )
-                        cr.rectangle(
-                                     x,
-                                     y-16 ,
-                                     12 ,
-                                     18 )
-                        
-                        #cr.rectangle(
-                        #             k,
-                        #             i-12, 
-                        #             k+12, 
-                        #             i )
-                        cr.fill()
-                        #-------------------------------------------
-                        
-                        cr.set_source_rgb(self.bg_color[0], 
-                                          self.bg_color[1],
-                                          self.bg_color[2],)
-                        
-                        
-                        
-                        #cr.set_source_rgb(1, 0, 0)
-                        
-                        
-                        #cr.set_source_rgb(self.rtype_color)
-                        text =  residue.rcode
-                          # Posição do texto
-                        cr.move_to(x, y)
-                        cr.show_text(text)
                     
+                    #if self.main.main.vm_session.selections[self.main.vm_session.current_selection].active:
+                    #print(self.main.main.vm_session.selections[self.main.main.vm_session.current_selection].active)
+                    #if show_selection:
+                    
+                    x, y = k, i*3 +i*index
+                    
+                    if show_selection:
+                        residue._is_selected()
+                        if residue.is_selected:
+                            #- - - - - - selection box - - - - - - - -
+                            cr.set_source_rgb(0, 0, 1)
+                            cr.set_source_rgb(residue.rtype_color[0],residue.rtype_color[1],residue.rtype_color[2] )
+                            cr.rectangle(
+                                        x,
+                                        y-16 ,
+                                        12 ,
+                                        18 )
+                            
+                            #cr.rectangle(
+                            #             k,
+                            #             i-12, 
+                            #             k+12, 
+                            #             i )
+                            cr.fill()
+                            #-------------------------------------------
+                            
+                            cr.set_source_rgb(self.bg_color[0], 
+                                            self.bg_color[1],
+                                            self.bg_color[2],)
+                            
+                            
+                            
+                            #cr.set_source_rgb(1, 0, 0)
+                            
+                            
+                            #cr.set_source_rgb(self.rtype_color)
+                            text =  residue.rcode
+                            # Posição do texto
+                            cr.move_to(x, y)
+                            cr.show_text(text)
+                        else:
+                            if residue.rcode  == '-':
+                                cr.set_source_rgb(self.gap_color[0],
+                                                  self.gap_color[1],
+                                                  self.gap_color[2], )
+                            else:
+                                cr.set_source_rgb(residue.rtype_color[0],residue.rtype_color[1],residue.rtype_color[2] )
+                            
+                            text =  residue.rcode
+                            x, y = k, i*3 +i*index# Posição do texto
+                            cr.move_to(x, y)
+                            cr.show_text(text)
                     else:
-                        #print ('')
-                        #cr.set_source_rgb(0, 0, 1)
                         if residue.rcode  == '-':
                             cr.set_source_rgb(self.gap_color[0],
                                               self.gap_color[1],
@@ -277,15 +315,15 @@ class TextDrawingArea(Gtk.DrawingArea):
                         x, y = k, i*3 +i*index# Posição do texto
                         cr.move_to(x, y)
                         cr.show_text(text)
-                        #print (x, y, text)
+                    
+                    #---------------------------------------------------
                     k = k+self.char_width 
-            
                     if y > ymax:
                         ymax = y
                     if x > xmax:
                         xmax = x
-                #print('xmax', xmax+300,'ymax', ymax )
-            
+                    #---------------------------------------------------
+
             
             
             
@@ -454,7 +492,6 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
         #'''
         #print(self.sequences)
         #-------------------------------------------------------------------------------
-    
     def add_sequence_from_vobject (self, vobject):
         """ Function doc """
         #print('aqui', vobject)
@@ -620,8 +657,6 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
             else:
                 pass
         
-    
-    
     def set_font_size (self, size = 20):
         """ Function doc """
         self.text_drawing_area.font_size = size
@@ -702,6 +737,10 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
             pass
             
         if self.is_button_1_pressed:
+            
+            #print(self.sequences[canvas_y][canvas_x].vres.name,
+            #      self.sequences[canvas_y][canvas_x].rnum)
+            '''
             if self.select_in_motion:
                 if self.sequences[canvas_y][canvas_x].rcode == '-':
                     pass
@@ -710,10 +749,8 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
                     #atom_keys = list(self.sequences[canvas_y][canvas_x].vres.atoms.values())
                     #self.main.vm_session._selection_function_set({atom_keys[0]})
             else:
-                
-                
                 self.sequences[canvas_y][canvas_x].set_active(False)
-                
+            #'''
 
             self.main.vm_session.vm_glcore.queue_draw()
             self.text_drawing_area.queue_draw()
