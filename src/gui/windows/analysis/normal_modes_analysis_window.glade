@@ -93,10 +93,12 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkComboBox" id="surf_type_combobox">
+                  <object class="GtkButton" id="import_btn">
+                    <property name="label" translatable="yes">Open</property>
                     <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="hexpand">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                    <signal name="clicked" handler="on_button_import" swapped="no"/>
                   </object>
                   <packing>
                     <property name="left-attach">1</property>
