@@ -526,13 +526,12 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
                 empty_seq = '-'*index_max
                 
                 for index, gap in enumerate(empty_seq):
-                    
                     if index+1 in resi_keys:
+                        #if the residue is on three_letter_res_dict
                         try:
                             vresidue = chain.residues[index+1]
                             resn     = vresidue.name 
                             res1l    = three_letter_res_dict[resn]
-                            #print(vresidue,resn,res1l)
                             residue  = SeqResidue(rname = resn, 
                                                 rcode = res1l, 
                                                 rnum  = index+1,
@@ -540,19 +539,16 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
                                                 chain = chain.name)
                             residue.vres = vresidue
                             sequence.append(residue)
-                            #print(resi, residue.rname)
                         
+                        #if the residue is not on three_letter_res_dict
                         except:
-                            #print('HUUUUUU')
                             vresidue = chain.residues[index+1]
                             resn     = vresidue.name 
                             rcode    = '%'
                             
                             if vresidue.is_solvent:
                                 pass
-                            
                             else:
-                                #print(resn,)
                                 residue  = SeqResidue(rname = resn, 
                                                     rcode = rcode, 
                                                     rnum  = index+1,
@@ -560,6 +556,7 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
                                                     chain = chain.name)
                                 residue.vres = vresidue
                                 sequence.append(residue)
+                    # if it is a 'gap' = '-'
                     else:
                         residue = SeqResidue(rname = 'gap', 
                                             rcode = '-', 
