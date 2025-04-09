@@ -495,111 +495,88 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
     def add_sequence_from_vobject (self, vobject):
         """ Function doc """
         #print('aqui', vobject)
-        sequence = []
-        chains = vobject.chains.keys()
         
-        for key in chains:
-            #----------------------------------------------------
-            # - - - - - - - - Finding the color - - - - - - - - -
-            #----------------------------------------------------
-            e_id = vobject.e_id
-            system = self.main.p_session.get_system(index = e_id)
-            color = system.e_color_palette['C']
-            #----------------------------------------------------
-            
-            
-            chain = vobject.chains[key]
-            max_index = max(chain.residues.keys())
-            
-            #print('max_index1',max_index)
-            resi_keys = list(chain.residues.keys())
-            resi_keys.sort()
-            
-            
-            index_max = max(resi_keys)
-            max_resi  = chain.residues[index_max]
-            
-            empty_seq = '-'*index_max
-            
-            for index, gap in enumerate(empty_seq):
+        
+        if getattr(vobject, 'e_sequence', False):
+            sequence = vobject.e_sequence
+        
+        else:
+            #if vobject.sequence
+            sequence = []
+            chains = vobject.chains.keys()
+            for key in chains:
+                #----------------------------------------------------
+                # - - - - - - - - Finding the color - - - - - - - - -
+                #----------------------------------------------------
+                e_id = vobject.e_id
+                system = self.main.p_session.get_system(index = e_id)
+                color = system.e_color_palette['C']
+                #----------------------------------------------------
+
+                chain = vobject.chains[key]
+                max_index = max(chain.residues.keys())
                 
-                if index+1 in resi_keys:
-                    try:
-                        vresidue = chain.residues[index+1]
-                        resn     = vresidue.name 
-                        res1l    = three_letter_res_dict[resn]
-                        #print(vresidue,resn,res1l)
-                        residue  = SeqResidue(rname = resn, 
-                                              rcode = res1l, 
-                                              rnum  = index+1,
-                                              color = color,
-                                              chain = chain.name)
-                        residue.vres = vresidue
-                        sequence.append(residue)
-                        #print(resi, residue.rname)
+                #print('max_index1',max_index)
+                resi_keys = list(chain.residues.keys())
+                resi_keys.sort()
+                
+                
+                index_max = max(resi_keys)
+                max_resi  = chain.residues[index_max]
+                empty_seq = '-'*index_max
+                
+                for index, gap in enumerate(empty_seq):
                     
-                    except:
-                        #print('HUUUUUU')
-                        vresidue = chain.residues[index+1]
-                        resn     = vresidue.name 
-                        rcode    = '%'
-                        
-                        if vresidue.is_solvent:
-                            pass
-                        
-                        else:
-                            #print(resn,)
+                    if index+1 in resi_keys:
+                        try:
+                            vresidue = chain.residues[index+1]
+                            resn     = vresidue.name 
+                            res1l    = three_letter_res_dict[resn]
+                            #print(vresidue,resn,res1l)
                             residue  = SeqResidue(rname = resn, 
-                                                  rcode = rcode, 
-                                                  rnum  = index+1,
-                                                  color = color,
-                                                  chain = chain.name)
+                                                rcode = res1l, 
+                                                rnum  = index+1,
+                                                color = color,
+                                                chain = chain.name)
                             residue.vres = vresidue
                             sequence.append(residue)
+                            #print(resi, residue.rname)
+                        
+                        except:
+                            #print('HUUUUUU')
+                            vresidue = chain.residues[index+1]
+                            resn     = vresidue.name 
+                            rcode    = '%'
                             
+                            if vresidue.is_solvent:
+                                pass
                             
-                            
-                            
-                            
-                            
+                            else:
+                                #print(resn,)
+                                residue  = SeqResidue(rname = resn, 
+                                                    rcode = rcode, 
+                                                    rnum  = index+1,
+                                                    color = color,
+                                                    chain = chain.name)
+                                residue.vres = vresidue
+                                sequence.append(residue)
+                    else:
+                        residue = SeqResidue(rname = 'gap', 
+                                            rcode = '-', 
+                                            rnum  = index,
+                                            chain = chain.name)
+                        sequence.append(residue)
+            
+            delete = True
+            pos = -1
+            #'''
+            while delete:
+                if sequence[-1].rcode == '-':
+                    sequence.pop(-1)
                 else:
-                    residue = SeqResidue(rname = 'gap', 
-                                         rcode = '-', 
-                                         rnum  = index,
-                                         chain = chain.name)
-                    sequence.append(residue)
-           
-                    
-                    
-                    
-            
-            #print('type',type(list(resi_keys)))
-            
-            #for resi in  resi_keys:
-            #    #print(resi)
-            #    try:
-            #        vresidue = chain.residues[resi]
-            #        resn     = vresidue.name 
-            #        res1l    = three_letter_res_dict[resn]
-            #        #print(vresidue,resn,res1l)
-            #        residue = SeqResidue(rname = resn, 
-            #                             rcode = res1l, 
-            #                             rnum  = resi,
-            #                             chain = chain.name)
-            #        sequence.append(residue)
-            #        #print(resi, residue.rname)
-            #    
-            #    except:
-            #        pass
-        delete = True
-        pos = -1
-        while delete:
-            if sequence[-1].rcode == '-':
-                sequence.pop(-1)
-            else:
-                delete = False
-    
-            
+                    delete = False
+            #'''
+            vobject.e_sequence = sequence  
         
         self.sequences.append(sequence)
         self.text_drawing_area.queue_draw()

@@ -1024,6 +1024,7 @@
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">Ramachandran Plot</property>
                         <property name="use-underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                       </object>
                     </child>
                     <child>

@@ -76,6 +76,7 @@ from gui.windows.analysis.RMSD_tool                               import RMSDToo
 
 from util.geometric_analysis import get_simple_distance
 from util.sequence_plot import GtkSequenceViewer
+from util.rama_plot import RamachandranWindow
 
 
 from pdynamo.pDynamo2EasyHybrid import pDynamoSession
@@ -969,6 +970,9 @@ class MainWindow:
         
         elif menuitem == self.builder.get_object('menuitem_d_a_d_analysis'):
             self.distance_angle_dihedral_analysis_window.OpenWindow()
+        
+        elif menuitem == self.builder.get_object('menuitem_rama'):
+            rama = RamachandranWindow()
         
         elif menuitem == self.builder.get_object('menuitem_RMSD_tool'):
             self.rmsd_tool_window.OpenWindow()
