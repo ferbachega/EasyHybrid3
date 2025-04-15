@@ -69,7 +69,7 @@ from gui.windows.simulation.normal_modes_window          import NormalModesWindo
 from gui.windows.analysis.WHAM_analysis_window                    import WHAMWindow 
 from gui.windows.analysis.normal_modes_analysis_window            import NormalModesAnalysisWindow 
 from gui.windows.analysis.surface_analysis_window                 import SurfaceAnalysisWindow 
-from gui.windows.analysis.surface_list_window                     import SurfaceListWindow 
+#from gui.windows.analysis.surface_list_window                     import SurfaceListWindow 
 from gui.windows.analysis.energy_refinement_window                import EnergyRefinementWindow
 from gui.windows.analysis.PES_analysis_window                     import PotentialEnergyAnalysisWindow
 from gui.windows.analysis.distance_angle_dihedral_analysis_window import DistanceAngleDihedralAnalysisWindow
@@ -348,7 +348,7 @@ class MainWindow:
         
         self.normal_modes_analysis_window =   NormalModesAnalysisWindow (main = self)
         self.surface_analysis_window =   SurfaceAnalysisWindow (main = self)
-        self.surface_list_window =   SurfaceListWindow (main = self)
+        #self.surface_list_window =   SurfaceListWindow (main = self)
         self.distance_angle_dihedral_analysis_window = DistanceAngleDihedralAnalysisWindow (main = self)
         
         self.rmsd_tool_window = RMSDToolWindow (main = self, system_liststore = self.system_liststore)

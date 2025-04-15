@@ -445,16 +445,8 @@ class SurfaceAnalysisWindow(Gtk.Window):
         
         
         self.main.main_treeview.add_vismol_object_to_treeview(vobject_tmp,vismol_object.e_treeview_iter )
-        # Add the VisMol object to the vobject liststore dictionary
         self.main.add_vobject_to_vobject_liststore_dict(vobject_tmp)
-        # Refresh the widgets in the main window
         self.main.refresh_widgets()
-        
-        
-        
-        
-        #print(vobject_tmp, vobject_tmp.surface_trajectory)
-        #self.vm_session.vm_objects_dic[self.counter] = vobject_tmp
         self.vm_session.vm_glcore.queue_draw()
         self.counter +=1
         
