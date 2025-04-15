@@ -163,6 +163,9 @@ class LoadAndSaveData:
                         if getattr (vobject, 'idx_2D_xy', False):
                             vobj_data['idx_2D_xy'] = vobject.idx_2D_xy
                         
+                        if getattr (vobject, 'is_surface', False):
+                            vobj_data['is_surface'] = vobject.is_surface
+                        
                         data['vobjects'].append(vobj_data)
                             
                 easyhybrid_session_data['systems'].append(data)
@@ -261,24 +264,33 @@ class LoadAndSaveData:
                 name   = vobj['name']
                 
                 
-                vm_object = self._build_vobject_from_pDynamo_system ( system = system, name = name ) 
-                vm_object.frames = frames
-                vm_object.active = vobj['active']
-                self.vm_session._add_vismol_object(vm_object, show_molecule = True)
+                if 'is_surface' in vobj.keys():
+                    pass
+                else:
+                    vobj['is_surface'] = False
                 
-                self.main.main_treeview.add_vismol_object_to_treeview(vm_object)
-                
-                self.main.add_vobject_to_vobject_liststore_dict(vm_object)
-                
-                self._apply_fixed_representation_to_vobject(vismol_object =vm_object)
-                self._apply_QC_representation_to_vobject(vismol_object =vm_object)
-                
-                self.main.refresh_widgets()
-                
-                if 'logfile_data' in vobj.keys():
-                    system.e_logfile_data[vm_object.index] = vobj['logfile_data']
-                if 'idx_2D_xy' in vobj.keys():
-                    vm_object.idx_2D_xy  = vobj['idx_2D_xy']
+                if vobj['is_surface']:
+                    print(vobj['is_surface'])
+                    pass
+                else:
+                    vm_object = self._build_vobject_from_pDynamo_system ( system = system, name = name ) 
+                    vm_object.frames = frames
+                    vm_object.active = vobj['active']
+                    self.vm_session._add_vismol_object(vm_object, show_molecule = True)
+                    
+                    self.main.main_treeview.add_vismol_object_to_treeview(vm_object)
+                    
+                    self.main.add_vobject_to_vobject_liststore_dict(vm_object)
+                    
+                    self._apply_fixed_representation_to_vobject(vismol_object =vm_object)
+                    self._apply_QC_representation_to_vobject(vismol_object =vm_object)
+                    
+                    self.main.refresh_widgets()
+                    
+                    if 'logfile_data' in vobj.keys():
+                        system.e_logfile_data[vm_object.index] = vobj['logfile_data']
+                    if 'idx_2D_xy' in vobj.keys():
+                        vm_object.idx_2D_xy  = vobj['idx_2D_xy']
         if tmp:
             filename = filename.replace('~', '')
             self.main.session_filename = filename
@@ -1022,19 +1034,23 @@ class ModifyRepInVismol:
             qc_table = list(system.qcState.pureQCAtoms)
             for vismol_object in self.vm_session.vm_objects_dic.values():
                 if vismol_object.e_id == system.e_id:
-                    selection = self.vm_session.create_new_selection()
-                    selection.selecting_by_indexes(vismol_object, qc_table, clear=True)
-                    self.vm_session.show_or_hide(rep_type = 'lines',selection= selection, show = True )
-                    self.vm_session.show_or_hide(rep_type = 'dynamic',selection= selection , show = False )
-                    
-                    #self.vm_session.show_or_hide(rep_type = 'stick',selection= selection , show = False )
-                    for atom in vismol_object.atoms.values():
-                        atom.spheres = False
-                        atom.sticks = False
-                    
-                    vismol_object.representations['spheres'] = None
-                    vismol_object.representations['sticks'] = None
-                    #self._apply_QC_representation_to_vobject   (system_id = None, vismol_object = vismol_object)                   
+                    if getattr(vismol_object, 'is_surface', False):
+                        pass
+                    else:
+                        
+                        selection = self.vm_session.create_new_selection()
+                        selection.selecting_by_indexes(vismol_object, qc_table, clear=True)
+                        self.vm_session.show_or_hide(rep_type = 'lines',selection= selection, show = True )
+                        self.vm_session.show_or_hide(rep_type = 'dynamic',selection= selection , show = False )
+                        
+                        #self.vm_session.show_or_hide(rep_type = 'stick',selection= selection , show = False )
+                        for atom in vismol_object.atoms.values():
+                            atom.spheres = False
+                            atom.sticks = False
+                        
+                        vismol_object.representations['spheres'] = None
+                        vismol_object.representations['sticks'] = None
+                        #self._apply_QC_representation_to_vobject   (system_id = None, vismol_object = vismol_object)                   
             
 
     def _apply_fixed_representation_to_vobject (self, system_id = None, vismol_object = None):

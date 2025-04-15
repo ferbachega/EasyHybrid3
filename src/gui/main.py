@@ -69,6 +69,7 @@ from gui.windows.simulation.normal_modes_window          import NormalModesWindo
 from gui.windows.analysis.WHAM_analysis_window                    import WHAMWindow 
 from gui.windows.analysis.normal_modes_analysis_window            import NormalModesAnalysisWindow 
 from gui.windows.analysis.surface_analysis_window                 import SurfaceAnalysisWindow 
+from gui.windows.analysis.surface_list_window                     import SurfaceListWindow 
 from gui.windows.analysis.energy_refinement_window                import EnergyRefinementWindow
 from gui.windows.analysis.PES_analysis_window                     import PotentialEnergyAnalysisWindow
 from gui.windows.analysis.distance_angle_dihedral_analysis_window import DistanceAngleDihedralAnalysisWindow
@@ -347,6 +348,7 @@ class MainWindow:
         
         self.normal_modes_analysis_window =   NormalModesAnalysisWindow (main = self)
         self.surface_analysis_window =   SurfaceAnalysisWindow (main = self)
+        self.surface_list_window =   SurfaceListWindow (main = self)
         self.distance_angle_dihedral_analysis_window = DistanceAngleDihedralAnalysisWindow (main = self)
         
         self.rmsd_tool_window = RMSDToolWindow (main = self, system_liststore = self.system_liststore)
@@ -962,7 +964,7 @@ class MainWindow:
         
         elif menuitem == self.builder.get_object('menuitem_surface_analysis'):
             self.surface_analysis_window.OpenWindow()
-
+            #self.surface_list_window.OpenWindow()
 
         
         elif menuitem == self.builder.get_object('menuitem_energy_refinement'):
@@ -1297,16 +1299,24 @@ class MainWindow:
         system.e_color_palette['C'] = new_color
         sqr_color                   = get_colorful_square_pixel_buffer (system)
         
-        
+        print(system.e_liststore_iter, sqr_color)
         self.system_liststore[system.e_liststore_iter][2] = sqr_color 
 
         self.main_treeview_model =  self.main_treeview.get_model() 
         self.main_treeview_model[system.e_treeview_iter][9] = sqr_color
         
         for index, vobject in self.vm_session.vm_objects_dic.items():
+            
+           
             treeview_iter = vobject.e_treeview_iter
             if self.main_treeview_model[treeview_iter][0] == system.e_id:
-                self.main_treeview_model[treeview_iter][9] = sqr_color
+                
+                #If vobject is a surface, no pixelsqr on treeview
+                is_surface = getattr(vobject, 'is_surface', False)
+                if is_surface:                
+                    self.main_treeview_model[treeview_iter][9] = None
+                else:
+                    self.main_treeview_model[treeview_iter][9] = sqr_color
                 self.vobject_liststore_dict[system.e_id][vobject.liststore_iter][3]=sqr_color
             else:
                 pass
@@ -1901,7 +1911,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         self.main.vobject_liststore_dict[system.e_id] = Gtk.ListStore(str, int, int,sqr_color)
         self.main.bottom_notebook.set_active_system_text_to_textbuffer()
 
-    def add_vismol_object_to_treeview(self, vismol_object):
+    def add_vismol_object_to_treeview(self, vismol_object, vobj_parent = False):
         """ Function doc """
         e_id   = vismol_object.e_id
         system = self.main.p_session.get_system(e_id)
@@ -1909,8 +1919,12 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         #color      =  system.e_color_palette['C']
         #res_color  = [int(color[0]*255),int(color[1]*255),int(color[2]*255)] 
         #sqr_color  =  getColouredPixmap( res_color[0], res_color[1], res_color[2] )
-        
-        parent = system.e_treeview_iter #self.tree_iters_dict[system.e_treeview_iter_parent_key]
+        if vobj_parent:
+            vismol_object.is_surface = True
+            parent = vobj_parent
+            sqr_color   = None
+        else:
+            parent = system.e_treeview_iter #self.tree_iters_dict[system.e_treeview_iter_parent_key]
         
         size   = len(vismol_object.frames)
         _iter  = self.treestore.append(parent, [e_id,  vismol_object.index , vismol_object.name, False, False , True, vismol_object.active, True, size, sqr_color])
@@ -2138,26 +2152,28 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         vismol_object.e_treeview_iter_parent_key
         """
         for index, vobject in self.main.vm_session.vm_objects_dic.items():
-            
-            treeview_iter = vobject.e_treeview_iter
-            size = len(vobject.frames)
-            self.treestore[treeview_iter][8] = size
-            #print(index, self.treestore[treeview_iter][2], 'frames', len(vobject.frames))
+            if getattr(vobject, 'e_treeview_iter', False):
+                treeview_iter = vobject.e_treeview_iter
+                size = len(vobject.frames)
+                self.treestore[treeview_iter][8] = size
+                #print(index, self.treestore[treeview_iter][2], 'frames', len(vobject.frames))
 
 
     def refresh_trajectory_scalebar (self):
         """ Function doc """
         higher = 1
         for index, vobject in self.main.vm_session.vm_objects_dic.items():
-            treeview_iter = vobject.e_treeview_iter
-            if vobject.active:
-                size = len(vobject.frames)
-                if size > higher:
-                    higher = size
+            
+            if getattr(vobject, 'e_treeview_iter', False):
+                treeview_iter = vobject.e_treeview_iter
+                if vobject.active:
+                    size = len(vobject.frames)
+                    if size > higher:
+                        higher = size
+                    else:
+                        pass
                 else:
                     pass
-            else:
-                pass
         self.main.trajectory_player_window.change_range(upper = higher)
         self.main.trajectory_player_window.upper = higher
 

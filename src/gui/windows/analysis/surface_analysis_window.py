@@ -41,6 +41,7 @@ import multiprocessing
 from gui.widgets.custom_widgets import SystemComboBox
 from gui.widgets.custom_widgets import CoordinatesComboBox
 from vismol.libgl.representations import SurfaceRepresentation
+from vismol.core.vismol_object import VismolObject
 
 #----------------------------------------------------------------------
 from pSimulation import QCGridPropertyGenerator
@@ -70,7 +71,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
         self.wave_function_dict = {
                                        #vm_object_id:[orbitals, gridgenerator]
                                       }
-        
+        self.counter = 1000
         
         self.modes = None
         self.running = False
@@ -120,9 +121,28 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.btn_import_wfunction =  self.builder.get_object('btn_import_wavefunction')
             self.btn_import_wfunction.connect('clicked', self.on_button_import_wavefunction)
 
-            self.label_frame = self.builder.get_object('label_frame')
+
+            #                       SURFACE TYPE COMBOBOX
+            #'''--------------------------------------------------------------------------------------------'''
+            self.box_surface_type = self.builder.get_object('box_surface_type')
             
-      
+            self.cbx_surface_type = Gtk.ComboBoxText()
+            self.cbx_surface_type.connect("changed", self.surface_combobox_change)
+
+            self.surface_options = ["Orbitals"               , 
+                                    "Electrostatic Potential",
+                                    "Density"              , 
+                                    'External'               ]
+            for i, item in  enumerate(self.surface_options):
+                self.cbx_surface_type.insert(i, str(i), item )
+                
+            self.box_surface_type.pack_start(self.cbx_surface_type, False, False, 0)
+            self.cbx_surface_type.set_active(0)
+            #'''--------------------------------------------------------------------------------------------'''
+
+
+            self.label_frame = self.builder.get_object('label_frame')
+                 
             system  = self.main.p_session.get_system()
             for row in self.main.vobject_liststore_dict[self.main.p_session.active_id]:
                 
@@ -132,7 +152,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.coordinates_combobox.set_model(self.coordinates_liststore)
             
 
-            columns = [' ', 'Orbital', 'Occ.', 'Energy', 'visible']
+            columns = [' ', 'Orbital', 'Occ.', 'Energy']#, 'visible']
             
             self.liststore = Gtk.ListStore(int, str, int, float, bool)
 
@@ -148,11 +168,19 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 else:    
                     column = Gtk.TreeViewColumn(column_title, renderer, text=i)
                 self.treeview.append_column(column)
-
-
+            
+            #-----------------------------------------------------------
+            self.btn_render = self.builder.get_object('btn_render')
+            self.btn_render.connect('clicked', self.on_render_button)
+            #-----------------------------------------------------------
+            
             #self.refresh_system_liststore()
             #self.treeview_menu         = TreeViewMenu(self)
             self.window.show_all()                                               
+            
+            
+            self.builder.get_object('btn_external_file').hide()
+            self.builder.get_object('label_external_file').hide()
             #self.system_names_combo.set_active(0)
             self.visible    =  True
             '''--------------------------------------------------------------------------------------------'''
@@ -223,8 +251,12 @@ class SurfaceAnalysisWindow(Gtk.Window):
         
         self.coordinates_liststore.clear()
         for key , vobject in self.vm_session.vm_objects_dic.items():
-            if vobject.e_id == system_id:
-                self.coordinates_liststore.append([vobject.name, key])
+            if vobject.is_surface:
+                print(vobject.is_surface)
+                pass
+            else:
+                if vobject.e_id == system_id:
+                    self.coordinates_liststore.append([vobject.name, key])
         
         self.coordinates_combobox.set_active(len(self.coordinates_liststore)-1)
         
@@ -240,10 +272,34 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.coordinates_combobox.set_active(size-1)
         
         
-
+    def surface_combobox_change (self, widget):
+        """ Function doc """
+        index = self.cbx_surface_type.get_active()
+        print(index)
+        if index in [1,2]:
+            #self.builder.get_object('btn_import_wavefunction').set_sensitive(False)
+            #self.builder.get_object('selection_treeview')     .set_sensitive(False)
+            self.builder.get_object('btn_import_wavefunction').hide()
+            self.builder.get_object('selection_treeview')     .hide()
+            self.builder.get_object('label_external_file').hide()
+            self.builder.get_object('btn_external_file')  .hide()
         
-        #print(index)
-    
+        elif index == 3:
+            self.builder.get_object('label_external_file').show()
+            self.builder.get_object('btn_external_file').show()
+            self.builder.get_object('btn_import_wavefunction').set_sensitive(False)
+            self.builder.get_object('selection_treeview'     ).set_sensitive(False)
+            self.builder.get_object('btn_import_wavefunction').hide()
+            self.builder.get_object('selection_treeview'     ).hide()
+        
+        else:
+            self.builder.get_object('btn_import_wavefunction').set_sensitive(True)
+            self.builder.get_object('selection_treeview')     .set_sensitive(True)
+            self.builder.get_object('btn_import_wavefunction').show()
+            self.builder.get_object('selection_treeview')     .show()
+            self.builder.get_object('label_external_file').hide()
+            self.builder.get_object('btn_external_file')  .hide()
+
     def on_coordinates_combobox_changed(self, widget):
         """ Function doc """
         index = self.coordinates_combobox.get_active()
@@ -269,6 +325,9 @@ class SurfaceAnalysisWindow(Gtk.Window):
     
     def on_treeview_Objects_row_activated(self, tree, event, data):
 
+        system_id = self.system_names_combo.get_system_id()
+        system    = self.main.p_session.psystem[system_id]
+
         vobject_id    = self.coordinates_combobox.get_vobject_id()
         vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
 
@@ -277,9 +336,9 @@ class SurfaceAnalysisWindow(Gtk.Window):
         
         selection     = self.treeview.get_selection()
         (model, iter) = selection.get_selected()
+        
 
-
-        system  = self.main.p_session.get_system()
+        #system  = self.main.p_session.get_system()
         #'''
         backup = []
         try:
@@ -298,8 +357,8 @@ class SurfaceAnalysisWindow(Gtk.Window):
         indexes =  A list of atoms for selection
         '''
         key     = model.get_value(iter, 0)
-        print(key, vismol_object.frames.shape[0])
-
+        print(key, vismol_object.frames.shape[0], model, model[iter][1])
+        name = str(key) +' '+model[iter][1]#+' '+ str(model[iter][3])
         #_GridSpacing = 0.6
         _OrbitalTag    = "Grid Orbitals"
         _IsosurfaceTag = "Isosurface"
@@ -311,11 +370,13 @@ class SurfaceAnalysisWindow(Gtk.Window):
         for frame in range(vismol_object.frames.shape[0]):
             #self.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
             #'''
+            print(vismol_object, frame)
             self.p_session.get_coordinates_from_vobject_to_pDynamo_system( vobject = vismol_object, 
                                                                            system_id = None, 
                                                                            frame = frame)
             
             parameters = {
+            'type'           : 'orbital',
             '_GridSpacing'   : _GridSpacing,
             '_OrbitalTag'    : _OrbitalTag,
             '_isovalue'      : _isovalue,
@@ -336,10 +397,23 @@ class SurfaceAnalysisWindow(Gtk.Window):
             system.e_liststore_iter  = backup[1]
         except:
             pass
-        vismol_object.surface_trajectory = results # trajectory
+        
+        #vobject_tmp = VismolObject(name="UNK", index=-1,
+        vobject_tmp = VismolObject(name= name , index=-1,
+                                   vismol_session        = self.vm_session,
+                                   trajectory            = [],
+                                   bonds_pair_of_indexes = [0,1])
+        
+        
+        vobject_tmp.model_mat = vismol_object.model_mat 
+        vobject_tmp.trans_mat = vismol_object.trans_mat 
+        
+        #vismol_object.surface_trajectory = results # trajectory
+        vobject_tmp.surface_trajectory = results # trajectory
         #-----------------------------------------------------------------------
         #generator.ExportProperty ( "/home/fernando/programs/EasyHybrid3/examples/scripts/tmp", _IsosurfaceTag )
-        vismol_object.representations["surface1"] =  SurfaceRepresentation(vismol_object = vismol_object             ,
+        #vismol_object.representations["surface1"] =  SurfaceRepresentation(vismol_object = vismol_object             ,
+        vobject_tmp.representations["surface1"] =  SurfaceRepresentation(vismol_object = vobject_tmp             ,
                                                                            vismol_glcore = self.vm_session.vm_glcore ,  
                                                                            name          = 'surface'                 ,
                                                                            active        = True                      ,
@@ -351,7 +425,8 @@ class SurfaceAnalysisWindow(Gtk.Window):
 
         #-----------------------------------------------------------------------
         #generator.ExportProperty ( "/home/fernando/programs/EasyHybrid3/examples/scripts/tmp", _IsosurfaceTag )
-        vismol_object.representations["surface2"] =  SurfaceRepresentation(vismol_object = vismol_object             ,
+        #vismol_object.representations["surface2"] =  SurfaceRepresentation(vismol_object = vismol_object             ,
+        vobject_tmp.representations["surface2"] =  SurfaceRepresentation(vismol_object = vobject_tmp             ,
                                                                            vismol_glcore = self.vm_session.vm_glcore ,  
                                                                            name          = 'surface'                 ,
                                                                            active        = True                      ,
@@ -359,8 +434,29 @@ class SurfaceAnalysisWindow(Gtk.Window):
                                                                            is_dynamic    = False                     ,
                                                                            iso_color     = [0,0,1]                   ,
                                                                            surface_name  = 'obital_minus'           )
-        self.vm_session.vm_glcore.queue_draw()
         
+        vobject_tmp.parameters = parameters
+        
+        vobject_tmp.frames = vismol_object.frames
+        vobject_tmp.active = True
+        vobject_tmp.is_surface = True
+        vobject_tmp.e_id = system.e_id
+        self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
+        
+        
+        self.main.main_treeview.add_vismol_object_to_treeview(vobject_tmp,vismol_object.e_treeview_iter )
+        # Add the VisMol object to the vobject liststore dictionary
+        self.main.add_vobject_to_vobject_liststore_dict(vobject_tmp)
+        # Refresh the widgets in the main window
+        self.main.refresh_widgets()
+        
+        
+        
+        
+        #print(vobject_tmp, vobject_tmp.surface_trajectory)
+        #self.vm_session.vm_objects_dic[self.counter] = vobject_tmp
+        self.vm_session.vm_glcore.queue_draw()
+        self.counter +=1
         
         
         
@@ -442,17 +538,329 @@ class SurfaceAnalysisWindow(Gtk.Window):
         self.label_frame.set_text('Frame = {}'.format(self.frame))
         self._update_liststore()
 
+    
+    def on_render_button (self, widget):
+        """ Function doc """
+        index = self.cbx_surface_type.get_active()
+        print(index)
+
+        system_id = self.system_names_combo.get_system_id()
+        system    = self.main.p_session.psystem[system_id]
+
+        vobject_id    = self.coordinates_combobox.get_vobject_id()
+        vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
+
+        _isovalue    = float(self.builder.get_object('entry_isovalue').get_text())
+        _GridSpacing = float(self.builder.get_object('entry_spacing') .get_text())
+        
+        
+        backup = []
+        try:
+            backup.append(system.e_treeview_iter)
+            backup.append(system.e_liststore_iter)
+            system.e_treeview_iter   = None
+            system.e_liststore_iter  = None
+        except:
+            pass
+        
+        
+        if index == 2:
+            joblist = []
+            for frame in range(vismol_object.frames.shape[0]):
+                #'''
+                self.p_session.get_coordinates_from_vobject_to_pDynamo_system( vobject = vismol_object, 
+                                                                               system_id = None, 
+                                                                               frame = frame)
+                parameters = {
+                'type'           : 'density',
+                '_GridSpacing'   : _GridSpacing,
+                '_OrbitalTag'    : 'density',
+                '_isovalue'      : _isovalue,
+                '_IsosurfaceTag' : 'density',
+                'orbital_key'    : 0,
+                }
+                coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
+                joblist.append([frame, system, coords, parameters])
+                
+            p = multiprocessing.Pool(processes = multiprocessing.cpu_count())
+            results = p.map(generate_grid_parallel, joblist)
+            
+            #if interface:
+            try:
+                system.e_treeview_iter   = backup[0]
+                system.e_liststore_iter  = backup[1]
+            except:
+                pass
+            name ='Density'
+            #vobject_tmp = VismolObject(name="UNK", index=-1,
+            vobject_tmp = VismolObject(name= name , index=-1,
+                                        vismol_session        = self.vm_session,
+                                        trajectory            = [],
+                                        bonds_pair_of_indexes = [0,1])
+            
+            
+            vobject_tmp.model_mat = vismol_object.model_mat 
+            vobject_tmp.trans_mat = vismol_object.trans_mat 
+            
+            #vismol_object.surface_trajectory = results # trajectory
+            vobject_tmp.surface_trajectory = results # trajectory
+            #-----------------------------------------------------------------------
+            #generator.ExportProperty ( "/home/fernando/programs/EasyHybrid3/examples/scripts/tmp", _IsosurfaceTag )
+            #vismol_object.representations["surface1"] =  SurfaceRepresentation(vismol_object = vismol_object             ,
+            vobject_tmp.representations["surface1"] =  SurfaceRepresentation(vismol_object = vobject_tmp             ,
+                                                                                vismol_glcore = self.vm_session.vm_glcore ,  
+                                                                                name          = 'surface'                 ,
+                                                                                active        = True                      ,
+                                                                                indexes       = []                        ,
+                                                                                is_dynamic    = False                     ,
+                                                                                iso_color     = [0,0,1]                   ,
+                                                                                surface_name  = 'obital_plus'                )
+                                                            
+        
+            #-----------------------------------------------------------------------
+            #generator.ExportProperty ( "/home/fernando/programs/EasyHybrid3/examples/scripts/tmp", _IsosurfaceTag )
+            #vismol_object.representations["surface2"] =  SurfaceRepresentation(vismol_object = vismol_object             ,
+            
+            #vobject_tmp.representations["surface2"] =  SurfaceRepresentation(vismol_object = vobject_tmp             ,
+            #                                                                    vismol_glcore = self.vm_session.vm_glcore ,  
+            #                                                                    name          = 'surface'                 ,
+            #                                                                    active        = True                      ,
+            #                                                                    indexes       = []                        ,
+            #                                                                    is_dynamic    = False                     ,
+            #                                                                    iso_color     = [0,0,1]                   ,
+            #                                                                    surface_name  = 'obital_minus'           )
+            #
+            
+            vobject_tmp.parameters = parameters
+            
+            vobject_tmp.frames = vismol_object.frames
+            vobject_tmp.active = True
+            vobject_tmp.is_surface = True
+            vobject_tmp.e_id = system.e_id
+            self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
+            
+            
+            self.main.main_treeview.add_vismol_object_to_treeview(vobject_tmp,vismol_object.e_treeview_iter )
+            # Add the VisMol object to the vobject liststore dictionary
+            self.main.add_vobject_to_vobject_liststore_dict(vobject_tmp)
+            # Refresh the widgets in the main window
+            self.main.refresh_widgets()
+            
+            
+            
+            
+            #print(vobject_tmp, vobject_tmp.surface_trajectory)
+            #self.vm_session.vm_objects_dic[self.counter] = vobject_tmp
+            self.vm_session.vm_glcore.queue_draw()
+            self.counter +=1
+
+        elif index ==1:
+            return False
+            joblist = []
+            for frame in range(vismol_object.frames.shape[0]):
+                #'''
+                self.p_session.get_coordinates_from_vobject_to_pDynamo_system( vobject = vismol_object, 
+                                                                               system_id = None, 
+                                                                               frame = frame)
+                parameters = {
+                'type'           : 'potential',
+                '_GridSpacing'   : _GridSpacing,
+                '_OrbitalTag'    : 'potential',
+                '_isovalue'      : _isovalue,
+                '_IsosurfaceTag' : 'potential',
+                'orbital_key'    : 0,
+                }
+                coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
+                joblist.append([frame, system, coords, parameters])
+                
+            p = multiprocessing.Pool(processes = multiprocessing.cpu_count())
+            results = p.map(generate_grid_parallel, joblist)
+            
+            #if interface:
+            try:
+                system.e_treeview_iter   = backup[0]
+                system.e_liststore_iter  = backup[1]
+            except:
+                pass
+            name ='Potential'
+            vobject_tmp = VismolObject(name= name , index=-1,
+                                        vismol_session        = self.vm_session,
+                                        trajectory            = [],
+                                        bonds_pair_of_indexes = [0,1])
+            
+            
+            vobject_tmp.model_mat = vismol_object.model_mat 
+            vobject_tmp.trans_mat = vismol_object.trans_mat 
+            vobject_tmp.surface_trajectory = results # trajectory
+            #-----------------------------------------------------------------------
+            vobject_tmp.representations["surface1"] =  SurfaceRepresentation(vismol_object = vobject_tmp             ,
+                                                                                vismol_glcore = self.vm_session.vm_glcore ,  
+                                                                                name          = 'surface'                 ,
+                                                                                active        = True                      ,
+                                                                                indexes       = []                        ,
+                                                                                is_dynamic    = False                     ,
+                                                                                iso_color     = [1,0,0]                   ,
+                                                                                surface_name  = 'obital_plus'             )
+                                                            
+        
+            #-----------------------------------------------------------------------
+            vobject_tmp.representations["surface2"] =  SurfaceRepresentation(vismol_object = vobject_tmp             ,
+                                                                                vismol_glcore = self.vm_session.vm_glcore ,  
+                                                                                name          = 'surface'                 ,
+                                                                                active        = True                      ,
+                                                                                indexes       = []                        ,
+                                                                                is_dynamic    = False                     ,
+                                                                                iso_color     = [0,0,1]                   ,
+                                                                                surface_name  = 'obital_minus'           )
+            
+            
+            vobject_tmp.parameters = parameters
+            
+            vobject_tmp.frames = vismol_object.frames
+            vobject_tmp.active = True
+            vobject_tmp.is_surface = True
+            vobject_tmp.e_id = system.e_id
+            self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
+            
+            
+            self.main.main_treeview.add_vismol_object_to_treeview(vobject_tmp,vismol_object.e_treeview_iter )
+            # Add the VisMol object to the vobject liststore dictionary
+            self.main.add_vobject_to_vobject_liststore_dict(vobject_tmp)
+            # Refresh the widgets in the main window
+            self.main.refresh_widgets()
+            self.vm_session.vm_glcore.queue_draw()
+            self.counter +=1
+
+        elif index == 0:
+            selection     = self.treeview.get_selection()
+            (model, iter) = selection.get_selected()
+        
+            
+            backup = []
+            try:
+                backup.append(system.e_treeview_iter)
+                backup.append(system.e_liststore_iter)
+                system.e_treeview_iter   = None
+                system.e_liststore_iter  = None
+            except:
+                pass
+
+
+
+            '''
+            "key" is the acesses key to the dictionary containg the selection lists
+            there is no two selection lists with the same name.
+            indexes =  A list of atoms for selection
+            '''
+            key     = model.get_value(iter, 0)
+            print(key, vismol_object.frames.shape[0], model, model[iter][1])
+            name = str(key) +' '+model[iter][1]#+' '+ str(model[iter][3])
+            #_GridSpacing = 0.6
+            _OrbitalTag    = "Grid Orbitals"
+            _IsosurfaceTag = "Isosurface"
+            
+            
+            trajectory = [None]*vismol_object.frames.shape[0]
+            joblist = []
+            
+            for frame in range(vismol_object.frames.shape[0]):
+                #self.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+                #'''
+                self.p_session.get_coordinates_from_vobject_to_pDynamo_system( vobject = vismol_object, 
+                                                                               system_id = None, 
+                                                                               frame = frame)
+                
+                parameters = {
+                'type'           : 'orbital',
+                '_GridSpacing'   : _GridSpacing,
+                '_OrbitalTag'    : _OrbitalTag,
+                '_isovalue'      : _isovalue,
+                '_IsosurfaceTag' : _IsosurfaceTag,
+                'orbital_key'    : key,
+                }
+
+                coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
+                
+                joblist.append([frame, system, coords, parameters])
+            
+            p = multiprocessing.Pool(processes = multiprocessing.cpu_count())
+            results = p.map(generate_grid_parallel, joblist)
+            
+            #if interface:
+            try:
+                system.e_treeview_iter   = backup[0]
+                system.e_liststore_iter  = backup[1]
+            except:
+                pass
+            
+            vobject_tmp = VismolObject(name= name , index=-1,
+                                       vismol_session        = self.vm_session,
+                                       trajectory            = [],
+                                       bonds_pair_of_indexes = [0,1])
+            
+            vobject_tmp.model_mat = vismol_object.model_mat 
+            vobject_tmp.trans_mat = vismol_object.trans_mat 
+            vobject_tmp.surface_trajectory = results # trajectory
+            #-----------------------------------------------------------------------
+            vobject_tmp.representations["surface1"] =  SurfaceRepresentation(vismol_object = vobject_tmp             ,
+                                                                               vismol_glcore = self.vm_session.vm_glcore ,  
+                                                                               name          = 'surface'                 ,
+                                                                               active        = True                      ,
+                                                                               indexes       = []                        ,
+                                                                               is_dynamic    = False                     ,
+                                                                               iso_color     = [1,0,0]                   ,
+                                                                               surface_name  = 'obital_plus'                )
+                                                         
+
+            #-----------------------------------------------------------------------
+            vobject_tmp.representations["surface2"] =  SurfaceRepresentation(vismol_object = vobject_tmp             ,
+                                                                               vismol_glcore = self.vm_session.vm_glcore ,  
+                                                                               name          = 'surface'                 ,
+                                                                               active        = True                      ,
+                                                                               indexes       = []                        ,
+                                                                               is_dynamic    = False                     ,
+                                                                               iso_color     = [0,0,1]                   ,
+                                                                               surface_name  = 'obital_minus'           )
+            
+            vobject_tmp.parameters = parameters
+            
+            vobject_tmp.frames = vismol_object.frames
+            vobject_tmp.active = True
+            vobject_tmp.is_surface = True
+            vobject_tmp.e_id = system.e_id
+            self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
+            
+            
+            self.main.main_treeview.add_vismol_object_to_treeview(vobject_tmp,vismol_object.e_treeview_iter )
+            # Add the VisMol object to the vobject liststore dictionary
+            self.main.add_vobject_to_vobject_liststore_dict(vobject_tmp)
+            # Refresh the widgets in the main window
+            self.main.refresh_widgets()
+            self.vm_session.vm_glcore.queue_draw()
+            self.counter +=1
+
+
+
+
+
+
+
+
+
+
+
+
 
     def on_button_import_wavefunction (self, widget):
         """ Function doc """
         print('on_button_import_wavefunction')
         
         system_id = self.system_names_combo.get_system_id()
-        system  = self.main.p_session.get_system(system_id)
+        system    = self.main.p_session.psystem[system_id]
         
         vobject_id    = self.coordinates_combobox.get_vobject_id()
         vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
-
+        print(system_id, vobject_id, system, vismol_object)
         backup = []
         try:
             backup.append(system.e_treeview_iter)
@@ -472,7 +880,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
         joblist = []
         for frame in range(vismol_object.frames.shape[0]):
             self.p_session.get_coordinates_from_vobject_to_pDynamo_system( vobject = vismol_object, 
-                                                                          system_id = None, 
+                                                                          system_id = system_id, 
                                                                           frame = frame)
             parameters = None
             coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
@@ -490,7 +898,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
         except:
             pass
 
-        print(self.wave_function_dict)
+        #print(self.wave_function_dict)
 
 
         
@@ -554,7 +962,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
 
 
 
-def surfece_parser ( surface, iso_color):
+def surface_parser ( surface, iso_color):
     """ Function doc """
     normals   = surface.polygonNormals
     polygons  = surface.polygons
@@ -602,7 +1010,7 @@ def generate_grid_parallel (job):
     system     = job[1]
     coords     = job[2]
     parameters = job[3]
-    
+    #_type      = job[4]
     '''
     parameters = {
             '_GridSpacing'   : _GridSpacing
@@ -610,7 +1018,7 @@ def generate_grid_parallel (job):
             '_IsosurfaceTag' : _IsosurfaceTag
             }
     '''
-    
+    _type          = parameters['type']
     _GridSpacing   = parameters['_GridSpacing']
     _OrbitalTag    = parameters['_OrbitalTag']
     _isovalue      = parameters['_isovalue']  
@@ -635,25 +1043,65 @@ def generate_grid_parallel (job):
 
     
     orbital_iso = {}
-
-    generator.GridOrbitals  ( [ key ]    ,       tag = _OrbitalTag    ) # . List of orbital indices (can be one only)    
+    if _type == 'orbital':
+        generator.GridOrbitals  ( [ key ]    ,       tag = _OrbitalTag    ) # . List of orbital indices (can be one only)    
+        generator.Isosurface    ( _OrbitalTag, _isovalue, tag = _IsosurfaceTag )
     
-    generator.Isosurface    ( _OrbitalTag, _isovalue, tag = _IsosurfaceTag )
-    surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
-    isosurface_p = surfaceProperty.isosurface # . This is the surface you can display.
+        surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
+        isosurface_p = surfaceProperty.isosurface # . This is the surface you can display.
+        
+        vertices, colors, indexes = surface_parser ( surface = isosurface_p , iso_color = [1,0,0] )
+        
+        orbital_iso['obital_plus'] = [vertices, colors, indexes]
+        generator.Isosurface    ( _OrbitalTag, _isovalue*-1, tag = _IsosurfaceTag )
+        surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
+        isosurface_n = surfaceProperty.isosurface # . This is the surface you can display.
+        
+        vertices, colors, indexes = surface_parser ( surface = isosurface_n , iso_color = [0,0,1] )
+        orbital_iso['obital_minus'] = [vertices, colors, indexes]
+    
+    elif _type == 'potential':
+        generator.GridPotential  (                   tag = _IsosurfaceTag   ) # . List of orbital indices (can be one only)    
+        generator.Isosurface    ( 'potential', _isovalue, tag = _IsosurfaceTag)
+        surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
+        isosurface_p = surfaceProperty.isosurface # . This is the surface you can display.
+        
+        vertices, colors, indexes = surface_parser ( surface = isosurface_p , iso_color = [1,0,0] )
+        
+        orbital_iso['obital_plus'] = [vertices, colors, indexes]
+        generator.Isosurface    ( _OrbitalTag, _isovalue*-1, tag = _IsosurfaceTag )
+        surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
+        isosurface_n = surfaceProperty.isosurface # . This is the surface you can display.
+        
+        vertices, colors, indexes = surface_parser ( surface = isosurface_n , iso_color = [0,0,1] )
+        orbital_iso['obital_minus'] = [vertices, colors, indexes]
     
     
     
-    vertices, colors, indexes = surfece_parser ( surface = isosurface_p , iso_color = [1,0,0] )
     
-    orbital_iso['obital_plus'] = [vertices, colors, indexes]
     
-    generator.Isosurface    ( _OrbitalTag, _isovalue*-1, tag = _IsosurfaceTag )
-    surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
-    isosurface_n = surfaceProperty.isosurface # . This is the surface you can display.
-    
-    vertices, colors, indexes = surfece_parser ( surface = isosurface_n , iso_color = [0,0,1] )
-    orbital_iso['obital_minus'] = [vertices, colors, indexes]
+    elif _type == 'density':
+        generator.GridDensity  (                   tag = 'density'   ) # . List of orbital indices (can be one only)    
+        generator.Isosurface    ( 'density', _isovalue, tag = _IsosurfaceTag)
+        surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
+        isosurface_p = surfaceProperty.isosurface # . This is the surface you can display.
+        vertices, colors, indexes = surface_parser ( surface = isosurface_p , iso_color = [0,0,1] )
+        orbital_iso['obital_plus'] = [vertices, colors, indexes]
+        
+    else:
+        pass
+        
+   
+    #vertices, colors, indexes = surface_parser ( surface = isosurface_p , iso_color = [1,0,0] )
+    #
+    #orbital_iso['obital_plus'] = [vertices, colors, indexes]
+    #
+    #generator.Isosurface    ( _OrbitalTag, _isovalue*-1, tag = _IsosurfaceTag )
+    #surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
+    #isosurface_n = surfaceProperty.isosurface # . This is the surface you can display.
+    #
+    #vertices, colors, indexes = surface_parser ( surface = isosurface_n , iso_color = [0,0,1] )
+    #orbital_iso['obital_minus'] = [vertices, colors, indexes]
     
     return orbital_iso
     
@@ -669,7 +1117,7 @@ def generate_grid_parallel (job):
     #
     #
     #
-    #vertices, colors, indexes = surfece_parser ( surface = isosurface_p , iso_color = [1,0,0] )
+    #vertices, colors, indexes = surface_parser ( surface = isosurface_p , iso_color = [1,0,0] )
     #
     #orbital_iso['obital_plus'] = [vertices, colors, indexes]
     #
@@ -677,7 +1125,7 @@ def generate_grid_parallel (job):
     #surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
     #isosurface_n = surfaceProperty.isosurface # . This is the surface you can display.
     #
-    #vertices, colors, indexes = surfece_parser ( surface = isosurface_n , iso_color = [0,0,1] )
+    #vertices, colors, indexes = surface_parser ( surface = isosurface_n , iso_color = [0,0,1] )
     #orbital_iso['obital_minus'] = [vertices, colors, indexes]
     #
     #return orbital_iso

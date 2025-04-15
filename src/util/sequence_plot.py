@@ -496,87 +496,92 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
         """ Function doc """
         #print('aqui', vobject)
         
-        
-        if getattr(vobject, 'e_sequence', False):
-            sequence = vobject.e_sequence
+        if getattr(vobject, 'is_surface', False):
+            pass
+            #vobject.is_surface = False
+
         
         else:
-            #if vobject.sequence
-            sequence = []
-            chains = vobject.chains.keys()
-            for key in chains:
-                #----------------------------------------------------
-                # - - - - - - - - Finding the color - - - - - - - - -
-                #----------------------------------------------------
-                e_id = vobject.e_id
-                system = self.main.p_session.get_system(index = e_id)
-                color = system.e_color_palette['C']
-                #----------------------------------------------------
-
-                chain = vobject.chains[key]
-                max_index = max(chain.residues.keys())
-                
-                #print('max_index1',max_index)
-                resi_keys = list(chain.residues.keys())
-                resi_keys.sort()
-                
-                
-                index_max = max(resi_keys)
-                max_resi  = chain.residues[index_max]
-                empty_seq = '-'*index_max
-                
-                for index, gap in enumerate(empty_seq):
-                    if index+1 in resi_keys:
-                        #if the residue is on three_letter_res_dict
-                        try:
-                            vresidue = chain.residues[index+1]
-                            resn     = vresidue.name 
-                            res1l    = three_letter_res_dict[resn]
-                            residue  = SeqResidue(rname = resn, 
-                                                rcode = res1l, 
-                                                rnum  = index+1,
-                                                color = color,
-                                                chain = chain.name)
-                            residue.vres = vresidue
-                            sequence.append(residue)
-                        
-                        #if the residue is not on three_letter_res_dict
-                        except:
-                            vresidue = chain.residues[index+1]
-                            resn     = vresidue.name 
-                            rcode    = '%'
-                            
-                            if vresidue.is_solvent:
-                                pass
-                            else:
+            if getattr(vobject, 'e_sequence', False):
+                sequence = vobject.e_sequence
+            
+            else:
+                #if vobject.sequence
+                sequence = []
+                chains = vobject.chains.keys()
+                for key in chains:
+                    #----------------------------------------------------
+                    # - - - - - - - - Finding the color - - - - - - - - -
+                    #----------------------------------------------------
+                    e_id = vobject.e_id
+                    system = self.main.p_session.get_system(index = e_id)
+                    color = system.e_color_palette['C']
+                    #----------------------------------------------------
+    
+                    chain = vobject.chains[key]
+                    max_index = max(chain.residues.keys())
+                    
+                    #print('max_index1',max_index)
+                    resi_keys = list(chain.residues.keys())
+                    resi_keys.sort()
+                    
+                    
+                    index_max = max(resi_keys)
+                    max_resi  = chain.residues[index_max]
+                    empty_seq = '-'*index_max
+                    
+                    for index, gap in enumerate(empty_seq):
+                        if index+1 in resi_keys:
+                            #if the residue is on three_letter_res_dict
+                            try:
+                                vresidue = chain.residues[index+1]
+                                resn     = vresidue.name 
+                                res1l    = three_letter_res_dict[resn]
                                 residue  = SeqResidue(rname = resn, 
-                                                    rcode = rcode, 
+                                                    rcode = res1l, 
                                                     rnum  = index+1,
                                                     color = color,
                                                     chain = chain.name)
                                 residue.vres = vresidue
                                 sequence.append(residue)
-                    # if it is a 'gap' = '-'
+                            
+                            #if the residue is not on three_letter_res_dict
+                            except:
+                                vresidue = chain.residues[index+1]
+                                resn     = vresidue.name 
+                                rcode    = '%'
+                                
+                                if vresidue.is_solvent:
+                                    pass
+                                else:
+                                    residue  = SeqResidue(rname = resn, 
+                                                        rcode = rcode, 
+                                                        rnum  = index+1,
+                                                        color = color,
+                                                        chain = chain.name)
+                                    residue.vres = vresidue
+                                    sequence.append(residue)
+                        # if it is a 'gap' = '-'
+                        else:
+                            residue = SeqResidue(rname = 'gap', 
+                                                rcode = '-', 
+                                                rnum  = index,
+                                                chain = chain.name)
+                            sequence.append(residue)
+                
+                delete = True
+                pos = -1
+                #'''
+                while delete:
+                    if sequence[-1].rcode == '-':
+                        sequence.pop(-1)
                     else:
-                        residue = SeqResidue(rname = 'gap', 
-                                            rcode = '-', 
-                                            rnum  = index,
-                                            chain = chain.name)
-                        sequence.append(residue)
+                        delete = False
+                #'''
+                vobject.e_sequence = sequence  
             
-            delete = True
-            pos = -1
-            #'''
-            while delete:
-                if sequence[-1].rcode == '-':
-                    sequence.pop(-1)
-                else:
-                    delete = False
-            #'''
-            vobject.e_sequence = sequence  
-        
-        self.sequences.append(sequence)
-        self.text_drawing_area.queue_draw()
+            self.sequences.append(sequence)
+            self.text_drawing_area.queue_draw()
         
     def add_new_3lettercode_sequence (self, inputseq):
         """ Function doc """
