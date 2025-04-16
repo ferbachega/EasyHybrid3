@@ -24,7 +24,8 @@
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gtk, Gdk
+
 #from GTKGUI.gtkWidgets.filechooser import FileChooser
 #from easyhybrid.pDynamoMethods.pDynamo2Vismol import *
 import gc
@@ -99,17 +100,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             
             
             
-            
-            # - - - - - - - systems combobox - - - - - - -
-            '''--------------------------------------------------------------------------------------------'''
-            self.box1 = self.builder.get_object('box_system')
-            self.system_names_combo = SystemComboBox (self.main)
-            self.system_names_combo.connect("changed", self.on_system_names_combobox_changed)
-            self.box1.pack_start(self.system_names_combo, False, False, 0)
-            '''--------------------------------------------------------------------------------------------'''
-
-            
-            
+            # - - - - - - - coordinates combobox - - - - - - -
             '''--------------------------------------------------------------------------------------------'''
             self.coordinates_liststore = Gtk.ListStore(str, int, int)
             self.box2 = self.builder.get_object('box_coordinates')
@@ -117,6 +108,16 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.box2.pack_start(self.coordinates_combobox, False, False, 0)
             '''--------------------------------------------------------------------------------------------'''
 
+            
+            # - - - - - - - systems combobox - - - - - - -
+            '''--------------------------------------------------------------------------------------------'''
+            self.box1 = self.builder.get_object('box_system')
+            self.system_names_combo = SystemComboBox (self.main, self.coordinates_combobox)
+            #self.system_names_combo.connect("changed", self.on_system_names_combobox_changed)
+            self.box1.pack_start(self.system_names_combo, False, False, 0)
+            '''--------------------------------------------------------------------------------------------'''
+
+            
 
             self.btn_import_wfunction =  self.builder.get_object('btn_import_wavefunction')
             self.btn_import_wfunction.connect('clicked', self.on_button_import_wavefunction)
@@ -125,7 +126,6 @@ class SurfaceAnalysisWindow(Gtk.Window):
             #                       SURFACE TYPE COMBOBOX
             #'''--------------------------------------------------------------------------------------------'''
             self.box_surface_type = self.builder.get_object('box_surface_type')
-            
             self.cbx_surface_type = Gtk.ComboBoxText()
             self.cbx_surface_type.connect("changed", self.surface_combobox_change)
 
@@ -174,8 +174,26 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.btn_render.connect('clicked', self.on_render_button)
             #-----------------------------------------------------------
             
+            
+            self.btn_color_plus  = self.builder.get_object('btn_color_plus')
+            self.btn_color_minus = self.builder.get_object('btn_color_minus')
+            # Definindo uma cor específica (por exemplo, vermelho)
+            rgba = Gdk.RGBA()
+            
+            rgba.parse("blue")  # ou "rgb(255,0,0)", ou "#FF0000"
+            self.btn_color_minus.set_rgba(rgba)
+            
+            rgba.parse("red") 
+            self.btn_color_plus.set_rgba(rgba)
+            
+            
+            
+            
+            
+            
             #self.refresh_system_liststore()
             #self.treeview_menu         = TreeViewMenu(self)
+            
             self.window.show_all()                                               
             
             
@@ -235,43 +253,6 @@ class SurfaceAnalysisWindow(Gtk.Window):
         """ Function doc """
         self.main.refresh_system_liststore()
 
-    def refresh_coordinates_liststore(self, system_id = None):
-        """ Function doc """
-        cb_id = self.coordinates_combobox.get_active()
-        
-        if system_id:
-            pass
-        else:
-            _id = self.system_names_combo.get_active()
-            if _id == -1:
-                return False
-            else:
-                #print('_id', _id)
-                _, system_id = self.main.system_liststore[_id]
-        
-        self.coordinates_liststore.clear()
-        for key , vobject in self.vm_session.vm_objects_dic.items():
-            if vobject.is_surface:
-                print(vobject.is_surface)
-                pass
-            else:
-                if vobject.e_id == system_id:
-                    self.coordinates_liststore.append([vobject.name, key])
-        
-        self.coordinates_combobox.set_active(len(self.coordinates_liststore)-1)
-        
-    def on_system_names_combobox_changed (self, widget):
-        """ Function doc """
-        system_id = self.system_names_combo.get_system_id()
-        system  = self.main.p_session.get_system(system_id)
-        
-        if system_id is not None:
-            self.coordinates_combobox.set_model(self.main.vobject_liststore_dict[system_id])
-            #self.refresh_selection_liststore (system_id)            
-            size  =  len(list(self.main.vobject_liststore_dict[system_id]))
-            self.coordinates_combobox.set_active(size-1)
-        
-        
     def surface_combobox_change (self, widget):
         """ Function doc """
         index = self.cbx_surface_type.get_active()
@@ -322,9 +303,12 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 print('vobject has no Normal Modes data')
                 pass
 
-    
     def on_treeview_Objects_row_activated(self, tree, event, data):
-
+        rgba_plus = self.btn_color_minus.get_rgba()
+        rgba_minus = self.btn_color_plus.get_rgba()
+        color_plus  = [rgba_plus.red , rgba_plus.green,  rgba_plus.blue ]
+        color_minus = [rgba_minus.red, rgba_minus.green, rgba_minus.blue]
+        
         system_id = self.system_names_combo.get_system_id()
         system    = self.main.p_session.psystem[system_id]
 
@@ -382,6 +366,8 @@ class SurfaceAnalysisWindow(Gtk.Window):
             '_isovalue'      : _isovalue,
             '_IsosurfaceTag' : _IsosurfaceTag,
             'orbital_key'    : key,
+            'color_plus'     : color_plus ,
+            'color_minus'    : color_minus,
             }
 
             coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
@@ -500,8 +486,6 @@ class SurfaceAnalysisWindow(Gtk.Window):
         self.vm_session.vm_glcore.queue_draw()
         #'''
     
-    
-    
     def _update_liststore (self):
         """ Function doc """
         
@@ -522,19 +506,23 @@ class SurfaceAnalysisWindow(Gtk.Window):
             for i in range(len(orbitals)):
                 reverse_index = -i-1 #- len(orbitals)
                 model.append(orbitals[reverse_index ])
-            
-        
+
     def set_frame (self ):
         """ Function doc """
         self.frame =  self.vm_session.frame
         self.label_frame.set_text('Frame = {}'.format(self.frame))
         self._update_liststore()
 
-    
     def on_render_button (self, widget):
-        """ Function doc """
+ 
+ 
+        rgba_plus = self.btn_color_minus.get_rgba()
+        rgba_minus = self.btn_color_plus.get_rgba()
+        color_plus  = [rgba_plus.red , rgba_plus.green,  rgba_plus.blue ]
+        color_minus = [rgba_minus.red, rgba_minus.green, rgba_minus.blue]
+        
         index = self.cbx_surface_type.get_active()
-        print(index)
+        print(index, color_minus, color_plus)
 
         system_id = self.system_names_combo.get_system_id()
         system    = self.main.p_session.psystem[system_id]
@@ -570,6 +558,9 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 '_isovalue'      : _isovalue,
                 '_IsosurfaceTag' : 'density',
                 'orbital_key'    : 0,
+                'color_plus'     : color_plus  ,
+                'color_minus'    : color_minus ,
+                
                 }
                 coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
                 joblist.append([frame, system, coords, parameters])
@@ -605,7 +596,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
                                                                                 active        = True                      ,
                                                                                 indexes       = []                        ,
                                                                                 is_dynamic    = False                     ,
-                                                                                iso_color     = [0,0,1]                   ,
+                                                                                iso_color     = color_plus                   ,
                                                                                 surface_name  = 'obital_plus'                )
                                                             
         
@@ -661,6 +652,8 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 '_isovalue'      : _isovalue,
                 '_IsosurfaceTag' : 'potential',
                 'orbital_key'    : 0,
+                'color_plus'     : color_plus  ,
+                'color_minus'    : color_minus ,
                 }
                 coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
                 joblist.append([frame, system, coords, parameters])
@@ -691,7 +684,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
                                                                                 active        = True                      ,
                                                                                 indexes       = []                        ,
                                                                                 is_dynamic    = False                     ,
-                                                                                iso_color     = [1,0,0]                   ,
+                                                                                iso_color     = color_plus                 ,
                                                                                 surface_name  = 'obital_plus'             )
                                                             
         
@@ -702,7 +695,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
                                                                                 active        = True                      ,
                                                                                 indexes       = []                        ,
                                                                                 is_dynamic    = False                     ,
-                                                                                iso_color     = [0,0,1]                   ,
+                                                                                iso_color     = color_minus               ,
                                                                                 surface_name  = 'obital_minus'           )
             
             
@@ -769,6 +762,8 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 '_isovalue'      : _isovalue,
                 '_IsosurfaceTag' : _IsosurfaceTag,
                 'orbital_key'    : key,
+                'color_plus'     : color_plus  ,
+                'color_minus'    : color_minus ,
                 }
 
                 coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
@@ -800,7 +795,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
                                                                                active        = True                      ,
                                                                                indexes       = []                        ,
                                                                                is_dynamic    = False                     ,
-                                                                               iso_color     = [1,0,0]                   ,
+                                                                               iso_color     = color_plus                   ,
                                                                                surface_name  = 'obital_plus'                )
                                                          
 
@@ -811,7 +806,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
                                                                                active        = True                      ,
                                                                                indexes       = []                        ,
                                                                                is_dynamic    = False                     ,
-                                                                               iso_color     = [0,0,1]                   ,
+                                                                               iso_color     = color_minus               ,
                                                                                surface_name  = 'obital_minus'           )
             
             vobject_tmp.parameters = parameters
@@ -831,8 +826,42 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.vm_session.vm_glcore.queue_draw()
             self.counter +=1
 
-
-
+    #def on_system_names_combobox_changed (self, widget):
+    #    """ Function doc """
+    #    system_id = self.system_names_combo.get_system_id()
+    #    system  = self.main.p_session.get_system(system_id)
+    #    
+    #    if system_id is not None:
+    #        self.coordinates_combobox.set_model(self.main.vobject_liststore_dict[system_id])
+    #        #self.refresh_selection_liststore (system_id)            
+    #        size  =  len(list(self.main.vobject_liststore_dict[system_id]))
+    #        self.coordinates_combobox.set_active(size-1)
+    
+    
+    #def refresh_coordinates_liststore(self, system_id = None):
+    #    """ Function doc """
+    #    cb_id = self.coordinates_combobox.get_active()
+    #    
+    #    if system_id:
+    #        pass
+    #    else:
+    #        _id = self.system_names_combo.get_active()
+    #        if _id == -1:
+    #            return False
+    #        else:
+    #            #print('_id', _id)
+    #            _, system_id = self.main.system_liststore[_id]
+    #    
+    #    self.coordinates_liststore.clear()
+    #    for key , vobject in self.vm_session.vm_objects_dic.items():
+    #        if vobject.is_surface:
+    #            print(vobject.is_surface)
+    #            pass
+    #        else:
+    #            if vobject.e_id == system_id:
+    #                self.coordinates_liststore.append([vobject.name, key])
+    #    
+    #    self.coordinates_combobox.set_active(len(self.coordinates_liststore)-1)
 
 
 
@@ -1016,6 +1045,9 @@ def generate_grid_parallel (job):
     _isovalue      = parameters['_isovalue']  
     _IsosurfaceTag = parameters['_IsosurfaceTag']
     key            = parameters['orbital_key']
+    color_plus     = parameters['color_plus']
+    color_minus    = parameters['color_minus']
+    
     #print(parameters, type(system))
     #-----------------------------------------------------------------------
     # . Calculate the system grid properties.
@@ -1042,14 +1074,14 @@ def generate_grid_parallel (job):
         surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
         isosurface_p = surfaceProperty.isosurface # . This is the surface you can display.
         
-        vertices, colors, indexes = surface_parser ( surface = isosurface_p , iso_color = [1,0,0] )
+        vertices, colors, indexes = surface_parser ( surface = isosurface_p , iso_color = color_plus )
         
         orbital_iso['obital_plus'] = [vertices, colors, indexes]
         generator.Isosurface    ( _OrbitalTag, _isovalue*-1, tag = _IsosurfaceTag )
         surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
         isosurface_n = surfaceProperty.isosurface # . This is the surface you can display.
         
-        vertices, colors, indexes = surface_parser ( surface = isosurface_n , iso_color = [0,0,1] )
+        vertices, colors, indexes = surface_parser ( surface = isosurface_n , iso_color = color_minus )
         orbital_iso['obital_minus'] = [vertices, colors, indexes]
     
     elif _type == 'potential':
@@ -1058,14 +1090,14 @@ def generate_grid_parallel (job):
         surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
         isosurface_p = surfaceProperty.isosurface # . This is the surface you can display.
         
-        vertices, colors, indexes = surface_parser ( surface = isosurface_p , iso_color = [1,0,0] )
+        vertices, colors, indexes = surface_parser ( surface = isosurface_p , iso_color = color_minus )
         
         orbital_iso['obital_plus'] = [vertices, colors, indexes]
         generator.Isosurface    ( _OrbitalTag, _isovalue*-1, tag = _IsosurfaceTag )
         surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
         isosurface_n = surfaceProperty.isosurface # . This is the surface you can display.
         
-        vertices, colors, indexes = surface_parser ( surface = isosurface_n , iso_color = [0,0,1] )
+        vertices, colors, indexes = surface_parser ( surface = isosurface_n , iso_color = color_minus )
         orbital_iso['obital_minus'] = [vertices, colors, indexes]
     
     
@@ -1077,7 +1109,7 @@ def generate_grid_parallel (job):
         generator.Isosurface    ( 'density', _isovalue, tag = _IsosurfaceTag)
         surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
         isosurface_p = surfaceProperty.isosurface # . This is the surface you can display.
-        vertices, colors, indexes = surface_parser ( surface = isosurface_p , iso_color = [0,0,1] )
+        vertices, colors, indexes = surface_parser ( surface = isosurface_p , iso_color = color_minus )
         orbital_iso['obital_plus'] = [vertices, colors, indexes]
         
     else:
@@ -1215,7 +1247,7 @@ class TreeViewMenu:
             self.key      = model.get_value(iter, 0)
             sys           = model.get_value(iter, 1)
             
-            print('key: ', self.key, 'e_id: ',self.e_id)
+            #print('key: ', self.key, 'e_id: ',self.e_id)
             self.window = Gtk.Window()
             self.window.connect('destroy', self.destroy)
             self.window.set_keep_above(True)
@@ -1229,7 +1261,7 @@ class TreeViewMenu:
 
     def rename (self, menu_item):
         """ Function doc """
-        print('New name: ', self.entry.get_text())
+        #print('New name: ', self.entry.get_text())
         new_name = self.entry.get_text()
         pass
         

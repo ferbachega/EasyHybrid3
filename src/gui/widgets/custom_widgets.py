@@ -792,7 +792,7 @@ class VismolTrajectoryFrame(Gtk.Frame):
 class SystemComboBox(Gtk.ComboBox):
     """ Class doc """
     
-    def __init__ (self, main):
+    def __init__ (self, main = None, coord_combobox = False):
         """ Class initialiser """
         Gtk.ComboBox.__init__(self)
         
@@ -812,7 +812,9 @@ class SystemComboBox(Gtk.ComboBox):
         self.add_attribute(renderer_text2, "text", 0)
 
         #self.set_popup_fixed_width(100)
-
+        self.connect("changed", self.on_change)
+        self.coord_combobox = coord_combobox
+    
     
     def get_system_id(self, widget = None):
         _, system_id, pixbuf = self._get_system()
@@ -854,6 +856,22 @@ class SystemComboBox(Gtk.ComboBox):
         
         self.set_active(set_active)
 
+    
+    def on_change (self, widget):
+        """ Function doc """
+        #print('AQUI', self.coord_combobox)
+        
+        if self.coord_combobox:
+            system_id = self.get_system_id()
+            system  = self.main.p_session.get_system(system_id)
+            
+            if system_id is not None:
+                self.coord_combobox.set_model(self.main.vobject_liststore_dict[system_id])
+                #self.refresh_selection_liststore (system_id)            
+                size  =  len(list(self.main.vobject_liststore_dict[system_id]))
+                self.coord_combobox.set_active(size-1)
+        else:
+            pass
 
 class CoordinatesComboBox(Gtk.ComboBox):
     """ Class doc """
