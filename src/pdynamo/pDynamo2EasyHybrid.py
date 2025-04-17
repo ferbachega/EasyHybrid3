@@ -2407,12 +2407,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self._add_vismol_object_to_easyhybrid_session (new_system, True) #, name = 'olha o  coco')
         #--------------------------------------------------------------------------------------------
 
-    def clone_system (self, e_id = None):
-        if e_id:
+    def clone_system (self, e_id = None, vobject = None, name = 'Unknow', tag = 'UNK', color = [0,1,1]):
+        
+        if e_id != None:
             system = self.psystem[e_id]
         else:
             system = self.psystem[self.active_id]
-        
+        #print(system.label)
         backup = []
         backup.append(system.e_treeview_iter)
         backup.append(system.e_liststore_iter)
@@ -2426,7 +2427,11 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         #print('menuitem_clone')
 
-        new_system = self.append_system_to_pdynamo_session (system = new_system)
+        new_system = self.append_system_to_pdynamo_session (system = new_system,
+                                                            name   = name  , 
+                                                            tag    = tag   , 
+                                                            color  = color )
+
         self.main.main_treeview.add_new_system_to_treeview (new_system)
         ff  =  getattr(new_system.mmModel, 'forceField', "None")
 

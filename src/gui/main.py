@@ -637,7 +637,7 @@ class MainWindow:
                 name = self.p_session.psystem[self.p_session.active_id].label
                 tag  = self.p_session.psystem[self.p_session.active_id].e_tag
                 
-                dialog =  EasyHybridDialogPrune(self.home ,num_of_atoms, name, tag)
+                dialog =  EasyHybridDialogPrune(self ,num_of_atoms, name, tag)
 
                 if dialog.prune:
                     name         = dialog.name        
@@ -2369,7 +2369,31 @@ class TreeViewMenu:
         selection     = self.treeview.get_selection()
         (model, iter) = selection.get_selected()
         e_id          = int(model.get_value(iter, 0))
-        self.main.p_session.clone_system(e_id)
+        name          = model.get_value(iter, 2) 
+        #tag           = self.main.p_session.psystem[e_id].tag
+        #--------------------------------------------------------------                                                            
+        dialog = EasyHybridDialogPrune(main         = self.main,    
+                                       num_of_atoms = 'all'    ,    
+                                       name         = name     ,    
+                                       tag          = 'UNK'    ,    
+                                       e_id         = e_id     ,    
+                                       _type        = 1        )    
+        name         = dialog.name        
+        tag          = dialog.tag  
+        color        = dialog.color 
+        vobject_id   = dialog.vobject_id
+        #--------------------------------------------------------------                                                            
+
+        
+        vobject      = self.main.vm_session.vm_objects_dic[vobject_id]
+        self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject,
+                                                                           system_id =  e_id  )
+        #print(e_id)
+        self.main.p_session.clone_system( e_id    = e_id, 
+                                          vobject = vobject, 
+                                          name    = name, 
+                                          tag     = tag, 
+                                          color   = color)
         self._save_backup_file()
     
     def _menu_go_to_atom (self, vobject = None):

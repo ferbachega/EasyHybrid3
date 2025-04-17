@@ -507,7 +507,7 @@ class GLMenu:
                     name = self.main.p_session.psystem[self.main.p_session.active_id].label
                     tag  = self.main.p_session.psystem[self.main.p_session.active_id].e_tag
                     
-                    dialog =  EasyHybridDialogPrune(self.main.home ,num_of_atoms, name, tag)
+                    dialog =  EasyHybridDialogPrune(self.main  ,num_of_atoms, name, tag)
                     
        
 
@@ -516,6 +516,12 @@ class GLMenu:
                         name         = dialog.name        
                         tag          = dialog.tag  
                         color        = dialog.color 
+                        vobject_id   = dialog.vobject_id
+                        
+                        vobject = self.main.vm_session.vm_objects_dic[vobject_id]
+                        self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+                        
+                        
                         #for row in self.treestore:
                         #    #row[2] = row.path == selected_path
                         #    row[3] =  False
