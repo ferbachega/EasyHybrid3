@@ -414,6 +414,7 @@ class FolderChooserButton:
                 #title="Please choose a file", parent=window, action=Gtk.FileChooserAction.OPEN
                 title="Please choose a folder", parent= self.main.window, action=Gtk.FileChooserAction.SELECT_FOLDER
             )
+            dialog.set_select_multiple(True)
             dialog.add_buttons(
                 Gtk.STOCK_CANCEL,
                 Gtk.ResponseType.CANCEL,
@@ -449,7 +450,12 @@ class FolderChooserButton:
             #print("File selected: " + dialog.get_filename())
         
             #print(dialog.get_filename())
-            self.set_folder(folder = dialog.get_filename())
+            folder = dialog.get_filename()
+            
+            #folder = dialog.get_filenames()
+            #print('\n\n\n',folder,'\n\n\n')
+            
+            self.set_folder(folder =folder)
             #print(os.path.dirname( dialog.get_filename() ))
 
         
