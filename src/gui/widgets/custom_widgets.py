@@ -729,7 +729,7 @@ class VismolTrajectoryFrame(Gtk.Frame):
     def reverse (self, button =  None, step = 1):
         """ Function doc """
         value = int(self.scale.get_value())
-        print(value)
+        #print(value)
         if value == 0:
             pass
         else:

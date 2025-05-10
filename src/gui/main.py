@@ -74,6 +74,7 @@ from gui.windows.analysis.energy_refinement_window                import EnergyR
 from gui.windows.analysis.PES_analysis_window                     import PotentialEnergyAnalysisWindow
 from gui.windows.analysis.distance_angle_dihedral_analysis_window import DistanceAngleDihedralAnalysisWindow
 from gui.windows.analysis.RMSD_tool                               import RMSDToolWindow
+from gui.windows.analysis.RMSD_analysis_window                     import RMSDAnalysisWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
 
 from util.geometric_analysis import get_simple_distance
 from util.sequence_plot import GtkSequenceViewer
@@ -351,7 +352,8 @@ class MainWindow:
         #self.surface_list_window =   SurfaceListWindow (main = self)
         self.distance_angle_dihedral_analysis_window = DistanceAngleDihedralAnalysisWindow (main = self)
         
-        self.rmsd_tool_window = RMSDToolWindow (main = self, system_liststore = self.system_liststore)
+        #self.rmsd_tool_window = RMSDToolWindow (main = self, system_liststore = self.system_liststore)
+        self.rmsd_analysis_window = RMSDAnalysisWindow (main = self, system_liststore = self.system_liststore)
         
         
         self.normal_modes_window          =   NormalModesWindow (main = self)
@@ -979,8 +981,8 @@ class MainWindow:
             rama = RamachandranWindow()
         
         elif menuitem == self.builder.get_object('menuitem_RMSD_tool'):
-            self.rmsd_tool_window.OpenWindow()
-        
+            #self.rmsd_tool_window.OpenWindow()
+            self.rmsd_analysis_window.OpenWindow()
         elif menuitem == self.builder.get_object('test_histograms'):
             from util.easyplot import ImagePlot, XYPlot
             import random

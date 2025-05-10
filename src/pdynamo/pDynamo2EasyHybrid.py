@@ -1298,9 +1298,7 @@ class Restraints:
         
         else:
             pass
-        #restraints["RC1"] = restraint
-    
-    
+
     def define_harmonic_restraints (self, parameters):
         """ Function doc """
         parameters['equilibriumValue'] = 0.0
@@ -1319,7 +1317,7 @@ class Restraints:
     def define_distance_harmonic_restraints (self, parameters):
         """ Function doc """
         restraints = RestraintModel()
-        
+        #print('\n\n\n\n',parameters, '\n\n\n\n')
         parameters['system'].DefineRestraintModel( restraints )
         
         distance = parameters['dminimum_RC1'] + ( parameters['dincre_RC1'] * float(i) )
@@ -1327,6 +1325,27 @@ class Restraints:
         rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['force_constant_1'])
         restraint         = RestraintDistance.WithOptions(energyModel = rmodel, point1= atom1, point2= atom2)
         restraints["RC1"] = restraint
+
+    def define_position_harmonic_restraints (self, parameters):
+        """ Function doc """
+        # . parameters['reference']
+        # . parameters['selection']
+        # . parameters['system']
+        # . parameters['force_constant']
+
+        # . Harmonically restrain heavy atoms.
+        tethers       = None
+        forceConstant = parameters['force_constant']
+        
+        reference          = Clone ( parameters['reference'] ) # Change it later
+        tetherEnergyModel  = RestraintEnergyModel.Harmonic ( 0.0, forceConstant )
+        tethers            = RestraintModel ( )
+        tethers["Tethers"] = RestraintMultipleTether.WithOptions ( energyModel = tetherEnergyModel ,
+                                                                   reference   = reference         , 
+                                                                   selection   = parameters['selection'])
+        parameters['system'].DefineRestraintModel ( tethers )
+
+
 
     def clear_restraints (self):
         """ Function doc """
