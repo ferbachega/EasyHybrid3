@@ -420,6 +420,24 @@ class RMSDAnalysisWindow:
         
         textwindow = TextWindow(text)
         
+        if self.builder.get_object('chk_plot').get_active():
+            from util.easyplot import ImagePlot, XYPlot
+            import random
+            self.plot = XYPlot()
+            X =  range(n)
+            Y =  RMSD_list
+            rgb = [0,0,0,]
+            self.plot.add ( X = X, Y = Y,
+                                symbol = None, sym_color = [1,1,1], sym_fill = False, 
+                                line = 'solid', line_color = rgb, energy_label = None)
+            
+            self.plot.Ymin_list= [0]
+            window =  Gtk.Window()
+            window.add(self.plot)
+            window.set_default_size(500, 200)
+            window.show_all()
+        else:
+            print('chk_plot_off')
             
     def on_btn_run_analysis2 (self, widget, event = None):
         """ Function doc """

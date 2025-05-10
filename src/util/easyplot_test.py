@@ -6,7 +6,7 @@ import random
 import numpy as np
 import sys
 from pprint import pprint
-from  easyplot import ImagePlot, XYPlot,XYScatterPlot
+from  easyplot import ImagePlot, XYPlot, XYScatterPlot
 import random
 
 '''                 Histograms                 '''
