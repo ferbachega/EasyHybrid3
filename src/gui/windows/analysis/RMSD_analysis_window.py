@@ -57,6 +57,7 @@ class RMSDAnalysisWindow:
         
         self.parameters = []
         
+        self.is_frame_reference = True
 
     def OpenWindow (self, vobject = None):
         """ Function doc """
@@ -68,6 +69,24 @@ class RMSDAnalysisWindow:
             
             self.window = self.builder.get_object('window')
             self.window.set_title('RMSD Analysis')
+            
+            self.radio_frame = self.builder.get_object('radio_frame_reference')
+            self.radio_frame.connect("toggled", self.on_button_toggled)
+            
+            self.radio_average = self.builder.get_object('radio_average')
+            #self.radio_frame.connect("toggled", self.on_button_toggled)
+            
+            
+            self.chk_frames_from =  self.builder.get_object('chk_frames_from')
+            self.chk_frames_from.connect('toggled' ,self.on_frame_range_checkbox)
+            
+            self.chk_step_size = self.builder.get_object('chk_step_size')
+            self.chk_step_size.connect('toggled' ,self.on_step_size_checkbox)
+            
+            self.btn_close = self.builder.get_object('btn_close')
+            self.btn_close.connect('clicked' ,self.CloseWindow)
+            #on_button_toggled
+            
             #self.window.set_keep_above(True)            
             #self.window.set_default_size(100, 500)
             
@@ -104,7 +123,7 @@ class RMSDAnalysisWindow:
             #self.column_3   .set_spacing(40)
             #self.column_4   .set_spacing(40)
             self.builder.get_object('scroll_treeview').hide()
-            self.builder.get_object('output_box').hide()
+            #self.builder.get_object('output_box').hide()
             self.builder.get_object('btn_distance').hide()
             self.Visible  = True
             
@@ -364,36 +383,165 @@ class RMSDAnalysisWindow:
                 print(f"Selected line to be deleted: {path.get_indices()[0]}")
                 model.remove(treeiter)  # Remove the selected line
 
+
+
+
+
+
+    def on_step_size_checkbox (self, widget):
+        """ Function doc """
+        if self.builder.get_object('chk_step_size').get_active():
+            self.builder.get_object('entry_step_size').set_sensitive(True)
+        else:
+            self.builder.get_object('entry_step_size').set_sensitive(False)
+
+    def on_frame_range_checkbox (self, widget):
+        """ Function doc """
+        if self.builder.get_object('chk_frames_from').get_active():
+            self.builder.get_object('entry_frame_init').set_sensitive(True)
+            #self.builder.get_object('label1').set_sensitive(True)
+            self.builder.get_object('entry_frame_last').set_sensitive(True)
+        else:
+            self.builder.get_object('entry_frame_init').set_sensitive(False)
+            #self.builder.get_object('label1').set_sensitive(False)
+            self.builder.get_object('entry_frame_last').set_sensitive(False)
+            #f_init = int(self.builder.get_object('entry_frame_init').get_text())
+            #f_last = int(self.builder.get_object('entry_frame_last').get_text())        
+        
+        
+
+    def on_button_toggled(self, button):
+        
+        if self.radio_frame.get_active():
+            self.builder.get_object('entry_ref_frame').set_sensitive(True)
+            self.is_frame_reference = True
+        else:
+            self.builder.get_object('entry_ref_frame').set_sensitive(False)
+            self.is_frame_reference = False
+
+            
+    def get_average_structure(self, 
+                              vismol_object  = None, 
+                              selection_list = None, 
+                              step_size      = 1   ,
+                              frame_range    = [0,-1]):
+        """ Function doc """
+        
+        
+        #frame_average = np.copy(vismol_object.frames[0])
+        frame_average = np.zeros_like(vismol_object.frames[0])
+        #print(frame_average)
+        
+        n = 0
+        for frame in vismol_object.frames:
+            for index, coords in enumerate(frame):
+                frame_average[index][0] += coords[0]
+                frame_average[index][1] += coords[1]
+                frame_average[index][2] += coords[2]
+                
+                pass
+                #print(coords)
+            
+            n+=1
+        print(frame_average)
+
+        for coords in frame_average:
+            coords[0] = coords[0]/n
+            coords[1] = coords[1]/n
+            coords[2] = coords[2]/n
+
+        #print(frame_average)
+        return frame_average
+        
     def on_btn_run_analysis (self, widget, event = None):
         """ Function doc """
-        try:
-            ref_frame = int(self.builder.get_object('entry_ref_frame').get_text())
-        except:
-            print('fail ref_frame')
-            return False
-            #ref_frame = 0
         
-        print('on_btn_run_analysis')
-        qc_list, residue_dict, vismol_object = self.vm_session.build_index_list_from_atom_selection (return_vobject = True)
-        print(qc_list, residue_dict, vismol_object)
-        print(vismol_object.frames[0])
+        f_last    = -1
+        f_init    = 0
+        step_size = 1
+        
+        #.1 - defining the  reference vismol object and selection list
+        selection_list, residue_dict, vismol_object = self.vm_session.build_index_list_from_atom_selection (return_vobject = True)
+        if vismol_object == None:
+            text = 'RMSD calculation failed: invalid atom selection! Please select the desired group of atoms from a single VObject only.'
+
+            dialog = Gtk.MessageDialog(
+                        transient_for=self.main.window,
+                        message_type=Gtk.MessageType.ERROR,
+                        buttons=Gtk.ButtonsType.OK,
+                        text="Failed!",
+                        )
+            dialog.format_secondary_text(
+                text #"The folder you have selected does not appear to be valid. Please select a different folder or create a new one."
+            )
+            dialog.run()
+            dialog.destroy()
+            
+            print('RMSD calculation failed: invalid atom selection! Please select the desired group of atoms from a single VObject only.')
+            return False
+        
+        #.2 redefining the range of frames and step size
+        # frame range
+        if self.builder.get_object('chk_frames_from').get_active():
+            f_init = int(self.builder.get_object('entry_frame_init').get_text())
+            f_last = int(self.builder.get_object('entry_frame_last').get_text())
+        # stepsize
+        if self.builder.get_object('chk_step_size').get_active():
+            step_size = int(self.builder.get_object('entry_step_size').get_text())
+        #-------------------------------------------------------------------------
+
+        #.3 defining the reference set of coordinates 
+        if self.is_frame_reference:
+            try:
+                ref_frame = int(self.builder.get_object('entry_ref_frame').get_text())
+            except:
+                print('fail ref_frame')
+                return False
+            ref_frame = vismol_object.frames[ref_frame]
+        
+        else:
+            ref_frame = self.get_average_structure(vismol_object, selection_list)
+        #-------------------------------------------------------------------------
+
+
+        
+        #print('on_btn_run_analysis')
+
+        #print(selection_list, residue_dict, vismol_object)
+        #print(vismol_object.frames[0])
+        
+        
+        
+        
         
         
         RMSD_list = []
-        
         text = ''
         n = 0
-        for frame in vismol_object.frames:
-            #print('\n')
+        #a.size
+        
+        if f_last == -1:
+            traj_size = vismol_object.frames.shape
+            print(traj_size)
+            traj_size = traj_size[0]
+            f_last = traj_size
+
+        
+        #for frame in vismol_object.frames:
+            #print('\n')        
+        for f_index in range(f_init, f_last, step_size):
+            #print(f_index)
+            frame = vismol_object.frames[f_index]
+
             
-            rmsd = 0.0
-            d2_sum =0.0 
+            rmsd   = 0.0
+            d2_sum = 0.0 
             
-            for index in qc_list:
+            for index in selection_list:
                 #print(vismol_object.frames[0][index])
                 
-                ci = vismol_object.frames[ref_frame][index] # reference
-                cj = frame[index]                           # actual frame
+                ci = ref_frame[index] # reference
+                cj = frame[index]     # actual frame
                 
                 
                 #For each atom, the squared distance between the two positions is calculated:
@@ -402,8 +550,8 @@ class RMSDAnalysisWindow:
                 #Add up all distances squared:
                 d2_sum += d2
             
-            #It is divided by 𝑁 N (number of atoms), and take the square root:
-            rmsd = ( d2_sum/ (len(qc_list)) )**0.5
+            #It is divided by N (number of atoms), and take the square root:
+            rmsd = ( d2_sum/ (len(selection_list)) )**0.5
             #print(rmsd)
             RMSD_list.append(rmsd)
             text += str(rmsd)+'\n'
@@ -431,74 +579,12 @@ class RMSDAnalysisWindow:
                                 symbol = None, sym_color = [1,1,1], sym_fill = False, 
                                 line = 'solid', line_color = rgb, energy_label = None)
             
-            self.plot.Ymin_list= [0]
+            
             window =  Gtk.Window()
             window.add(self.plot)
-            window.set_default_size(500, 200)
+            self.plot.Ymin_list= [0]
+            window.set_default_size(600, 500)
             window.show_all()
         else:
             print('chk_plot_off')
             
-    def on_btn_run_analysis2 (self, widget, event = None):
-        """ Function doc """
-
-        measures = []
-        jobsize   = len(self.parameters)
-        print('\n\n')
-        
-        for job in self.parameters:
-            
-            vobject      = job[1].vm_object
-            size         = len(vobject.frames)
-            job_distance = []
-            
-            for i in range(size):
-                if job[0] == 'distance':    
-                    a1_coord = job[1].coords(frame=i)
-                    a2_coord = job[2].coords(frame=i)
-                    
-                    dist1 = get_simple_distance(a1_coord, a2_coord)            
-                    job_distance.append(dist1)
-                
-                elif job[0] == 'angle':
-                    a1_coord = job[1].coords(frame=i)
-                    a2_coord = job[2].coords(frame=i)
-                    a3_coord = job[3].coords(frame=i)
-                    
-                    angle = get_simple_angle( a1_coord, a2_coord, a3_coord)            
-                    job_distance.append(angle)
-                
-                
-                elif  job[0] == 'dihedral':
-                    a1_coord = job[1].coords(frame=i)
-                    a2_coord = job[2].coords(frame=i)
-                    a3_coord = job[3].coords(frame=i)
-                    a4_coord = job[4].coords(frame=i)
-                    
-                    dangle = get_simple_dihedral( a1_coord, a2_coord, a3_coord, a4_coord)
-                    job_distance.append(dangle)
-                
-                else:
-                    pass
-                    
-            measures.append(job_distance)
-        
-        #print(measures)
-        '''
-        # printing the results 
-        '''
-        text = ''
-        for i in range(size):
-            text += ' {:<4} '.format(i)
-            for j in range(jobsize):
-                text += ' {:^.7f} '.format(measures[j][i])
-            
-            text += '\n' 
-        
-        print(text)
-        textwindow = TextWindow(text)
-
-    
-    
-    
-

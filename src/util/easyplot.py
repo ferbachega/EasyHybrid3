@@ -1198,7 +1198,7 @@ class XYPlot(Gtk.DrawingArea):
         
         self.Ymin = self.Ymin + self.Ymin/self.Y_space
         self.Ymax = self.Ymax + self.Ymax/self.Y_space
-        self.Ymin = int(self.Ymin) + self.y_botton #- 3 #round(delta/20)
+        self.Ymin = int(self.Ymin)# + self.y_botton #- 3 #round(delta/20)
         self.Ymax = int(self.Ymax) + self.y_top    #+ 2 #round(delta/20)
         delta = self.Ymax - self.Ymin
 
