@@ -724,6 +724,10 @@ class pSimulations:
         
         
         """
+        self.main.refresh_main_statusbar(message = 'Running...', psystem = None)
+        #self.main.statusbar_main.push(1,'Running...')
+        
+        
         parameters['system'] = self.psystem[self.active_id] 
         parameters = self._apply_restraints (parameters)
         
@@ -824,7 +828,7 @@ class pSimulations:
         #if self.main.session_filename:
         #print('\n\n',  self.main.session_filename, '\n\n')
         self.save_easyhybrid_session( filename = self.main.session_filename, tmp = True)
-            
+        #self.main.refresh_main_statusbar(message = None, psystem = None)
         return energy
         
         
@@ -2604,6 +2608,20 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             
         elif parameters['method'] == 'DFTB+':
             #print(parameters)
+            qcModel = QCModelDFTB.WithOptions ( deleteJobFiles =       parameters["deleteJobFiles"      ],
+                                                extendedInput =        parameters["extendedInput"       ],
+                                                fermiTemperature =     parameters["fermiTemperature"    ],
+                                                gaussianBlurWidth =    parameters["gaussianBlurWidth"   ],
+                                                hamiltonian =          parameters["hamiltonian"         ],
+                                                maximumSCCIterations = parameters["maximumSCCIterations"],
+                                                randomScratch =        parameters["randomScratch"       ],
+                                                sccTolerance =         parameters["sccTolerance"        ],
+                                                scratch =              parameters["scratch"             ],
+                                                skfPath =              parameters["skfPath"             ],
+                                                useSCC =               parameters["useSCC"              ],
+                                                 )
+                                                 
+            '''
             qcModel = QCModelDFTB.WithOptions ( deleteJobFiles = parameters['delete_job_files'],
                                                 randomScratch  = parameters['random_scratch']  ,
                                                 scratch        = parameters['dftb+_scratch']   ,
@@ -2618,7 +2636,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                                 maximumSCCIterations = parameters['maximumSCCIterations'],
                                                 sccTolerance         = parameters['sccTolerance'        ],
                                                 )
-        
+            '''
         
         
         

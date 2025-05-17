@@ -1534,15 +1534,18 @@ class SetupDFTBplusWindow:
         self.delete_job_files     = True
         self.random_scratch       = False
                                   
-        self.ThirdOrderFull       = False
-        self.zeta                 = 4.00
-        self.HubbardDerivs        = None
+        
+        
+        
+        #self.ThirdOrderFull       = False
+        #self.zeta                 = 4.00
+        #self.HubbardDerivs        = None
 
         self.fermiTemperature     = 300
         self.gaussianBlurWidth    = 0.0
         self.maximumSCCIterations = 300
         self.sccTolerance         = 1.0e-8
-
+        self.text_extended_input  = None
 
 
 
@@ -1573,10 +1576,10 @@ class SetupDFTBplusWindow:
             self.checkbox_delete_job_files = self.builder.get_object('checkbox_delete_job_files')
             self.checkbox_random_scratch   = self.builder.get_object('checkbox_random_scratch')
             
-            self.checkbox_ThirdOrderFull   = self.builder.get_object('checkbox_ThirdOrderFull')
-            self.checkbox_ThirdOrderFull.connect("toggled", self.on_checkbox_ThirdOrderFull_toggled)
+            self.chk_extended_input   = self.builder.get_object('chk_extended_input')
+            self.chk_extended_input.connect("toggled", self.on_chk_extended_input)
             
-            self.on_checkbox_ThirdOrderFull_toggled(None)
+            
             
             
             self.entry_fermiTemperature      = self.builder.get_object('entry_fermiTemperature')       
@@ -1588,7 +1591,7 @@ class SetupDFTBplusWindow:
             #. Interface Sholl All
             self.window.connect("destroy", self.CloseWindow)
             self.window.show_all()
-    
+            self.on_chk_extended_input(None)
             
             #.Assigning the previously adjusted parameters to the respective widgets.            
 
@@ -1600,8 +1603,8 @@ class SetupDFTBplusWindow:
             self.checkbox_random_scratch  .set_active(self.random_scratch  )
 
 
-            self.checkbox_ThirdOrderFull.set_active(self.ThirdOrderFull)
-            self.builder.get_object('entry_zeta').set_text(str(self.zeta))
+            #self.checkbox_ThirdOrderFull.set_active(self.ThirdOrderFull)
+            #self.builder.get_object('entry_zeta').set_text(str(self.zeta))
             
             self.entry_fermiTemperature    .set_text(str(self.fermiTemperature    ))     
             self.entry_gaussianBlurWidth   .set_text(str(self.gaussianBlurWidth   ))    
@@ -1621,9 +1624,15 @@ class SetupDFTBplusWindow:
         self.Visible    =  False
 
     
-    def on_checkbox_ThirdOrderFull_toggled (self, widget):
+    def on_chk_extended_input (self, widget):
         """ Function doc """
         
+        if self.chk_extended_input.get_active():
+            self.builder.get_object('scroll_text_viewer').show( )
+        else:
+            self.builder.get_object('scroll_text_viewer').hide( )
+        
+        '''
         self.builder.get_object('entry_zeta').set_text(str(4.00))
         
         if self.checkbox_ThirdOrderFull.get_active():
@@ -1634,6 +1643,7 @@ class SetupDFTBplusWindow:
             self.builder.get_object('label_zeta').set_sensitive(False)
             self.builder.get_object('entry_zeta').set_sensitive(False)
             self.builder.get_object('btn_HubbardDerivs').set_sensitive(False)
+        '''
         
         #self.skf_folder       = self.skf_folder_chooser.get_filename()
         #self.scratch_folder   = self.entry_dftb_scratch_folder.get_text()
@@ -1650,21 +1660,27 @@ class SetupDFTBplusWindow:
         self.delete_job_files = self.checkbox_delete_job_files.get_active()
         self.random_scratch   = self.checkbox_random_scratch  .get_active()
         
-        if self.checkbox_ThirdOrderFull.get_active():
-            self.ThirdOrderFull = True
-            self.zeta = float(self.builder.get_object('entry_zeta').get_text())
-            self.HubbardDerivs = self.Hubbard_Derivs_parameters
-        else:
-            self.ThirdOrderFull = False
-            self.zeta           = 0.0
-            self.HubbardDerivs  = None
+        #if self.checkbox_ThirdOrderFull.get_active():
+        #    self.ThirdOrderFull = True
+        #    self.zeta = float(self.builder.get_object('entry_zeta').get_text())
+        #    self.HubbardDerivs = self.Hubbard_Derivs_parameters
+        #else:
+        #    self.ThirdOrderFull = False
+        #    self.zeta           = 0.0
+        #    self.HubbardDerivs  = None
 
         self.fermiTemperature     = float(self.builder.get_object('entry_fermiTemperature').get_text()     )
         self.gaussianBlurWidth    = float(self.builder.get_object('entry_gaussianBlurWidth').get_text()    )
         self.maximumSCCIterations =   int(self.builder.get_object('entry_maximumSCCIterations').get_text() )
         self.sccTolerance         = float(self.builder.get_object('entry_sccTolerance').get_text()         )
 
-
+        
+        if self.chk_extended_input.get_active():
+            textbuffer = self.builder.get_object('text_viewer').get_buffer ()
+            self.text_extended_input = textbuffer.get_text (textbuffer.get_start_iter(), textbuffer.get_end_iter(), True)        
+        else:
+            self.text_extended_input = None
+        
         self.CloseWindow (None, None)
     
         
@@ -2311,21 +2327,37 @@ class EasyHybridSetupQCModelWindow:
             #parameters['dftb+_scratch'  ] = os.environ.get('PDYNAMO3_SCRATCH')
             #parameters['skf_path'  ]      = os.path.join(os.environ.get('PDYNAMO3_HOME'),'examples/dftbPlus/data/skf')
         
-            parameters['skf_path'  ]         = self.setup_dftb_window.skf_folder       #self.setup_dftb_window.skf_folder_chooser.get_filename()
-            parameters['dftb+_scratch'  ]    = self.setup_dftb_window.scratch_folder   #self.setup_dftb_window.entry_dftb_scratch_folder.get_text()
-            parameters['use_scc']            = self.setup_dftb_window.use_scc          #self.setup_dftb_window.checkbox_use_scc.get_active()         
-            parameters['delete_job_files'  ] = self.setup_dftb_window.delete_job_files #self.setup_dftb_window.checkbox_delete_job_files.get_active()
-            parameters['random_scratch'  ]   = self.setup_dftb_window.random_scratch   #self.setup_dftb_window.checkbox_random_scratch.get_active()  
+            parameters["deleteJobFiles"      ] = self.setup_dftb_window.delete_job_files # True/False 
+            
+            parameters["extendedInput"       ] = self.setup_dftb_window.text_extended_input #None
+            
+            parameters["fermiTemperature"    ] = self.setup_dftb_window.fermiTemperature
+            parameters["gaussianBlurWidth"   ] = self.setup_dftb_window.gaussianBlurWidth
+            parameters["hamiltonian"         ] = "DFTB"
+            parameters["maximumSCCIterations"] = self.setup_dftb_window.maximumSCCIterations
+            parameters["randomScratch"       ] = self.setup_dftb_window.random_scratch
+            parameters["sccTolerance"        ] = self.setup_dftb_window.sccTolerance
+            parameters["scratch"             ] = self.setup_dftb_window.scratch_folder
+            parameters["skfPath"             ] = self.setup_dftb_window.skf_folder 
+            parameters["useSCC"              ] = self.setup_dftb_window.use_scc
         
-            parameters['ThirdOrderFull' ] = self.setup_dftb_window.ThirdOrderFull
-            parameters['zeta'           ] = self.setup_dftb_window.zeta
-            parameters['HubbardDerivs'  ] = self.setup_dftb_window.HubbardDerivs
-            
-            
-            parameters['fermiTemperature'     ] = self.setup_dftb_window.fermiTemperature  
-            parameters['gaussianBlurWidth'    ] = self.setup_dftb_window.gaussianBlurWidth    
-            parameters['maximumSCCIterations' ] = self.setup_dftb_window.maximumSCCIterations 
-            parameters['sccTolerance'         ] = self.setup_dftb_window.sccTolerance        
+            #print (parameters)
+        
+            #parameters['skf_path'  ]         = self.setup_dftb_window.skf_folder       #self.setup_dftb_window.skf_folder_chooser.get_filename()
+            #parameters['dftb+_scratch'  ]    = self.setup_dftb_window.scratch_folder   #self.setup_dftb_window.entry_dftb_scratch_folder.get_text()
+            #parameters['use_scc']            = self.setup_dftb_window.use_scc          #self.setup_dftb_window.checkbox_use_scc.get_active()         
+            #parameters['delete_job_files'  ] = self.setup_dftb_window.delete_job_files #self.setup_dftb_window.checkbox_delete_job_files.get_active()
+            #parameters['random_scratch'  ]   = self.setup_dftb_window.random_scratch   #self.setup_dftb_window.checkbox_random_scratch.get_active()  
+            #
+            #parameters['ThirdOrderFull' ] = self.setup_dftb_window.ThirdOrderFull
+            #parameters['zeta'           ] = self.setup_dftb_window.zeta
+            #parameters['HubbardDerivs'  ] = self.setup_dftb_window.HubbardDerivs
+            #
+            #
+            #parameters['fermiTemperature'     ] = self.setup_dftb_window.fermiTemperature  
+            #parameters['gaussianBlurWidth'    ] = self.setup_dftb_window.gaussianBlurWidth    
+            #parameters['maximumSCCIterations' ] = self.setup_dftb_window.maximumSCCIterations 
+            #parameters['sccTolerance'         ] = self.setup_dftb_window.sccTolerance        
         
         elif self.method_id == 8:
             parameters['gfn'       ] = self.setup_xtb_window.parameters['gfn']  
