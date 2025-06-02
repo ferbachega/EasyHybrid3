@@ -755,7 +755,20 @@ class EasyHybridPreferencesWindow():
         self.gl_parameters["background_color"] = color
         self.vm_session.vm_glcore.bckgrnd_color = color
         #---------------------------------------------------------------
+        
+        
+        #---------------------------------------------------------------
+        self.btn_seqviewer_bg_color = self.builder.get_object('btn_seqviewer_bg_color')
+        color = self.btn_seqviewer_bg_color.get_rgba()
+        color = list(color)
+        self.vm_session.main.bottom_notebook.seqview.text_drawing_area.bg_color = color
 
+        self.btn_seqviewer_label_color = self.builder.get_object('btn_seqviewer_label_color')
+        color = self.btn_seqviewer_label_color.get_rgba()
+        color = list(color)
+        self.vm_session.main.bottom_notebook.seqview.text_drawing_area.marker_color = color
+        #---------------------------------------------------------------
+        
         
         
         #---------------------------------------------------------------

@@ -210,6 +210,30 @@ class EnergyRefinement:
         logfile = self.write_header (parameters = parameters,
                                      logfile    = os.path.join(full_path_trajectory, 'output.log') )
         
+        
+        
+        #---------------------------------------------------------------
+        backup = []
+        try:
+            backup.append(parameters['system'].e_treeview_iter)
+            backup.append(parameters['system'].e_liststore_iter)
+            parameters['system'].e_treeview_iter   = None
+            parameters['system'].e_liststore_iter  = None
+        except:
+            pass
+        
+        sys  =  Clone(parameters['system'])
+        
+        
+        try:
+            parameters['system'].e_treeview_iter   = backup[0]
+            parameters['system'].e_liststore_iter  = backup[1]
+        except:
+            pass
+        #---------------------------------------------------------------
+        
+        parameters['system'] = sys
+        
         #-------------------------------------------------------------------------------
         original_charges = None
         if parameters['ignore_mm_charges']:
@@ -254,6 +278,16 @@ class EnergyRefinement:
                     dist  =  dist1 - dist2 
                     data_energy[int(x)] = [energy, dist1, dist2]
                 
+                elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
+                    atom1 = parameters['RC1']['ATOMS'][0]
+                    atom2 = parameters['RC1']['ATOMS'][1]
+                    atom3 = parameters['RC1']['ATOMS'][2]
+                    atom4 = parameters['RC1']['ATOMS'][3]
+                    dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                    dist2 =  parameters['system'].coordinates3.Distance (atom3, atom4) 
+                    dist  =  dist1 - dist2 
+                    data_energy[int(x)] = [energy, dist1, dist2]
+                
                 print ('frame:', x, dist,  energy)
                 backup_orca_files(system        = parameters['system']         , 
                                   output_folder = full_path_trajectory         , 
@@ -271,6 +305,12 @@ class EnergyRefinement:
                     text += "\nDATA %9i       %13.12f        %13.12f"% (int(i), float(distance), float(energy))
                 
                 elif parameters['RC1']['rc_type'] == 'multiple_distance':
+                    distance1 = data_energy[i][1]
+                    distance2 = data_energy[i][2]
+                    energy    = data_energy[i][0]
+                    text += "\nDATA %9i       %13.12f        %13.12f        %13.12f"% (int(i), float(distance1), float(distance2), float(energy))
+                
+                elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
                     distance1 = data_energy[i][1]
                     distance2 = data_energy[i][2]
                     energy    = data_energy[i][0]
@@ -315,10 +355,19 @@ class EnergyRefinement:
                     atom1 = parameters['RC1']['ATOMS'][0]
                     atom2 = parameters['RC1']['ATOMS'][1]
                     atom3 = parameters['RC1']['ATOMS'][2]
-                    dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                    dist2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
+                    dist_RC1_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                    dist_RC1_2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
                     
-                    dist1 =  dist1 - dist2 
+                    dist1 =  didist_RC1_1 - dist_RC1_2
+                 
+                elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
+                    atom1 = parameters['RC1']['ATOMS'][0]
+                    atom2 = parameters['RC1']['ATOMS'][1]
+                    atom3 = parameters['RC1']['ATOMS'][2]
+                    atom4 = parameters['RC1']['ATOMS'][3]
+                    dist_RC1_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                    dist_RC1_2 =  parameters['system'].coordinates3.Distance (atom3, atom4) 
+                    dist1  =  dist_RC1_1 - dist_RC1_2 
                  
                 
                 if parameters['RC2']['rc_type'] == 'simple_distance':
@@ -330,10 +379,21 @@ class EnergyRefinement:
                     atom1 = parameters['RC2']['ATOMS'][0]
                     atom2 = parameters['RC2']['ATOMS'][1]
                     atom3 = parameters['RC2']['ATOMS'][2]
-                    dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                    dist2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
+                    dist_RC2_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                    dist_RC2_2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
                     
-                    dist2 = dist1 - dist2
+                    dist2 = dist_RC2_1 - dist_RC2_2
+                 
+                elif parameters['RC2']['rc_type'] == 'multiple_distance*4atoms':
+                    atom1 = parameters['RC2']['ATOMS'][0]
+                    atom2 = parameters['RC2']['ATOMS'][1]
+                    atom3 = parameters['RC2']['ATOMS'][2]
+                    atom4 = parameters['RC2']['ATOMS'][3]
+                    dist_RC2_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                    dist_RC2_2 =  parameters['system'].coordinates3.Distance (atom3, atom4) 
+                    dist2 = dist_RC2_1 - dist_RC2_2
+            
+                 
                  
                 
                 data[(i,j)] = [dist1, dist2, energy]
@@ -348,14 +408,21 @@ class EnergyRefinement:
                     text = "\nDATA  %4i  %4i     %13.12f       %13.12f       %13.12f"% (int(i), int(j),  float(data[(i,j)][0]), float(data[(i,j)][1]), float(data[(i,j)][2]))
                     logfile.write(text)
 
-        
+        # not necessary anymore because system now is a clone
         #-------------------------------------------------------------------------------
-        if parameters['ignore_mm_charges']:
-            print('Restoring electrical charges in the MM.')
-            for index, charge in enumerate(original_charges):
-                parameters['system'].mmState.charges[index]   = original_charges[index]
-        else:
-            pass
+        #if parameters['ignore_mm_charges']:
+        #    print('Restoring electrical charges in the MM.')
+        #    for index, charge in enumerate(original_charges):
+        #        parameters['system'].mmState.charges[index]   = original_charges[index]
+        #               
+        #    for i, charge in enumerate(parameters['system'].mmState.charges):
+        #        parameters['system'].mmState.charges[i] =  original_charges[i]
+        #    print(list(parameters['system'].mmState.charges))
+        #
+        #
+        #
+        #else:
+        #    pass
         #-------------------------------------------------------------------------------
         
         
@@ -398,6 +465,19 @@ class EnergyRefinement:
             text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOM_NAMES'][1] )
             text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
             text = text + "\n--------------------------------------------------------------------------------"
+        
+        
+        elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
+            text = text + "\n"
+            text = text + "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"	
+            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOM_NAMES'][0] )
+            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOM_NAMES'][1] )
+            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
+            text = text + "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC1']['ATOMS'][3]    , parameters['RC1']['ATOM_NAMES'][3] )
+            text = text + "\n--------------------------------------------------------------------------------"
+        
+        
+        
         else:
             pass
         #-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -424,6 +504,17 @@ class EnergyRefinement:
                 text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOM_NAMES'][1] )
                 text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
                 text = text + "\n--------------------------------------------------------------------------------"
+            
+            elif parameters['RC2']["rc_type"] == 'multiple_distance*4atoms':
+                text = text + "\n"
+                text = text + "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"	
+                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOM_NAMES'][0] )
+                text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOM_NAMES'][1] )
+                text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
+                text = text + "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC2']['ATOMS'][3]    , parameters['RC2']['ATOM_NAMES'][3] )
+                text = text + "\n--------------------------------------------------------------------------------"
+            
+                
             else:
                 pass
             #-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -449,6 +540,11 @@ class EnergyRefinement:
             elif parameters['RC1']["rc_type"] == 'multiple_distance':
                 text = text + "\n\n--------------------------------------------------------------------------------"
                 text = text + "\n           Frame     dist-ATOM1-ATOM2      dist-ATOM2-ATOM3         Energy        "
+                text = text + "\n--------------------------------------------------------------------------------  "
+            
+            elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
+                text = text + "\n\n--------------------------------------------------------------------------------"
+                text = text + "\n           Frame     dist-ATOM1-ATOM2      dist-ATOM3-ATOM4         Energy        "
                 text = text + "\n--------------------------------------------------------------------------------  "
         #-----------------------------------------------------------------------------------------------------------------------------------------------------------
 

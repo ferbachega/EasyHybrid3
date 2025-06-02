@@ -538,6 +538,44 @@ class EasyHybridImportTrajectory:
         #print (modes_dict)
         return modes_dict
 
+    def _import_dcd_file (self, parameters):
+        """ Function doc """
+        #system self.psystem[parameters['system_id']]
+        #trajectory = ImportTrajectory ( trajectoryPath, system )
+        print('_import_dcd_file')
+        if parameters['new_vobj_name']:
+            #- - - - - - - - - - - - - - -  Creating a new easyhybrid/vismol object  - - - - - - - - - - - - - - -
+            #-----------------------------------------------------------------------------------------------------------------------------
+            vismol_object = self.generate_new_empty_vismol_object (system_id = parameters['system_id'], name = parameters['new_vobj_name'])
+            parameters['vobject_id'] = vismol_object.index
+            parameters['vobject']    = vismol_object  
+            trajectory = ImportTrajectory ( parameters['data_path'], self.psystem[parameters['system_id']] )
+            trajectory.ReadHeader ( )
+            while trajectory.RestoreOwnerData ( ):
+                p_coords = self.psystem[parameters['system_id']].coordinates3
+                v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+                vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
+                system = self.psystem[parameters['system_id']]
+            #vismol_object = self.interpolate_frames_of_a_vobject (system, vismol_object)
+
+            trajectory.ReadFooter ( )
+            trajectory.Close ( )
+        
+        else:
+            trajectory = ImportTrajectory ( parameters['data_path'], self.psystem[parameters['system_id']] )
+            trajectory.ReadHeader ( )
+            vismol_object = parameters['vobject']
+            # . Loop over the frames in the trajectory.
+            while trajectory.RestoreOwnerData ( ):
+                p_coords = self.psystem[parameters['system_id']].coordinates3
+                v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+                #vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
+                vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
+
+            trajectory.ReadFooter ( )
+            trajectory.Close ( )        
+        self._apply_QC_representation_to_vobject(vismol_object = vismol_object)    
+            
     def import_data (self, parameters):
         
         """ Function doc 
@@ -571,6 +609,9 @@ class EasyHybridImportTrajectory:
 
         elif parameters['data_type'] == 'pdbfile':
             self._import_coordinates_from_file (parameters)
+        
+        elif parameters['data_type'] == 'dcd':
+            self._import_dcd_file (parameters)
         
         elif parameters['data_type'] == 'charges':
             charges = self.chrg_file_parser (parameters['data_path'])

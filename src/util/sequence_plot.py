@@ -156,6 +156,7 @@ class TextDrawingArea(Gtk.DrawingArea):
         self.gap_color    = (0.5, 0.5, 0.5)
         self.marker_color = (1  , 1  , 1)
         self.bg_color     = (0  , 0  , 0)
+        #self.bg_color     = (1  , 1  , 1)
         #self.connect("motion-notify-event", self.on_motion)
         #self.connect("button_press_event" , self.button_press)
         #self.connect("clicked" , self.button_press)
@@ -182,7 +183,7 @@ class TextDrawingArea(Gtk.DrawingArea):
         self.char_height = height
         
     def on_draw(self, widget, cr):
-        
+        #print (self.bg_color, self.marker_color)
         self.cr = cr
         #cr.set_source_rgb(0, 0, 0)  # Cor de fundo branca
         #---------------------------------------------------------------

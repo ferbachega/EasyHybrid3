@@ -27,7 +27,8 @@ import os, sys, time
 import logging
 import gi 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk
+#from gi.repository import Gtk, Gdk
+from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
 
 #               Installation is not necessary anymore.
 #.This retrieves the absolute path of the script file that is currently being executed.
@@ -43,39 +44,77 @@ sys.path.append(os.path.join(EASYHYBRID_HOME,"src/"))
 from gui.main import MainWindow
 from gui.eSession import EasyHybridSession
 from gui.config   import VismolConfig
+import time
+import threading
+
+# Splash Screen
+class SplashScreen(Gtk.Window):
+    def __init__(self):
+        super().__init__(title="splash.png")
+        self.set_decorated(False)  # Sem bordas
+        self.set_position(Gtk.WindowPosition.CENTER)
+        #self.set_default_size(710 ,710  )
+        self.set_default_size(614 ,618  )
+
+        # Carrega imagem do splash
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+            filename="splash.png",   
+            width=614,
+            height=618,
+            preserve_aspect_ratio=True
+        )
+
+        image = Gtk.Image.new_from_pixbuf(pixbuf)
+        self.add(image)
+
+def load_modules(callback_final):
+    def _load():
+        print("Starting module loading...")
+        time.sleep(1.5)   
+        GLib.idle_add(callback_final)  #Call the finalize function in the main loop
+    threading.Thread(target=_load).start()
 
 
 def main():
-    logging.basicConfig(format="%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",
-                        datefmt="%Y-%m-%d:%H:%M:%S", level=logging.DEBUG)
+    splash = SplashScreen()
+    splash.show_all()
+    
+    def on_finalizado():
+        logging.basicConfig(format="%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",
+                            datefmt="%Y-%m-%d:%H:%M:%S", level=logging.DEBUG)
 
-    vconfig = VismolConfig(home = EASYHYBRID_HOME)
+        vconfig = VismolConfig(home = EASYHYBRID_HOME)
 
-    vm_session = EasyHybridSession(vm_config = vconfig)
-    vm_session.vm_widget.insert_glmenu()
-    main_window = MainWindow(vm_session = vm_session,
-                             home       =  EASYHYBRID_HOME,
-                             version    = EASYHYBRID_VERSION)
-    vm_session.main_session = main_window                  
-    #main_window.window.connect('destroy', Gtk.main_quit)
-    
-    
-    
-    main_window.builder.get_object('toolbutton_monte_carlo').hide()
-    main_window.builder.get_object('button_test')           .hide()
-    main_window.builder.get_object('test_item')             .hide()
-    main_window.builder.get_object('toolbutton_terminal')   .hide()
-    
-    #main_window.builder.get_object('menuitem_RMSD_tool')   .hide()
-    main_window.builder.get_object('menuitem_rama')   .hide()
-    
-    try:
-        filein = sys.argv[-1]
-        vm_session.load_molecule(filein)
-    except:
-        pass
+        vm_session = EasyHybridSession(vm_config = vconfig)
+        vm_session.vm_widget.insert_glmenu()
+        main_window = MainWindow(vm_session = vm_session,
+                                 home       =  EASYHYBRID_HOME,
+                                 version    = EASYHYBRID_VERSION)
+        vm_session.main_session = main_window                  
+        #main_window.window.connect('destroy', Gtk.main_quit)
+        
+        
+        # do now show these itens:
+        main_window.builder.get_object('toolbutton_monte_carlo').hide()
+        main_window.builder.get_object('button_test')           .hide()
+        main_window.builder.get_object('test_item')             .hide()
+        main_window.builder.get_object('toolbutton_terminal')   .hide()
+        
+        #main_window.builder.get_object('menuitem_RMSD_tool')   .hide()
+        main_window.builder.get_object('menuitem_rama')   .hide()
+        splash.destroy()
+        try:
+            filein = sys.argv[-1]
+            vm_session.load_molecule(filein)
+        except:
+            pass
+        #Gtk.main()
+        return 0
+
+    load_modules(on_finalizado)
+
     Gtk.main()
-    return 0
+
 
 if __name__ == "__main__":
     main()

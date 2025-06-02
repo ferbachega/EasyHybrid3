@@ -525,7 +525,12 @@ class ExportDataWindow:
 
             #------------------------------------------------------------------------------------
             self.box_coordinates = self.builder.get_object('box_coordinates')
-            self.combobox_starting_coordinates = CoordinatesComboBox(coordinates_liststore = self.main.vobject_liststore_dict[sys_selected]) #self.builder.get_object('coordinates_combobox')
+            try:
+                print(self.main.vobject_liststore_dict[sys_selected])
+                self.combobox_starting_coordinates = CoordinatesComboBox(coordinates_liststore = self.main.vobject_liststore_dict[sys_selected]) #self.builder.get_object('coordinates_combobox')
+            except:
+                self.combobox_starting_coordinates = CoordinatesComboBox(coordinates_liststore = -1)
+            
             self.box_coordinates.pack_start(self.combobox_starting_coordinates, False, False, 0)
             size = len(self.main.vobject_liststore_dict[sys_selected])
             
