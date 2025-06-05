@@ -58,7 +58,7 @@ class SplashScreen(Gtk.Window):
 
         # Carrega imagem do splash
         pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
-            filename="splash.png",   
+            filename=(os.path.join(EASYHYBRID_HOME, "splash.png")),   
             width=614,
             height=618,
             preserve_aspect_ratio=True
