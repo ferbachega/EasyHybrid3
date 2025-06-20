@@ -253,50 +253,55 @@ class LoadAndSaveData:
             name   = system.label
             tag    = system.e_tag
             print('\n\n\n\n',system, name, tag, data['system'], data['vobjects'] )
-            
-            self.append_system_to_pdynamo_session (system = system, name  = name, tag = tag)
-            self.main.main_treeview.add_new_system_to_treeview (system)
-            ff  =  getattr(system.mmModel, 'forceField', "None")
-            self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system = system)
-            
-            for vobj  in data['vobjects']:
-                frames = vobj['frames']
-                name   = vobj['name']
+            if len(data['vobjects']) == 0:
+                pass
+            else:
+                self.append_system_to_pdynamo_session (system = system, name  = name, tag = tag)
+                self.main.main_treeview.add_new_system_to_treeview (system)
+                ff  =  getattr(system.mmModel, 'forceField', "None")
+                self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system = system)
                 
-                
-                if 'is_surface' in vobj.keys():
-                    pass
-                else:
-                    vobj['is_surface'] = False
-                
-                if vobj['is_surface']:
-                    print(vobj['is_surface'])
-                    pass
-                else:
-                    vm_object = self._build_vobject_from_pDynamo_system ( system = system, name = name ) 
-                    vm_object.frames = frames
-                    vm_object.active = vobj['active']
-                    self.vm_session._add_vismol_object(vm_object, show_molecule = True)
+                for vobj  in data['vobjects']:
+                    frames = vobj['frames']
+                    name   = vobj['name']
                     
-                    self.main.main_treeview.add_vismol_object_to_treeview(vm_object)
                     
-                    self.main.add_vobject_to_vobject_liststore_dict(vm_object)
+                    if 'is_surface' in vobj.keys():
+                        pass
+                    else:
+                        vobj['is_surface'] = False
                     
-                    self._apply_fixed_representation_to_vobject(vismol_object =vm_object)
-                    self._apply_QC_representation_to_vobject(vismol_object =vm_object)
-                    
-                    self.main.refresh_widgets()
-                    
-                    if 'logfile_data' in vobj.keys():
-                        system.e_logfile_data[vm_object.index] = vobj['logfile_data']
-                    if 'idx_2D_xy' in vobj.keys():
-                        vm_object.idx_2D_xy  = vobj['idx_2D_xy']
+                    if vobj['is_surface']:
+                        print(vobj['is_surface'])
+                        pass
+                    else:
+                        vm_object = self._build_vobject_from_pDynamo_system ( system = system, name = name ) 
+                        vm_object.frames = frames
+                        vm_object.active = vobj['active']
+                        self.vm_session._add_vismol_object(vm_object, show_molecule = True)
+                        
+                        self.main.main_treeview.add_vismol_object_to_treeview(vm_object)
+                        
+                        self.main.add_vobject_to_vobject_liststore_dict(vm_object)
+                        
+                        self._apply_fixed_representation_to_vobject(vismol_object =vm_object)
+                        self._apply_QC_representation_to_vobject(vismol_object =vm_object)
+                        
+                        self.main.refresh_widgets()
+                        
+                        if 'logfile_data' in vobj.keys():
+                            system.e_logfile_data[vm_object.index] = vobj['logfile_data']
+                        if 'idx_2D_xy' in vobj.keys():
+                            vm_object.idx_2D_xy  = vobj['idx_2D_xy']
         if tmp:
             filename = filename.replace('~', '')
             self.main.session_filename = filename
         else:
             self.main.session_filename = filename
 
+    def save_special_PDB (vObject):
+        """ Function doc """
+        
 
 class EasyHybridImportTrajectory:
     """ Class doc """
@@ -3140,7 +3145,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 system = self.psystem[parameters['system_id']]
                 
                 if parameters['format'] == 3:
-                    ExportSystem ( os.path.join ( folder, filename+'.pdb'), system )
+                    #ExportSystem ( os.path.join ( folder, filename+'.pdb'), system )
+                    export_special_PDB(vobject, parameters['last'], os.path.join ( folder, filename+'.pdb'))
                 
                 if parameters['format'] == 4:
                     ExportSystem ( os.path.join ( folder, filename+'.xyz'), system )
@@ -3191,7 +3197,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                             #Pickle( os.path.join ( folder, "frame{}_{}.pkl".format(i, j)), 
                             #        system.coordinates3 )
                             if parameters['format'] == 3:
-                                ExportSystem ( os.path.join ( folder, "frame{}_{}.pdb".format(i, j) ), system )
+                                #ExportSystem ( os.path.join ( folder, "frame{}_{}.pdb".format(i, j) ), system )
+                                export_special_PDB(vobject, frame, os.path.join ( folder, "frame{}_{}.pdb".format(i, j) ))
                             
                             if parameters['format'] == 4:
                                 ExportSystem ( os.path.join ( folder, "frame{}_{}.xyz".format(i, j) ), system )
@@ -3219,7 +3226,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
 
                         if parameters['format'] == 3:
-                            ExportSystem ( os.path.join ( folder, 'frame{}.pdb'.format( i) ), system )
+                            #ExportSystem ( os.path.join ( folder, 'frame{}.pdb'.format( i) ), system )
+                            export_special_PDB(vobject, frame, os.path.join ( folder, 'frame{}.pdb'.format( i) ))
                         
                         if parameters['format'] == 4:
                             ExportSystem ( os.path.join ( folder, 'frame{}.xyz'.format( i)), system )
@@ -3755,3 +3763,63 @@ def generate_random_code(length):
 
 
 
+
+
+
+def export_special_PDB (vobject = None, frame = -1, output = 'temp.pdb'):
+    """ Function doc """
+    
+    
+    data = open(output, 'w')
+    change_chain = False
+    text = ''
+    for index in vobject.atoms.keys():
+        atom    = vobject.atoms[index]
+        name    = atom.name
+        
+        resi    = atom.residue
+        chain   = atom.chain
+        chain_name = chain.name
+        
+        if chain_name =='':
+            if change_chain:
+                chain_name = 'B'
+            else:
+                chain_name = 'A'
+        #resn    = vobject.chain[chain].
+        
+        #chain   = atom.chain
+        
+        symbol  = atom.symbol
+        coords  = atom.coords(frame)
+        
+        resi_index =resi.index
+        
+        if resi_index > 9999:
+            change_chain = True
+            resi_index = resi_index-9999
+        
+        #print (atom, name, resi, chain)
+        #           ATOM    120  CA  VAL A  17      36.365  31.982  42.405  1.00 53.96           C  
+        #           ATOM    514 H514 SER  34        17.413  42.503  16.453  1.00  1.00      H   
+        #           HETATM63640  H1  WAT  1916       7.005  19.149   8.699  0.00  0.00          H   
+        #           ATOM    116 S116 CYS  9         23.989  35.368   6.299  1.00  1.00      S   
+        #           HETATM63640  H1         WAT  1916       7.005  19.149   8.699  0.00  0.00          H   
+        ATOMLINE = "{:<6s}{:5d} {:<4s} {:3s} {:1s}{:>4s}    {:8.3f}{:8.3f}{:8.3f}{:6.2f}{:6.2f}          {:<4s}\n".format(
+        #HETATM
+        'ATOM  ',
+        index+1,
+        str(name),
+        str(resi.name),
+        str(chain_name),
+        str(resi_index),
+        coords[0],
+        coords[1],
+        coords[2],
+        1.0,
+        1.0,
+        symbol
+        )
+        #print(ATOMLINE)
+        text += ATOMLINE
+    data.write(text)

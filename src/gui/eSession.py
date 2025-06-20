@@ -1104,9 +1104,11 @@ class EasyHybridSession(VismolSession, GLMenu):
 
     def _selection_function_set(self, selected, _type=None, disable=True):
         """ Function doc """
+        
+        #print('selected', selected)
         if self.picking_selection_mode: # True for picking mode
             if selected:
-                assert len(selected) == 1
+                #assert len(selected) == 1 # bachega 06 / 18 /2025
                 selected = list(selected)[0]
                 self.picking_selections.selection_function_picking(selected)
             else:
