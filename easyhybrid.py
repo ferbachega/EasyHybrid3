@@ -55,18 +55,19 @@ class SplashScreen(Gtk.Window):
         self.set_position(Gtk.WindowPosition.CENTER)
         #self.set_default_size(710 ,710  )
         self.set_default_size(800 ,671  )
+        try:
+            # Carrega imagem do splash
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                filename=(os.path.join(EASYHYBRID_HOME, "splash.png")),   
+                width=800,
+                height=671,
+                preserve_aspect_ratio=True
+            )
 
-        # Carrega imagem do splash
-        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
-            filename=(os.path.join(EASYHYBRID_HOME, "splash.png")),   
-            width=800,
-            height=671,
-            preserve_aspect_ratio=True
-        )
-
-        image = Gtk.Image.new_from_pixbuf(pixbuf)
-        self.add(image)
-
+            image = Gtk.Image.new_from_pixbuf(pixbuf)
+            self.add(image)
+        except:
+            print('splash.png file not found!')
 def load_modules(callback_final):
     def _load():
         print("Starting module loading...")
