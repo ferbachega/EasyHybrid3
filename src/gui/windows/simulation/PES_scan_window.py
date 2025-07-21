@@ -163,7 +163,7 @@ class PotentialEnergyScanWindow():
             self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
             self.builder.get_object('button_export').connect('clicked', self.on_btn_export)
             self.builder.get_object('checkbtn_TS-centered_mode').connect('toggled', self.change_check_button_TS_centered_mode)
-            #self.builder.get_object('checkbtn_TS-centered_mode').hide()
+            self.builder.get_object('checkbtn_TS-centered_mode').hide()
             
             # - - - - - - - - - - - - - - - - - - - - - - -
             # setting the rc type as "simple distance" 
