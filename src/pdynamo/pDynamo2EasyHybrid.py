@@ -812,7 +812,7 @@ class pSimulations:
         
         
         """
-        self.main.refresh_main_statusbar(message = 'Running...', psystem = None)
+        #self.main.refresh_main_statusbar(message = 'Running...', psystem = None)
         #self.main.statusbar_main.push(1,'Running...')
         
         

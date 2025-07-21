@@ -127,7 +127,8 @@ class SelectionListWindow(Gtk.Window):
             #                - - - - - - - Restraint Treeview - - - - - - -
             #---------------------------------------------------------------------------------
             self.restraint_treeview = self.builder.get_object('restraint_treeview')
-            
+            self.restraint_treeview.connect("row-activated", self.on_restraint_treeview_row_activated)
+            self.restraint_treeview.connect('button-release-event', self.on_restraint_treeview_button_release_event )
             renderer_toggle = Gtk.CellRendererToggle()
             renderer_toggle.connect("toggled", self._on_cell_visible_toggled)
             column_toggle = Gtk.TreeViewColumn("A", renderer_toggle, active=0)#, visible = True)
@@ -204,13 +205,38 @@ class SelectionListWindow(Gtk.Window):
     #def update_restraint_representation (_):
     #    """ Function doc """
 
+    def on_restraint_treeview_button_release_event (self, tree, event):
+        """ Function doc """
+        if event.button == 3:
+            selection     = self.restraint_treeview.get_selection()
+            (model, iter) = selection.get_selected()
+            #for item in model:
+                #pass
+            print ( model[iter][0],model[iter][1],model[iter][2])
+            #if iter != None:
+                
+            #    self.treeview_menu.open_menu(iter, system_id)
 
+        if event.button == 1:
+            print ('event.button == 1:')
 
-
+    def on_restraint_treeview_row_activated (self, treeview, path, column):
+        """ Function doc """
+        modelo = treeview.get_model()
+        iterador = modelo.get_iter(path)
+        nome = modelo.get_value(iterador, 0)
+        id_valor = modelo.get_value(iterador, 1)
+        print(f"Duplo clique na linha: {nome} (ID={id_valor})")
      
         
     def _on_cell_visible_toggled (self, widget, path):
-        """ Function doc """
+        """ 
+            This function changes the status of the 
+            check box for each item, in this case,
+            each item corresponds to a constraint.
+
+            system.e_restraints_dict <- stores the constraints
+        """
         #print(widget)
         ##print(list(path))
         self.restraint_liststore[path][0] = not self.restraint_liststore[path][0]
@@ -220,7 +246,7 @@ class SelectionListWindow(Gtk.Window):
         name = self.restraint_liststore[path][1]
         system = self.main_session.p_session.psystem[e_id]
         system.e_restraints_dict[name][0] =  self.restraint_liststore[path][0]
-        
+        print(system.e_restraints_dict)
         self.p_session.update_restaint_representation(e_id)
         
 
