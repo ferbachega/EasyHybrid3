@@ -1303,7 +1303,7 @@ class MainWindow:
         system.e_color_palette['C'] = new_color
         sqr_color                   = get_colorful_square_pixel_buffer (system)
         
-        print(system.e_liststore_iter, sqr_color)
+        #print(system.e_liststore_iter, sqr_color)
         self.system_liststore[system.e_liststore_iter][2] = sqr_color 
 
         self.main_treeview_model =  self.main_treeview.get_model() 

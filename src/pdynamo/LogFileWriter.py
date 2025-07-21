@@ -227,13 +227,46 @@ class LogFileReader:
         """ Function doc """
         #print(self.type)
         if self.type == 'EasyHybrid-SCAN2D':
-            datalines = []
+            '''
+            ----------------------- Coordinate 1 - Simple-Distance -------------------------
+            ATOM1                  =           3887  ATOM NAME1             =             O1
+            ATOM2                  =           3890  ATOM NAME2             =              N
+            NUMBER OF STEPS        =             25  FORCE CONSTANT         =           4000
+            DMINIMUM               =        2.30677  MAX INTERACTIONS       =           6000
+            STEP SIZE              =     -0.0500000  RMS GRAD               =      0.1000000
+            --------------------------------------------------------------------------------
+
+            ----------------------- Coordinate 2 - Simple-Distance -------------------------
+            ATOM1                  =           3841  ATOM NAME1             =             Fe
+            ATOM2                  =           3887  ATOM NAME2             =             O1
+            NUMBER OF STEPS        =            250  FORCE CONSTANT         =           4000
+            DMINIMUM               =        1.53720  MAX INTERACTIONS       =           6000
+            STEP SIZE              =      0.0500000  RMS GRAD               =      0.1000000
+            --------------------------------------------------------------------------------
+            '''
+            rc1_atoms = []
+            rc2_atoms = []
             
+            datalines = []
+            _is_rc1 = True
             for line in self.data:
                 if "DATA" in line:
                     line2 = line.split()
                     datalines.append(line2[1:])
-            print(datalines)
+                
+                if 'Coordinate 2' in line:
+                    _is_rc1 = False
+                
+                if 'ATOM' in line:
+                    line2 = line.split()
+                    
+                    if line2[1] == '=':
+                        if _is_rc1:
+                            rc1_atoms.append(line2[2])
+                        else:
+                            rc2_atoms.append(line2[2])
+
+            #print(datalines)
             
             lastline = datalines[-1]
             x_size = int(lastline[0])
@@ -264,19 +297,44 @@ class LogFileReader:
                    'RC2' : RC2,
                    'Z'   : Z
                    }
-            #print(data)
+            
+            data['RC1_indexes'] = rc1_atoms
+            data['RC2_indexes'] = rc2_atoms
+            
+            #print (data)
             return data       
         
         
         elif self.type == 'EasyHybrid-SCAN':
-            datalines = []
+            '''
+            ---------------------- Coordinate 1 - multiple-Distance ------------------------
+            ATOM1                  =           3841  ATOM NAME1             =             Fe
+            ATOM2*                 =           3887  ATOM NAME2             =             O1
+            ATOM3                  =           3890  ATOM NAME3             =              N
+            NUMBER OF STEPS        =             30  FORCE CONSTANT         =           4000
+            DMINIMUM               =        0.60039  MAX INTERACTIONS       =           6000
+            STEP SIZE              =      0.0500000  RMS GRAD               =      0.1000000
+            Sigma atom1 - atom3    =        0.79949  Sigma atom3 - atom1    =       -0.20051
+            --------------------------------------------------------------------------------
+            '''
             
+            
+            datalines = []
+            rc_atoms  = [] 
             n = 0
             for line in self.data:
                 if "DATA" in line:
                     line2 = line.split()
                     datalines.append(line2[1:])
                     n += 1
+                
+                if 'ATOM' in line:
+                    line2 = line.split()
+                    
+                    if line2[1] == '=':
+                        rc_atoms.append(line2[2])
+                    
+                    
             lastline = datalines[-1]
             x_size   = n
              
@@ -293,7 +351,9 @@ class LogFileReader:
                    'RC1' : RC1,
                    'Z'   : Z
                    }
-            print(data)
+            data['RC1_indexes'] = rc_atoms
+            #print(data)
+            #print(rc_atoms)
             return data        
         
         
@@ -330,7 +390,7 @@ class LogFileReader:
                    'RC1' : RC1,
                    'Z'   : Z
                    }
-            print(data)
+            #print(data)
             return data  
         
         
@@ -346,15 +406,15 @@ class LogFileReader:
             #print(line)
             if "EasyHybrid-SCAN2D" in line.split():
                 #line2 = line.split()
-                print(line)
+                #print(line)
                 self.type = 'EasyHybrid-SCAN2D'
             
             elif "EasyHybrid-SCAN" in line.split():
                 #line2 = line.split()
-                print(line)
+                #print(line)
                 self.type = 'EasyHybrid-SCAN'
             elif 'Summary of Chain-Of-States Optimizer' in line:
-                print(line)
+                #print(line)
                 self.type = 'Chain-Of-States'
             
             else:

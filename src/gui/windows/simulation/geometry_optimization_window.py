@@ -23,6 +23,7 @@
 #  
 import gi
 import threading
+import multiprocessing
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
@@ -221,27 +222,29 @@ class GeometryOptimization(Gtk.Window):
         else:
             self.run_dialog()
             return None
+        
+        
+        
+        
+        #'''
         self.main.p_session.run_simulation( parameters = simParameters )
         #self.main.refresh_main_statusbar(message = 'Running geometry optimization...')
         self.window.destroy()
         self.Visible    =  False
+        #'''
         
+        #new code
         '''
-        def thread ():
-            """ Function doc """
-            self.main.p_session.run_simulation( parameters = simParameters )
-        thread1 = threading.Thread(target = thread).start()
+        self.process = multiprocessing.Process(
+            target=self.main.p_session.run_simulation,
+            args=(simParameters,)
+        )
+        self.process.start()
         
-        #thread1.start()
-        print('eeeeeeeeeeeeeeeeeee')
-        '''
-        #print('thread is over')
-        #thread2 = threading.Thread(target = self.window.destroy())
-        #thread2.start()
-        
-        #
-
-
+        self.window.destroy()
+        self.Visible    =  False
+        GLib.timeout_add(500, self.verificar_process)
+        #'''
     
     def _starting_coordinates_model_update (self, init = False):
         """ Function doc """

@@ -147,15 +147,30 @@ class PotentialEnergyScanWindow():
             #------------------------------------------------------------------------------------------------
             
 
-            self.window.show_all()        
+            self.window.show_all()
+            
+            # - - - - - - - - - - - - - - - - - - - - - - -
+            # means that normal scan, not TS-centered mode
+            self.RC_box1.set_rc_mode (rc_mode = 0)
+            self.RC_box2.set_rc_mode (rc_mode = 0)
+            # - - - - - - - - - - - - - - - - - - - - - - -
+            
+            
+            
             self.change_check_button_reaction_coordinate (None)
             
 
             self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
             self.builder.get_object('button_export').connect('clicked', self.on_btn_export)
+            self.builder.get_object('checkbtn_TS-centered_mode').connect('toggled', self.change_check_button_TS_centered_mode)
+            self.builder.get_object('checkbtn_TS-centered_mode').hide()
             
+            # - - - - - - - - - - - - - - - - - - - - - - -
+            # setting the rc type as "simple distance" 
             self.RC_box1.set_rc_type(0)
             self.RC_box2.set_rc_type(0)
+            # - - - - - - - - - - - - - - - - - - - - - - -
+            
             self.Visible  = True
 
         else:
@@ -166,6 +181,24 @@ class PotentialEnergyScanWindow():
         self.window.destroy()
         self.Visible    =  False
     
+
+    def change_check_button_TS_centered_mode (self, widget):
+        """ Function doc """
+        #print('aqui')
+        if self.builder.get_object('checkbtn_TS-centered_mode').get_active():
+            # - - - - - - - - - - - - - - - - - - - - - - -
+            # means that normal scan, not TS-centered mode
+            self.RC_box1.set_rc_mode (rc_mode = 1)
+            self.RC_box2.set_rc_mode (rc_mode = 1)
+            # - - - - - - - - - - - - - - - - - - - - - - -
+        else:
+            # - - - - - - - - - - - - - - - - - - - - - - -
+            # means that normal scan, not TS-centered mode
+            self.RC_box1.set_rc_mode (rc_mode = 0)
+            self.RC_box2.set_rc_mode (rc_mode = 0)
+            # - - - - - - - - - - - - - - - - - - - - - - -
+
+
 
     def change_check_button_reaction_coordinate (self, widget):
         """ Function doc """
@@ -297,13 +330,18 @@ class PotentialEnergyScanWindow():
         #----------------------------------------------------------------------------------               
                 
 
-
-
-
-        parameters["RC1"] = self.RC_box1.get_rc_data()
+        # Check if the TS-centered mode is active.
+        if self.builder.get_object('checkbtn_TS-centered_mode').get_active():
+            _is_ts_centered = True
+            parameters["_is_ts_centered"] = True
+        else:
+            _is_ts_centered = False
+            parameters["_is_ts_centered"] = False
+            
+        parameters["RC1"] = self.RC_box1.get_rc_data(_is_ts_centered)
         
         if self.builder.get_object('label_check_button_reaction_coordinate2').get_active():
-            parameters["RC2"] = self.RC_box2.get_rc_data()
+            parameters["RC2"] = self.RC_box2.get_rc_data(_is_ts_centered)
             
             parameters["NmaxThreads"] =  int(self.builder.get_object('n_CPUs_spinbutton').get_value())
             parameters["traj_type"]   = 'pklfolder2D'
@@ -314,8 +352,7 @@ class PotentialEnergyScanWindow():
         
         return parameters
 
-    
-    
+
     def _starting_coordinates_model_update (self, init = False):
         """ Function doc """
         #------------------------------------------------------------------------------------

@@ -79,7 +79,7 @@
                 </child>
                 <child>
                   <object class="GtkEntry" id="threshold_entry">
-                    <property name="width-request">20</property>
+                    <property name="width-request">10</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                   </object>

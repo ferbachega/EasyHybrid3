@@ -948,19 +948,22 @@ class RelaxedSurfaceScan:
         self.logFile2.Header ( )
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-
-        advanced = False
+        #if parameters['_is_ts_centered']: 
+        #    advanced = True
+        
         if parameters['RC2'] is not None:
             print('\n\n\nself._run_scan_2D(parameters = parameters, interface = False)')
-            if advanced:
+            
+            if parameters['_is_ts_centered']:
                 parameters['RC1']['up_nsteps'  ] = parameters['RC1']['nsteps']
-                parameters['RC1']['down_nsteps'] = parameters['RC1']['nsteps']
+                parameters['RC1']['down_nsteps'] = parameters['RC1']['nsteps_back']
                 
                 parameters['RC2']['left_nsteps' ] = parameters['RC2']['nsteps']
-                parameters['RC2']['right_nsteps'] = parameters['RC2']['nsteps']
+                parameters['RC2']['right_nsteps'] = parameters['RC2']['nsteps_back']
                 
                 
                 _run_advanded_scan_2D (parameters = parameters, interface = False)
+            
             else:
                 self._run_scan_2D(parameters = parameters, interface = False)
         else:
@@ -3238,8 +3241,10 @@ def _run_second_coordinate_in_parallel ( job):
         
 
 
-
-
+def _run_advanded_scan_1D ( parameters = None, interface = False):
+    '''under construction'''
+    pass
+    
 def _run_advanded_scan_2D ( parameters = None, interface = False):
     """ Function doc """
     #-------------------------------------------------------------------------
@@ -3469,8 +3474,8 @@ def define_RC2_restraint (parameters, distance2):
         weight1 =  1.0 #parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
         weight2 = -1.0 #parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0]
         rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'])
-        restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOMS'][1], weight1 ], 
-                                                                                                      [ parameters['RC1']['ATOMS'][2], parameters['RC1']['ATOMS'][3], weight2 ] 
+        restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOMS'][1], weight1 ], 
+                                                                                                      [ parameters['RC2']['ATOMS'][2], parameters['RC2']['ATOMS'][3], weight2 ] 
                                                                                                       ] )
         #restraints["RC2"] = restraint  
 
@@ -3484,8 +3489,8 @@ def define_RC2_restraint (parameters, distance2):
         
         rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'])
         restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ 
-                                                                                                      [ parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOMS'][0], weight1 ], 
-                                                                                                      [ parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOMS'][2], weight2 ] 
+                                                                                                      [ parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOMS'][0], weight1 ], 
+                                                                                                      [ parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOMS'][2], weight2 ] 
                                                                                                       ] )
          #--------------------------------------------------------------------
     else:
@@ -3566,6 +3571,7 @@ def _run_left_right_line_in_parallel (job):
     
     n_north = parameters['RC1']['up_nsteps'  ]
     n_south = parameters['RC1']['down_nsteps']
+    
     n_right = parameters['RC2']['left_nsteps' ]
     n_left  = parameters['RC2']['right_nsteps']
                         

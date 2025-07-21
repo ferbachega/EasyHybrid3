@@ -10,6 +10,7 @@
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
+import multiprocessing
 
 import glob, math, os, os.path, sys, shutil
 import pickle
@@ -252,7 +253,7 @@ class LoadAndSaveData:
             system = data['system']
             name   = system.label
             tag    = system.e_tag
-            print('\n\n\n\n',system, name, tag, data['system'], data['vobjects'] )
+            #print('\n\n\n\n',system, name, tag, data['system'], data['vobjects'] )
             if len(data['vobjects']) == 0:
                 pass
             else:
@@ -757,8 +758,49 @@ class pSimulations:
         #--------------------------------------------------------------------------
         return parameters
         
+    def run_simulation_thread (self, parameters):
+        
+        # Instância da classe
+        #tarefa = Tarefa()
+
+        # Evento de parada
+        stop_event = threading.Event()
+
+        # Nome da tarefa
+        nome_da_tarefa = "T1"
+
+        # Criamos a thread com o argumento extra
+        thread = threading.Thread(
+            target = self.run_simulation_via_thread,
+            args   = (stop_event, parameters)
+        )
+        thread.start()
+
+        # Simulamos outra tarefa principal
+        time.sleep(3)
+
+        # Cancelamos a execução
+        print("[Main] Solicitando cancelamento da thread...")
+        stop_event.set()
+
+        # Aguardamos o encerramento
+        thread.join()
+        print("[Main] Programa encerrado.")
+
+    def background_task(self, stop_event):
+        #print("[Thread] Iniciando tarefa...")
+        
+        for i in range(10):
+            if stop_event.is_set():
+                print("[Thread] Cancelamento detectado. Encerrando tarefa.")
+                return
+            print(f"[Thread] Iteração {i+1}/10")
+            time.sleep(1)
+        print("[Thread] Tarefa concluída com sucesso!")
+
+        
     def run_simulation (self, parameters):
-        """ Function doc 
+        """  
         arameters['system'].e_restraints_dict[rest_name] = [ True, 
                                                              rest_name,
                                                              parameters['atom1'], 
@@ -799,7 +841,17 @@ class pSimulations:
             new_vobject = False
 
         elif parameters['simulation_type'] == 'Geometry_Optimization':
-           
+            
+            
+            # estah funcionando!!!
+            '''
+            self.geometry_optimization_object = GeometryOptimization()
+            self.process = multiprocessing.Process(
+                target=self.geometry_optimization_object.run ,
+                args=(parameters,)
+            )
+            self.process.start()
+            '''
             self.geometry_optimization_object = GeometryOptimization()
             self.geometry_optimization_object.run(parameters)
             
@@ -1161,7 +1213,7 @@ class ModifyRepInVismol:
             #print(self.psystem[system_id].e_qc_table)
             #psystem = self.p_session.psystem[self.p_session.active_id]
             if len(self.psystem[system_id].atoms) == len(self.psystem[system_id].e_qc_table ):
-                #print('\n\n\n\n\n\n\n\naquiiiii\n\n\n\n\n')
+                #print('\n\n\n\n\n\n\n\here 1215\n\n\n\n\n')
                 pass
             else:
             
@@ -1188,9 +1240,11 @@ class ModifyRepInVismol:
             
             for index in self.psystem[system_id].e_qc_table:
                 if index in MM_QC_atoms:
+                    #print('if index',index)
                     pass
                 else:
                     delete_lines.append(index)
+                    #print('else index',index)
             #------------------------------------------------------------------
             
             
@@ -1200,6 +1254,11 @@ class ModifyRepInVismol:
                     
                 
             selection = self.vm_session.create_new_selection()
+            
+            #print(self.psystem[system_id].e_qc_table)
+            #e_qc_table = self.psystem[system_id].e_qc_table[]
+            #selection.selecting_by_indexes(vismol_object,  e_qc_table, clear=True)
+            
             selection.selecting_by_indexes(vismol_object, self.psystem[system_id].e_qc_table, clear=True)
             
             '''
@@ -1219,6 +1278,7 @@ class ModifyRepInVismol:
                 #self.vm_session.show_or_hide(rep_type = 'sticks',selection= selection , show = True )
                 self.vm_session.show_or_hide(rep_type = 'dynamic',selection= selection , show = True )
                 self.vm_session.show_or_hide(rep_type = 'lines',selection= selection2 , show = False )
+                
                 #self.vm_session.show_or_hide(rep_type = 'sticks' , show = True )
 
             else:
@@ -2631,14 +2691,15 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         
         if parameters['method'] == 'ab initio - ORCA':
-            print(parameters)
+            #print(parameters)
             qcModel = QCModelORCA.WithOptions ( keywords       = [parameters['orca_options']], 
                                                 deleteJobFiles = False,
                                                 scratch        = parameters['orca_scratch'  ],
                                                  )
             qcModel.randomScratch = parameters['random_scratch']
+        
         elif parameters['method'] == 'xTB':
-            print(parameters)
+            #print(parameters)
             qcModel = QCModelXTB.WithOptions ( #gfn = 2, keywords = None, vfukui = True,  randomJob = False, parallel = 10)
                                               gfn        = parameters['gfn'       ] ,
                                               parallel   = parameters['parallel'  ] ,
@@ -2683,14 +2744,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                                 sccTolerance         = parameters['sccTolerance'        ],
                                                 )
             '''
-        
-        
-        
-        
-        
-        
-        
-        
+
         else:
             converger = DIISSCFConverger.WithOptions( energyTolerance   = parameters['energyTolerance'] ,
                                                       densityTolerance  = parameters['densityTolerance'] ,
@@ -2701,8 +2755,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         
         
-        if len(system.e_qc_table) > 0:
-            
+        #if len(system.e_qc_table) > 0:
+        if len(system.e_qc_table) > 0 and len(system.e_qc_table) != len(system.atoms):
             '''This function rescales the remaining charges in the MM part. The 
             sum of the charges in the MM region must be an integer value!'''
             self.check_charge_fragmentation(vismol_object = vismol_object)
@@ -2726,17 +2780,16 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                     system.DefineNBModel ( NBModelCutOff.WithDefaults ( ) )
             else:
                 pass
-        
-        
-        
+
         else:
             system.DefineQCModel (qcModel)
-                       
+
         system.Summary()
         self.main.refresh_widgets()
         for vismol_object in self.vm_session.vm_objects_dic.values():
             if vismol_object.e_id == system.e_id:
-                self._apply_QC_representation_to_vobject   (system_id = None, vismol_object = vismol_object)
+                self._apply_QC_representation_to_vobject (system_id = None, 
+                                                          vismol_object = vismol_object)
             else:
                 pass
         self.main.refresh_widgets()
@@ -2975,8 +3028,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
 
                 
-                print (max_x, max_y)
-                print (reverse_idx_2D_xy)
+                #print (max_x, max_y)
+                #print (reverse_idx_2D_xy)
+                
                 #max_x += 1 
                 #max_y += 1
                 if parameters['last'] == -1:

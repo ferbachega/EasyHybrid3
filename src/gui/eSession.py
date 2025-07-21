@@ -270,8 +270,8 @@ class GLMenu:
             def menu_show_dynamic_bonds (_):
                 """ Function doc """
                ##print('dynamic_test')
-                self.show_or_hide( rep_type = 'dynamic', show = True)
-            
+                sele = self.show_or_hide( rep_type = 'dynamic', show = True)
+                #print(sele.get_selection_info())
             def menu_hide_dynamic_bonds (_):
                 """ Function doc """
                ##print('dynamic_test')
