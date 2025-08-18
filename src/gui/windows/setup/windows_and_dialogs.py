@@ -401,7 +401,14 @@ system.Summary()
 class AddHarmonicRestraintDialog:
     """ Class doc """
     
-    def __init__ (self, main =  None, atom1 =  None, atom2 = None, distance = 0.0 ):
+    def __init__ (self, main = None, 
+                       atom1 = None, 
+                       atom2 = None, 
+                       distance  = 0.0 , 
+                       force     = 4000,
+                       system_id = None,
+                        
+                       edit = False):
         """ Class initialiser """
         self.main = main
         self.home = main.home
@@ -411,11 +418,21 @@ class AddHarmonicRestraintDialog:
         self.builder.connect_signals(self)
         self.builder.get_object('dialog').connect('destroy', self.CloseWindow)
         
-        self.builder.get_object('entry_atom1_index_coord1').set_text(str(atom1.index-1))
-        self.builder.get_object('entry_atom2_index_coord1').set_text(str(atom2.index-1))
-        self.builder.get_object('entry_atom1_name_coord1').set_text(atom1.name)
-        self.builder.get_object('entry_atom2_name_coord1').set_text(atom2.name)
-        self.builder.get_object('entry_dmin_coord1').set_text(str(distance))
+        if edit:
+            self.builder.get_object('button_add').set_label('Ok')
+            self.builder.get_object('entry_atom1_index_coord1').set_text(str(atom1))
+            self.builder.get_object('entry_atom2_index_coord1').set_text(str(atom2))
+            #self.builder.get_object('entry_atom1_name_coord1').set_text(atom1.name)
+            #self.builder.get_object('entry_atom2_name_coord1').set_text(atom2.name)
+            self.builder.get_object('entry_dmin_coord1').set_text(str(distance))
+            self.builder.get_object('entry_FORCE_coord1').set_text(str(force))
+        else:
+            self.builder.get_object('entry_atom1_index_coord1').set_text(str(atom1.index-1))
+            self.builder.get_object('entry_atom2_index_coord1').set_text(str(atom2.index-1))
+            self.builder.get_object('entry_atom1_name_coord1').set_text(atom1.name)
+            self.builder.get_object('entry_atom2_name_coord1').set_text(atom2.name)
+            self.builder.get_object('entry_dmin_coord1').set_text(str(distance))
+            self.builder.get_object('entry_FORCE_coord1').set_text(str(force))
 
         self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
         self.builder.get_object('button_add').connect('clicked', self.on_button_ok_clicked)

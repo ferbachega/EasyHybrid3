@@ -32,6 +32,7 @@ import os
 
 from gui.widgets.custom_widgets import SystemComboBox
 from gui.widgets.custom_widgets import CoordinatesComboBox
+from gui.windows.setup.windows_and_dialogs  import AddHarmonicRestraintDialog
 VISMOL_HOME = os.environ.get('VISMOL_HOME')
 HOME        = os.environ.get('HOME')
 
@@ -165,7 +166,8 @@ class SelectionListWindow(Gtk.Window):
 
 
             #self.refresh_system_liststore()
-            self.treeview_menu         = TreeViewMenu(self)
+            self.treeview_menu           = TreeViewMenu(self)
+            self.restraint_treeview_menu = RestraintTreeViewMenu(self)
             self.window.show_all()                                               
             #self.combobox_systems.set_active(0)
             self.visible    =  True
@@ -179,13 +181,11 @@ class SelectionListWindow(Gtk.Window):
         #self.BackUpWindowData()
         self.window.destroy()
         self.visible    =  False
-        #print('self.visible',self.visible)
-    
+
     def _on_rest_types_changed (self, widget):
         """ Function doc """
         print(self.comobobox_restraints.get_active())
-    
-    
+
     def _coordinates_model_update (self, e_id):
         """ Function doc """
         #------------------------------------------------------------------------------------
@@ -200,25 +200,17 @@ class SelectionListWindow(Gtk.Window):
             #------------------------------------------------------------------------------------
         else:
             pass
-    
-     
-    #def update_restraint_representation (_):
-    #    """ Function doc """
 
     def on_restraint_treeview_button_release_event (self, tree, event):
         """ Function doc """
         if event.button == 3:
             selection     = self.restraint_treeview.get_selection()
             (model, iter) = selection.get_selected()
-            #for item in model:
-                #pass
-            print ( model[iter][0],model[iter][1],model[iter][2])
-            #if iter != None:
-                
-            #    self.treeview_menu.open_menu(iter, system_id)
+            self.restraint_treeview_menu.open_menu(iter, model)
 
         if event.button == 1:
-            print ('event.button == 1:')
+            pass
+            #print ('event.button == 1:')
 
     def on_restraint_treeview_row_activated (self, treeview, path, column):
         """ Function doc """
@@ -227,8 +219,7 @@ class SelectionListWindow(Gtk.Window):
         nome = modelo.get_value(iterador, 0)
         id_valor = modelo.get_value(iterador, 1)
         print(f"Duplo clique na linha: {nome} (ID={id_valor})")
-     
-        
+
     def _on_cell_visible_toggled (self, widget, path):
         """ 
             This function changes the status of the 
@@ -248,11 +239,7 @@ class SelectionListWindow(Gtk.Window):
         system.e_restraints_dict[name][0] =  self.restraint_liststore[path][0]
         print(system.e_restraints_dict)
         self.p_session.update_restaint_representation(e_id)
-        
 
-            
-
-        
     def update_window (self, system_names = True, coordinates = False,  selections = True, restraints = True):
         """ Function doc """
         if self.visible:
@@ -269,37 +256,11 @@ class SelectionListWindow(Gtk.Window):
     def update (self, system_names = True, coordinates = False,  selections = True ):
         """ Function doc """
         pass
-        #if self.visible:
-        #    
-        #    _id = self.combobox_systems.get_active()
-        #    if _id == -1:
-        #        '''_id = -1 means no item inside the combobox'''
-        #        #self.selection_liststore.clear()
-        #        #self.coordinates_liststore.clear()
-        #        return None
-        #    else:    
-        #        _, system_id = self.main_session.system_liststore[_id]
-        #    
-        #    if system_names:
-        #        self.refresh_system_liststore ()
-        #        self.combobox_systems.set_active(_id)
-        #    
-        #    if coordinates:
-        #        self.refresh_coordinates_liststore ()
-        #    
-        #    
-        #    if selections:
-        #        _, system_id = self.main_session.system_liststore[_id]
-        #        self.refresh_selection_liststore(system_id)
-        #else:
-        #    pass
 
-    
     def refresh_system_liststore (self):
         """ Function doc """
         self.main_session.refresh_system_liststore()
-    
-    
+
     def refresh_restraint_liststore (self, system_id = None):
         """ Function doc """
         self.restraint_liststore.clear()
@@ -320,8 +281,6 @@ class SelectionListWindow(Gtk.Window):
         self.p_session.update_restaint_representation(system_id)
         self.main_session.vm_session.vm_glcore.queue_draw()
 
-                
-    
     def refresh_selection_liststore (self, system_id = None ):
         """ Function doc """
         self.selection_liststore.clear()
@@ -343,7 +302,6 @@ class SelectionListWindow(Gtk.Window):
         for selection , indexes in self.p_session.psystem[system_id].e_selections.items():
             self.selection_liststore.append([selection, len(indexes)])
     
-    
     def refresh_coordinates_liststore(self, system_id = None):
         """ Function doc """
         cb_id = self.coordinates_combobox.get_active()
@@ -364,7 +322,6 @@ class SelectionListWindow(Gtk.Window):
                 self.coordinates_liststore.append([vobject.name, key])
         
         self.coordinates_combobox.set_active(len(self.coordinates_liststore)-1)
-        
         
     def on_combobox_systemsbox_changed(self, widget):
         """ Function doc """
@@ -420,7 +377,6 @@ class SelectionListWindow(Gtk.Window):
                 
         self.vm_session.vm_glcore.queue_draw()
         
-    
     def on_treeview_Objects_button_release_event(self, tree, event):
         '''
          str  ,   #                                   # 0
@@ -455,6 +411,96 @@ class SelectionListWindow(Gtk.Window):
             print ('event.button == 1:')
 
 
+
+class RestraintTreeViewMenu:
+    """ Class doc """
+    
+    def __init__ (self, sele_window):
+        """ Class initialiser """
+        #self.restraint_treeview
+        self.treeview = sele_window.restraint_treeview
+        self.p_session = sele_window.p_session
+        self.sele_window = sele_window 
+        functions = {
+                    'Edit'                : self.edit ,
+                    'Delete'                : self.delete ,
+                    }
+        self.build_tree_view_menu(functions)
+        #self.rename_window_visible = False
+    
+    def build_tree_view_menu (self, menu_items = None):
+        """ Function doc """
+        self.tree_view_menu = Gtk.Menu()
+        for label in menu_items:
+            mitem = Gtk.MenuItem(label)
+            mitem.connect('activate', menu_items[label])
+            self.tree_view_menu.append(mitem)
+            #mitem = Gtk.SeparatorMenuItem()
+            #self.tree_view_menu.append(mitem)
+
+        self.tree_view_menu.show_all()
+
+    
+    def open_menu (self, _iter = None, model = None):
+        """ Function doc """
+        self.iter = _iter
+        self.model = model
+        #for data in model[_iter]:
+        #    print (data)
+        self.system_id    = model[_iter][6]
+        self.restraint_id = model[_iter][1]
+        #print(self.p_session.psystem[self.system_id].e_restraints_dict)
+        #print(self.p_session.psystem[self.system_id].e_restraints_dict[self.restraint_id])
+        
+        #print (model[iter][0])
+        #self.system_id = system_id
+        #print (vobject)
+        self.tree_view_menu.popup(None, None, None, None, 0, 0)
+
+    def edit (self, menu_item):
+        """ Function doc """
+        
+        restraint = self.p_session.psystem[self.system_id].e_restraints_dict[self.restraint_id]
+        #
+        # it returns something like: 
+        # [True, '0', 'distance', [2326, 3457], 1.0, 4000.0, 1], '1': [True, '1', 'distance', [3457, 3456], 1.0, 4000.0, 1]
+        #
+        atom1 = restraint[3][0]
+        atom2 = restraint[3][1]
+        
+        dist  = restraint[4] 
+        force = restraint[5]
+        add_harmonic_restraint_dialog =  AddHarmonicRestraintDialog(main      = self.sele_window.main_session, 
+                                                                    atom1     = atom1, 
+                                                                    atom2     = atom2, 
+                                                                    distance  = dist , 
+                                                                    force     = force,
+                                                                    system_id = self.system_id,
+                                                                    edit      = True)
+        if add_harmonic_restraint_dialog.ok:
+            new_force  = float(add_harmonic_restraint_dialog.force)
+            new_dist   = float(add_harmonic_restraint_dialog.dist)
+            self.p_session.psystem[self.system_id].e_restraints_dict[self.restraint_id][4] = new_dist
+            self.p_session.psystem[self.system_id].e_restraints_dict[self.restraint_id][5] = new_force
+            self.sele_window.refresh_restraint_liststore ( system_id = self.system_id)
+        else:
+            pass
+        pass
+        #print('edit')
+        #new_name = self.entry.get_text()
+        #self.p_session.psystem[self.e_id].e_selections[new_name] = self.p_session.psystem[self.e_id].e_selections[self.key]
+        #self.p_session.psystem[self.e_id].e_selections.pop(self.key)
+        #self.sele_window.update_window()
+        #self.window.destroy()
+        #self.rename_window_visible = False
+        
+    def delete (self, menu_item = None):
+        """ Function doc """
+        
+        self.p_session.psystem[self.system_id].e_restraints_dict.pop(self.restraint_id)
+        print(self.p_session.psystem[self.system_id].e_restraints_dict)
+        self.sele_window.refresh_restraint_liststore ( system_id = self.system_id)
+        #print('delete')
 
 class TreeViewMenu:
     """ Class doc """

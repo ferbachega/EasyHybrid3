@@ -100,6 +100,7 @@ def main():
         main_window.builder.get_object('button_test')           .hide()
         main_window.builder.get_object('test_item')             .hide()
         main_window.builder.get_object('toolbutton_terminal')   .hide()
+        main_window.builder.get_object('menuitem_reimaging')   .hide()
         
         #main_window.builder.get_object('menuitem_RMSD_tool')   .hide()
         main_window.builder.get_object('menuitem_rama')   .hide()

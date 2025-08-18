@@ -74,7 +74,9 @@ from gui.windows.analysis.energy_refinement_window                import EnergyR
 from gui.windows.analysis.PES_analysis_window                     import PotentialEnergyAnalysisWindow
 from gui.windows.analysis.distance_angle_dihedral_analysis_window import DistanceAngleDihedralAnalysisWindow
 from gui.windows.analysis.RMSD_tool                               import RMSDToolWindow
-from gui.windows.analysis.RMSD_analysis_window                     import RMSDAnalysisWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
+from gui.windows.analysis.RMSD_analysis_window                    import RMSDAnalysisWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
+from gui.windows.analysis.align_trajectory                        import AlignTrajectoryWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
+from gui.windows.analysis.reimaging_trajectory                    import ReimagingTrajectoryWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
 
 from util.geometric_analysis import get_simple_distance
 from util.sequence_plot import GtkSequenceViewer
@@ -354,6 +356,10 @@ class MainWindow:
         
         #self.rmsd_tool_window = RMSDToolWindow (main = self, system_liststore = self.system_liststore)
         self.rmsd_analysis_window = RMSDAnalysisWindow (main = self, system_liststore = self.system_liststore)
+        
+        self.align_trajectory_window = AlignTrajectoryWindow (main = self, system_liststore = self.system_liststore)
+        
+        self.reimaging_trajectory_window = ReimagingTrajectoryWindow (main = self, system_liststore = self.system_liststore)
         
         
         self.normal_modes_window          =   NormalModesWindow (main = self)
@@ -960,6 +966,11 @@ class MainWindow:
         
 
 
+        #----------------------------------------------------------------------
+        #                        A N A L Y S I S 
+        #----------------------------------------------------------------------
+
+
         elif menuitem == self.builder.get_object('menuitem_energy_analysis'):
             self.PES_analysis_window.OpenWindow()
 
@@ -973,6 +984,16 @@ class MainWindow:
         
         elif menuitem == self.builder.get_object('menuitem_energy_refinement'):
             self.energy_refinement_window.OpenWindow()
+        
+        elif menuitem == self.builder.get_object('menuitem_align_trajectory'):
+            #print('Hello!!')
+            self.align_trajectory_window.OpenWindow()
+            #self.energy_refinement_window.OpenWindow()
+        
+        elif menuitem == self.builder.get_object('menuitem_reimaging'):
+            print('Hello!!')
+            self.reimaging_trajectory_window.OpenWindow()
+            #self.energy_refinement_window.OpenWindow()
         
         elif menuitem == self.builder.get_object('menuitem_d_a_d_analysis'):
             self.distance_angle_dihedral_analysis_window.OpenWindow()

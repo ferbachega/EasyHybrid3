@@ -1175,6 +1175,16 @@ class EasyHybridSession(VismolSession, GLMenu):
                 self.vm_glcore.center_on_coordinates(vismol_object, vismol_object.mass_center)
             else:
                 self.vm_glcore.queue_draw()
+            
+            '''
+            print('\n\n',vismol_object.frames )
+            print('\n\n',type(vismol_object.frames) )
+            print('\n\n',vismol_object.frames[0])
+            print('\n\n',type(vismol_object.frames[0]))
+            #'''
+            
+            
+            #print('\n\n',vismol_object.topology)
         return vismol_object
 
 
