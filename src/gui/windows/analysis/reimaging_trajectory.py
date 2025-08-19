@@ -112,6 +112,7 @@ class ReimagingTrajectoryWindow:
             
 
             self.btn_reimaging.connect("clicked", self.on_btn_reimaging)
+            self.combobox_systems.connect("changed", self.on_combobox_systems_changed)
             self.window.show_all()           
             self.Visible  = True
             
