@@ -91,13 +91,13 @@ class ReimagingTrajectoryWindow:
             self.combobox_systems = SystemComboBox(self.main, self.coordinates_combobox)
             self.box_system.pack_start  (self.combobox_systems, False, False, 0)
 
-            
-            
+            self.combobox_systems.set_active(0)
+            self.combobox_coordinates.set_active(0)
             
             self.method_store = Gtk.ListStore(str)
             methods = [
                        'by geometric center'       ,
-                       'by center of mass'         , 
+                       #'by center of mass'         , 
                        ]
             
             for method in methods:
@@ -116,7 +116,6 @@ class ReimagingTrajectoryWindow:
             self.Visible  = True
             
             
-      
     def on_combobox_systems_changed (self, widget):
         """ Function doc """
         cb_id = widget.get_system_id()
@@ -166,45 +165,147 @@ class ReimagingTrajectoryWindow:
         #self.on_btn_clear(None, None)
 
     def on_btn_reimaging (self, widget, event = None):
-        """ Function doc """
+        """
+        Reimage molecules within the periodic boundary conditions (PBC).
+
+        This function checks whether molecules are outside the simulation cell 
+        and repositions them back into the central unit cell. It uses the 
+        center of mass (COM) or  the geometric center (GC) of each molecule 
+        to determine the necessary translation.
+
+        """
+        # Retrieve the selected object
         vobject_id    = self.coordinates_combobox.get_vobject_id()
         vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
         
-        
-        
-        frame_ref = int(self.builder.get_object('entry_frame_reference').get_text())
-        #print('align')
-        #print(vismol_object.frames)
-        #print(vismol_object.frames[0])
+        # Get current selection (not directly used here, but may be relevant for extensions)
         selections = self.vm_session.selections[self.vm_session.current_selection]
-        #print(selections.selected_atoms)
+
+        # Extract cell parameters (unit cell dimensions)
+        a = vismol_object.cell_parameters['a']
+        b = vismol_object.cell_parameters['b']
+        c = vismol_object.cell_parameters['c']
         
+        
+        #---------------------------------------------------------------------------
+        #                      Center the selection in the box
+        #---------------------------------------------------------------------------
+        _center_sel =  self.builder.get_object('chkbox_center_selection').get_active() 
+        # move selection to the center of the box? 
+        """
+        In this step, we will move the geometric center of the selection 
+        to the center of the box – all atoms are displaced, but the 
+        selection serves as the reference.
+        """
+        if _center_sel:
+            center_a = a/2
+            center_b = b/2
+            center_c = c/2
+            
+            
+            for frame_index, frame in enumerate(vismol_object.frames):
+                 
+                x = 0.0 
+                y = 0.0 
+                z = 0.0 
+                
+                n = 0
+                for atom in selections.selected_atoms:
+                    xyz = atom.coords( frame = frame_index)
+                    x += xyz[0]
+                    y += xyz[1]
+                    z += xyz[2]
+                    n+=1
+                
+                x  = x/n # center of mass
+                y  = y/n # center of mass
+                z  = z/n # center of mass
+                
+                dx = x - center_a
+                dy = y - center_b
+                dz = z - center_c
+                
+                for atm_coords in frame:
+                    atm_coords[0] += -dx
+                    atm_coords[1] += -dy
+                    atm_coords[2] += -dz
+                    
+                
+
+        #'''
+        #---------------------------------------------------------------------------
+        #                  Put Everything Back Inside the Box
+        #---------------------------------------------------------------------------
+        # Iterate over all frames
+        for frame_index, frame in enumerate(vismol_object.frames):
+            
+            #mol_idx = 0
+            for mol_idx, molecule in enumerate(vismol_object.molecules.values()):
+            #for molecule in vismol_object.molecules.values():
+                x = 0.0 
+                y = 0.0 
+                z = 0.0 
+                
+                n = 0 
+                
+                indexes = []
+                for atom in molecule.atoms.values():
+                    xyz = atom.coords( frame = frame_index)
+                    x += xyz[0]
+                    y += xyz[1]
+                    z += xyz[2]
+                    indexes.append(atom.index -1)                
+                    n+=1
+                
+                x = x/n #
+                y = y/n # Geometric center
+                z = z/n #
+                
+                #-----------------------------------------------------------
+                '''
+                X and O are outside the box;
+                           ---------
+                           |       |       O
+                           |       |
+                           |       |
+                      X    ---------
+               
+                X is located before the origin of the space that defines
+                the box. Therefore, in this case, we need to subtract 
+                one (1) from the parameters na, nb, or nc (as applicable) 
+                in order to correctly shift the molecules inside the 
+                box in the next step.
+                
+                '''
+                if x > 0:
+                    na = int(x/a) # if x > a, so na = 0
+                else:
+                    na = int(x/a) - 1
+                
+                if y > 0:
+                    nb = int(y/b)
+                else:
+                    nb = int(y/b)- 1
+                
+                if z > 0:
+                    nc = int(z/c)
+                else:
+                    nc = int(z/c)- 1
+                #-----------------------------------------------------------
+   
+                for index in indexes:
+                    if x > a or x < 0 or y > b or y < 0 or z > c or z < 0:
+                        vismol_object.frames[frame_index][index][0] += -(na*a)
+                        vismol_object.frames[frame_index][index][1] += -(nb*b)
+                        vismol_object.frames[frame_index][index][2] += -(nc*c)
+
+
+        self.vm_session.vm_glcore.queue_draw()    
+        #'''
 
         
         
-        _type = self.cb_align_by.get_active()
-        
-        
-        #print(_type)
-        subset = get_subset(vismol_object                  , 
-                            _type             = _type      , 
-                            ignore_H          = True       ,
-                            selections        = selections )
-        
-        
-        print('type'     ,  _type)
-        print('ref frame',  frame_ref)
-        print('subset   ',  subset)
 
-
-        new_traj = align_trajectory(vismol_object.frames          , 
-                                    reference         = frame_ref , 
-                                    subset            = subset    )
-
-        vismol_object.frames = new_traj
-        
-        self.vm_session.vm_glcore.queue_draw()
-        #print(vismol_object.frames[0])
 
 
 def get_subset (vismol_object, _type = 0, ignore_H = True, selections = None):
