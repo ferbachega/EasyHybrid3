@@ -86,9 +86,9 @@ class AlignTrajectoryWindow:
 
             self.coordinates_liststore = Gtk.ListStore(str, int, int)
             self.box_coordinates = self.builder.get_object('box_coordinates')
-            self.combobox_coordinates = CoordinatesComboBox(self.main.vobject_liststore_dict[self.main.p_session.active_id])
+            #self.combobox_coordinates = CoordinatesComboBox(self.main.vobject_liststore_dict[self.main.p_session.active_id])
             self.coordinates_combobox = CoordinatesComboBox(self.main.vobject_liststore_dict[self.p_session.active_id])
-            self.box_coordinates.pack_start  (self.combobox_coordinates, False, False, 0)
+            self.box_coordinates.pack_start  (self.coordinates_combobox, False, False, 0)
             
 
             self.box_system       = self.builder.get_object('box_system')
@@ -134,7 +134,7 @@ class AlignTrajectoryWindow:
             
             self.update_window (coordinates = True)
             
-            key =  self.combobox_coordinates.get_vobject_id()
+            key =  self.coordinates_combobox.get_vobject_id()
             #_, key = self.coordinates_liststore[cb_id]
             
             self.VObj = self.vm_session.vm_objects_dic[key]
@@ -164,8 +164,8 @@ class AlignTrajectoryWindow:
         """ Function doc """
         system_id = self.combobox_systems.get_system_id()
         #print(2313, system_id,self.main.vobject_liststore_dict )
-        self.combobox_coordinates.set_model(self.main.vobject_liststore_dict[system_id])
-        self.combobox_coordinates.set_active_vobject(-1)
+        self.coordinates_combobox.set_model(self.main.vobject_liststore_dict[system_id])
+        self.coordinates_combobox.set_active_vobject(-1)
             
 
     def CloseWindow (self, button, data  = None):
@@ -177,10 +177,11 @@ class AlignTrajectoryWindow:
     def on_btn_align (self, widget, event = None):
         """ Function doc """
         vobject_id    = self.coordinates_combobox.get_vobject_id()
+        system_id    = self.coordinates_combobox.get_system_id()
         vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
         
-        
-        
+        print(vobject_id, system_id, vismol_object)
+        #'''
         frame_ref = int(self.builder.get_object('entry_frame_reference').get_text())
         #print('align')
         #print(vismol_object.frames)
@@ -213,6 +214,7 @@ class AlignTrajectoryWindow:
         vismol_object.frames = new_traj
         
         self.vm_session.vm_glcore.queue_draw()
+        #'''
         #print(vismol_object.frames[0])
 
 

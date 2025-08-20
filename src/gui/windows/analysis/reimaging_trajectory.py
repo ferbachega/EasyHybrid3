@@ -82,9 +82,9 @@ class ReimagingTrajectoryWindow:
              
             self.coordinates_liststore = Gtk.ListStore(str, int, int)
             self.box_coordinates = self.builder.get_object('box_coordinates')
-            self.combobox_coordinates = CoordinatesComboBox(self.main.vobject_liststore_dict[self.main.p_session.active_id])
+            #self.combobox_coordinates = CoordinatesComboBox(self.main.vobject_liststore_dict[self.main.p_session.active_id])
             self.coordinates_combobox = CoordinatesComboBox(self.main.vobject_liststore_dict[self.p_session.active_id])
-            self.box_coordinates.pack_start  (self.combobox_coordinates, False, False, 0)
+            self.box_coordinates.pack_start  (self.coordinates_combobox, False, False, 0)
             
 
             self.box_system       = self.builder.get_object('box_system')
@@ -92,7 +92,7 @@ class ReimagingTrajectoryWindow:
             self.box_system.pack_start  (self.combobox_systems, False, False, 0)
 
             self.combobox_systems.set_active(0)
-            self.combobox_coordinates.set_active(0)
+            self.coordinates_combobox.set_active(0)
             
             self.method_store = Gtk.ListStore(str)
             methods = [
@@ -113,6 +113,9 @@ class ReimagingTrajectoryWindow:
 
             self.btn_reimaging.connect("clicked", self.on_btn_reimaging)
             self.combobox_systems.connect("changed", self.on_combobox_systems_changed)
+            
+            self.coordinates_combobox.connect("changed", self.on_combobox_coord_changed)
+            
             self.window.show_all()           
             self.Visible  = True
             
@@ -125,7 +128,7 @@ class ReimagingTrajectoryWindow:
             
             self.update_window (coordinates = True)
             
-            key =  self.combobox_coordinates.get_vobject_id()
+            key =  self.coordinates_combobox.get_vobject_id()
             #_, key = self.coordinates_liststore[cb_id]
             
             self.VObj = self.vm_session.vm_objects_dic[key]
@@ -151,12 +154,17 @@ class ReimagingTrajectoryWindow:
                 self.refresh_coordinates_liststore ()
     
 
+    def on_combobox_coord_changed (self, widget):
+        """ Function doc """
+        cb_id = widget.get_system_id()
+        print('cb',cb_id )
+
     def refresh_coordinates_liststore(self, system_id = None):
         """ Function doc """
         system_id = self.combobox_systems.get_system_id()
         #print(2313, system_id,self.main.vobject_liststore_dict )
-        self.combobox_coordinates.set_model(self.main.vobject_liststore_dict[system_id])
-        self.combobox_coordinates.set_active_vobject(-1)
+        self.coordinates_combobox.set_model(self.main.vobject_liststore_dict[system_id])
+        self.coordinates_combobox.set_active_vobject(-1)
             
 
     def CloseWindow (self, button, data  = None):
@@ -176,12 +184,23 @@ class ReimagingTrajectoryWindow:
 
         """
         # Retrieve the selected object
-        vobject_id    = self.coordinates_combobox.get_vobject_id()
+        vobject_id   = self.coordinates_combobox.get_vobject_id()
+        
+        system_id    = self.coordinates_combobox.get_system_id ()
+        
+        bb  = self.coordinates_combobox.get_active()
+        
+        print(' vobject_id', vobject_id, 
+               '\n system_id',  system_id,
+               '\n get_active', bb)
+        #print(self.main.vm_session.vm_objects_dic.keys())
+        
         vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
+        
         
         # Get current selection (not directly used here, but may be relevant for extensions)
         selections = self.vm_session.selections[self.vm_session.current_selection]
-
+        
         # Extract cell parameters (unit cell dimensions)
         a = vismol_object.cell_parameters['a']
         b = vismol_object.cell_parameters['b']
@@ -232,7 +251,7 @@ class ReimagingTrajectoryWindow:
                     atm_coords[2] += -dz
                     
                 
-
+        
         #'''
         #---------------------------------------------------------------------------
         #                  Put Everything Back Inside the Box
@@ -293,14 +312,14 @@ class ReimagingTrajectoryWindow:
                 else:
                     nc = int(z/c)- 1
                 #-----------------------------------------------------------
-   
+        
                 for index in indexes:
                     if x > a or x < 0 or y > b or y < 0 or z > c or z < 0:
                         vismol_object.frames[frame_index][index][0] += -(na*a)
                         vismol_object.frames[frame_index][index][1] += -(nb*b)
                         vismol_object.frames[frame_index][index][2] += -(nc*c)
-
-
+        
+        
         self.vm_session.vm_glcore.queue_draw()    
         #'''
 

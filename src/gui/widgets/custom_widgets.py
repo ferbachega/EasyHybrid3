@@ -940,7 +940,6 @@ class CoordinatesComboBox(Gtk.ComboBox):
             self.set_active(pos)
 
     
-    
     def _starting_coordinates_model_update (self, init = False):
         """ Function doc """
         #------------------------------------------------------------------------------------
