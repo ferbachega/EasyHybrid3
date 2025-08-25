@@ -319,7 +319,7 @@ class ReimagingTrajectoryWindow:
                         vismol_object.frames[frame_index][index][1] += -(nb*b)
                         vismol_object.frames[frame_index][index][2] += -(nc*c)
         
-        
+        self.vm_session.set_frame(frame=0)
         self.vm_session.vm_glcore.queue_draw()    
         #'''
 

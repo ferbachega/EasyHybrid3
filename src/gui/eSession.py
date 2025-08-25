@@ -72,7 +72,7 @@ class CommandLine:
         #args_raw = args_raw.strip()
         args_raw = args_raw.split(',')
         
-        print (args_raw)
+        #print (args_raw)
         args = []
         for argr in args_raw:
             argr = argr.split('=')

@@ -213,6 +213,7 @@ class AlignTrajectoryWindow:
 
         vismol_object.frames = new_traj
         
+        self.vm_session.set_frame(frame=0)
         self.vm_session.vm_glcore.queue_draw()
         #'''
         #print(vismol_object.frames[0])

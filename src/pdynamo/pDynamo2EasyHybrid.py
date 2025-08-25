@@ -2284,7 +2284,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 print('Bonds defined from distance.')
         else:
             vm_object.find_bonded_and_nonbonded_atoms()
-            print('Bonds definwd from distance.')
+            print('Bonds defined from distance.')
 
         vm_object.e_id = system.e_id
         vm_object._generate_color_vectors(self.vm_session.atom_id_counter)

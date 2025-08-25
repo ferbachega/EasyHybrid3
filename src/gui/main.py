@@ -991,7 +991,7 @@ class MainWindow:
             #self.energy_refinement_window.OpenWindow()
         
         elif menuitem == self.builder.get_object('menuitem_reimaging'):
-            print('Hello!!')
+            #print('reimaging_trajectory!!')
             self.reimaging_trajectory_window.OpenWindow()
             #self.energy_refinement_window.OpenWindow()
         
