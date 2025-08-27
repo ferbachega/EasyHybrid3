@@ -3562,14 +3562,26 @@ class ImportANewSystemWindow(Gtk.Window):
 
         #'''
         wfolder  = self.folder_chooser_button.get_folder()
-        self.easyhybrid_main.p_session.load_a_new_pDynamo_system_from_dict(input_files    = self.files, 
-                                                                           system_type    = systemtype, 
-                                                                           name           = name      ,
-                                                                           tag            = tag       ,
-                                                                           color          = [red, green, blue],
-                                                                           working_folder = wfolder)
+        
+        try:
+            self.easyhybrid_main.p_session.load_a_new_pDynamo_system_from_dict(input_files    = self.files, 
+                                                                               system_type    = systemtype, 
+                                                                               name           = name      ,
+                                                                               tag            = tag       ,
+                                                                               color          = [red, green, blue],
+                                                                               working_folder = wfolder)
+        
+            self.CloseWindow(button, data  = None)
+        
+        except Exception as e:
+            error_str = str(e)  # converte a mensagem de erro para string
+            print("Error:", error_str)
+            self.easyhybrid_main.bottom_notebook.status_teeview_add_new_item(message = 'Error: Could not import the system.', system = None)
+            simpledialog = SimpleDialog(self.easyhybrid_main)
+            simpledialog.error("Error: Could not import the system.")
+            
         #'''
-        self.CloseWindow(button, data  = None)
+        
 
     def update (self):
         """ Function doc """

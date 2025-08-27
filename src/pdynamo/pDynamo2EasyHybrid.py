@@ -1555,40 +1555,62 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         system = None 
         if system_type == 0:
             system              = ImportSystem       ( input_files['amber_prmtop'] )
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format( input_files['amber_prmtop']), system = None)
             system.coordinates3 = ImportCoordinates3 ( input_files['coordinates'] )
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format( input_files['coordinates']), system = None)
+
             self.define_NBModel(_type = 1, system = system)                      
         
         elif system_type == 1:
             parameters          = CHARMMParameterFileReader.PathsToParameters (input_files['charmm_par'])
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format( input_files['charmm_par']), system = None)
+            
             system              = ImportSystem       ( input_files['charmm_psf'] , isXPLOR = True, parameters = parameters )
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format( input_files['charmm_psf']), system = None)
+            
             system.coordinates3 = ImportCoordinates3 ( input_files['coordinates'] )
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format( input_files['coordinates']), system = None)
+            
             self.define_NBModel(_type = 1, system = system)        
         
         elif system_type == 2:
             mmModel        = MMModelOPLS.WithParameterSet ( input_files['prm_folder'] )       
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading MMModel:  {} '.format( input_files['prm_folder']), system = None)
+            
             system         = ImportSystem ( input_files['coordinates'])
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format(input_files['coordinates']), system = None)
+            
             system.DefineMMModel ( mmModel )
             self.define_NBModel(_type = 1, system = system)          
         
         elif system_type == 5:
             mmModel        = MMModelDYFF.WithParameterSet ( input_files['prm_folder'] )       
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading MMModel:  {} '.format( input_files['prm_folder']), system = None)
+            
             system         = ImportSystem ( input_files['coordinates'])
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format(input_files['coordinates']), system = None)
+            
             system.DefineMMModel ( mmModel )
+            
             self.define_NBModel(_type = 1, system = system)          
             if input_files['charges']:
                 print('\nGetting atomic charges from mol2 file!\n')
+                self.main.bottom_notebook.status_teeview_add_new_item(message = 'Getting atomic charges from mol2 file!', system = None)
                 for index, chg in enumerate(input_files['charges']):
                     system.mmState.charges[index] = chg
-            
+                
             #for i, atom in enumerate(system.atoms):
             #    print(i, atom.atomicNumber, atom.label)
             
         elif system_type == 3 or system_type == 4 :
             system = ImportSystem (input_files['coordinates'])
-
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format(input_files['coordinates']), system = None)
         else:
             pass
         system.Summary()
+        
+        
+        
         
         
         if working_folder:
