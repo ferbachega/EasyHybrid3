@@ -157,61 +157,45 @@ class InfoWindow:
         
         text = header+text
         textwindow = TextWindow(text)
-        #self.window = Gtk.Window(title="System Summary")
-        #self.window.set_default_size(1100, 600)
-        #
-        #self.textview = Gtk.TextView()
-        #self.textbuffer = self.textview.get_buffer()
-        #self.textbuffer.set_text(text)
-        ## Create a Pango font description with the desired font family and size
-        #fontdesc = Pango.FontDescription()
-        #fontdesc.set_family("Monospace")
-        #fontdesc.set_size(12 * Pango.SCALE)  # 12 point size
-        #
-        ## Apply the font description to the text view
-        #self.textview.modify_font(fontdesc)
-        #
-        ## Set the text color to black
-        #style = self.textview.get_style_context()
-        #style.add_class("text-black")
-        #scrolledwindow = Gtk.ScrolledWindow()
-        #scrolledwindow.set_hexpand(True)
-        #scrolledwindow.set_vexpand(True)
-        #scrolledwindow.add(self.textview)
-        #
-        #self.window.add(scrolledwindow)
-        ##self.window.connect("destroy", Gtk.main_quit)
-        #self.window.show_all()
 
 
 class SimpleDialog:
-    """ Class doc """
+    """ A helper class to create simple dialog windows using GTK. """
     
-    def __init__ (self, main):
-        """ Class initialiser """
+    def __init__(self, main):
+        """ 
+        Class initializer. 
+        Stores a reference to the main application instance (main), 
+        which is expected to have a window attribute used as the parent for dialogs. 
+        """
         self.main = main
 
 
     def info(self, msg):
-        """ Function doc """
+        """ 
+        Show an information dialog with an OK button. 
+        The dialog is modal, meaning the user must dismiss it before interacting with the main window. 
+        """
         dialog = Gtk.MessageDialog(
-                parent=self.main.window,
-                flags=Gtk.DialogFlags.MODAL,
-                type=Gtk.MessageType.INFO,
-                buttons=Gtk.ButtonsType.OK,
-                message_format=msg
+                parent=self.main.window,          # Parent window for proper modality
+                flags=Gtk.DialogFlags.MODAL,      # Makes the dialog block input to the parent
+                type=Gtk.MessageType.INFO,        # Sets the dialog type to "information"
+                buttons=Gtk.ButtonsType.OK,       # Provides a single OK button
+                message_format=msg                # The text message displayed to the user
             )
-        dialog.run()
-        dialog.destroy()
+        dialog.run()   # Displays the dialog and waits for the user response
+        dialog.destroy()  # Closes and frees resources after user dismisses it
         return None
     
     def error(self, msg):
-        """ Function doc """
-        
+        """ 
+        Show an error dialog with an OK button. 
+        Used to notify the user of an error condition. 
+        """
         dialog = Gtk.MessageDialog(
                     parent=self.main.window,
                     flags=Gtk.DialogFlags.MODAL,
-                    type=Gtk.MessageType.ERROR,
+                    type=Gtk.MessageType.ERROR,     # Sets the dialog type to "error"
                     buttons=Gtk.ButtonsType.OK,
                     message_format=msg
                 )
@@ -219,79 +203,101 @@ class SimpleDialog:
         dialog.destroy()
         return None
 
-    def question (self, msg):
-        """ Function doc """
+    def question(self, msg):
+        """ 
+        Show a question dialog with YES and NO buttons. 
+        Returns True if the user clicks YES, False if the user clicks NO. 
+        """
         dialog = Gtk.MessageDialog(
             parent=self.main.window,
             flags=Gtk.DialogFlags.MODAL,
-            type=Gtk.MessageType.QUESTION,
-            buttons=Gtk.ButtonsType.YES_NO,
+            type=Gtk.MessageType.QUESTION,        # Sets the dialog type to "question"
+            buttons=Gtk.ButtonsType.YES_NO,       # Provides Yes and No buttons
             message_format=msg
         )
-        response = dialog.run()
+        response = dialog.run()   # Waits for the user's response
         dialog.destroy()
         if response == Gtk.ResponseType.YES:
-            # Perform the desired action for Yes
             return True
         elif response == Gtk.ResponseType.NO:
-            # Perform the desired action for No
             return False
         
         
-
 class ExportScriptDialog:
-    """ Class doc """
+    """ 
+    A GTK-based dialog for exporting simulation scripts. 
+    Allows the user to choose a filename, folder, and automatically 
+    generates a Python script for running simulations with pDynamo. 
+    """
     
-    def __init__ (self, main =  None, parameters = None ):
-        """ Class initialiser """
+    def __init__(self, main=None, parameters=None):
+        """ 
+        Initialize the dialog. 
+        - main: reference to the main application object. 
+        - parameters: dictionary with simulation configuration parameters. 
+        """
         self.main       = main
-        self.home       = main.home
+        self.home       = main.home                  # Home directory of the main application
         self.parameters = parameters
         
+        # Load the GUI layout from a Glade file
         self.builder = Gtk.Builder()
-        self.builder.add_from_file(os.path.join(self.home,'src/gui/windows/setup/export_script_window2.glade'))
-        self.builder.get_object('dialog').connect('destroy', self.CloseWindow)
+        self.builder.add_from_file(
+            os.path.join(self.home, 'src/gui/windows/setup/export_script_window2.glade')
+        )
         
+        # Connect signals for window and button actions
+        self.builder.get_object('dialog').connect('destroy', self.CloseWindow)
         self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
         self.builder.get_object('button_export').connect('clicked', self.on_button_export_clicked)
+        
+        # Set up the folder chooser with the default path from parameters
         self.folder_chooser = self.builder.get_object('btn_folder_chooser')
         self.folder_chooser.set_current_folder(self.parameters['folder'])
-        #system_id = self.p_session.active_id
+         
+        # Define dialog size and run it (modal behavior)
         self.builder.get_object('dialog').set_default_size(400, 100)
         self.builder.get_object('dialog').run()
     
-    def on_button_export_clicked (self, widget):
-        """ Function doc """
-        #print('on_button_export_clicked')
+
+    def on_button_export_clicked(self, widget):
+        """ 
+        Event handler for the "Export" button. 
+        Collects input values, exports the system, and generates a Python script 
+        that reproduces the simulation setup. 
+        """
         
-        pmethod_path = os.path.join (self.main.home,'src/pdynamo')
-        filename = self.builder.get_object('entry_filename').get_text()
+        # Path to internal pDynamo methods
+        pmethod_path = os.path.join(self.main.home, 'src/pdynamo')
+        
+        # Get filename and folder from user input
+        filename     = self.builder.get_object('entry_filename').get_text()
         outputfolder = self.builder.get_object('btn_folder_chooser').get_current_folder()
         
-        
-        
-        
-        
-        exp_parameters = {} 
-        exp_parameters['vobject_id'] = 0
-        exp_parameters['folder']     = outputfolder
-        exp_parameters['filename']   = filename
-        exp_parameters['format']     = 0
-        exp_parameters['last']       = -1
-        exp_parameters['system_id']  = self.main.p_session.active_id
-        self.main.p_session.export_system ( exp_parameters , False)
-        fullfilename = os.path.join (outputfolder, filename+'.pkl')
+        # Export parameters for the system
+        exp_parameters = { 
+            'vobject_id' : 0,
+            'folder'     : outputfolder,
+            'filename'   : filename,
+            'format'     : 0,
+            'last'       : -1,
+            'system_id'  : self.main.p_session.active_id
+        }
+        # Export the system as a .pkl file
+        self.main.p_session.export_system(exp_parameters, False)
+        fullfilename = os.path.join(outputfolder, filename + '.pkl')
 
-        #'Nudged_Elastic_Band'
+        # Special case: Nudged Elastic Band simulation requires coordinate export
         if self.parameters['simulation_type'] == 'Nudged_Elastic_Band':
-            Pickle( os.path.join ( outputfolder, filename+'reac_coordinates.pkl'), self.parameters['reac_coordinates'])
-            Pickle( os.path.join ( outputfolder, filename+'prod_coordinates.pkl'), self.parameters['prod_coordinates'])
-            self.parameters['reac_coordinates'] = os.path.join ( outputfolder, filename+'reac_coordinates.pkl')
-            self.parameters['prod_coordinates'] = os.path.join ( outputfolder, filename+'prod_coordinates.pkl')
+            Pickle(os.path.join(outputfolder, filename + 'reac_coordinates.pkl'),
+                   self.parameters['reac_coordinates'])
+            Pickle(os.path.join(outputfolder, filename + 'prod_coordinates.pkl'),
+                   self.parameters['prod_coordinates'])
+            self.parameters['reac_coordinates'] = os.path.join(outputfolder, filename + 'reac_coordinates.pkl')
+            self.parameters['prod_coordinates'] = os.path.join(outputfolder, filename + 'prod_coordinates.pkl')
             
-
-
-        header =''' 
+        # Build the Python script header with imports and system loading
+        header = ''' 
 #---------------------------------------
 from pBabel                    import*                                     
 from pCore                     import*  
@@ -317,116 +323,98 @@ import sys
 sys.path.insert(1, '{}')
 import p_methods  as pMethods
 
-
-
-
-#  importing system
-#  If the system was set to use ORCA /DFTB+ or xTB, you will probably
-#  need to change the path that was set to the scratch folder.
-# 
-#  Something like:
+# Importing system
 system = ImportSystem ('{}')
-# system.qcState.DeterminePaths('/home/usr/scratch') # only for ORCA /DFTB+ or xTB
+# system.qcState.DeterminePaths('/home/usr/scratch') # Uncomment for ORCA / DFTB+ / xTB
 
-# summary
+# Summary of the imported system
 system.Summary()
-
-
-
-
-# This section should be edited
-# If the simulation will be run on another machine, 
-# you will probably need to change the "folder" variable, 
-# which defines where the trajectory will be written.
-
-'''.format(pmethod_path,fullfilename)
+'''.format(pmethod_path, fullfilename)
         
+        # Append parameters dictionary in pretty format
         header += '\nparameters = '
-        # Create a PrettyPrinter instance
         pp = pprint.PrettyPrinter(indent=4)
-        # Format the dictionary using pformat
         formatted_data = pp.pformat(self.parameters)
-        
         header += formatted_data
-        header +="\nparameters['system'] = system"
+        header += "\nparameters['system'] = system"
         
-        #'Umbrella_Sampling
+        # Add simulation object based on the type
         if self.parameters['simulation_type'] == 'Umbrella_Sampling':
-            header +='\n\nsimObj =  pMethods.UmbrellaSampling()'
+            header += '\n\nsimObj =  pMethods.UmbrellaSampling()'
         
-        #'Relaxed_Surface_Scan'
         elif self.parameters['simulation_type'] == 'Relaxed_Surface_Scan':
-            header +='\n\nsimObj =  pMethods.RelaxedSurfaceScan()'
+            header += '\n\nsimObj =  pMethods.RelaxedSurfaceScan()'
         
-        #'Nudged_Elastic_Band'
         elif self.parameters['simulation_type'] == 'Nudged_Elastic_Band':
-            #Pickle( os.path.join ( outputfolder, filename+'reac_coordinates.pkl'), self.parameters['reac_coordinates'])
-            #Pickle( os.path.join ( outputfolder, filename+'prod_coordinates.pkl'), self.parameters['prod_coordinates'])
-            #self.parameters['reac_coordinates'] = os.path.join ( outputfolder, filename+'reac_coordinates.pkl')
-            #self.parameters['prod_coordinates'] = os.path.join ( outputfolder, filename+'prod_coordinates.pkl')
-            header +='\n\nsimObj =  pMethods.ChainOfStatesOptimizePath()'
+            header += '\n\nsimObj =  pMethods.ChainOfStatesOptimizePath()'
         
-        header +='\nsimObj.run(parameters)' 
+        # Add execution line
+        header += '\nsimObj.run(parameters)' 
         
-        fullfilename = os.path.join (outputfolder, filename+'.py')
-        # Write the formatted string to a text file
+        # Save the generated script as a .py file
+        fullfilename = os.path.join(outputfolder, filename + '.py')
         with open(fullfilename, 'w') as file:
             file.write(header)
         
-
+        # Close the dialog
         self.builder.get_object('dialog').destroy()
-        self.Visible    =  False
-        
-        
-        
-        
-        
-        
+        self.Visible = False
         
 
-        
-    def CloseWindow (self, button, data  = None):
-        """ Function doc """
+    def CloseWindow(self, button, data=None):
+        """ 
+        Close the dialog window and mark it as not visible. 
+        """
         self.builder.get_object('dialog').destroy()
-        self.Visible    =  False
-        #print(self.ok)
-
-
-
-
-
-
+        self.Visible = False
 
         
 class AddHarmonicRestraintDialog:
-    """ Class doc """
+    """ 
+    A GTK-based dialog for adding or editing a harmonic restraint between two atoms.  
+    The dialog allows the user to specify atom indices, names, target distance, 
+    and force constant for the restraint. 
+    """
     
-    def __init__ (self, main = None, 
-                       atom1 = None, 
-                       atom2 = None, 
-                       distance  = 0.0 , 
-                       force     = 4000,
-                       system_id = None,
-                        
-                       edit = False):
-        """ Class initialiser """
+    def __init__(self, main=None, 
+                       atom1=None, 
+                       atom2=None, 
+                       distance=0.0, 
+                       force=4000,
+                       system_id=None,
+                       edit=False):
+        """ 
+        Initialize the dialog. 
+        
+        Parameters:
+        - main: reference to the main application object. 
+        - atom1, atom2: atom objects or indices defining the restraint. 
+        - distance: target distance for the harmonic restraint (default 0.0). 
+        - force: force constant for the restraint (default 4000). 
+        - system_id: (optional) ID of the system in use. 
+        - edit: if True, load the dialog with pre-filled values for editing. 
+        """
         self.main = main
         self.home = main.home
         
+        # Load GUI layout from Glade file
         self.builder = Gtk.Builder()
-        self.builder.add_from_file(os.path.join(self.home,'src/gui/windows/setup/add_harmonic_restraint_dialog.glade'))
+        self.builder.add_from_file(
+            os.path.join(self.home, 'src/gui/windows/setup/add_harmonic_restraint_dialog.glade')
+        )
         self.builder.connect_signals(self)
         self.builder.get_object('dialog').connect('destroy', self.CloseWindow)
         
+        # If editing an existing restraint, populate fields with provided values
         if edit:
-            self.builder.get_object('button_add').set_label('Ok')
+            self.builder.get_object('button_add').set_label('Ok')  # Change button label
             self.builder.get_object('entry_atom1_index_coord1').set_text(str(atom1))
             self.builder.get_object('entry_atom2_index_coord1').set_text(str(atom2))
-            #self.builder.get_object('entry_atom1_name_coord1').set_text(atom1.name)
-            #self.builder.get_object('entry_atom2_name_coord1').set_text(atom2.name)
+            # Optional: could also use atom names if available
             self.builder.get_object('entry_dmin_coord1').set_text(str(distance))
             self.builder.get_object('entry_FORCE_coord1').set_text(str(force))
         else:
+            # If adding a new restraint, populate with default atom data
             self.builder.get_object('entry_atom1_index_coord1').set_text(str(atom1.index-1))
             self.builder.get_object('entry_atom2_index_coord1').set_text(str(atom2.index-1))
             self.builder.get_object('entry_atom1_name_coord1').set_text(atom1.name)
@@ -434,143 +422,163 @@ class AddHarmonicRestraintDialog:
             self.builder.get_object('entry_dmin_coord1').set_text(str(distance))
             self.builder.get_object('entry_FORCE_coord1').set_text(str(force))
 
+        # Connect buttons to their callbacks
         self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
         self.builder.get_object('button_add').connect('clicked', self.on_button_ok_clicked)
 
-        
-        #self.builder.get_object('dialog').destroy()
+        # Variables to store the dialog results
         self.dist  = None
         self.force = None
-        self.ok    = False
+        self.ok    = False   # Will be set True if user confirms the dialog
+        
+        # Run the dialog (blocks until user interacts)
         self.builder.get_object('dialog').run()
     
-    def on_button_ok_clicked (self, widget):
-        """ Function doc """
+
+    def on_button_ok_clicked(self, widget):
+        """ 
+        Event handler for the "Add"/"Ok" button.  
+        Collects distance and force values entered by the user,  
+        sets the confirmation flag, and closes the dialog. 
+        """
         self.dist  = self.builder.get_object('entry_dmin_coord1').get_text()
         self.force = self.builder.get_object('entry_FORCE_coord1').get_text()
         self.ok    = True
-        #print(self.ok)
         self.builder.get_object('dialog').destroy()
         
-    def CloseWindow (self, button, data  = None):
-        """ Function doc """
+    def CloseWindow(self, button, data=None):
+        """ 
+        Event handler for cancel or dialog close.  
+        Closes the dialog without applying changes. 
+        """
         self.builder.get_object('dialog').destroy()
-        self.Visible    =  False
+        self.Visible = False
 
 
 class ExportDataWindow:
-    """ Class doc """
-    def __init__(self, main = None):
-        """ Class initialiser """
+    """ 
+    A GTK-based window for exporting molecular system data.  
+    The user can choose the system, file format, trajectory frames, and output folder.  
+    Supports single-file and multi-file export, including 2D trajectories. 
+    """
+
+    def __init__(self, main=None):
+        """ 
+        Initialize the ExportDataWindow. 
+        
+        Parameters:
+        - main: reference to the main application object. 
+        """
         self.main    = main
         self.home    = main.home
-        self.Visible =  False        
-        self.starting_coords_liststore = Gtk.ListStore(str, int)
-        self.is_single_frame  = True
-        self.is_2D_trajectory = False
-        
-    def CloseWindow (self, button, data  = None):
-        """ Function doc """
-        self.window.destroy()
-        self.Visible    =  False
+        self.Visible = False     # Tracks whether the window is already open
+        self.starting_coords_liststore = Gtk.ListStore(str, int)  # Stores available coordinates
+        self.is_single_frame  = True   # Default: exporting a single frame
+        self.is_2D_trajectory = False  # Default: not a 2D trajectory
 
-    def OpenWindow (self, sys_selected = None):
-        """ Function doc """
-        #if sys_selected:
-        #    pass
-        #else:
-        #    sys_selected = 0
+
+    def CloseWindow(self, button, data=None):
+        """ 
+        Close the export window and update visibility state. 
+        """
+        self.window.destroy()
+        self.Visible = False
+
+
+    def OpenWindow(self, sys_selected=None):
+        """ 
+        Open the Export Data window.  
+        Creates and initializes all GUI components if the window is not already open. 
         
-        if self.Visible  ==  False:
+        Parameters:
+        - sys_selected: optional system ID to preselect in the system combobox. 
+        """
+        if not self.Visible:
+            # Load GUI from Glade file
             self.builder = Gtk.Builder()
-            self.builder.add_from_file(os.path.join(self.home,'src/gui/windows/setup/export_system_window.glade'))
+            self.builder.add_from_file(
+                os.path.join(self.home, 'src/gui/windows/setup/export_system_window.glade')
+            )
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('export_data_window')
             self.window.set_title('Export Data Window')
-            #self.window.set_keep_above(True)
-            '''--------------------------------------------------------------------------------------------'''
             
-            
-            '''--------------------------------------------------------------------------------------------'''
+            # ------------------ File formats combobox ------------------ #
             self.format_store = Gtk.ListStore(str)
             self.formats = {
-                       0 : 'pkl - pDynamo system'         ,
-                       1 : 'yaml - pDynamo system'        ,
-                       2 : 'pkl - pDynamo coordinates'    ,
-                       3 : 'pdb - Protein Data Bank'      ,
-                       4 : 'xyz - cartesian coordinates'  ,
-                       5 : 'mol'                          ,
-                       6 : 'mol2'                         ,
-                       7 : 'crd' 
-                       }
-                       
-            for key, _format in self.formats.items():
+                0: 'pkl - pDynamo system',
+                1: 'yaml - pDynamo system',
+                2: 'pkl - pDynamo coordinates',
+                3: 'pdb - Protein Data Bank',
+                4: 'xyz - cartesian coordinates',
+                5: 'mol',
+                6: 'mol2',
+                7: 'crd'
+            }
+            for _, _format in self.formats.items():
                 self.format_store.append([_format])
-                #print (format)
+            
             self.combobox_fileformat = self.builder.get_object('combobox_fileformat')
             self.combobox_fileformat.set_model(self.format_store)
             renderer_text = Gtk.CellRendererText()
             self.combobox_fileformat.pack_start(renderer_text, True)
             self.combobox_fileformat.add_attribute(renderer_text, "text", 0)
-            '''--------------------------------------------------------------------------------------------'''
+            # ----------------------------------------------------------- #
             
             
-            
-
-
-            '''--------------------------------------------------------------------------------------------'''
+            # ------------------ System combobox ------------------ #
             self.box = self.builder.get_object('box_system')
-            self.psystem_combo = SystemComboBox (self.main)
+            self.psystem_combo = SystemComboBox(self.main)
             self.box.pack_start(self.psystem_combo, False, False, 0)
             self.psystem_combo.connect("changed", self.combobox_pdynamo_system)
             if sys_selected:
                 self.psystem_combo.set_active_system(sys_selected)
             else:
                 self.psystem_combo.set_active(0)
-            '''--------------------------------------------------------------------------------------------'''
-
-
-
+            # ----------------------------------------------------- #
+            
 
             sys_selected = self.psystem_combo.get_system_id()
             
-            #'''--------------------------------------------------------------------------------------------------
-            self.folder_chooser_button = FolderChooserButton(main =  self.main)
-            self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
-            #'''--------------------------------------------------------------------------------------------------
+            # ------------------ Folder chooser ------------------ #
+            self.folder_chooser_button = FolderChooserButton(main=self.main)
+            self.builder.get_object('folder_chooser_box').pack_start(
+                self.folder_chooser_button.btn, True, True, 0
+            )
+            # ----------------------------------------------------- #
+            
 
-            #------------------------------------------------------------------------------------
+            # ------------------ Starting coordinates combobox ------------------ #
             self.box_coordinates = self.builder.get_object('box_coordinates')
             try:
-                print(self.main.vobject_liststore_dict[sys_selected])
-                self.combobox_starting_coordinates = CoordinatesComboBox(coordinates_liststore = self.main.vobject_liststore_dict[sys_selected]) #self.builder.get_object('coordinates_combobox')
+                # Populate coordinates from the selected system
+                self.combobox_starting_coordinates = CoordinatesComboBox(
+                    coordinates_liststore=self.main.vobject_liststore_dict[sys_selected]
+                )
             except:
-                self.combobox_starting_coordinates = CoordinatesComboBox(coordinates_liststore = -1)
+                self.combobox_starting_coordinates = CoordinatesComboBox(coordinates_liststore=-1)
             
             self.box_coordinates.pack_start(self.combobox_starting_coordinates, False, False, 0)
             size = len(self.main.vobject_liststore_dict[sys_selected])
             
             self.combobox_starting_coordinates.connect("changed", self.on_vobject_combo_changed)
             self.combobox_starting_coordinates.set_active(size-1)
-            #------------------------------------------------------------------------------------
+            # ------------------------------------------------------------------- #
             
-            
-            #------------------------------------------------------------------------------------
-            self.checkbox_keep_window = self.builder.get_object('checkbox_keep_window_open')
-            #------------------------------------------------------------------------------------
 
-        
-            #------------------------------------------------------------------------------------
+            self.checkbox_keep_window = self.builder.get_object('checkbox_keep_window_open')
+            
+            # Set default folder to system’s working folder if available
             folder = self.main.p_session.psystem[sys_selected].e_working_folder
             if folder:
-                self.folder_chooser_button.set_folder(folder = folder)
-            #------------------------------------------------------------------------------------
+                self.folder_chooser_button.set_folder(folder=folder)
 
-            
+            # Show window
             self.window.show_all()
             self.is_single_file = True
-            #.this is not the best place to let this code (change later)
+
+            # Disable multiple-frame entries by default
             self.builder.get_object('entry_first').set_sensitive(False)
             self.builder.get_object('label_first').set_sensitive(False)
             self.builder.get_object('entry_stride').set_sensitive(False)
@@ -579,221 +587,249 @@ class ExportDataWindow:
             self.builder.get_object('entry_stride2').set_sensitive(False)
             
             self.combobox_fileformat.set_active(0)
-            self.Visible  = True
+            self.Visible = True
         else:
+            # If window already open, bring it to front
             self.window.present()
-    def combobox_pdynamo_system (self, widget):
-        """ Function doc """
-        #print('combobox_pdynamo_system aqui')
+
+
+    def combobox_pdynamo_system(self, widget):
+        """ 
+        Event handler when system combobox changes.  
+        Updates coordinates combobox and folder chooser accordingly. 
+        """
         if self.Visible:
             sys_id = widget.get_system_id()
-            self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[sys_id])
-            
+            self.combobox_starting_coordinates.set_model(
+                self.main.vobject_liststore_dict[sys_id]
+            )
             size = len(self.main.vobject_liststore_dict[sys_id])
             self.combobox_starting_coordinates.set_active(size-1)
-        
+
             folder = self.main.p_session.psystem[sys_id].e_working_folder
             if folder:
-                self.folder_chooser_button.set_folder(folder = folder)
+                self.folder_chooser_button.set_folder(folder=folder)
 
-    def on_vobject_combo_changed (self, widget):
-        '''this combobox has the reference to the starting coordinates of a simulation'''
-        #combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
+
+    def on_vobject_combo_changed(self, widget):
+        """ 
+        Event handler for changing starting coordinates.  
+        Detects if the selected trajectory is 2D and updates UI elements accordingly. 
+        """
         tree_iter = self.combobox_starting_coordinates.get_active_iter()
         if tree_iter is not None:
             model = self.combobox_starting_coordinates.get_model()
             name, vobject_id = model[tree_iter][:2]
             vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
         
-            if getattr ( vismol_object, 'idx_2D_xy', False):
-                print(vismol_object.idx_2D_xy )
-                self.builder.get_object('label_y_rc'   ).show()
-                self.builder.get_object('entry_first2' ).show()
-                self.builder.get_object('entry_last2'  ).show()
+            if getattr(vismol_object, 'idx_2D_xy', False):
+                # Show UI for 2D trajectory export
+                self.builder.get_object('label_y_rc').show()
+                self.builder.get_object('entry_first2').show()
+                self.builder.get_object('entry_last2').show()
                 self.builder.get_object('entry_stride2').show()
                 self.is_2D_trajectory = True
             else:
-                self.builder.get_object('label_y_rc'   ).hide()
-                self.builder.get_object('entry_first2' ).hide()
-                self.builder.get_object('entry_last2'  ).hide()
+                # Hide 2D-related inputs
+                self.builder.get_object('label_y_rc').hide()
+                self.builder.get_object('entry_first2').hide()
+                self.builder.get_object('entry_last2').hide()
                 self.builder.get_object('entry_stride2').hide()
                 self.is_2D_trajectory = False
-                pass
         self._fileformat_update()
-            
-    def on_combobox_fileformat (self, widget):
-        """ Function doc """
+
+
+    def on_combobox_fileformat(self, widget):
+        """ 
+        Event handler for changing file format combobox.  
+        Updates UI based on file format selection. 
+        """
         self._fileformat_update()
-    
-    def _fileformat_update (self):
-        """ Function doc """
+
+
+    def _fileformat_update(self):
+        """ 
+        Internal function to update UI depending on file format  
+        and number of frames in the selected object. 
+        """
         tree_iter = self.combobox_starting_coordinates.get_active_iter()
         if tree_iter is not None:
-            
-            '''selecting the vismol object from the content that is in the combobox '''
             model = self.combobox_starting_coordinates.get_model()
             name, vobject_id = model[tree_iter][:2]
         
         if len(self.main.vm_session.vm_objects_dic[vobject_id].frames) > 1:
             self.is_single_frame = True
-            if self.combobox_fileformat.get_active( ) in [0,1]:
+            if self.combobox_fileformat.get_active() in [0, 1]:
                 self.builder.get_object('radiobutton_singlefile').set_active(True)
                 self.builder.get_object('radiobutton_multiplefile').set_sensitive(False)
             else:
                 self.builder.get_object('radiobutton_multiplefile').set_sensitive(True)
         else:
-            #print(self.main.vm_session.vm_objects_dic[vobject_id].name,
-            #      len(self.main.vm_session.vm_objects_dic[vobject_id].frames),'False')
+            # Single-frame object → force single-file export
             self.builder.get_object('radiobutton_singlefile').set_active(True)
             self.builder.get_object('radiobutton_multiplefile').set_sensitive(False)
             self.is_single_frame = True
-    
-    def on_name_combo_changed (self, widget):
-        """ Function doc """
-        if  widget.get_active() == 0:
+
+
+    def on_name_combo_changed(self, widget):
+        """ 
+        Event handler for name-type combobox.  
+        Changes folder chooser type between file and folder selection. 
+        """
+        if widget.get_active() == 0:
             self.folder_chooser_button.sel_type = 'folder'
         else:
             self.folder_chooser_button.sel_type = 'file'
 
-    def on_radio_button_change (self, widget):
-        """ Function doc """
+
+    def on_radio_button_change(self, widget):
+        """ 
+        Event handler for switching between single-file and multiple-file export.  
+        Enables/disables UI fields accordingly. 
+        """
         if self.builder.get_object('radiobutton_singlefile').get_active():
             self.is_single_file = True
+            # Disable multiple-frame options
             self.builder.get_object('entry_first').set_sensitive(False)
             self.builder.get_object('label_first').set_sensitive(False)
             self.builder.get_object('entry_stride').set_sensitive(False)
             self.builder.get_object('label_stride').set_sensitive(False)
-            
             self.builder.get_object('entry_first2').set_sensitive(False)
             self.builder.get_object('entry_stride2').set_sensitive(False)
-
         else:
             self.is_single_file = False
-            self.builder.get_object('entry_first')  .set_sensitive(True)
-            self.builder.get_object('label_first')  .set_sensitive(True)
-            self.builder.get_object('entry_stride') .set_sensitive(True)
-            self.builder.get_object('label_stride') .set_sensitive(True)
-            
-            self.builder.get_object('entry_first2') .set_sensitive(True)
+            # Enable multiple-frame options
+            self.builder.get_object('entry_first').set_sensitive(True)
+            self.builder.get_object('label_first').set_sensitive(True)
+            self.builder.get_object('entry_stride').set_sensitive(True)
+            self.builder.get_object('label_stride').set_sensitive(True)
+            self.builder.get_object('entry_first2').set_sensitive(True)
             self.builder.get_object('entry_stride2').set_sensitive(True)
 
-    def export_data (self, button):
-        """ Function doc """
+
+    def export_data(self, button):
+        """ 
+        Collects all user-selected parameters and exports system data.  
+        Supports different formats, single/multiple-file export, and 2D trajectories. 
+        """
+        # Default parameters
         parameters = {
-                      'system_id'       : None,
-                      'vobject_id'      : None, 
-                      'format'          : None,
-                      'is_single_file'  : True,
-                      'is_2D_trajectory':False,
-                      'first'           :  0 ,
-                      'last'            : -1 ,
-                      'stride'          :  1 ,
-                      
-                      'first2'          :  0 ,
-                      'last2'           : -1 ,
-                      'stride2'         :  1 ,
-                      
-                      'export_QC_atoms_only': False,
-                      'filename'            :'exported_system',
-                      'folder'              : None, 
-                      
-                      }
+            'system_id': None,
+            'vobject_id': None, 
+            'format': None,
+            'is_single_file': True,
+            'is_2D_trajectory': False,
+            'first': 0,
+            'last': -1,
+            'stride': 1,
+            'first2': 0,
+            'last2': -1,
+            'stride2': 1,
+            'export_QC_atoms_only': False,
+            'filename': 'exported_system',
+            'folder': None,
+        }
         
-        
-        '''--------------------------------------------------------------------------'''
+        # ----------------- Get selected starting coordinates ----------------- #
         tree_iter = self.combobox_starting_coordinates.get_active_iter()
         if tree_iter is not None:
-            
-            '''selecting the vismol object from the content that is in the combobox '''
             model = self.combobox_starting_coordinates.get_model()
             name, vobject_id = model[tree_iter][:2]
         parameters['vobject_id'] = vobject_id
-        '''--------------------------------------------------------------------------'''
-
-
+        # --------------------------------------------------------------------- #
         
-        '''---------------------  Getting the correct format  ---------------------------'''
-        _format  = self.combobox_fileformat.get_active()
+        # ----------------- File format ----------------- #
+        _format = self.combobox_fileformat.get_active()
         parameters['format'] = _format
-        '''------------------------------------------------------------------------------'''
+        # ------------------------------------------------ #
         
-        
-        
-        '''------------------------   Fomrat  ------------------------------------------'''
-        folder   = self.folder_chooser_button.get_folder()
+        # ----------------- Output folder and filename ----------------- #
+        folder = self.folder_chooser_button.get_folder()
         filename = self.builder.get_object('entry_filename').get_text()
         parameters['folder'] = folder
         parameters['filename'] = filename
-        '''------------------------------------------------------------------------------'''
+        # --------------------------------------------------------------- #
         
-        
-        
-        '''------------------------  pDynam System   ------------------------------------'''
+        # ----------------- Selected system ----------------- #
         tree_iter = self.psystem_combo.get_active_iter()
         if tree_iter is not None:
-            '''selecting the vismol object from the content that is in the combobox '''
             model = self.psystem_combo.get_model()
             name, system_id = model[tree_iter][:2]
         parameters['system_id'] = system_id
-        '''------------------------------------------------------------------------------'''
+        # --------------------------------------------------- #
         
-        
-        '''--------------------------- Is single file ? ---------------------------------'''
+        # ----------------- Single or multiple file ----------------- #
         if self.builder.get_object('radiobutton_singlefile').get_active():
-            parameters['is_single_file'] = True          
+            parameters['is_single_file'] = True
         else:
             parameters['is_single_file'] = False
-        '''------------------------------------------------------------------------------'''
+        # ----------------------------------------------------------- #
         
         parameters['is_2D_trajectory'] = self.is_2D_trajectory
         
-        '''----------------------   FIRST  LAST and STRIDE   -----------------------------'''
-        parameters['first']  = int(self.builder.get_object('entry_first').get_text() )
-        parameters['last']   = int(self.builder.get_object('entry_last').get_text()  )
+        # ----------------- Frame ranges ----------------- #
+        parameters['first']  = int(self.builder.get_object('entry_first').get_text())
+        parameters['last']   = int(self.builder.get_object('entry_last').get_text())
         parameters['stride'] = int(self.builder.get_object('entry_stride').get_text())
-        '''-------------------------------------------------------------------------------'''
-        
-        '''----------------------   FIRST  LAST and STRIDE   -----------------------------'''
-        parameters['first2']  = int(self.builder.get_object('entry_first2').get_text() )
-        parameters['last2']   = int(self.builder.get_object('entry_last2').get_text()  )
+        parameters['first2'] = int(self.builder.get_object('entry_first2').get_text())
+        parameters['last2']  = int(self.builder.get_object('entry_last2').get_text())
         parameters['stride2'] = int(self.builder.get_object('entry_stride2').get_text())
-        '''-------------------------------------------------------------------------------'''
+        # ------------------------------------------------ #
         
-        parameters['export_QC_atoms_only'] =  self.builder.get_object('checkbox_export_QC_atoms_only').get_active()
-
+        parameters['export_QC_atoms_only'] = self.builder.get_object('checkbox_export_QC_atoms_only').get_active()
         
+        # Attach the actual system object
         parameters['system'] = self.main.p_session.psystem[parameters['system_id']]
-        #print(parameters)
-        '''------------------------------------------------------------------------------'''
         
-        format_dict = {
-            0 : 'pkl'  ,
-            1 : 'yaml' ,
-            2 : 'pkl'  ,
-            3 : 'pdb'  ,
-            4 : 'xyz'  ,
-            5 : 'mol'  ,
-            6 : 'mol2' ,
-            7 : 'crd'
-            }
-        
+        # ----------------- File extension handling ----------------- #
+        format_dict = {0:'pkl', 1:'yaml', 2:'pkl', 3:'pdb', 4:'xyz', 5:'mol', 6:'mol2', 7:'crd'}
         if parameters['is_single_file']:
-            _format = '.'+format_dict[parameters['format']]
+            _format = '.' + format_dict[parameters['format']]
         else:
             _format = '.ptGeo'
+        # ------------------------------------------------------------ #
+        
+        #print(parameters)  # Debug
+        # Call export function from session
+        try:
+            self.main.p_session.export_system(parameters)
+            
+            system = self.main.p_session.psystem[parameters['system_id']]
+            path = os.path.join(parameters['folder'],parameters['filename']+'.'+format_dict[parameters['format']])
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'Data exported successfully: {}'.format(path), system = system)
+        
+        except Exception as e:
+            error_str = str(e)  # converte a mensagem de erro para string
+            print("Error:", error_str)
+            self.main.bottom_notebook.status_teeview_add_new_item(message = 'Error: Could not export data.', system = None)
+            simpledialog = SimpleDialog(self.main)
+            simpledialog.error("Error: Could not export data.")
+            
+        #'''
+        
+        if self.checkbox_keep_window.get_active():
+            pass
+        else:
+            self.window.destroy()
+            self.Visible = False
         
         
         
-        print(parameters)
-        self.main.p_session.export_system (parameters)
+        
+        
+        
+        
+        # Optional: status update (commented out in your code)
         '''
         try:
-            self.main.p_session.export_system (parameters)
-            self.main.bottom_notebook.status_teeview_add_new_item(message = ':  {}  saved'.format(os.path.join ( 
-                                                                                        parameters['folder'], 
-                                                                                        parameters['filename']+_format)
-                                                                                        ), 
-                                                                  system = parameters['system'])
+            self.main.p_session.export_system(parameters)
+            self.main.bottom_notebook.status_teeview_add_new_item(
+                message=':  {}  saved'.format(os.path.join(
+                    parameters['folder'], 
+                    parameters['filename']+_format)
+                ), 
+                system=parameters['system']
+            )
         except:
             print('Failed when trying to export system data: ', parameters['system'].label)
         
@@ -801,19 +837,16 @@ class ExportDataWindow:
             pass
         else:
             self.window.destroy()
-            self.Visible    =  False
-        #'''
-        '''------------------------------------------------------------------------------'''
-    
-    def CloseWindow (self, button, data  = None):
-        """ Function doc """
-        self.window.destroy()
-        self.Visible    =  False
+            self.Visible = False
+        '''
+        
 
-    def update (self):
-        """ Function doc """
-        #print('VismolGoToAtomWindow2 update')
+    def update(self):
+        """ 
+        Placeholder function for future updates to the window. 
+        """
         pass
+
 
 class EasyHybridSelectionWindow:
     """ Class doc """
@@ -3143,6 +3176,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         if key == 'Shift_R' or key == 'Shift_L':
             self.shift = False
         print(widget, event, Gdk.keyval_name(event.keyval), self.shift)
+
         
 class EasyHybridDialogSetQCAtoms(Gtk.Dialog):
     def __init__(self, parent):
