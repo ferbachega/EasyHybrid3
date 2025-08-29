@@ -1228,7 +1228,7 @@ class EasyHybridSession(VismolSession, GLMenu):
 
 
     def check_selected_atom(self, atom, dialog = True):
-        '''checks if selected atoms belong to the dynamo system in memory'''
+        """Checks if the selected atom belongs to the active pDynamo system."""
         if atom.vm_object.e_id != self.main.p_session.active_id:
             ##print(atom.index-1, atom.name, atom.resn)
             
@@ -1258,7 +1258,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
 
 
     def set_color_by_index (self, vobject = None, indexes = [ ], color = [0.9, 0.9, 0.9] ):
-        """ Function doc """
+        """Sets the color of specific atoms in a Vismol object and updates the OpenGL representation."""
         for atom_index in indexes:
             vobject.atoms[atom_index].color = color    
 
@@ -1281,7 +1281,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
 
 
     def set_color (self, symbol = 'C', color = [0.9, 0.9, 0.0] ):
-        """ Function doc """
+        """Sets the color of all atoms of a given element symbol in the current selection."""
         
         selection = self.selections[self.current_selection]
                 
@@ -1309,16 +1309,13 @@ button position in the main treeview (active column).""".format(name,self.main.p
     
     
     def create_new_selection (self):
-        """ Function doc """
+        """Creates a new selection object."""
         return VMSele(self)
 
 
     def forward_frame(self):
-        """ Function doc """
-        #if self.main_session:
-        #    print('here')
-        #    self.main_session.trajectory_player_window.self.vm_traj_obj.forward()
-        #else:
+        """Moves the visualization forward by one frame."""
+
         frame = self.frame + 1
         self.set_frame(frame=frame)
 
@@ -1337,30 +1334,18 @@ button position in the main treeview (active column).""".format(name,self.main.p
   
 
     def reverse_frame(self):
-        """ Function doc """
-        
-        #if self.main_session.trajectory_player_window.Visible:
-        #    self.main_session.trajectory_player_window.self.vm_traj_obj.reverse()
-        #else:
-       
+        """Moves the visualization backward by one frame."""
         frame = self.frame
         if self.frame - 1 >= 0:
             frame -= 1
         else:
             frame  = 0
         self.set_frame(frame=frame)
-        
-        '''
-        if self.frame - 1 >= 0:
-            self.frame -= 1
-            self.vm_glcore.updated_coords = True
-        else:
-            self.vm_glcore.updated_coords = False
-        #'''
+
 
     
     def set_frame(self, frame=0):
-        """ Function doc """
+        """Sets the current frame for all Vismol objects and updates representations."""
         assert frame >= 0
         self.frame = np.uint32(frame)
         self.vm_glcore.updated_coords = True
@@ -1371,7 +1356,6 @@ button position in the main treeview (active column).""".format(name,self.main.p
         
         #self.main_session.label_frame.set_text('Frame Number: ' + str(frame)) 
         self.vm_widget.queue_draw()
-        #print('aqui')
         #self.main.surface_analysis_window.set_frame()
         '''
         for vobj_id, vobject in self.vm_objects_dic.items():
@@ -1391,6 +1375,9 @@ button position in the main treeview (active column).""".format(name,self.main.p
 
     def _define_inner_box (self, selection, grid_size):
         """  
+        
+        Determines the smallest Cartesian box that contains the selected atoms.
+        Returns the involved Vismol objects, min/max coordinates, and a dict of selected atom indices.
         Establishes the inner box (smallest box in Cartesian space) that encompasses the selected atoms
         
         inputs:
@@ -1447,11 +1434,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
                     pass
                 else:
                     vobjects.append(vobject)
-                
-                #grid_pos = (int(xyz[0]/grid_size), int(xyz[1]/grid_size), int(xyz[2]/grid_size))
-                #i.append(grid_pos[0])
-                #j.append(grid_pos[1])
-                #k.append(grid_pos[2])
+
                 i.append(xyz[0])
                 j.append(xyz[1])
                 k.append(xyz[2])
@@ -1464,22 +1447,10 @@ button position in the main treeview (active column).""".format(name,self.main.p
                     selected_indexes_dict[vobject.index]=[]
                     selected_indexes_dict[vobject.index].append(atom.index-1)
 
-
-                #if grid_pos in selected_grip.keys():
-                #    selected_grip[grid_pos].append(atom)
-                #else:
-                #    selected_grip[grid_pos] = []
-                #    selected_grip[grid_pos].append(atom)
             else:
                 print('invalid selection list')
                 return False
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        
-        #print ('\nkey (grid pos) / num of atoms',
-        #'\n max i: ', max(i) , 'min i: ', min(i),
-        #'\n max j: ', max(j) , 'min j: ', min(j),
-        #'\n max k: ', max(k) , 'min k: ', min(k))
-        
         grid_min = [min(i), min(j), min(k)]
         grid_max = [max(i), max(j), max(k)]
         return vobjects, grid_min, grid_max, selected_indexes_dict
