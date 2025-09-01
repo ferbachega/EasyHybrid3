@@ -3597,6 +3597,19 @@ class ImportANewSystemWindow(Gtk.Window):
         #'''
         wfolder  = self.folder_chooser_button.get_folder()
         
+        
+        '''
+        self.easyhybrid_main.p_session.load_a_new_pDynamo_system_from_dict(input_files    = self.files, 
+                                                                           system_type    = systemtype, 
+                                                                           name           = name      ,
+                                                                           tag            = tag       ,
+                                                                           color          = [red, green, blue],
+                                                                           working_folder = wfolder)
+    
+        self.CloseWindow(button, data  = None)
+        #'''
+        
+        #'''
         try:
             self.easyhybrid_main.p_session.load_a_new_pDynamo_system_from_dict(input_files    = self.files, 
                                                                                system_type    = systemtype, 

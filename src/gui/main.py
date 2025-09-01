@@ -1275,30 +1275,34 @@ class MainWindow:
         ''' - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
         filename = self.filechooser.open(filters = filters)
         ''' - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
-    
-        if filename:
-            if filename[-4:] == 'easy':
-                if os.path.exists(filename+'~'):
-                    msg = 'There is a newer temporary file for the project you are loading.\n Would you like to load the most current file?'
-                    dialog = SimpleDialog(self)
-                    yes_or_no = dialog.question (msg)
-                    if yes_or_no:
-                        self.p_session.load_easyhybrid_serialization_file(filename+'~', tmp = True)
-                    else:
-                        self.p_session.load_easyhybrid_serialization_file(filename)
-                else:
-                    self.p_session.load_easyhybrid_serialization_file(filename)
-
-            elif filename[-5:] == 'easy~':
-                #print('ehf file')            
-                #self.save_vismol_file = filename
-                self.p_session.load_easyhybrid_serialization_file(filename)            
-            else:
-                files = {'coordinates': filename}
-                systemtype = 3
-                self.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
-        else:
-            pass
+        self.vm_session.load(filename)
+        #'''
+        #if filename:
+        #    if filename[-4:] == 'easy':
+        #        if os.path.exists(filename+'~'):
+        #            msg = 'There is a newer temporary file for the project you are loading.\n Would you like to load the most current file?'
+        #            dialog = SimpleDialog(self)
+        #            yes_or_no = dialog.question (msg)
+        #            
+        #            if yes_or_no:
+        #                self.p_session.load_easyhybrid_serialization_file(filename+'~', tmp = True)
+        #            else:
+        #                self.p_session.load_easyhybrid_serialization_file(filename)
+        #        else:
+        #            self.p_session.load_easyhybrid_serialization_file(filename)
+        #
+        #    elif filename[-5:] == 'easy~':
+        #        #print('ehf file')            
+        #        #self.save_vismol_file = filename
+        #        self.p_session.load_easyhybrid_serialization_file(filename)            
+        #    else:
+        #        files = {'coordinates': filename}
+        #        systemtype = 3
+        #        self.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
+        #else:
+        #    pass
+        #'''
+        
         
     def run_dialog_set_QC_atoms (self, _type = None, vismol_object = None):
         """ Function doc """
@@ -1354,7 +1358,9 @@ class MainWindow:
         self.p_session.psystem[e_id].e_tag = tag
 
     def rename (self, e_id = None, v_id = -1, name = None):
-        if v_id == -1:
+
+        #print(name)
+        if v_id == -1: #.change the header
             _iter = self.p_session.psystem[e_id].e_treeview_iter
             self.main_treeview.treestore[_iter][2] = str(e_id)+' - '+ name
             self.p_session.psystem[e_id].label  = name
@@ -1362,14 +1368,28 @@ class MainWindow:
             self.system_liststore[liststore_iter][0] = str(e_id)+' - '+ name
         
         else:
-            _iter = self.vm_session.vm_objects_dic[v_id].e_treeview_iter
-            self.main_treeview.treestore[_iter][2] = name
-            self.vm_session.vm_objects_dic[v_id].name = name
-            try:
-                self.vobject_liststore_dict[e_id][self.vm_session.vm_objects_dic[v_id].liststore_iter][0] = name
-            except:
-                #means that it is surface 
-                pass
+            #print(self.vm_session.vobject_names.values())
+            if name in self.vm_session.vobject_names.keys():
+                print('Invalid name.')
+                return False
+
+            else:
+                _iter = self.vm_session.vm_objects_dic[v_id].e_treeview_iter
+                self.main_treeview.treestore[_iter][2] = name
+                
+                old_name = self.vm_session.vm_objects_dic[v_id].name          
+                self.vm_session.vobject_names.pop(old_name)
+                
+
+                self.vm_session.vm_objects_dic[v_id].name = name
+                
+                self.vm_session.vobject_names[name] = self.vm_session.vm_objects_dic[v_id]
+                #print('aqui')
+                try:
+                    self.vobject_liststore_dict[e_id][self.vm_session.vm_objects_dic[v_id].liststore_iter][0] = name
+                except:
+                    #means that it is surface 
+                    pass
     
     def delete_system (self, system_e_id = None ):
         """ 
@@ -1425,7 +1445,7 @@ class MainWindow:
             vobject = self.vm_session.vm_objects_dic[vm_object_index]
             #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             
-            
+            name = vobject.name
             #  - - - - REMOVING plotting data FROM system.e_logfile_data - - - - - -
             system = self.p_session.psystem[vobject.e_id]
             #print(vobject.e_id, vm_object_index)
@@ -1449,6 +1469,7 @@ class MainWindow:
             #  - - - - - - - - REMOVING vobj FROM vm_object_dic - - - - - - - - - -
             self.vm_session.vm_objects_dic[vm_object_index] = None
             self.vm_session.vm_objects_dic.pop(vm_object_index)# = None
+            self.vm_session.vobject_names.pop(name)# = None
             #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
             self.vm_session.vm_glcore.queue_draw()
@@ -2188,6 +2209,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
                 treeview_iter = vobject.e_treeview_iter
                 size = len(vobject.frames)
                 self.treestore[treeview_iter][8] = size
+                self.treestore[treeview_iter][6] = vobject.active
                 #print(index, self.treestore[treeview_iter][2], 'frames', len(vobject.frames))
 
 
@@ -2879,6 +2901,7 @@ class PreferencesWindow:
     
     def set_names (self, name, tag):
         """ Function doc """
+        
         self.entry_name.set_text(name)
         self.entry_tag .set_text(tag)
         

@@ -23,7 +23,7 @@
 #
 
 import logging
-import gi, sys
+import gi, sys, os
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
 from vismol.core.vismol_session import VismolSession
@@ -33,7 +33,8 @@ import vismol.utils.selectors as selectors
 
 from gui.windows.setup.windows_and_dialogs import EasyHybridDialogPrune
 from gui.windows.setup.windows_and_dialogs import AddHarmonicRestraintDialog
-      
+from gui.windows.setup.windows_and_dialogs import SimpleDialog
+
 from vismol.core.vismol_selections import VismolViewingSelection as VMSele
 from vismol.core.vismol_selections import VismolPickingSelection as VMPick
 import numpy as np
@@ -427,8 +428,23 @@ class GLMenu:
                     color = self.colorchooserdialog.get_rgba()
                     #print(color.red,color.green, color.blue )
                     new_color = [color.red, color.green, color.blue]
-                
-                
+                    
+                    
+                    #selection.selected_objects
+                    #selection.selected_atoms
+                    
+                    
+                    #for atom in selection.selected_atoms:
+                    #    vobject = atom.vm_object
+                    #    
+                    #    e_id = getattr(vobject, 'e_id', None)
+                    #    if type(e_id) == int:
+                    #        system = self.p_session.psystem[e_id]
+                    #        system.e_custom_colors
+                    #        
+                    #    else: 
+                    #        pass
+                    #print(selection.selected_objects)
                 
                 
                 self.colorchooserdialog.destroy()
@@ -1070,13 +1086,147 @@ class EasyHybridSession(VismolSession, GLMenu):
         
         ##print('\n\n\n',a, '\n\n\n')
         self.selection_box_frame = None
-        self.cmd = CommandLine(self)
-        #self.vm_widget.connect_after("button-press-event", self.meu_evento_personalizado)
+        #self.cmd = CommandLine(self)
         
+        #vobject names - now every vobject should have a unique name
+        self.vobject_names = {} 
         
+    def load (self, filename = None):
+        """ Function doc """
         
+        if filename:
+            if filename[-4:] == 'easy':
+                
+                if os.path.exists(filename+'~'):
+                    msg = 'There is a newer temporary file for the project you are loading.\n Would you like to load the most current file?'
+                    dialog = SimpleDialog(self.main_session)
+                    yes_or_no = dialog.question (msg)
+                    
+                    if yes_or_no:
+                        #self.p_session.load_easyhybrid_serialization_file(filename+'~', tmp = True)
+                        self.main_session.p_session.load_easyhybrid_serialization_file(filename+'~', tmp = True)
+                    else:
+                        #self.p_session.load_easyhybrid_serialization_file(filename)
+                        self.main_session.p_session.load_easyhybrid_serialization_file(filename)
+                else:
+                    #self.p_session.load_easyhybrid_serialization_file(filename)
+                    self.main_session.p_session.load_easyhybrid_serialization_file(filename)
+
+            elif filename[-5:] == 'easy~':
+                #print('ehf file')            
+                #self.save_vismol_file = filename
+                #self.p_session.load_easyhybrid_serialization_file(filename)            
+                self.main_session.p_session.load_easyhybrid_serialization_file(filename)            
+            else:
+                files = {'coordinates': filename}
+                systemtype = 3
+                #self.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
+                self.main_session.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
+        else:
+            pass
+
+    def show (self, obj = None, rep = 'lines', sele = None):
+        """ Function doc """
+        vismol_objects = []
+        
+        #print(obj)
+        
+        if obj in self.vobject_names.keys():
+            vismol_objects.append(self.vobject_names[obj])
+        
+        elif obj == 'all':
+            vismol_objects = self.vobject_names.values()
+        else:
+            return False
+            #vismol_objects = self.vobject_names.values()
+        
+        for vismol_object in vismol_objects:
+            if sele:
+                pass
+            else:
+               size =  len(vismol_object.atoms)
+               sele =  list(range(size))
+            
+            selection = self.create_new_selection()
+            
+            selection.selecting_by_indexes(vismol_object, sele, clear=True)
+            
+            self.show_or_hide(rep_type  = rep,
+                              selection = selection, 
+                              show      = True )
+        
+    def hide (self, obj = None, rep = 'lines', sele = None):
+        """ Function doc """
+        vismol_objects = []
+        
+        #print(obj)
+        
+        if obj in self.vobject_names.keys():
+            vismol_objects.append(self.vobject_names[obj])
+        
+        elif obj == 'all':
+            vismol_objects = self.vobject_names.values()
+        else:
+            return False
+            #vismol_objects = self.vobject_names.values()
+        
+        for vismol_object in vismol_objects:
+            if sele:
+                pass
+            else:
+               size =  len(vismol_object.atoms)
+               sele =  list(range(size))
+            
+            selection = self.create_new_selection()
+            
+            selection.selecting_by_indexes(vismol_object, sele, clear=True)
+            
+            self.show_or_hide(rep_type  = rep,
+                              selection = selection, 
+                              show      = False )
+   
+    def active (self, obj = None):
+        """ Function doc """
+        vismol_objects = []
+        
+        if obj in self.vobject_names.keys():
+            vismol_objects.append(self.vobject_names[obj])
+        
+        elif obj == 'all':
+            vismol_objects = self.vobject_names.values()
+        else:
+            return False
+        
+        for vismol_object in vismol_objects:
+            vismol_object.active = True
+        #.change the treeview status (active) self.treestore[treeview_iter][6] = vobject.active
+        self.main_session.main_treeview.refresh_number_of_frames()
+        self.vm_glcore.queue_draw()
     
+    def deactivate (self, obj = None):
+        """ Function doc """
+        vismol_objects = []
+        
+        if obj in self.vobject_names.keys():
+            vismol_objects.append(self.vobject_names[obj])
+        
+        elif obj == 'all':
+            vismol_objects = self.vobject_names.values()
+        else:
+            return False
+        
+        for vismol_object in vismol_objects:
+            vismol_object.active = False
+        #.change the treeview status (active) self.treestore[treeview_iter][6] = vobject.active
+        self.main_session.main_treeview.refresh_number_of_frames()
+        self.vm_glcore.queue_draw()
     
+    def color ( obj = None, sele = None):
+        """ Function doc """
+    
+    def set_system_color ( obj = None, sele = None):
+        """ Function doc """
+
     def restart (self):
         """ Function doc """
         self.picking_selection_mode = False # True/False  - interchange between viewing  and picking mode
@@ -1090,6 +1240,10 @@ class EasyHybridSession(VismolSession, GLMenu):
         self.vm_objects_dic = {}
         self.vm_glcore.queue_draw()  
         
+    
+    #-------------------------------------------------------------------
+    #                        restricted methods
+    #-------------------------------------------------------------------
           
     def _selection_function (self, selected, _type = None, disable = True):
         #"""     P I C K I N G     S E L E C T I O N S     """
@@ -1118,6 +1272,7 @@ class EasyHybridSession(VismolSession, GLMenu):
         #this will refresh the sequence canvas
         self.main.bottom_notebook.seqview.text_drawing_area.queue_draw()
     
+    
     def viewing_selection_mode(self, sel_type="atom"):
         """ Function doc """
         ##print(self.selection_box_frame)
@@ -1137,7 +1292,30 @@ class EasyHybridSession(VismolSession, GLMenu):
         self.vm_objects_dic[self.vm_object_counter] = vismol_object
         vismol_object.index = self.vm_object_counter
         self.vm_object_counter +=1
+        
+        
+        #.vobject names can't have empty spaces" "
+        vismol_object.name = vismol_object.name.replace(' ', '_')
+        #---------------------------------------------------------------
+        #.this loop make sure that only unique names are used
+        if vismol_object.name in self.vobject_names.keys():
+            vismol_object.name = str(vismol_object.e_id)+'_'+vismol_object.name
+            
+            #.this part should be improved later
+            while vismol_object.name in self.vobject_names.keys():
+                vismol_object.name = vismol_object.name+'_X'
+            #if vismol_object.name in self.vobject_names.keys():
+            #    vismol_object.name = vismol_object.name+'_A'
+            
+            self.vobject_names[vismol_object.name] = vismol_object
+            #pass
+        else:
+            self.vobject_names[vismol_object.name] = vismol_object
+        #---------------------------------------------------------------
+        #print ('vismol_object', vismol_object.name,vismol_object.e_id )
         #self.atom_id_counter += len(vismol_object.atoms)
+        
+        #print (self.vobject_names)
         
         for atom in vismol_object.atoms.values():
             self.atom_dic_id[atom.unique_id] = atom
@@ -1169,6 +1347,9 @@ class EasyHybridSession(VismolSession, GLMenu):
             #
             
             self.main.p_session.update_restaint_representation(vismol_object.e_id)
+            
+            self.main.p_session._apply_custom_colors_to_vobject(vismol_object)
+            
             vismol_object.create_representation(rep_type="nonbonded")
             #vismol_object.create_representation(reprep_type="sticks")
             if autocenter:
@@ -1265,8 +1446,11 @@ button position in the main treeview (active column).""".format(name,self.main.p
         vobject._generate_color_vectors ( 
                                           True
 
-                                               )
-        self.vm_glcore.queue_draw()
+                                            )
+        try:
+            self.vm_glcore.queue_draw()
+        except:
+            pass
         for rep  in vobject.representations.keys():
             if vobject.representations[rep]:
                 #try:
@@ -1280,10 +1464,19 @@ button position in the main treeview (active column).""".format(name,self.main.p
         return True
 
 
-    def set_color (self, symbol = 'C', color = [0.9, 0.9, 0.0] ):
-        """Sets the color of all atoms of a given element symbol in the current selection."""
+    def set_color (self, symbol = 'C', color = [0.9, 0.9, 0.0], selection = None ):
+        """
+        Sets the color of all atoms of a given element symbol in a giver selection
         
-        selection = self.selections[self.current_selection]
+            selection is a vismol selection -->
+        
+            if selection = None, selection = the current selection.
+        
+        """
+        if selection:
+            pass
+        else:
+            selection = self.selections[self.current_selection]
                 
         atomlist = []
         
@@ -1343,7 +1536,6 @@ button position in the main treeview (active column).""".format(name,self.main.p
         self.set_frame(frame=frame)
 
 
-    
     def set_frame(self, frame=0):
         """Sets the current frame for all Vismol objects and updates representations."""
         assert frame >= 0

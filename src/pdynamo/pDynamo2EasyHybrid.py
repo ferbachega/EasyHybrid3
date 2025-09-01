@@ -658,8 +658,11 @@ class EasyHybridImportTrajectory:
                 if vobject_id in  self.psystem[parameters['system_id']].e_logfile_data.keys():
                     if len(self.psystem[parameters['system_id']].e_logfile_data[vobject_id]) != 0:
                         '''Adding the lists of RC1 - reaction coordinate and Z - energy'''
-                        self.psystem[parameters['system_id']].e_logfile_data[vobject_id][0]["RC1"] += data["RC1"]
-                        self.psystem[parameters['system_id']].e_logfile_data[vobject_id][0]["Z"] += data["Z"]
+                        try:
+                            self.psystem[parameters['system_id']].e_logfile_data[vobject_id][0]["RC1"] += data["RC1"]
+                            self.psystem[parameters['system_id']].e_logfile_data[vobject_id][0]["Z"] += data["Z"]
+                        except:
+                            print('Error: could not process the log file.')
                     else:
                         '''In this case, the list already exists, but there is nothing inside.'''
                         self.psystem[parameters['system_id']].e_logfile_data[vobject_id].append(data)
@@ -1164,6 +1167,8 @@ class ModifyRepInVismol:
             system_id = vismol_object.e_id
         
         self.get_fixed_table_from_pdynamo_system(system_id)
+        
+        
         #if self.psystem[system_id].freeAtoms is None:
         #    pass
         #else:
@@ -1172,6 +1177,8 @@ class ModifyRepInVismol:
         #        freeAtoms                              = Selection.FromIterable (freeAtoms)
         #        selection_fixed                        = freeAtoms.Complement( upperBound = len (self.psystem[system_id].atoms ) )
         #        self.psystem[system_id].e_fixed_table  = list(selection_fixed)
+        
+
 
         
         indexes = np.array(self.psystem[system_id].e_fixed_table, dtype=np.int32)    
@@ -1324,6 +1331,19 @@ class ModifyRepInVismol:
                     atom.vm_object.selected_atom_ids.discard(atom.atom_id)
             '''
 
+
+    def  _apply_custom_colors_to_vobject (self,vismol_object = None):
+        """ Function doc """
+        return False
+        e_qc_table = list(range(100))
+        selection  = self.vm_session.create_new_selection()
+        selection.selecting_by_indexes(vismol_object, 
+                                       e_qc_table, 
+                                       clear=True)
+
+        self.vm_session.set_color (symbol = 'C', 
+                                   color = [0.5, 0.0, 0.3], 
+                                   selection = selection )
 
 class Restraints:
     """ Class doc """
@@ -1801,6 +1821,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             #system.e_selections               = {}             
         else:
             system.e_selections               = {}             
+        
+        
+        if getattr ( system, "e_custom_colors", False ):
+            pass
+            #system.e_selections               = {}             
+        else:
+            system.e_custom_colors             = {} 
         
         
         system.e_selections_counter       = 0             

@@ -352,10 +352,11 @@ class SelectionListWindow(Gtk.Window):
         #print(self.p_session.psystem[system_id].e_qc_table)
         #print(self.p_session.psystem[system_id].e_selections)
         
-        pymol_indexes = []
-        for i in indexes:
-            pymol_indexes.append(i+1)
-        print(pymol_indexes)
+        #pymol_indexes = []
+        #for i in indexes:
+        #    pymol_indexes.append(i+1)
+        #print(pymol_indexes)
+        
         '''
         first we have to get the indexes from the comboboxes. These indexes are 
         not the same access keys as system or vobject, they are just the 
