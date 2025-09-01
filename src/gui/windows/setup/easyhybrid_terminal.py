@@ -156,7 +156,7 @@ class TerminalWindow():
         
                    Created by J.F.R Bachega 
                    
-        For more usage information, type help_cmd.\n
+        \n\n
         '''
         end_iter = self.textbuffer.get_end_iter()
         self.textbuffer.insert(end_iter, text)
