@@ -121,7 +121,8 @@ class EnergyCalculation:
         parameters['system'].Summary(log = self.logFile2)
         #try:
         energy  = parameters['system'].Energy(log = self.logFile2)
-        #'''
+        
+        '''
         #---------------------------------------------------------------
         print_MM   = True # print MM charges
         print_QC   = True # print QC charges (does not inclue boundary atoms)
@@ -132,6 +133,7 @@ class EnergyCalculation:
             #    charges = []
             MM_charges = list(parameters['system'].mmState.charges)
             
+             
             #atomTypes  = parameters['system'].mmState.atomTypes
             if getattr( parameters['system'], 'qcState', False):
                 qcAtoms = list(parameters['system'].qcState.qcAtoms)
