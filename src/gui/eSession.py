@@ -1298,8 +1298,10 @@ class EasyHybridSession(VismolSession, GLMenu):
         vismol_object.name = vismol_object.name.replace(' ', '_')
         #---------------------------------------------------------------
         #.this loop make sure that only unique names are used
+        
+        vismol_object.name = str(vismol_object.e_id)+'_'+vismol_object.name
         if vismol_object.name in self.vobject_names.keys():
-            vismol_object.name = str(vismol_object.e_id)+'_'+vismol_object.name
+            #vismol_object.name = str(vismol_object.e_id)+'_'+vismol_object.name
             
             #.this part should be improved later
             while vismol_object.name in self.vobject_names.keys():

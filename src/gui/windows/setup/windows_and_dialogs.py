@@ -3318,6 +3318,25 @@ class ImportANewSystemWindow(Gtk.Window):
         
         self.pkl_text = '''If you load a coordinate file in this manner, you won't be able to perform any molecular mechanics simulations.'''
     
+    
+        self.color_pallet = {
+                             0  : (124 /255 ,252 /255 ,0  /255 , 255/255)  , # gramado verde # 7CFC00
+                             1  : (238 /255 ,130 /255 ,238/255 , 255/255), # tolet # EE82EE
+                             2  : (255 /255 ,255 /255 ,0  /255 , 255/255)  , # yellow
+                             3  : (135/255  ,206/255  ,250/255 , 255/255), # light sky blue	#87CEFA
+                             4  : (255 /255 ,99  /255 ,71 /255 , 255/255)  , #'tomate',
+                             5  : (0   /255 ,250 /255 ,154/255 , 255/255)  , #00FA9A medium spring green
+                             #6  : (138 /255 ,43  /255 ,226/255 , 255/255) , #8A2BE2 blue violet
+                             6  : (123/255 ,104/255 ,238/255, 255/255),
+                             7  : (238 /255 ,232 /255 ,170/255 , 255/255), #'pale gold', 
+                             8  : (224 /255 ,255 /255 ,255/255 , 255/255), #E0FFFF	light cyan
+                             9  : (219 /255 ,112 /255 ,147/255 , 255/255), #DB7093 pale violet red
+                             10 : (255 /255 ,215 /255 ,0  /255 , 255/255)  , #'gold',
+                             }
+        
+        self.color_counter = 0
+    
+    
     def OpenWindow (self):
         """ Function doc """
         if self.Visible  ==  False:
@@ -3403,6 +3422,17 @@ class ImportANewSystemWindow(Gtk.Window):
             self.builder.get_object('button_cancel')            .connect('clicked', self.CloseWindow)
             self.builder.get_object('import_import_system')     .connect('clicked', self.on_button_import_system_clicked)
             #self.window.show_all()
+            
+            #color = Gdk.RGBA(1.0, 0.0, 0.0, 1.0)   
+            color = Gdk.RGBA( self.color_pallet[self.color_counter][0],
+                              self.color_pallet[self.color_counter][1],
+                              self.color_pallet[self.color_counter][2],
+                              self.color_pallet[self.color_counter][3],
+                               ) 
+            #self.color_pallet[self.color_counter]
+            self.color_button = self.builder.get_object('button_color')
+            self.color_button.set_rgba ( color )
+        
         else:
             self.window.present()
             #----------------------------------------------------------------
@@ -3619,7 +3649,10 @@ class ImportANewSystemWindow(Gtk.Window):
                                                                                working_folder = wfolder)
         
             self.CloseWindow(button, data  = None)
-        
+            if self.color_counter > 10:
+                self.color_counter == 0 
+            else:
+                self.color_counter += 1
         except Exception as e:
             error_str = str(e)  # converte a mensagem de erro para string
             print("Error:", error_str)
