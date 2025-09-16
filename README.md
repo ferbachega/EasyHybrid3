@@ -40,6 +40,45 @@ Once you have successfully compiled the graphics engine, simply run the easyhybr
 
 For more detailed information, please visit the [EasyHybrid documentation](https://sites.google.com/view/easyhybrid/user-guide?authuser=1).
 
+
+The installation process is straightforward, but before proceeding, please ensure that pDynamo3 is already installed.
+
+Option 1 – Clone from GitHub (recommended for development)
+
+Begin by cloning the repository using the following command:
+
+git clone --recurse-submodules https://github.com/ferbachega/EasyHybrid3
+
+
+Next, navigate to the ../EasyHybrid3/src/graphics_engine folder. Here, you'll find a script for compiling the graphics engine. Run the install.sh script from within this folder:
+
+cd src/graphics_engine
+./install.sh
+
+
+If the graphics_engine folder appears to be empty, you will need to clone it. To do so, execute the following command from within the src folder:
+
+git clone https://github.com/casebor/graphics_engine
+
+
+Once you have successfully compiled the graphics engine, simply run the easyhybrid.py file located in the EasyHybrid base directory:
+
+./easyhybrid.py
+
+Option 2 – Download the stable release (zip package)
+
+If you prefer not to work directly with the GitHub repository, you can download a pre-packaged stable version of EasyHybrid (ZIP format) from the releases page:
+
+👉 Download EasyHybrid3 Stable (ZIP)
+
+Simply extract the contents, compile the graphics_engine as described above, and run easyhybrid.py.
+
+For more detailed information, please visit the EasyHybrid documentation.
+
+
+
+
+
 # References
 pDynamo:
 
