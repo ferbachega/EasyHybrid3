@@ -24,6 +24,8 @@ Umbrella sampling
 Reaction path calculations
 
 # Cloning and Installing
+This repository contains the latest version of EasyHybrid, including the most recent implementations and features. However, it may be more prone to occasional bugs. If you require a more stable version, consider downloading one of the stable release packages available [here](https://sites.google.com/d/1HU8-kfSypoZHc40gBQ84IEeon36i04SL/p/13CjDL5t1ceVPQXPfDzitz4GhWqYD3PBY/edit).
+
 The installation process is straightforward, but before proceeding, please ensure that [pDynamo3](https://www.pdynamo.org/home) is already installed. Begin by cloning the repository using the following command:  
   `git clone --recurse-submodules https://github.com/ferbachega/EasyHybrid3`
 
