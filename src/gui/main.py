@@ -101,7 +101,7 @@ from pCore                     import Align                                     
 
 
 
-
+#teste
 
 class MainWindow:
     """ Class doc """
