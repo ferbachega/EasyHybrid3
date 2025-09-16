@@ -231,7 +231,7 @@ class MolecularDynamicsWindow():
         'integrator'                : MD_method[integrator_id], # verlet / leapfrog /langevin
         'logFrequency'              : log_frequence           ,
         'seed'                      : random_seed             ,
-        'normalDeviateGenerator'    : None                    ,
+        'normal_deviate_generator'    : None                    ,
         'steps'                     : number_of_steps         ,
         'timeStep'                  : time_step               ,
         'trajectories'              : None                    ,
@@ -240,12 +240,12 @@ class MolecularDynamicsWindow():
         'temperatureScaleFrequency' : temp_scale_factor                ,
         'temperatureScaleOption'    : temp_scale_options[temp_scale_id],  # "linear" , "constant" ,
         'temperatureStart'          : temp_start                       ,
-        'temperatureStop'           : temp_end                         ,
+        'temperature_stop'           : temp_end                         ,
         
         #LeapFrogDynamics
         'pressure'                  : pressure           ,  #  LeapFrogDynamics 
-        'pressureControl'           : pressure_control   ,  #  LeapFrogDynamics 
-        'pressureCoupling'          : pressure_coupling  ,  #  LeapFrogDynamics 
+        'temperatureControl'           : pressure_control   ,  #  LeapFrogDynamics 
+        'temperatureCoupling'          : pressure_coupling  ,  #  LeapFrogDynamics 
                                                          
         'temperature'               : temp_start         ,               
         'temperatureControl'        : True               ,  # True / False LeapFrogDynamics / LangevinDynamics
@@ -265,13 +265,13 @@ class MolecularDynamicsWindow():
         #    "coll_freq"  			  : integer with the colision frequency. Generally set for Langevin integrator. 
         #    "pressure"   			  : float with the simulation pressure. If not passed we assume 1.0bar as default.
         #    "pressure_coupling"		  : boolean indicating if is to control the simulation pressure.
-        #    "temperature_scale_option": string with the type of temperature scaling. Default is 'linear' ( relevant for "heating" protocol)
+        #    'temperatureScaleOption': string with the type of temperature scaling. Default is 'linear' ( relevant for "heating" protocol)
         #    "temperature_scale"		  : float with the  temperature scaling step. Default is 10K  ( relevant for "heating" protocol)
         #    "start_temperatue"		  : float with the start temperature for heating protocol
         #    "timeStep"   			  : float indicating the size of integration time step. 0.001 ps is taken as default.					
         #    "sampling_factor"		  : integer indicating in which frequency to save/collect structure/data. default 0.
         #    "seed"					  : integer indicating the seed for rumdomness of the simulations.
-        #    "log_frequency"     	  : integer indicating the frequency of the screen log output.
+        #    "logFrequency"     	  : integer indicating the frequency of the screen log output.
         
         '''		
 
@@ -337,11 +337,11 @@ class MolecularDynamicsWindow():
                     
                     "folder"                    : HOME                    ,
                     'integrator'                : MD_method[integrator_id], # verlet / leapfrog /langevin
-                    'logFrequency'              : log_frequence           ,
+                    'logFrequency'             : log_frequence           ,
                     'seed'                      : random_seed             ,
-                    'normalDeviateGenerator'    : None                    ,
+                    'normal_deviate_generator'    : None                    ,
                     'steps'                     : number_of_steps         ,
-                    'timeStep'                  : time_step               ,
+                    'timeStep'                 : time_step               ,
                     'trajectories'              : None                    ,
                     
                     #VelocityVerletDynamics

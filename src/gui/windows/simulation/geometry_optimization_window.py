@@ -172,10 +172,10 @@ class GeometryOptimization(Gtk.Window):
                         "dialog"         : False                 , 
                         "folder"         :os.getcwd()            , 
                         "optimizer"      :"ConjugatedGradient"   ,
-                        "maxIterations"  :600                    ,
-                        "log_frequency"  :10                     ,
+                        'maximumIterations'  :600                    ,
+                        "logFrequency"  :10                     ,
                         "save_frequency" :10                     ,
-                        "rmsGradient"    :0.1                    ,
+                        'rmsGradientTolerance'    :0.1                    ,
                         "save_format"    :None                   ,
                         "save_traj"      :False                  ,
                         "save_pdb"       :False                  }
@@ -194,9 +194,9 @@ class GeometryOptimization(Gtk.Window):
             self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
                 
         simParameters["optimizer"]      = self.opt_methods[self.builder.get_object('combobox_geo_opt').get_active()]
-        simParameters["log_frequency"]  = int  ( self.builder.get_object('entry_log_frequence').get_text())
-        simParameters["maxIterations"]  = int  ( self.builder.get_object('entry_max_int').get_text() )
-        simParameters["rmsGradient"]    = float( self.builder.get_object('entry_rmsd_tol').get_text() )
+        simParameters["logFrequency"]  = int  ( self.builder.get_object('entry_log_frequence').get_text())
+        simParameters['maximumIterations']  = int  ( self.builder.get_object('entry_max_int').get_text() )
+        simParameters['rmsGradientTolerance']    = float( self.builder.get_object('entry_rmsd_tol').get_text() )
         simParameters["vobject_name"]   = self.save_trajectory_box.builder.get_object('entry_trajectory_name').get_text()
         
         #------------------------------------------------------------------------------------

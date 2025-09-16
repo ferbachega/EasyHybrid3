@@ -169,16 +169,30 @@ class CommandLine:
     
 
 class GLMenu:
-    """ Class doc """
+    """     
+    Class responsible for handling graphical layer (GL) menus.
+
+    This includes selection mode changes (atom, residue, chain, molecule),
+    picking/viewing modes, and standard label display options. 
+    """
     def insert_glmenu (self, bg_menu  = None, 
                             sele_menu = None, 
                              obj_menu = None, 
                             pick_menu = None):
-        """ Function doc """
-        
+        """
+        Insert and configure GL menus for visualization and selection.
 
-
-
+        Parameters
+        ----------
+        bg_menu : Gtk.Menu, optional
+            Background menu (context menu for background actions).
+        sele_menu : Gtk.Menu, optional
+            Selection menu. If None, a standard default selection menu is created.
+        obj_menu : Gtk.Menu, optional
+            Object menu for object-specific actions.
+        pick_menu : Gtk.Menu, optional
+            Picking menu for atom/molecule picking.
+        """
         def _viewing_selection_mode_atom (_):
             """ Function doc """
             self.viewing_selection_mode(sel_type = 'atom')
@@ -195,8 +209,6 @@ class GLMenu:
             """ Function doc """
             self.viewing_selection_mode(sel_type = 'molecule')
         
-
-
         #def _selection_type_picking(self, widget):
         def _selection_type_picking(_):
             
@@ -215,11 +227,11 @@ class GLMenu:
             self.vm_glcore.queue_draw()
 
         if sele_menu is None:
-            ''' Standard Sele Menu '''
+            '''Standard atom labeling menu.'''
             
             
             def menu_show_atom_name (_):
-                #print('menu_show_atom_name') 
+                """Show atom names as labels for the selected atoms.""" 
                 selection = self.show_or_hide( rep_type = 'labels', show = True)
                 
                 for atom in selection.selected_atoms:
@@ -227,6 +239,7 @@ class GLMenu:
             
             
             def menu_show_atom_symbol (_):   
+                """Show atom symbols as labels for the selected atoms."""
                 selection = self.show_or_hide( rep_type = 'labels', show = True)
                 
                 for atom in selection.selected_atoms:
@@ -234,262 +247,303 @@ class GLMenu:
             
             
             def menu_show_atom_index (_):    
+                """Show atom indices as labels for the selected atoms."""
                 selection = self.show_or_hide( rep_type = 'labels', show = True)
                 for atom in selection.selected_atoms:
                     atom.label_text = str(atom.index)
                     
             def menu_show_atom_MM_charge (_):               
+                """Show the MM charge of each selected atom as its label."""
                 selection = self.show_or_hide( rep_type = 'labels', show = True)
                 for atom in selection.selected_atoms:
                     VObj = atom.vm_object
                     atom.label_text  = '%4.3f'%(float(self.main.p_session.psystem[VObj.e_id].mmState.charges[atom.index-1]))            
 
             def menu_show_residue_name  (_): 
+                """Show the residue name for each selected atom."""
                 selection = self.show_or_hide( rep_type = 'labels', show = True)
                 for atom in selection.selected_atoms:
                     #VObj = atom.vm_object
                     atom.label_text = atom.residue.name              
             
             def menu_show_residue_index  (_):
+                """Show the residue index for each selected atom."""
                 selection = self.show_or_hide( rep_type = 'labels', show = True)
                 for atom in selection.selected_atoms:
                     #VObj = atom.vm_object
                     atom.label_text = str(atom.residue.index)             
             
             def menu_show_chain (_):
+                """Show the chain name for each selected atom."""
                 selection = self.show_or_hide( rep_type = 'labels', show = True)
                 for atom in selection.selected_atoms:
                     #VObj = atom.vm_object
                     atom.label_text = str(atom.chain.name)  
             
             def menu_hide_label (_):
-                """ Function doc """
+                """Hide all labels for the selected atoms."""
                 selection = self.show_or_hide( rep_type = 'labels', show = False)
             
             
             
             def menu_show_dynamic_bonds (_):
-                """ Function doc """
-               ##print('dynamic_test')
+                """Show dynamic bond representations."""
+                #print('dynamic_test')
                 sele = self.show_or_hide( rep_type = 'dynamic', show = True)
-                #print(sele.get_selection_info())
+                
             def menu_hide_dynamic_bonds (_):
-                """ Function doc """
-               ##print('dynamic_test')
+                """Hide dynamic bond representations."""
+                #print('dynamic_test')
                 self.show_or_hide( rep_type = 'dynamic', show = False)
             
             def menu_show_ribbons (_):
-                """ Function doc """
-               ##print('dynamic_test')
+                """Show ribbon and ribbon-sphere representations."""
                 self.show_or_hide( rep_type = 'ribbons', show = True)
                 self.show_or_hide( rep_type = 'ribbon_sphere', show = True)
-                print('ribbon_sphere')
+                #print('ribbon_sphere')
+            
             def menu_hide_ribbons (_):
-                """ Function doc """
-               ##print('dynamic_test')
+                """Hide ribbon and ribbon-sphere representations."""
                 self.show_or_hide( rep_type = 'ribbons', show = False)
                 self.show_or_hide( rep_type = 'ribbon_sphere', show = False)
 
             def select_test (_):
-                """ Function doc """
+                """
+                Select all atoms.
+                Not truly used
+                """
                 self.select(indexes = 'all')
             
             def menu_show_lines (_):
-                """ Function doc """
+                """Show line representations."""
                 self.show_or_hide( rep_type = 'lines', show = True)
-            
-            def menu_show_dotted_lines (_):
-                """ Function doc """
-                self.show_or_hide( rep_type = 'dotted_lines', show = True)
 
             def menu_hide_lines (_):
-                """ Function doc """
-                ##print('hide')
+                """Hide line representations."""
                 self.show_or_hide( rep_type = 'lines', show = False)
             
+            def menu_show_dotted_lines (_):
+                """Show dotted line representations."""
+                self.show_or_hide( rep_type = 'dotted_lines', show = True)
+
             def menu_hide_dotted_lines (_):
-                """ Function doc """
+                """Hide dotted line representations."""
                 self.show_or_hide( rep_type = 'dotted_lines', show = False)
             
             def menu_show_sticks (_):
-                """ Function doc """
+                """Show stick and stick-sphere representations."""
                 self.show_or_hide( rep_type = 'sticks', show = True)
                 self.show_or_hide( rep_type = 'stick_spheres', show = True)
-                #self.show_or_hide( rep_type = 'dash', show = True)
             
             def menu_show_nonbonded (_):
-                """ Function doc """
+                """Show nonbonded atom representations."""
                 self.show_or_hide( rep_type = 'nonbonded', show = True)
             
             def menu_hide_nonbonded (_):
-                """ Function doc """
+                """Hide nonbonded atom representations."""
                 self.show_or_hide( rep_type = 'nonbonded', show = False)
 
             def menu_hide_sticks (_):
-                """ Function doc """
+                """Hide stick and stick-sphere representations."""
                 self.show_or_hide( rep_type = 'sticks', show = False)
                 self.show_or_hide( rep_type = 'stick_spheres', show = False)
 
             def menu_show_spheres (_):
-                """ Function doc """
+                """Show sphere representations."""
                 self.show_or_hide( rep_type = 'spheres', show = True)
 
             def menu_hide_spheres (_):
-                """ Function doc """
+                """Hide sphere representations."""
                 self.show_or_hide( rep_type = 'spheres', show = False)
             
             def menu_show_vdw_spheres (_):
-                """ Function doc """
+                """Show van der Waals (vdW) sphere representations."""
                 self.show_or_hide( rep_type = 'vdw_spheres', show = True)
 
             def menu_hide_vdw_spheres (_):
-                """ Function doc """
+                """Hide van der Waals (vdW) sphere representations."""
                 self.show_or_hide( rep_type = 'vdw_spheres', show = False)
             
             def menu_show_dots (_):
-                """ Function doc """
+                """Show dot surface representations."""
                 self.show_or_hide( rep_type = 'dots', show = True)
 
-            def menu_hide_dots (_):
-                """ Function doc """
-                self.show_or_hide( rep_type = 'dots', show = False)
+            def menu_hide_dots(_):
+                """Hide dot surface representations."""
+                self.show_or_hide(rep_type='dots', show=False)
             
             def menu_hide_hydrogens (_):
-                """ Function doc """
-                #if selection is None:
+                """
+                Hide all hydrogen atoms from the current selection in 
+                different representations (lines, sticks, spheres)."""
+                # Get the current selection
                 selection = self.selections[self.current_selection]
-                #for a
                 
+                # Dictionary to group hydrogen atom indices by their corresponding vismol object (vm_object)
                 vobjects = {}
                 for atom in selection.selected_atoms:
-                    # is atom a hydrogen
+                    # Check if the atom is a hydrogen
                     if atom.symbol == 'H':
-                        if atom.vm_object.index in vobjects.keys():
-                            vobjects[atom.vm_object.index].append(atom.index-1)
-                        else:
-                            vobjects[atom.vm_object.index] = []
-                            vobjects[atom.vm_object.index].append(atom.index-1)
+                        vm_index = atom.vm_object.index
+
+                        # Initialize the entry if not present
+                        if vm_index not in vobjects:
+                            vobjects[vm_index] = []
+
+                        # Store atom index (subtract 1 to match internal indexing convention)
+                        vobjects[vm_index].append(atom.index - 1)
                 
-                #print(vobjects)
-                
+
+                # Reset the current selection before applying hydrogen hiding
                 self.selections[self.current_selection]= VMSele(self)
                 
                 for vobj_id, indexes in vobjects.items():
                     '''----------------------------- Applying the selection ------------------------------------'''
                     vobject = self.vm_objects_dic[vobj_id]
-                    #print ('1 - ',self.selections[self.current_selection].selected_atoms)
+                    
+                    # Apply selection by indexes
                     self.selections[self.current_selection].selecting_by_indexes (vismol_object = vobject, indexes = indexes, clear = True)
                     self.selections[self.current_selection].active = True
                     '''-----------------------------------------------------------------------------------------'''
-                    #print ('2 - ',self.selections[self.current_selection].selected_atoms)
-
+                    # Hide hydrogens in all visual representation types
                     self.show_or_hide( rep_type = 'lines', show = False)
                     self.show_or_hide( rep_type = 'sticks', show = False)
+                    self.show_or_hide( rep_type = 'stick_spheres', show = False)
+                    
                     self.show_or_hide( rep_type = 'spheres', show = False)
-
-            
-            #def menu_set_color_grey (_):
-            #    """ Function doc """
-            #    self.set_color(color = [0.3     , 0.3     , 0.5 ] )
-            #
-            #def menu_set_color_green (_):
-            #    """ Function doc """
-            #    self.set_color(color = [0.0     , 1.0     , 0.0 ] )
-            #
-            #def menu_set_color_yellow (_):
-            #    """ Function doc """
-            #    self.set_color(color = [1.0     , 1.0     , 0.0 ] )
-            #
-            #def menu_set_color_light_blue (_):
-            #    """ Function doc """
-            #    self.set_color(color = [0.5     , 0.5     , 1.0 ] )
-            #
-            #def menu_set_color_light_red (_):
-            #    """ Function doc """
-            #    self.set_color(color = [1.0     , 0.5     , 0.5 ] )
-            #
-            #def menu_set_color_purple (_):
-            #    """ Function doc """
-            #    self.set_color(color = [1.0     , 0.0     , 1.0 ] )
-            #
-            #def menu_set_color_orange (_):
-            #    """ Function doc """
-            #    self.set_color(color = [1.0     , 0.5     , 0.0 ] )
-            #
-            #def menu_set_color_magenta (_):
-            #    """ Function doc """
+                    self.show_or_hide( rep_type = 'vdw_spheres', show = False)
 
             def menu_color_change (_):
-                """ Function doc """
+                """  
+                Open a color chooser dialog and apply a new color to the selected atoms.
+
+                The user can decide whether to make this color customization permanent
+                for each system involved in the selection.
+                """
+                # Get the current selection
                 selection               = self.selections[self.current_selection]
+                
+                # Create the GTK color chooser dialog
                 self.colorchooserdialog = Gtk.ColorChooserDialog()
                 
+                
+                # If the user confirms a color choice
                 if self.colorchooserdialog.run() == Gtk.ResponseType.OK:
+                    # Retrieve the RGBA color values
                     color = self.colorchooserdialog.get_rgba()
-                    #print(color.red,color.green, color.blue )
                     new_color = [color.red, color.green, color.blue]
                     
+                    # Apply the temporary color to the visualization
+                    self.set_color(color = new_color)
                     
-                    #selection.selected_objects
-                    #selection.selected_atoms
+
+                    '''
+                    his dictionary will temporarily store the list 
+                    of indices and the new color, with the access key 
+                    being the e_id of each system (remember: a viewing 
+                    selection can select more than one system at the 
+                    same time).
+                    '''
+                    e_system = {}
+                    
+                    '''We will iterate through all atoms in the selection 
+                    (it may include more than one vobject and more than 
+                    one system).'''
+                    # Iterate through all selected atoms across all vobjects/systems
+                    for atom in selection.selected_atoms:
+                        
+                        vobject = atom.vm_object
+                        e_id = getattr(vobject, 'e_id', None)
+
+                        if e_id not in e_system:
+                            # Initialize entry for this system
+                            e_system[e_id] = {
+                                'indexes': [],
+                                'color': new_color
+                            }
+
+                        # Store atom index (subtract 1 to match internal indexing convention)
+                        e_system[e_id]['indexes'].append(atom.index - 1)
                     
                     
-                    #for atom in selection.selected_atoms:
-                    #    vobject = atom.vm_object
-                    #    
-                    #    e_id = getattr(vobject, 'e_id', None)
-                    #    if type(e_id) == int:
-                    #        system = self.p_session.psystem[e_id]
-                    #        system.e_custom_colors
-                    #        
-                    #    else: 
-                    #        pass
-                    #print(selection.selected_objects)
+                    # Ask the user if the customization should be permanent
+                    msg = 'You have just selected a new list of atoms with customized colors. \nWould you like to make this color customization permanent?'
+                    dialog = SimpleDialog(self.main_session)
+                    yes_or_no = dialog.question (msg)
+                    
+                    
+                    if yes_or_no:
+                        '''Adding to each system the new customized colors 
+                        and the lists of atoms (indices).'''
+                        for e_id in e_system.keys():
+                            system = self.main.p_session.psystem[e_id]
+                            custom_colors = e_system[e_id]
+                            system.e_custom_colors.append(custom_colors)
+                    else:
+                        pass
                 
-                
+                # Close the color chooser dialog regardless of the result
                 self.colorchooserdialog.destroy()
-                self.set_color(color = new_color)
+                
 
             def set_as_qc_atoms (_):
-                """ Function doc """
-                #selection = self.selections[self.current_selection]
+                """ 
+                Mark the currently selected atoms as quantum chemistry (QC) atoms.
+    
+                This updates the QC atom and residue tables in the active system
+                and opens a dialog for further QC atom configuration.
+                """
+
                 active_id = self.main.p_session.active_id
+                
+                # Build list of selected atom indices, residue mapping, and vobject
                 qc_list, residue_dict, vismol_object = self.build_index_list_from_atom_selection(return_vobject = True )
                  
                 if qc_list:
+                    # Store QC information in the active system
+                    system = self.main.p_session.psystem[active_id]
+                    system.e_qc_residue_table = residue_dict
+                    system.e_qc_table = qc_list
                     
-                    self.main.p_session.psystem[active_id].e_qc_residue_table = residue_dict
-                    self.main.p_session.psystem[active_id].e_qc_table = qc_list
+                    # Open a dialog to confirm/adjust QC atom selection
                     self.main.run_dialog_set_QC_atoms(vismol_object = vismol_object)
 
             def set_as_free_atoms (_):
-                """ Function doc """
+                """ 
+                Mark the currently selected atoms as free (non-fixed).
+    
+                This updates the fixed/free atom tables in the active system and
+                restores the original colors of the freed atoms.
+                """
                 selection = self.selections[self.current_selection]
                 
                 freelist = []                
+                
+                # Validate and collect indices of selected atoms
                 for atom in selection.selected_atoms:
-                    ##print(atom.index, atom.name, atom.color) 
                     
-                    '''checks if the selected atoms belong to the active project'''
+                    # Ensure atom belongs to the active project/system 
                     true_or_false = self.check_selected_atom(atom, dialog = True)
                     if true_or_false:
                         freelist.append(atom.index -1)
                     else:
+                        # Abort if invalid atom is selected
                         return False
                     
                 '''here we are returning the original color of the selected atoms'''
+                # Restore original colors for freed atoms
                 for key, vobject in self.vm_objects_dic.items():
                     if vobject.e_id == self.main.p_session.active_id:
-                        #'''
                         for index in freelist:
-                           ##print(index,vobject. atoms[index])
                             atom = vobject.atoms[index]
                             atom.color = atom._init_color()
                 
-                ##print(atom.index, atom.name, atom.color) 
-                #----------------------------------------------
-                pdmsys_active =   self.main.p_session.active_id
                 
+                # Update fixed atom table in the active system
+                pdmsys_active =   self.main.p_session.active_id
+                system = self.main.p_session.psystem[pdmsys_active]
+                
+                '''
                 a = set(self.main.p_session.psystem[pdmsys_active].e_fixed_table)
                 b = set(freelist)
                 
@@ -498,93 +552,109 @@ class GLMenu:
                 fixedlist =  set(self.main.p_session.psystem[pdmsys_active].e_fixed_table) -set(freelist)
                 #guarantee that the atom index appears only once in the list
                 fixedlist = list(c) 
+                '''
+                # Remove freed atoms from fixed table
+                fixedlist = set(system.e_fixed_table) - set(freelist)
+                fixedlist = list(fixedlist)  # Ensure unique indices
                 
- 
+                
+                # Apply updated free/fixed configuration
                 refresh = self.main.p_session.define_free_or_fixed_atoms_from_iterable (fixedlist)
+                
                 if refresh:
+                    # Apply visual updates to the corresponding vobject
                     for key, vobject in self.vm_objects_dic.items():
                         if vobject.e_id == self.main.p_session.active_id:
                             self.main.p_session._apply_fixed_representation_to_vobject(system_id = None, vismol_object = vobject)
                             self.main.p_session._apply_QC_representation_to_vobject(system_id = None, vismol_object = vobject)                    
+                            
+                            # Redraw the visualization
                             self.vm_glcore.queue_draw()
             
             
             def prune_atoms (_):
-                """ Function doc """
+                """ 
+                Prune (remove) the currently selected atoms from the active system.
+    
+                This opens a prune dialog where the user can confirm the operation,
+                assign a name, tag, and color, and specify the target vobject.
+                """
         
 
-
+                # Build list of selected atom indices and residue mapping
                 atomlist, resi_table = self.build_index_list_from_atom_selection()
                 
                 if atomlist:
+                    # Ensure uniqueness of atom indices
                     atomlist = list(set(atomlist))
-                    
                     num_of_atoms = len(atomlist)
-                    name = self.main.p_session.psystem[self.main.p_session.active_id].label
-                    tag  = self.main.p_session.psystem[self.main.p_session.active_id].e_tag
                     
-                    dialog =  EasyHybridDialogPrune(self.main  ,num_of_atoms, name, tag)
+                    # Get active system details
+                    active_id = self.main.p_session.active_id
+                    system = self.main.p_session.psystem[active_id]
+                    name, tag = system.label, system.e_tag
                     
-       
+                    # Open prune confirmation dialog
+                    dialog = EasyHybridDialogPrune(self.main, num_of_atoms, name, tag)
 
                     if dialog.prune:
-                        #print ("Prune")
+                        # Collect user-defined prune parameters
                         name         = dialog.name        
                         tag          = dialog.tag  
                         color        = dialog.color 
                         vobject_id   = dialog.vobject_id
                         
+                        # Sync vobject coordinates with pDynamo system
                         vobject = self.main.vm_session.vm_objects_dic[vobject_id]
                         self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
                         
-                        
-                        #for row in self.treestore:
-                        #    #row[2] = row.path == selected_path
-                        #    row[3] =  False
-                        #print('color', color)
-
+                        # Perform the prune operation
                         self.main.p_session.prune_system (selection = atomlist, name = name, summary = True, tag = tag, color = color)
             
             def set_as_fixed_atoms (_):
-                """ Function doc """
+                """
+                Mark the currently selected atoms as fixed in the active system.
+    
+                Updates the fixed atom table and applies the corresponding
+                fixed/QC visual representations to the active vobject.
+                """
                 
+                # Collect indices of selected atoms
                 fixedlist, sel_resi_table = self.build_index_list_from_atom_selection()
                 
                 if fixedlist:
+
                     pdmsys_active = self.main.p_session.active_id
-                    fixedlist = list(fixedlist) + list(self.main.p_session.psystem[pdmsys_active].e_fixed_table)
-                    #guarantee that the atom index appears only once in the list
-                    fixedlist = list(set(fixedlist)) 
-                    #print ('fixedlist',fixedlist)
-                    #sending to pDynamo
+                    system = self.main.p_session.psystem[pdmsys_active]
                     
+                    # Merge new selection with existing fixed atom table
+                    fixedlist = list(set(fixedlist).union(system.e_fixed_table))
+                    
+                    # Update the fixed/free status in the pDynamo system
                     refresh = self.main.p_session.define_free_or_fixed_atoms_from_iterable (fixedlist)
                     if refresh:
-                        
+                        # Apply visual updates to the active vobject
                         for v_id, vobject in self.vm_objects_dic.items():
                             if vobject.e_id == self.main.p_session.active_id:
                                 self.main.p_session._apply_fixed_representation_to_vobject(system_id = None, vismol_object = vobject)
                                 self.main.p_session._apply_QC_representation_to_vobject(system_id = None, vismol_object = vobject)
+                                # Redraw the visualization
                                 self.vm_glcore.queue_draw()
-                    #self.main.p_session.vismol_selection_qc = selection.copy()
-            
+           
             
             def add_selection_to_sel_list (_):
-                """ Function doc """
-                ##print('self.selections[self.current_selection].invert_selection()')
+                """Add the currently selected atoms to the selection list of the active system."""
                 sel_list, sel_resi_table = self.build_index_list_from_atom_selection()
+
                 if sel_list:
                     
                     self.main.p_session.add_a_new_item_to_selection_list (system_id = self.main.p_session.active_id, 
                                                                                        indexes = sel_list, 
                                                                                         )
 
-                
-                #self.selections[self.current_selection].invert_selection()
-            
+                            
             def invert_selection (_):
-                """ Function doc """
-                ##print('self.selections[self.current_selection].invert_selection()')
+                """Invert the current selection of atoms (selected ↔ unselected)."""
                 self.selections[self.current_selection].invert_selection()
             
             def call_selection_modify_window (_):
@@ -592,235 +662,122 @@ class GLMenu:
                 self.main.pDynamo_selection_window.OpenWindow()
             
             
-            sele_menu = { 
-                    #'header' : ['MenuItem', None],
-                    
-                    '- Selection Menu -':['MenuItem', None],
-                    
-                    'separator0':['separator', None],
-                    
-                    'Send to Selection List':['MenuItem', add_selection_to_sel_list],
-                    
-                    'separator1':['separator', None],
-                    
-                    
-                    
-                    'Extend Selection' :['MenuItem', call_selection_modify_window],
-                    
-                    #'Modify' :['submenu',  
-                    #
-                    #                        {
-                    #                        'Around'          : ['submenu',
-                    #                                                        {
-                    #                                                        'Atom within 4 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Atom within 5 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Atom within 6 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Atom within 8 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Atom within 12 A'         : ['MenuItem', menu_show_lines],
-                    #                                                        'Atom within 15 A'         : ['MenuItem', menu_show_lines],
-                    #                                                        'separator9'    : ['separator', None],
-                    #                                                        'Residues within 4 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Residues within 5 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Residues within 6 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Residues within 8 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Residues within 12 A'         : ['MenuItem', menu_show_lines],
-                    #                                                        'Residues within 15 A'         : ['MenuItem', menu_show_lines],
-                    #                                                        'separator2'    : ['separator', None],
-                    #                                                        'Molecules within 4 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Molecules within 5 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Molecules within 6 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Molecules within 8 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Molecules within 12 A'         : ['MenuItem', menu_show_lines],
-                    #                                                        'Molecules within 15 A'         : ['MenuItem', menu_show_lines],
-                    #                                                        }
-                    #
-                    #                                            ],
-                    #                        
-                    #                        'Expand'          : ['submenu',
-                    #                                                        {
-                    #                                                        'Atom within 4 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Atom within 5 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Atom within 6 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Atom within 8 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Atom within 12 A'         : ['MenuItem', menu_show_lines],
-                    #                                                        'Atom within 15 A'         : ['MenuItem', menu_show_lines],
-                    #                                                        'separator9'    : ['separator', None],
-                    #                                                        'Residues within 4 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Residues within 5 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Residues within 6 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Residues within 8 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Residues within 12 A'         : ['MenuItem', menu_show_lines],
-                    #                                                        'Residues within 15 A'         : ['MenuItem', menu_show_lines],
-                    #                                                        'separator2'    : ['separator', None],
-                    #                                                        'Molecules within 4 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Molecules within 5 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Molecules within 6 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Molecules within 8 A'         : ['MenuItem', menu_show_lines] ,
-                    #                                                        'Molecules within 12 A'         : ['MenuItem', menu_show_lines],
-                    #                                                        'Molecules within 15 A'         : ['MenuItem', menu_show_lines],
-                    #                                                        }
-                    #
-                    #                                            ],
-                    #                        
-                    #                        
-                    #                        'Invert'        : ['MenuItem', menu_set_color_yellow],
-                    #
-                    #                       }
-                    #          ],
-                    
-                    'Show'   : [
-                                'submenu' ,{
-                                            
-                                            'labels'        : [
-                                                               'submenu' ,{
-                                                                           'Name'          : ['MenuItem', menu_show_atom_name     ],      
-                                                                           'Symbol'        : ['MenuItem', menu_show_atom_symbol   ],      
-                                                                           'Index'         : ['MenuItem', menu_show_atom_index    ],      
-                                                                           'Charge(MM)'    : ['MenuItem', menu_show_atom_MM_charge],      
-                                                                           'Residue Name'  : ['MenuItem', menu_show_residue_name  ],      
-                                                                           'Residue Index' : ['MenuItem', menu_show_residue_index ],      
-                                                                           'Chain'         : ['MenuItem', menu_show_chain         ],      
-                                                                           
-                                                                           }
-                                                              ],
-                                            
-                                            'lines'         : ['MenuItem', menu_show_lines],
-                                            #'dotted_lines'  : ['MenuItem', menu_show_dotted_lines],
-                                            'sticks'        : ['MenuItem', menu_show_sticks],
-                                            'dynamic bonds' : ['MenuItem', menu_show_dynamic_bonds],
-                                            'separator1'    : ['separator', None],
-                                            'spheres'       : ['MenuItem', menu_show_spheres],
-                                            'vdw_spheres'   : ['MenuItem', menu_show_vdw_spheres],
-                                            #'dots'          : ['MenuItem', menu_show_dots],
-                                            
-                                            'separator2'    : ['separator', None],
+            sele_menu = {
+                        # ---------------- Standard Selection Menu ----------------
+                        '- Selection Menu -': ['MenuItem', None],
 
-                                            'ribbons'       : ['MenuItem', menu_show_ribbons],
-                                            'separator3'    : ['separator', None],
-                                            'nonbonded'     : ['MenuItem', menu_show_nonbonded],
-                    
-                                           }
-                               ],
-                    
-                    
-                    'Hide'   : [
-                                'submenu',  {
-                                            'labels'        : ['MenuItem', menu_hide_label],
-                                                              #[
-                                                              # 'submenu' ,{
-                                                              #             'Name'          : ['MenuItem', menu_hide_label],      
-                                                              #             'Symbol'        : ['MenuItem', menu_hide_label],      
-                                                              #             'Index'         : ['MenuItem', menu_hide_label],      
-                                                              #             'Charge(MM)'    : ['MenuItem', menu_hide_label],      
-                                                              #             'Residue Name'  : ['MenuItem', menu_hide_label],      
-                                                              #             'Residue Index' : ['MenuItem', menu_hide_label],      
-                                                              #             'Chain'         : ['MenuItem', menu_hide_label],      
-                                                              #             
-                                                              #             }
-                                                              #],
-                                            
-                                            
-                                            'lines'         : ['MenuItem', menu_hide_lines],
-                                            #'dotted_lines'  : ['MenuItem', menu_hide_dotted_lines],
-                                            'sticks'        : ['MenuItem', menu_hide_sticks],
-                                            'dynamic bonds' : ['MenuItem', menu_hide_dynamic_bonds],
-                                            'separator1'    : ['separator', None],
+                        # Separator for visual grouping
+                        'separator0': ['separator', None],
 
-                                            'spheres'       : ['MenuItem', menu_hide_spheres],
-                                            'vdw_spheres'   : ['MenuItem', menu_hide_vdw_spheres],
-                                            #'dots'          : ['MenuItem', menu_hide_dots],
-                                            'separator2'    : ['separator', None],
+                        # Add current selection to the selection list
+                        'Send to Selection List': ['MenuItem', add_selection_to_sel_list],
 
-                                            'ribbons' : ['MenuItem', menu_hide_ribbons],
+                        'separator1': ['separator', None],
 
-                                            'separator3'    : ['separator', None],
-                                            'nonbonded'     : ['MenuItem', menu_hide_nonbonded],
-                                            'separator4'    : ['separator', None],
-                                            'hydrogens'     : ['MenuItem', menu_hide_hydrogens],
+                        # Extend or modify the current selection
+                        'Extend Selection': ['MenuItem', call_selection_modify_window],
 
-                                            }
+                        # ---------------- Show Submenu ----------------
+                        'Show': [
+                            'submenu', {
+                                # Labels submenu for displaying atom/residue information
+                                'labels': [
+                                    'submenu', {
+                                        'Name': ['MenuItem', menu_show_atom_name],
+                                        'Symbol': ['MenuItem', menu_show_atom_symbol],
+                                        'Index': ['MenuItem', menu_show_atom_index],
+                                        'Charge(MM)': ['MenuItem', menu_show_atom_MM_charge],
+                                        'Residue Name': ['MenuItem', menu_show_residue_name],
+                                        'Residue Index': ['MenuItem', menu_show_residue_index],
+                                        'Chain': ['MenuItem', menu_show_chain],
+                                    }
                                 ],
-                    
-                    'Change Color'   : ['MenuItem', menu_color_change],
-                                #['submenu',  {
-                                #            'grey'          : ['MenuItem', menu_set_color_grey],
-                                #            'yellow'        : ['MenuItem', menu_set_color_yellow],
-                                #            'green'         : ['MenuItem', menu_set_color_green],
-                                #            'light_blue'    : ['MenuItem', menu_set_color_light_blue],
-                                #            'light_red'     : ['MenuItem', menu_set_color_light_red],
-                                #            'purple'        : ['MenuItem', menu_set_color_purple],
-                                #            'orange'        : ['MenuItem', menu_set_color_orange],
-                                #            'separator1'    : ['separator', None],
-                                #
-                                #            'custon'        : ['MenuItem', menu_color_change],
-                                #            'separator2'    : ['separator', None],
-                                #
-                                #            #'dotted_lines'  : ['MenuItem', menu_hide_dotted_lines],
-                                #            }
-                                #],
-                    
 
-                    
+                                # Graphical representations
+                                'lines': ['MenuItem', menu_show_lines],
+                                'sticks': ['MenuItem', menu_show_sticks],
+                                'dynamic bonds': ['MenuItem', menu_show_dynamic_bonds],
 
-                    
-                    'separator2':['separator', None],
+                                'separator1': ['separator', None],
 
-                    
-                    
-                    'Selection Type'   : [
-                                'submenu' ,{
-                                            
-                                            'Viewing'   :  ['MenuItem', _selection_type_viewing],
-                                            'Picking'   :  ['MenuItem', _selection_type_picking],
-                                            #'separator2':['separator', None],
-                                            #'nonbonded' : ['MenuItem', None],
-                    
-                                           }
-                                        ],
-                    
-                    'Selecting By:'   : [
-                                'submenu' ,{
-                                            
-                                            'Atoms'     :  ['MenuItem', _viewing_selection_mode_atom],
-                                            'Residue'   :  ['MenuItem', _viewing_selection_mode_residue],
-                                            'Chain'     :  ['MenuItem', _viewing_selection_mode_chain],
-                                            'Molecule'  :  ['MenuItem', _viewing_selection_mode_molecule],
-                                            #'separator2':['separator', None],
-                                            #'nonbonded' : ['MenuItem', None],
-                    
-                                           }
-                               ],
-                    
-                    'separator3':['separator', None],
-                    
-                    'Set as QC Atoms'      :  ['MenuItem', set_as_qc_atoms],
-                    
-                    'separator4':['separator', None],
+                                'spheres': ['MenuItem', menu_show_spheres],
+                                'vdw_spheres': ['MenuItem', menu_show_vdw_spheres],
 
-                    'Set as Fixed Atoms'   :  ['MenuItem', set_as_fixed_atoms],
-                    'Set as Free Atoms'   :  ['MenuItem', set_as_free_atoms],
-                    
-                    'separator5':['separator', None],
-                    'Prune to Selection'  :  ['MenuItem', prune_atoms],
+                                'separator2': ['separator', None],
 
-                    'separator6':['separator', None],
+                                'ribbons': ['MenuItem', menu_show_ribbons],
 
-                    
-                    #'Label Mode':  ['submenu' , {
-                    #                        'Atom'         : [
-                    #                                           'submenu', {
-                    #                                                       'lines'    : ['MenuItem', None],
-                    #                                                       'sticks'   : ['MenuItem', None],
-                    #                                                       'spheres'  : ['MenuItem', None],
-                    #                                                       'nonbonded': ['MenuItem', None],
-                    #                                                       }
-                    #                                          ],
-                    #                        
-                    #                        'Atom index'   : ['MenuItem', None],
-                    #                        'residue name' : ['MenuItem', None],
-                    #                        'residue_index': ['MenuItem', None],
-                    #                       },
-                    #          ]
+                                'separator3': ['separator', None],
+
+                                'nonbonded': ['MenuItem', menu_show_nonbonded],
+                            }
+                        ],
+
+                        # ---------------- Hide Submenu ----------------
+                        'Hide': [
+                            'submenu', {
+                                'labels': ['MenuItem', menu_hide_label],
+                                'lines': ['MenuItem', menu_hide_lines],
+                                'sticks': ['MenuItem', menu_hide_sticks],
+                                'dynamic bonds': ['MenuItem', menu_hide_dynamic_bonds],
+
+                                'separator1': ['separator', None],
+
+                                'spheres': ['MenuItem', menu_hide_spheres],
+                                'vdw_spheres': ['MenuItem', menu_hide_vdw_spheres],
+
+                                'separator2': ['separator', None],
+
+                                'ribbons': ['MenuItem', menu_hide_ribbons],
+
+                                'separator3': ['separator', None],
+
+                                'nonbonded': ['MenuItem', menu_hide_nonbonded],
+
+                                'separator4': ['separator', None],
+
+                                'hydrogens': ['MenuItem', menu_hide_hydrogens],
+                            }
+                        ],
+
+                        # Change color for the selected atoms
+                        'Change Color': ['MenuItem', menu_color_change],
+
+                        'separator2': ['separator', None],
+
+                        # ---------------- Selection Type Submenu ----------------
+                        'Selection Type': [
+                            'submenu', {
+                                'Viewing': ['MenuItem', _selection_type_viewing],
+                                'Picking': ['MenuItem', _selection_type_picking],
+                            }
+                        ],
+
+                        # ---------------- Selecting Mode Submenu ----------------
+                        'Selecting By:': [
+                            'submenu', {
+                                'Atoms': ['MenuItem', _viewing_selection_mode_atom],
+                                'Residue': ['MenuItem', _viewing_selection_mode_residue],
+                                'Chain': ['MenuItem', _viewing_selection_mode_chain],
+                                'Molecule': ['MenuItem', _viewing_selection_mode_molecule],
+                            }
+                        ],
+
+                        'separator3': ['separator', None],
+
+                        # ---------------- QC and Fixed/Free Atom Operations ----------------
+                        'Set as QC Atoms': ['MenuItem', set_as_qc_atoms],
+
+                        'separator4': ['separator', None],
+
+                        'Set as Fixed Atoms': ['MenuItem', set_as_fixed_atoms],
+                        'Set as Free Atoms': ['MenuItem', set_as_free_atoms],
+
+                        'separator5': ['separator', None],
+
+                        'Prune to Selection': ['MenuItem', prune_atoms],
+
+                        'separator6': ['separator', None],
                     }
       
         
@@ -844,79 +801,59 @@ class GLMenu:
                 self.selections[self.current_selection].active = True
                 self.vm_glcore.queue_draw()
                 
-            bg_menu = { 
+            bg_menu = {
+                # ---------------- Separator and Active Selection ----------------
+                'separator3': ['separator', None],
+                'Active Selection': ['MenuItem', active_selection],
 
-                    'separator3'       : ['separator', None],
-                    'Active Selection' : ['MenuItem', active_selection],
+                'separator0': ['separator', None],
 
-                    
-                    'separator0'          : ['separator', None],
-                    'Show Selection list' : ['MenuItem', open_structure_data],
-                    
-                    
-                    #'funcao teste' : ['MenuItem', self.teste],                  
-                    #'funcao teste2': ['MenuItem', self.teste2], 
+                # Show the list of all selections
+                'Show Selection list': ['MenuItem', open_structure_data],
 
-                    'separator1':['separator', None],
-                    'Selection Type'   : [
-                                'submenu' ,{
-                                            
-                                            'viewing'   :  ['MenuItem', _selection_type_viewing],
-                                            'picking'   :  ['MenuItem', _selection_type_picking],
-                                            #'separator2':['separator', None],
-                                            #'nonbonded' : ['MenuItem', None],
-                    
-                                           }
-                                        ],
-                    
-                    'Selecting By:'   : [
-                                'submenu' ,{
-                                            
-                                            'atoms'     :  ['MenuItem', _viewing_selection_mode_atom],
-                                            'residue'   :  ['MenuItem', _viewing_selection_mode_residue],
-                                            'chain'     :  ['MenuItem', _viewing_selection_mode_chain],
-                                            'molecule'  :  ['MenuItem',_viewing_selection_mode_molecule],
+                # ---------------- Optional test functions (commented out) ----------------
+                'separator1': ['separator', None],
 
-                                            #'separator2':['separator', None],
-                                            #'nonbonded' : ['MenuItem', None],
-                    
-                                           }
-                               ],
-                    
-                    
-                    #'hide'   : [
-                    #            'submenu',  {
-                    #                        'lines'    : ['MenuItem', menu_hide_lines],
-                    #                        'sticks'   : ['MenuItem', menu_hide_sticks],
-                    #                        'spheres'  : ['MenuItem', menu_hide_spheres],
-                    #                        'nonbonded': ['MenuItem', None],
-                    #                        }
-                    #            ],
-                    
-                    
-                    'separator2':['separator', None],
-                    'Import System' : ['MenuItem', import_system_menu],
-                    'separator3':['separator', None],
-
-                    
-                    
-                    #'label':  ['submenu' , {
-                    #                        'Atom'         : [
-                    #                                           'submenu', {
-                    #                                                       'lines'    : ['MenuItem', None],
-                    #                                                       'sticks'   : ['MenuItem', None],
-                    #                                                       'spheres'  : ['MenuItem', None],
-                    #                                                       'nonbonded': ['MenuItem', None],
-                    #                                                       }
-                    #                                          ],
-                    #                        
-                    #                        'Atom index'   : ['MenuItem', None],
-                    #                        'residue name' : ['MenuItem', None],
-                    #                        'residue_index': ['MenuItem', None],
-                    #                       },
-                    #           ]
+                # ---------------- Selection Type Submenu ----------------
+                'Selection Type': [
+                    'submenu', {
+                        'viewing': ['MenuItem', _selection_type_viewing],
+                        'picking': ['MenuItem', _selection_type_picking],
+                        # 'separator2': ['separator', None],
+                        # 'nonbonded': ['MenuItem', None],
                     }
+                ],
 
+                # ---------------- Selecting Mode Submenu ----------------
+                'Selecting By:': [
+                    'submenu', {
+                        'atoms': ['MenuItem', _viewing_selection_mode_atom],
+                        'residue': ['MenuItem', _viewing_selection_mode_residue],
+                        'chain': ['MenuItem', _viewing_selection_mode_chain],
+                        'molecule': ['MenuItem', _viewing_selection_mode_molecule],
+                    }
+                ],
+
+                # ---------------- Separator and Import ----------------
+                'separator2': ['separator', None],
+                'Import System': ['MenuItem', import_system_menu],
+                'separator3': ['separator', None],
+
+                # ---------------- Placeholder for label submenu (commented out) ----------------
+                # 'label': ['submenu', {
+                #     'Atom': [
+                #         'submenu', {
+                #             'lines': ['MenuItem', None],
+                #             'sticks': ['MenuItem', None],
+                #             'spheres': ['MenuItem', None],
+                #             'nonbonded': ['MenuItem', None],
+                #         }
+                #     ],
+                #     'Atom index': ['MenuItem', None],
+                #     'residue name': ['MenuItem', None],
+                #     'residue_index': ['MenuItem', None],
+                # }]
+            }
         
         if obj_menu is None:
             ''' Standard Obj Menu'''
@@ -926,63 +863,63 @@ class GLMenu:
                 #print('center')
                 #print(self.vm_glcore.info_atom)
                 self.vm_glcore.center_on_atom(self.vm_glcore.info_atom)
-            obj_menu = { 
-                    'OBJ menu' : ['MenuItem', None],
-                    
-                    
-                    'separator1':['separator', None],
-                    
-                    'Center' : ['MenuItem', center_on_atom],
-                    #'Zoom' : ['MenuItem', active_selection],
-                    #'Orient' : ['MenuItem', active_selection],
-                    
-                    'separator2':['separator', None],
-                    
-                    
-                    'show'   : [
-                                'submenu' ,{
-                                            
-                                            'lines'    : ['MenuItem', menu_show_lines],
-                                            'sticks'   : ['MenuItem', menu_show_sticks],
-                                            'spheres'  : ['MenuItem', menu_show_spheres],
-                                            'separator2':['separator', None],
-                                            'nonbonded': ['MenuItem', None],
-                    
-                                           }
-                               ],
-                    
-                    
-                    'hide'   : [
-                                'submenu',  {
-                                            'lines'    : ['MenuItem', menu_hide_lines],
-                                            'sticks'   : ['MenuItem', menu_hide_sticks],
-                                            'spheres'  : ['MenuItem', menu_hide_spheres],
-                                            'nonbonded': ['MenuItem', None],
-                                            }
+            
+            obj_menu = {
+                        # Header for the object menu
+                        'OBJ menu': ['MenuItem', None],
+
+                        # Separator for visual grouping
+                        'separator1': ['separator', None],
+
+                        # Center view on the selected atom
+                        'Center': ['MenuItem', center_on_atom],
+
+                        # Zoom and Orient could be added here
+                        # 'Zoom': ['MenuItem', active_selection],
+                        # 'Orient': ['MenuItem', active_selection],
+
+                        'separator2': ['separator', None],
+
+                        # ---------------- Show submenu ----------------
+                        'show': [
+                            'submenu', {
+                                'lines': ['MenuItem', menu_show_lines],
+                                'sticks': ['MenuItem', menu_show_sticks],
+                                'spheres': ['MenuItem', menu_show_spheres],
+                                'separator2': ['separator', None],
+                                'nonbonded': ['MenuItem', None],  # Placeholder
+                            }
+                        ],
+
+                        # ---------------- Hide submenu ----------------
+                        'hide': [
+                            'submenu', {
+                                'lines': ['MenuItem', menu_hide_lines],
+                                'sticks': ['MenuItem', menu_hide_sticks],
+                                'spheres': ['MenuItem', menu_hide_spheres],
+                                'nonbonded': ['MenuItem', None],  # Placeholder
+                            }
+                        ],
+
+                        'separator3': ['separator', None],
+
+                        # ---------------- Labels submenu ----------------
+                        'label': [
+                            'submenu', {
+                                'Atom': [
+                                    'submenu', {
+                                        'lines': ['MenuItem', None],       # Placeholder
+                                        'sticks': ['MenuItem', None],      # Placeholder
+                                        'spheres': ['MenuItem', None],     # Placeholder
+                                        'nonbonded': ['MenuItem', None],   # Placeholder
+                                    }
                                 ],
-                    
-                    
-                    'separator3':['separator', None],
-
-                    
-                    
-                    'label':  ['submenu' , {
-                                            'Atom'         : [
-                                                               'submenu', {
-                                                                           'lines'    : ['MenuItem', None],
-                                                                           'sticks'   : ['MenuItem', None],
-                                                                           'spheres'  : ['MenuItem', None],
-                                                                           'nonbonded': ['MenuItem', None],
-                                                                           }
-                                                              ],
-                                            
-                                            'atomic index' : ['MenuItem', None],
-                                            'residue name' : ['MenuItem', None],
-                                            'residue_index': ['MenuItem', None],
-                                           },
-                               ]
-                    }
-
+                                'atomic index': ['MenuItem', None],       # Placeholder
+                                'residue name': ['MenuItem', None],       # Placeholder
+                                'residue_index': ['MenuItem', None],      # Placeholder
+                            }
+                        ]
+                    }        
         
         if pick_menu is None:
             ''' Standard Sele Menu '''
@@ -1077,90 +1014,138 @@ class GLMenu:
 
 
 class EasyHybridSession(VismolSession, GLMenu):
-    """ Class doc """
+    """
+    Main session class for EasyHybrid.
+    Inherits from VismolSession and GLMenu.
+    Manages loading of project/session files and system initialization.
+    """
     
-    def __init__ (self, vm_config = None):
-        
-        """ Class initialiser """
-        super().__init__(toolkit="Gtk_3.0", vm_config = vm_config)
-        
-        ##print('\n\n\n',a, '\n\n\n')
-        self.selection_box_frame = None
-        #self.cmd = CommandLine(self)
-        
-        #vobject names - now every vobject should have a unique name
-        self.vobject_names = {} 
-        
-    def load (self, filename = None):
-        """ Function doc """
-        
-        if filename:
-            if filename[-4:] == 'easy':
-                
-                if os.path.exists(filename+'~'):
-                    msg = 'There is a newer temporary file for the project you are loading.\n Would you like to load the most current file?'
-                    dialog = SimpleDialog(self.main_session)
-                    yes_or_no = dialog.question (msg)
-                    
-                    if yes_or_no:
-                        #self.p_session.load_easyhybrid_serialization_file(filename+'~', tmp = True)
-                        self.main_session.p_session.load_easyhybrid_serialization_file(filename+'~', tmp = True)
-                    else:
-                        #self.p_session.load_easyhybrid_serialization_file(filename)
-                        self.main_session.p_session.load_easyhybrid_serialization_file(filename)
-                else:
-                    #self.p_session.load_easyhybrid_serialization_file(filename)
-                    self.main_session.p_session.load_easyhybrid_serialization_file(filename)
+    def __init__(self, vm_config=None):
+        """
+        Initialize an EasyHybridSession.
 
-            elif filename[-5:] == 'easy~':
-                #print('ehf file')            
-                #self.save_vismol_file = filename
-                #self.p_session.load_easyhybrid_serialization_file(filename)            
-                self.main_session.p_session.load_easyhybrid_serialization_file(filename)            
+        Parameters
+        ----------
+        vm_config : dict, optional
+            Configuration dictionary for the Vismol session.
+        """
+        super().__init__(toolkit="Gtk_3.0", vm_config=vm_config)
+        
+        # Frame for selection box (not initialized yet)
+        self.selection_box_frame = None
+        
+        # Dictionary to store unique names for VObjects
+        # Important to allow selections by name (e.g. from the command line)
+        self.vobject_names = {} 
+
+    def load(self, filename=None):
+        """
+        Load a file into the EasyHybrid session.
+        The behavior depends on the file extension:
+
+        - *.easy   : Load EasyHybrid project file. If a temporary file (*.easy~) exists,
+                     prompt the user whether to load the most recent one.
+        - *.easy~  : Load directly from the temporary project file.
+        - Other    : Assume coordinate/system file and load into a new pDynamo system.
+
+        Parameters
+        ----------
+        filename : str, optional
+            Path to the file to load. If None, the method does nothing.
+        """
+        if not filename:
+            return  # Nothing to load
+
+        # Handle EasyHybrid project files (*.easy)
+        if filename.endswith(".easy"):
+            temp_file = filename + "~"
+            if os.path.exists(temp_file):
+                msg = ("There is a newer temporary file for the project you are loading.\n"
+                       "Would you like to load the most current file?")
+                dialog = SimpleDialog(self.main_session)
+                yes_or_no = dialog.question(msg)
+
+                target_file = temp_file if yes_or_no else filename
+                self.main_session.p_session.load_easyhybrid_serialization_file(
+                    target_file, tmp=yes_or_no
+                )
             else:
-                files = {'coordinates': filename}
-                systemtype = 3
-                #self.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
-                self.main_session.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
+                self.main_session.p_session.load_easyhybrid_serialization_file(filename)
+
+        # Handle temporary EasyHybrid project files (*.easy~)
+        elif filename.endswith(".easy~"):
+            self.main_session.p_session.load_easyhybrid_serialization_file(filename)
+
+        # Handle all other file types (assumed coordinate/system files)
         else:
-            pass
+            files = {"coordinates": filename}
+            systemtype = 3  # Hardcoded system type (could be parameterized later)
+            self.main_session.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
+
 
     def show (self, obj = None, rep = 'lines', sele = None):
-        """ Function doc """
+        """
+        Display the specified atoms of a VisMol object.
+
+        Parameters:
+        - obj : str or None
+            Name of the VisMol object to show, or 'all' to show all objects.
+        - rep : str
+            Representation type to show ('lines', 'sticks', 'spheres', etc.).
+        - sele : list[int] or None
+            List of atom indices to show. If None, all atoms are selected.
+        """
         vismol_objects = []
         
-        #print(obj)
-        
+        # Determine which VisMol objects to operate on
         if obj in self.vobject_names.keys():
             vismol_objects.append(self.vobject_names[obj])
         
         elif obj == 'all':
             vismol_objects = self.vobject_names.values()
         else:
+            # If object not found, return False
             return False
-            #vismol_objects = self.vobject_names.values()
         
+        # Iterate over selected VisMol objects
         for vismol_object in vismol_objects:
-            if sele:
-                pass
-            else:
-               size =  len(vismol_object.atoms)
-               sele =  list(range(size))
+            # If no specific atom selection provided, select all atoms
             
+            #if sele:
+            #    pass
+            #else:
+            #   size =  len(vismol_object.atoms)
+            #   sele =  list(range(size))
+            
+            if not sele:
+                sele = list(range(len(vismol_object.atoms)))
+            
+            # Create a new selection object
             selection = self.create_new_selection()
             
+            # Select atoms by index in the VisMol object
             selection.selecting_by_indexes(vismol_object, sele, clear=True)
             
+            # Show the selected atoms using the specified representation
             self.show_or_hide(rep_type  = rep,
                               selection = selection, 
                               show      = True )
         
     def hide (self, obj = None, rep = 'lines', sele = None):
-        """ Function doc """
+        """
+        Hide the specified atoms of a VisMol object.
+
+        Parameters:
+        - obj : str or None
+            Name of the VisMol object to hide, or 'all' to hide all objects.
+        - rep : str
+            Representation type to hide ('lines', 'sticks', 'spheres', etc.).
+        - sele : list[int] or None
+            List of atom indices to hide. If None, all atoms are selected.
+        """
+        
         vismol_objects = []
-        
-        #print(obj)
-        
+                
         if obj in self.vobject_names.keys():
             vismol_objects.append(self.vobject_names[obj])
         
@@ -1168,14 +1153,17 @@ class EasyHybridSession(VismolSession, GLMenu):
             vismol_objects = self.vobject_names.values()
         else:
             return False
-            #vismol_objects = self.vobject_names.values()
         
         for vismol_object in vismol_objects:
+            if not sele:
+                sele = list(range(len(vismol_object.atoms)))
+            '''
             if sele:
                 pass
             else:
                size =  len(vismol_object.atoms)
                sele =  list(range(size))
+            '''
             
             selection = self.create_new_selection()
             
@@ -1186,7 +1174,13 @@ class EasyHybridSession(VismolSession, GLMenu):
                               show      = False )
    
     def active (self, obj = None):
-        """ Function doc """
+        """
+        Set the specified VisMol objects as active.
+
+        Parameters:
+        - obj : str or None
+            Name of the VisMol object to activate, or 'all' to activate all objects.
+        """
         vismol_objects = []
         
         if obj in self.vobject_names.keys():
@@ -1204,7 +1198,13 @@ class EasyHybridSession(VismolSession, GLMenu):
         self.vm_glcore.queue_draw()
     
     def deactivate (self, obj = None):
-        """ Function doc """
+        """
+        Set the specified VisMol objects as inactive.
+
+        Parameters:
+        - obj : str or None
+            Name of the VisMol object to deactivate, or 'all' to deactivate all objects.
+        """
         vismol_objects = []
         
         if obj in self.vobject_names.keys():
@@ -1284,99 +1284,116 @@ class EasyHybridSession(VismolSession, GLMenu):
 
     
     def _add_vismol_object(self, vismol_object, show_molecule=True, autocenter=True):
-        """ Function doc """
-        if vismol_object.index in self.vm_objects_dic.keys():
-            logger.warning("The VismolObject with id {} already exists. \
-                The data will be overwritten.".format(vismol_object.index))
-        
+        """
+        Add a VismolObject to the current session.
+
+        This method registers the object, ensures unique naming, 
+        updates internal dictionaries (atoms and objects), 
+        and creates default visual representations if requested.
+
+        Parameters
+        ----------
+        vismol_object : VismolObject
+            The object to be added to the session.
+        show_molecule : bool, optional, default=True
+            Whether to create visual representations for the object.
+        autocenter : bool, optional, default=True
+            Whether to automatically center the view on the new object.
+
+        Returns
+        -------
+        VismolObject
+            The VismolObject added to the session (with updated index and name).
+        """
+
+        # Check if object with same ID already exists
+        if vismol_object.index in self.vm_objects_dic:
+            logger.warning(
+                f"The VismolObject with id {vismol_object.index} already exists. "
+                "The data will be overwritten."
+            )
+
+        # Assign new index and register object
         self.vm_objects_dic[self.vm_object_counter] = vismol_object
         vismol_object.index = self.vm_object_counter
-        self.vm_object_counter +=1
-        
-        
-        #.vobject names can't have empty spaces" "
-        vismol_object.name = vismol_object.name.replace(' ', '_')
-        #---------------------------------------------------------------
-        #.this loop make sure that only unique names are used
-        
-        vismol_object.name = str(vismol_object.e_id)+'_'+vismol_object.name
-        if vismol_object.name in self.vobject_names.keys():
-            #vismol_object.name = str(vismol_object.e_id)+'_'+vismol_object.name
-            
-            #.this part should be improved later
-            while vismol_object.name in self.vobject_names.keys():
-                vismol_object.name = vismol_object.name+'_X'
-            #if vismol_object.name in self.vobject_names.keys():
-            #    vismol_object.name = vismol_object.name+'_A'
-            
-            self.vobject_names[vismol_object.name] = vismol_object
-            #pass
-        else:
-            self.vobject_names[vismol_object.name] = vismol_object
-        #---------------------------------------------------------------
-        #print ('vismol_object', vismol_object.name,vismol_object.e_id )
-        #self.atom_id_counter += len(vismol_object.atoms)
-        
-        #print (self.vobject_names)
-        
+        self.vm_object_counter += 1
+
+        # Ensure object name has no spaces
+        vismol_object.name = vismol_object.name.replace(" ", "_")
+
+        # ------------------------------------------------------------------
+        # Ensure unique naming for the VismolObject
+        # ------------------------------------------------------------------
+        name_parts = vismol_object.name.split("_")
+        prefix_tag = name_parts[0]
+
+        # If the name doesn't start with the object's e_id, prepend it
+        if prefix_tag != str(vismol_object.e_id):
+            vismol_object.name = f"{vismol_object.e_id}_{vismol_object.name}"
+
+        # If the name is already in use, append suffixes until unique
+        while vismol_object.name in self.vobject_names:
+            vismol_object.name = f"{vismol_object.name}_X"
+
+        # Register the object in the names dictionary
+        self.vobject_names[vismol_object.name] = vismol_object
+
+        # ------------------------------------------------------------------
+        # Register all atoms by unique ID
+        # ------------------------------------------------------------------
         for atom in vismol_object.atoms.values():
             self.atom_dic_id[atom.unique_id] = atom
-        
+
+        # ------------------------------------------------------------------
+        # Create default molecular representations if requested
+        # ------------------------------------------------------------------
         if show_molecule:
             vismol_object.create_representation(rep_type="lines")
-            #vismol_object.create_representation(rep_type="surface")
-            
-            #vismol_object.create_representation(rep_type="dash")
-            #vismol_object.create_representation(rep_type="sticks")
-
-            #'''
-            #from vismol.libgl.representations import LabelRepresentation
-            ##print (vismol_object.cell_parameters)
-            ##vismol_object.representations["labels"] =  LabelRepresentation(vismol_object, self.vm_glcore, name  = 'lines', active=True, indexes = vismol_object.cell_bonds)
-            #vismol_object.representations["labels"] =  LabelRepresentation(vismol_object = vismol_object  ,  
-            #                                                               vismol_glcore = self.vm_glcore , 
-            #                                                               indexes       = [0,1,2] , 
-            #                                                               labels        = None     , 
-            #                                                               color         = [1, 1, 0, 1])
-            #'''
-            
-            
-            #from vismol.libgl.representations import DashedLinesRepresentation
-            #vismol_object.representations["restraints"] = DashedLinesRepresentation(vismol_object, self.vm_glcore,
-            #                                                                  active=True, indexes= [5, 17])
-            #
-            #vismol_object.representations["restraints"].define_new_indexes_to_vbo([5, 17 ])
-            #
-            
-            self.main.p_session.update_restaint_representation(vismol_object.e_id)
-            
-            self.main.p_session._apply_custom_colors_to_vobject(vismol_object)
-            
             vismol_object.create_representation(rep_type="nonbonded")
-            #vismol_object.create_representation(reprep_type="sticks")
+
+            # Update restraints and custom colors
+            self.main.p_session.update_restaint_representation(vismol_object.e_id)
+            self.main.p_session._apply_custom_colors_to_vobject(vismol_object)
+
+            # Adjust viewport
             if autocenter:
                 self.vm_glcore.center_on_coordinates(vismol_object, vismol_object.mass_center)
             else:
                 self.vm_glcore.queue_draw()
-            
-            '''
-            print('\n\n',vismol_object.frames )
-            print('\n\n',type(vismol_object.frames) )
-            print('\n\n',vismol_object.frames[0])
-            print('\n\n',type(vismol_object.frames[0]))
-            #'''
-            
-            
-            #print('\n\n',vismol_object.topology)
+
         return vismol_object
-
-
-    def build_index_list_from_atom_selection (self, return_vobject = False ):
-        """  
-        returns the index_list and residue_dict
         
-        Residue_dict is a dictionary where the access key is the index 
-        of the residue. The key gives access to a list of atoms 
+    def build_index_list_from_atom_selection(self, return_vobject=False):
+        """
+        Build an index list and residue dictionary from the current atom selection.
+
+        This method extracts indices of selected atoms and organizes them by residue. 
+        Optionally, it also returns the associated VismolObject.
+
+        Parameters
+        ----------
+        return_vobject : bool, optional, default=False
+            If True, the returned tuple also includes the VismolObject of the selection.
+
+        Returns
+        -------
+        tuple
+            If return_vobject is False:
+                (index_list, residue_dict)
+            If return_vobject is True:
+                (index_list, residue_dict, vismol_object)
+
+            - index_list : list of int
+                List of atom indices (0-based).
+            - residue_dict : dict[int, list[int]]
+                Dictionary mapping residue indices to lists of atom indices.
+            - vismol_object : VismolObject, optional
+                The VismolObject associated with the selected atoms.
+        
+        Notes
+        -----
+        - Atom indices are converted to 0-based (`atom.index - 1`).
+        - If any atom fails `check_selected_atom`, the method returns False immediately.
         """
         selection    = self.selections[self.current_selection]
         
@@ -1385,29 +1402,24 @@ class EasyHybridSession(VismolSession, GLMenu):
         vismol_object = None
         
         for atom in selection.selected_atoms:
-            ##print(atom.vobject.easyhybrid_system_id , pdmsys_active)
-            true_or_false = self.check_selected_atom (atom)
-            if true_or_false:
-                
-                index_list.append(atom.index -1)
-                
-                vismol_object = atom.vm_object
-                
-                ##print(atom.residue, atom.index -1)
-                
-                if atom.residue.index in residue_dict:
-                    residue_dict[atom.residue.index].append(atom.index -1)
-                else:
-                    residue_dict[atom.residue.index] = [atom.index -1]
+            # Validate atom with a custom check
+            if not self.check_selected_atom(atom):
+                return False  # Early exit if validation fails
 
-                
-            else:
-                return False
-        
+            # Convert to 0-based index
+            atom_index = atom.index - 1
+            index_list.append(atom_index)
+
+            # Keep track of the VismolObject (all atoms should belong to the same one)
+            vismol_object = atom.vm_object
+
+            # Group atom indices by residue
+            residue_index = atom.residue.index
+            residue_dict.setdefault(residue_index, []).append(atom_index)
+
         if return_vobject:
             return index_list, residue_dict, vismol_object
-        else:
-            return index_list, residue_dict
+        return index_list, residue_dict
 
 
     def check_selected_atom(self, atom, dialog = True):
@@ -1571,19 +1583,13 @@ button position in the main treeview (active column).""".format(name,self.main.p
         """  
         
         Determines the smallest Cartesian box that contains the selected atoms.
-        Returns the involved Vismol objects, min/max coordinates, and a dict of selected atom indices.
-        Establishes the inner box (smallest box in Cartesian space) that encompasses the selected atoms
-        
-        inputs:
-                selection =  vismol selection object 
-                grid_size =  float
-                
-        return :
-                vobjects,             = list of involved object
-                grid_min,             = list (xyz) 
-                grid_max,             = list (xyz)
-                selected_indexes_dict = dict, the keys ate the vobject.index -> list os selected indexes 
-        
+
+        This function establishes the "inner box" (smallest box in Cartesian space) 
+        encompassing all selected atoms in the provided selection. It returns the 
+        involved VisMol objects, the minimum and maximum coordinates of the box, 
+        and a dictionary mapping each VisMol object's index to its selected atom indices.
+
+
                                         max(xyz) = grid_max 
                   |-------|-------|-------|
                   |       |       |      x|
@@ -1601,7 +1607,25 @@ button position in the main treeview (active column).""".format(name,self.main.p
                    ^
         min(xyz) = grid_min
 
-        
+
+
+        Parameters:
+        - selection : VisMolSelection
+            The selection object containing atoms to consider.
+        - grid_size : float
+            Grid size (currently not used in computation but could be used for further processing).
+
+        Returns:
+        - vobjects : list
+            List of involved VisMol objects.
+        - grid_min : list[float]
+            Minimum coordinates [x_min, y_min, z_min] of the inner box.
+        - grid_max : list[float]
+            Maximum coordinates [x_max, y_max, z_max] of the inner box.
+        - selected_indexes_dict : dict
+            Dictionary mapping each vobject.index to the list of selected atom indices.
+            Example: {vobject_index: [atom_index_1, atom_index_2, ...]}
+
         """
         print ('Defining the selection inner box')
         i = []
@@ -1615,26 +1639,26 @@ button position in the main treeview (active column).""".format(name,self.main.p
         selected_indexes_dict = {}
         selected_indexes_dict = {}
         
+        # Iterate over each selected atom
         for atom in selection.selected_atoms:
             '''checks if the selected atoms belong to the active project'''
             true_or_false = self.check_selected_atom(atom, dialog = True)
             
             if true_or_false:
                 xyz = atom.coords()
-                
                 vobject = atom.vm_object
-                
+
+                # Add vobject to list if not already included
                 if vobject in vobjects:
                     pass
                 else:
                     vobjects.append(vobject)
-
+                # Collect coordinates
                 i.append(xyz[0])
                 j.append(xyz[1])
                 k.append(xyz[2])
                 
-                #selected_indexes.add(atom.index-1)
-                
+                # Update selected indexes dictionary
                 if vobject.index in selected_indexes_dict.keys():
                     selected_indexes_dict[vobject.index].append(atom.index-1)
                 else:
@@ -1645,6 +1669,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
                 print('invalid selection list')
                 return False
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        # Compute the min and max coordinates for the inner box
         grid_min = [min(i), min(j), min(k)]
         grid_max = [max(i), max(j), max(k)]
         return vobjects, grid_min, grid_max, selected_indexes_dict

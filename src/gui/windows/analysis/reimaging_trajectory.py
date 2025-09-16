@@ -515,3 +515,132 @@ def superpose_by_subset(A, B, subset_A=None, subset_B=None):
     return B_aligned, R, t
 
 
+
+#Rotate and superpose.
+def kabsch(P, Q):
+    '''
+    Perform the Kabsch algorithm to optimally align two sets of 3D points.
+
+    Given two sets of 3D points P and Q, both with N corresponding points
+    (same order and number of atoms):
+
+    Steps:
+    1. Centering:
+       - Subtract the centroid of each set so that both are centered at 
+         the origin.
+       - This removes the effect of translation.
+
+    2. Covariance Matrix:
+       - Compute H = Q^T * P, which captures how the points of Q relate 
+         to those of P.
+
+    3. Singular Value Decomposition (SVD):
+       - Decompose H into H = U * S * V^T.
+
+    4. Rotation Matrix R:
+       - The optimal rotation is R = V * U^T.
+       - A sign adjustment is applied if needed to ensure a proper 
+         rotation(no chirality inversion).
+
+    5. Translation t:
+       - After rotation, compute the translation required to align the 
+         centroids:
+         - t = centroid_P - R * centroid_Q.
+
+    Returns:
+        R (numpy.ndarray): Optimal rotation matrix (3x3).
+        t (numpy.ndarray): Translation vector (3,).
+        
+            
+    The Kabsch function (or Kabsch algorithm) is a mathematical method 
+    used to find the best overlap (rigid superposition) between two sets 
+    of points in space (usually in 2D or 3D).
+
+    It determines the optimal rotation (without translation or reflection, 
+    unless allowed) that minimizes the root-mean-square deviation (RMSD) 
+    between two corresponding sets of points.
+
+    In computational chemistry and structural biology, the Kabsch 
+    function is widely used to:
+
+       -Align molecular structures (e.g., two conformations of the same 
+        protein).
+
+       -Compare ligand conformations.
+
+       -Reduce error when superimposing atomic coordinates.
+    '''
+    centroid_P = np.mean(P, axis=0)
+    centroid_Q = np.mean(Q, axis=0)
+    P_centered = P - centroid_P
+    Q_centered = Q - centroid_Q
+    H = Q_centered.T @ P_centered
+    U, S, Vt = np.linalg.svd(H)
+    R = Vt.T @ U.T
+    if np.linalg.det(R) < 0:
+        Vt[-1,:] *= -1
+        R = Vt.T @ U.T
+    t = centroid_P - R @ centroid_Q
+    return R, t
+
+def icp_small(A, B, subset_A=None, subset_B=None, max_iterations=5000, tolerance=1e-10):
+    """
+    -ICP (Iterative Closest Point)
+        Robust ICP for small clusters.
+    
+        Perform ICP (Iterative Closest Point) alignment of molecule B onto molecule A.
+        Uses optional subsets of points to compute the transformation, but applies
+        the resulting rotation and translation to the entire molecule B.
+        Returns the aligned coordinates, accumulated rotation matrix, and translation vector.
+        
+        No, subset_A and subset_B do not need to be identical, 
+        but they must be compatible with what you intend to align
+
+    """
+    B_original = B.copy()
+
+    # If no subset is provided, use all atoms
+    if subset_A is None:
+        subset_A = np.arange(A.shape[0])
+    if subset_B is None:
+        subset_B = np.arange(B.shape[0])
+
+    A_ref = A[subset_A]
+    B_ref = B[subset_B]
+
+    # Center the reference clusters
+    centroid_A = np.mean(A_ref, axis=0)
+    centroid_B = np.mean(B_ref, axis=0)
+    A_centered = A_ref - centroid_A
+    B_centered = B_ref - centroid_B
+    B_transformed = B_centered.copy()
+
+    prev_error = np.inf
+    R_total = np.eye(3)     # Accumulated rotation
+    t_total = np.zeros(3)   # Accumulated translation
+
+    for i in range(max_iterations):
+        tree = cKDTree(A_centered)
+        distances, indices = tree.query(B_transformed)
+        A_matched = A_centered[indices]
+
+        R, t = kabsch(A_matched, B_transformed)
+        B_transformed = (R @ B_transformed.T).T + t
+
+        # Accumulate transformation
+        R_total = R @ R_total
+        t_total = R @ t_total + t
+
+        mean_error = np.mean(distances)
+        if abs(prev_error - mean_error) < tolerance:
+            break
+        prev_error = mean_error
+
+    # Apply the accumulated transformation to the entire molecule B (not only the subset)
+    B_full_centered = B_original - centroid_B
+    B_aligned = (R_total @ B_full_centered.T).T + t_total + centroid_A
+
+    return B_aligned, R_total, t_total
+
+
+

@@ -57,6 +57,7 @@ from gui.windows.setup.edit_frames_dialog import EditFrameDialog
 from gui.windows.setup.easyhybrid_terminal    import TerminalWindow
 from gui.windows.setup.selection_list_window  import *
 from gui.windows.setup.setup_interface        import EasyHybridPreferencesWindow
+from gui.windows.setup.process_manager_window import ProcessManagerWindow
 
 from gui.windows.simulation.single_point_window          import SinglePointWindow
 from gui.windows.simulation.geometry_optimization_window import GeometryOptimization
@@ -120,7 +121,10 @@ class MainWindow:
 
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
         self.system_liststore        = Gtk.ListStore(str, int, GdkPixbuf.Pixbuf)
-
+        
+        #.Connects a system to a treeview postion
+        self.system_treeview_iters   = {} #. A dictionary: {e_id : treeview_iter, }
+        self.system_liststore_iters  = {} #. A dictionary: {e_id : liststore_iter, }
         
         '''The "vobject_liststore_dict" is a dictionary where the access key is
         the e_id, which is the index of the system of interest generated in 
@@ -141,8 +145,9 @@ class MainWindow:
         self.window = self.builder.get_object('window1')
         self.window.set_default_size(1200, 600)                          
         self.window.set_title('EasyHybrid {}'.format(self.EASYHYBRID_VERSION))                          
-
-
+        
+        self.pixbuf = GdkPixbuf.Pixbuf.new_from_file(os.path.join(self.home,"src/gui/icons/icon_2.png"))
+        self.window.set_icon(self.pixbuf)
         self.statusbar_main = self.builder.get_object('statusbar1')
         self.statusbar_main.push(1,'Welcome to EasyHybrid version {}, a pDynamo3 graphical tool'.format(self.EASYHYBRID_VERSION))
         
@@ -309,6 +314,10 @@ class MainWindow:
         self.selection_list_window        = SelectionListWindow          ( main = self, system_liststore =  self.system_liststore)
         self.window_list.append(self.selection_list_window)
 
+        
+        self.process_manager_window = ProcessManagerWindow( main=  self)
+        self.window_list.append(self.process_manager_window)
+        
         
         self.go_to_atom_window            = EasyHybridGoToAtomWindow     ( main = self, system_liststore = self.system_liststore)
         self.window_list.append(self.go_to_atom_window)
@@ -513,6 +522,10 @@ class MainWindow:
         if button  == self.builder.get_object('toolbutton_monte_carlo'):
             ##print('toolbutton_umbrella_sampling')
             self.normal_modes_analysis_window.OpenWindow()
+        
+        if button  == self.builder.get_object('button_test'):
+            ##print('toolbutton_umbrella_sampling')
+            self.process_manager_window.OpenWindow()
 
     def on_main_menu_activate (self, menuitem):
         """ Function doc """
@@ -823,6 +836,22 @@ class MainWindow:
             system.e_restraint_counter = 0
             system.e_restraints_dict   = {}
         
+        elif menuitem == self.builder.get_object('menuitem_custom_colors'): 
+            system = self.p_session.psystem[self.p_session.active_id]
+            name = system.label
+            num_of_custom_colors = len(system.e_custom_colors)
+            
+            msg = 'You are about to remove {} customized atom color list(s) from the system:\n\n{}\n\nDo you want to continue?'.format(num_of_custom_colors,name )
+            dialog = SimpleDialog(self )
+            yes_or_no = dialog.question (msg)
+            if yes_or_no:
+                system.e_custom_colors = []
+            else:
+                pass
+
+
+
+            
         elif menuitem == self.builder.get_object('menuitem_remove_fixed'): 
             system = self.p_session.psystem[self.p_session.active_id]
             
@@ -1327,12 +1356,13 @@ class MainWindow:
         """ Function doc """
         system.e_color_palette['C'] = new_color
         sqr_color                   = get_colorful_square_pixel_buffer (system)
-        
+        e_id =system.e_id
         #print(system.e_liststore_iter, sqr_color)
-        self.system_liststore[system.e_liststore_iter][2] = sqr_color 
-
+        self.system_liststore[self.system_liststore_iters[e_id]][2] = sqr_color 
+        e_id = system.e_id
         self.main_treeview_model =  self.main_treeview.get_model() 
-        self.main_treeview_model[system.e_treeview_iter][9] = sqr_color
+        #self.main_treeview_model[system.e_treeview_iter][9] = sqr_color
+        self.main_treeview_model[self.system_treeview_iters[e_id]][9] = sqr_color
         
         for index, vobject in self.vm_session.vm_objects_dic.items():
             
@@ -1399,7 +1429,8 @@ class MainWindow:
         2) remove vobjects from vobject_liststore_dict (self.vobject_liststore_dict in main object)
         
         3) remove system from system_liststore (self.system_liststore in main object)
-        4) remove system from treestore (system.e_treeview_iter)
+        #4) remove system from treestore (system.e_treeview_iter)
+        4) remove system from treestore (self.system_treeview_iters[e_id])
         
         5) remove system from p_session (p_session.psystem[sys_e_id] in p_session object)
         """
@@ -1424,8 +1455,10 @@ class MainWindow:
             
             #  - - - - - - - - removing system treeview items - - - - - - - - - - -
             system = self.p_session.get_system(index = system_e_id)
-            self.system_liststore.remove(system.e_liststore_iter)
-            self.main_treeview.treestore.remove(system.e_treeview_iter)
+            e_id = system.e_id 
+            self.system_liststore.remove(self.system_liststore_iters[e_id] )
+            #self.main_treeview.treestore.remove(system.e_treeview_iter)
+            self.main_treeview.treestore.remove(self.system_treeview_iters[e_id])
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             
             a = self.p_session.delete_system(system_e_id)
@@ -1908,9 +1941,9 @@ class MainWindow:
 
 class EasyHybridMainTreeView(Gtk.TreeView):
     
-    def __init__(self):
+    def __init__(self ):
         super().__init__( )
-
+         
         self.treestore = Gtk.TreeStore(int , #0 system_e_id           
                                        int , #1 vobject 
                                        str , #2 name 
@@ -1951,8 +1984,9 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         for row in self.treestore:
             row[4] = False
         parent = self.treestore.append(None, [system.e_id, -1,str(system.e_id)+' - '+ system.label, True, True, False, False, False, 0, sqr_color])
-        system.e_treeview_iter = parent
-        
+        #system.e_treeview_iter = parent
+        e_id = system.e_id
+        self.main.system_treeview_iters[e_id] = parent
         
         '''To improve organization and accessibility, we will add a GtkListStore 
         to a dictionary that will be accessed by all windows. Each GtkListStore 
@@ -1960,15 +1994,18 @@ class EasyHybridMainTreeView(Gtk.TreeView):
 
 
        
-        system.e_liststore_iter = self.main.system_liststore.append([str(system.e_id)+' - '+ system.label, system.e_id, sqr_color])
+        #system.e_liststore_iter = self.main.system_liststore.append([str(system.e_id)+' - '+ system.label, system.e_id, sqr_color])
+        self.main.system_liststore_iters[e_id] = self.main.system_liststore.append([str(system.e_id)+' - '+ system.label, system.e_id, sqr_color])
         self.main.vobject_liststore_dict[system.e_id] = Gtk.ListStore(str, int, int,sqr_color)
         self.main.bottom_notebook.set_active_system_text_to_textbuffer()
 
     def add_vismol_object_to_treeview(self, vismol_object, vobj_parent = False):
         """ Function doc """
-        e_id   = vismol_object.e_id
-        system = self.main.p_session.get_system(e_id)
+        e_id        = vismol_object.e_id
+        system      = self.main.p_session.psystem[e_id]
         sqr_color   = get_colorful_square_pixel_buffer (system)
+        
+        print(system, vismol_object,e_id )
         #color      =  system.e_color_palette['C']
         #res_color  = [int(color[0]*255),int(color[1]*255),int(color[2]*255)] 
         #sqr_color  =  getColouredPixmap( res_color[0], res_color[1], res_color[2] )
@@ -1977,7 +2014,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
             parent = vobj_parent
             sqr_color   = None
         else:
-            parent = system.e_treeview_iter #self.tree_iters_dict[system.e_treeview_iter_parent_key]
+            parent = self.main.system_treeview_iters[e_id] #self.tree_iters_dict[system.e_treeview_iter_parent_key]
         
         size   = len(vismol_object.frames)
         _iter  = self.treestore.append(parent, [e_id,  vismol_object.index , vismol_object.name, False, False , True, vismol_object.active, True, size, sqr_color])
@@ -2679,7 +2716,8 @@ class BottomNoteBook:
 
         # Scroll the TreeView to the newly added row
         self.treeview.scroll_to_cell(path, None, True, 0.5, 0.5)
-
+        return path 
+        
     def set_active_system_text_to_textbuffer (self):
         e_id = self.main.p_session.active_id
         new_text = self.main.p_session.psystem[e_id].e_annotations

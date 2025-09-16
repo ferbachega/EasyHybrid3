@@ -598,8 +598,8 @@ class UmbrellaSamplingWindow(Gtk.Window):
         parameters = {}
         opt_id       = self.builder.get_object('combobox_geo_opt').get_active()
         parameters['optimizer']        =  self.opt_methods[opt_id]
-        parameters["maxIterations"]    =  int  (self.builder.get_object('entry_max_int') .get_text())
-        parameters["rmsGradient"]      =  float(self.builder.get_object('entry_rmsd_tol').get_text())
+        parameters["maximumIterations"]    =  int  (self.builder.get_object('entry_max_int') .get_text())
+        parameters["rmsGradientTolerance"]      =  float(self.builder.get_object('entry_rmsd_tol').get_text())
         return parameters
     
     
@@ -641,12 +641,12 @@ class UmbrellaSamplingWindow(Gtk.Window):
                     "simulation_type"           : "Umbrella_Sampling",
                     "folder"                    : HOME                    ,
                     'integrator'                : MD_method[integrator_id], # verlet / leapfrog /langevin
-                    'logFrequency'              : log_frequence           ,
+                    'logFrequency'             : log_frequence           ,
                     'seed'                      : random_seed             ,
-                    'normalDeviateGenerator'    : None                    ,
+                    'normal_deviate_generator'    : None                    ,
                     'steps_eq'                  : number_of_steps_eq      ,
                     'steps_dc'                  : number_of_steps_dc      ,
-                    'timeStep'                  : time_step               ,
+                    'timeStep'                 : time_step               ,
                     #'trajectories'              : None                    ,
                     'trajectory_frequency'      : int(self.builder.get_object('entry_traj_frequency').get_text()), 
                     'trajectory_frequency_dc_ptRes'   : int(self.builder.get_object('entry_traj_frequency_dc1').get_text()), 
@@ -658,8 +658,8 @@ class UmbrellaSamplingWindow(Gtk.Window):
                     
                     #LeapFrogDynamics
                     'pressure'                  : pressure           ,  #  LeapFrogDynamics 
-                    'pressureControl'           : pressure_control   ,  #  LeapFrogDynamics 
-                    'pressureCoupling'          : pressure_coupling  ,  #  LeapFrogDynamics 
+                    'temperatureControl'           : pressure_control   ,  #  LeapFrogDynamics 
+                    'temperatureCoupling'          : pressure_coupling  ,  #  LeapFrogDynamics 
                                                                      
                     'temperature'               : temp_start         ,               
                     'temperatureControl'        : True               ,  # True / False LeapFrogDynamics / LangevinDynamics

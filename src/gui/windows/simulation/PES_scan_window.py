@@ -289,7 +289,7 @@ class PotentialEnergyScanWindow():
                       #"nsteps_RC2":0                                       ,
                       #"force_constant_1":4000.0                            ,
                       #"force_constant_2":4000.0                            ,
-                      #"maxIterations":1000                                 ,
+                      #'maximumIterations':1000                                 ,
                       #"dincre_RC1":0.1                                     ,
                       #"dincre_RC2":0.1                                     ,
                       #"dminimum_RC1":0.0                                   ,
@@ -302,11 +302,11 @@ class PotentialEnergyScanWindow():
                       #"rc_type_2":"simple_distance"                        ,
                       #"adaptative":False                                   , 
                       #"save_format":".dcd"                                 ,
-                      #"rmsGradient":0.1                                    ,
+                      #'rmsGradientTolerance':0.1                                    ,
                       #"optimizer":"ConjugatedGradient"                     ,
                       #"MC_RC1":False                                       ,
                       #"MC_RC2":False                                       ,
-                      "log_frequency":50                                   ,
+                      "logFrequency":50                                   ,
                       #"contour_lines":10                                   ,
                       #"NmaxThreads":1                                      ,
                       #"show":False                                         
@@ -314,8 +314,8 @@ class PotentialEnergyScanWindow():
         
         parameters["optimizer"]        = self.opt_methods[self.methods_combo.get_active()]
         parameters["folder"]           = self.folder_chooser_button.get_folder()        
-        parameters["maxIterations"]    = float(self.builder.get_object('entry_max_int').get_text() )
-        parameters["rmsGradient"]      = float(self.builder.get_object('entry_rmsd_tol').get_text() )
+        parameters['maximumIterations']    = float(self.builder.get_object('entry_max_int').get_text() )
+        parameters['rmsGradientTolerance']      = float(self.builder.get_object('entry_rmsd_tol').get_text() )
         parameters["traj_folder_name"] = self.builder.get_object('traj_name').get_text()        
         parameters["vobject_name"]     = self.builder.get_object('traj_name').get_text()        
         

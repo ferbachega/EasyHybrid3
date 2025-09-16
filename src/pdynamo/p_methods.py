@@ -621,47 +621,47 @@ class GeometryOptimization:
         
         if parameters['trajectory_name'] == None:
             ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
-                                                     logFrequency           = parameters['log_frequency'],
-                                                     maximumIterations      = parameters['maxIterations'],
-                                                     rmsGradientTolerance   = parameters['rmsGradient'])
+                                                     logFrequency           = parameters['logFrequency'],
+                                                     maximumIterations      = parameters['maximumIterations'],
+                                                     rmsGradientTolerance   = parameters['rmsGradientTolerance'])
         else:            
             
             ConjugateGradientMinimize_SystemGeometry(parameters['system']                                                ,                
-                                                     logFrequency           = parameters['log_frequency']                ,
+                                                     logFrequency           = parameters['logFrequency']                ,
                                                      trajectories           = [(self.trajectory, parameters['save_frequency'])],
-                                                     maximumIterations      = parameters['maxIterations']                ,
-                                                     rmsGradientTolerance   = parameters['rmsGradient']                  ,
+                                                     maximumIterations      = parameters['maximumIterations']                ,
+                                                     rmsGradientTolerance   = parameters['rmsGradientTolerance']                  ,
                                                      log                    = self.logFile2                                   )
 
     def _run_steepest_descent(self, parameters):
 
         if parameters['trajectory_name'] == None:
             SteepestDescentMinimize_SystemGeometry(parameters['system']                               ,               
-                                                logFrequency            = parameters['log_frequency'] ,
-                                                maximumIterations       = parameters['maxIterations'] ,
-                                                rmsGradientTolerance    = parameters['rmsGradient']   )
+                                                logFrequency            = parameters['logFrequency'] ,
+                                                maximumIterations       = parameters['maximumIterations'] ,
+                                                rmsGradientTolerance    = parameters['rmsGradientTolerance']   )
         else:
             SteepestDescentMinimize_SystemGeometry(parameters['system']                                               ,               
-                                                logFrequency            = parameters['log_frequency']                 ,
+                                                logFrequency            = parameters['logFrequency']                 ,
                                                 trajectories            = [(self.trajectory, parameters['save_frequency'])],
-                                                maximumIterations       = parameters['maxIterations']                 ,
-                                                rmsGradientTolerance    = parameters['rmsGradient']                   ,
+                                                maximumIterations       = parameters['maximumIterations']                 ,
+                                                rmsGradientTolerance    = parameters['rmsGradientTolerance']                   ,
                                                 log                     = self.logFile2                                   )
 
     def _run_LBFGS(self, parameters):
         
         if parameters['trajectory_name'] == None:
             LBFGSMinimize_SystemGeometry(parameters['system']                               ,                
-                                         logFrequency         = parameters['log_frequency'] ,
-                                         maximumIterations    = parameters['maxIterations'] ,
-                                         rmsGradientTolerance = parameters['rmsGradient']   )
+                                         logFrequency         = parameters['logFrequency'] ,
+                                         maximumIterations    = parameters['maximumIterations'] ,
+                                         rmsGradientTolerance = parameters['rmsGradientTolerance']   )
         else:
 
             LBFGSMinimize_SystemGeometry(parameters['system']                                                ,                
-                                         logFrequency         = parameters['log_frequency']                  ,
+                                         logFrequency         = parameters['logFrequency']                  ,
                                          trajectories         = [(self.trajectory, parameters['save_frequency'])] ,
-                                         maximumIterations    = parameters['maxIterations']                  ,
-                                         rmsGradientTolerance = parameters['rmsGradient']                    ,
+                                         maximumIterations    = parameters['maximumIterations']                  ,
+                                         rmsGradientTolerance = parameters['rmsGradientTolerance']                    ,
                                          log                  = self.logFile2                                   )  
 
     def _run_quasi_newton(self, parameters):
@@ -670,15 +670,15 @@ class GeometryOptimization:
         '''        
         if parameters['trajectory_name'] == None:
             QuasiNewtonMinimize_SystemGeometry( parameters['system']                               ,               
-                                                logFrequency         = parameters['log_frequency'] ,
-                                                maximumIterations    = parameters['maxIterations'] ,
-                                                rmsGradientTolerance = parameters['rmsGradient']   )
+                                                logFrequency         = parameters['logFrequency'] ,
+                                                maximumIterations    = parameters['maximumIterations'] ,
+                                                rmsGradientTolerance = parameters['rmsGradientTolerance']   )
         else:
             QuasiNewtonMinimize_SystemGeometry( parameters['system']                                                ,
-                                                logFrequency         = parameters['log_frequency']                  ,
+                                                logFrequency         = parameters['logFrequency']                  ,
                                                 trajectories         = [(self.trajectory, parameters['save_frequency'])] ,
-                                                maximumIterations    = parameters['maxIterations']                  ,
-                                                rmsGradientTolerance = parameters['rmsGradient']                    ,
+                                                maximumIterations    = parameters['maximumIterations']                  ,
+                                                rmsGradientTolerance = parameters['rmsGradientTolerance']                    ,
                                                 log                  = self.logFile2                                   )
     
     def _run_FIRE(self, parameters):
@@ -686,16 +686,16 @@ class GeometryOptimization:
         '''
         if parameters['trajectory_name'] == None:
             FIREMinimize_SystemGeometry( parameters['system']                               ,          
-                                         logFrequency         = parameters['log_frequency'] ,
-                                         maximumIterations    = parameters['maxIterations'] ,
-                                         rmsGradientTolerance = parameters['rmsGradient']   )
+                                         logFrequency         = parameters['logFrequency'] ,
+                                         maximumIterations    = parameters['maximumIterations'] ,
+                                         rmsGradientTolerance = parameters['rmsGradientTolerance']   )
         else:
 
             FIREMinimize_SystemGeometry( parameters['system']                                                ,                
-                                         logFrequency         = parameters['log_frequency']                  ,
+                                         logFrequency         = parameters['logFrequency']                  ,
                                          trajectories         = [(self.trajectory, parameters['save_frequency'])] ,
-                                         maximumIterations    = parameters['maxIterations']                  ,
-                                         rmsGradientTolerance = parameters['rmsGradient']                    ,
+                                         maximumIterations    = parameters['maximumIterations']                  ,
+                                         rmsGradientTolerance = parameters['rmsGradientTolerance']                    ,
                                          log                  = self.logFile2                                   )
 
 
@@ -718,7 +718,10 @@ class MolecularDynamics:
             self.trajectory = ExportTrajectory(full_path_trajectory, parameters['system'], log=None )
             
             self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(full_path_trajectory, 'output.log') )
+            
+            parameters['logfile'] = os.path.join(full_path_trajectory, 'output.log')  
             parameters['system'].Summary(log = self.logFile2)
+            
             self.logFile2.Header ( )
         else:
             pass
@@ -805,7 +808,7 @@ class MolecularDynamics:
                                                         temperatureScaleFrequency = parameters['temperatureScaleFrequency'],
                                                         temperatureScaleOption    = parameters['temperatureScaleOption']   ,
                                                         temperatureStart          = parameters['temperatureStart']         ,
-                                                        temperatureStop           = parameters['temperatureStop']          ,
+                                                        temperatureStop           = parameters['temperature_stop']          ,
                                                         trajectories              = [(self.trajectory, parameters['trajectory_frequency'])],
                                                         log                       = self.logFile2
                                                         )                                                    
@@ -821,7 +824,7 @@ class MolecularDynamics:
                                                         temperatureScaleFrequency = parameters['temperatureScaleFrequency'],
                                                         temperatureScaleOption    = parameters['temperatureScaleOption']   ,
                                                         temperatureStart          = parameters['temperatureStart']         ,
-                                                        temperatureStop           = parameters['temperatureStop']          ,
+                                                        temperatureStop           = parameters['temperature_stop']          ,
                                                          )
 
 
@@ -838,7 +841,7 @@ class MolecularDynamics:
             trajectory = ExportTrajectory(full_path_trajectory, parameters['system'], log=None )        
         # . Data-collection.
         #'''
-        if parameters['pressureControl']:
+        if parameters['temperatureControl']:
             if parameters['trajectory_name']:
                 LeapFrogDynamics_SystemGeometry ( parameters['system']                       ,
                                                   logFrequency           = parameters['logFrequency'] ,
@@ -1010,16 +1013,16 @@ class RelaxedSurfaceScan:
             #text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['ATOMS_RC1'][0], parameters['ATOMS_RC1_NAMES'][0] )
             #text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['ATOMS_RC1'][1], parameters['ATOMS_RC1_NAMES'][1] )
             #text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['nsteps_RC1']  , parameters['force_constant_1']   )
-            #text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['dminimum_RC1'], parameters['maxIterations']      )
-            #text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['dincre_RC1']  , parameters['rmsGradient']        )
+            #text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['dminimum_RC1'], parameters['maximumIterations']      )
+            #text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['dincre_RC1']  , parameters['rmsGradientTolerance']        )
             #text = text + "\n--------------------------------------------------------------------------------"
             text = text + "\n"
             text = text + "\n----------------------- Coordinate 1 - Simple-Distance -------------------------"
             text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOM_NAMES'][0] )
             text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOM_NAMES'][1] )
             text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']  , parameters['RC1']['force_constant'] )
-            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum'], parameters['maxIterations']         )
-            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']  , parameters['rmsGradient']           )
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum'], parameters['maximumIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']  , parameters['rmsGradientTolerance']           )
             text = text + "\n--------------------------------------------------------------------------------"
 
         
@@ -1031,8 +1034,8 @@ class RelaxedSurfaceScan:
             text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
             text = text + "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC1']['ATOMS'][3]    , parameters['RC1']['ATOM_NAMES'][3] )
             text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']      , parameters['RC1']['force_constant'] ) 
-            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['maxIterations']         )
-            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['rmsGradient']           )
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['maximumIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['rmsGradientTolerance']           )
             #text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['RC1']['sigma_pk1pk3'], parameters['RC1']['sigma_pk3pk1']   )
             text = text + "\n--------------------------------------------------------------------------------"
 
@@ -1043,8 +1046,8 @@ class RelaxedSurfaceScan:
             text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOM_NAMES'][1] )
             text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
             text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']      , parameters['RC1']['force_constant'] ) 
-            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['maxIterations']         )
-            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['rmsGradient']           )
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['maximumIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['rmsGradientTolerance']           )
             text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['RC1']['sigma_pk1pk3'], parameters['RC1']['sigma_pk3pk1']   )
             text = text + "\n--------------------------------------------------------------------------------"
 
@@ -1065,8 +1068,8 @@ class RelaxedSurfaceScan:
                 text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOM_NAMES'][0] )
                 text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOM_NAMES'][1] )
                 text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']  , parameters['RC2']['force_constant'] )
-                text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum'], parameters['maxIterations']         )
-                text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']  , parameters['rmsGradient']           )
+                text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum'], parameters['maximumIterations']         )
+                text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']  , parameters['rmsGradientTolerance']           )
                 text = text + "\n--------------------------------------------------------------------------------"
 
             
@@ -1078,8 +1081,8 @@ class RelaxedSurfaceScan:
                 text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
                 text = text + "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC2']['ATOMS'][3]    , parameters['RC2']['ATOM_NAMES'][3] )
                 text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']      , parameters['RC2']['force_constant'] )
-                text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maxIterations']         )
-                text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradient']           )
+                text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maximumIterations']         )
+                text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradientTolerance']           )
                 text = text + "\n--------------------------------------------------------------------------------"
             
             elif parameters['RC2']["rc_type"] == 'multiple_distance':
@@ -1089,8 +1092,8 @@ class RelaxedSurfaceScan:
                 text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOM_NAMES'][1] )
                 text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
                 text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']      , parameters['RC2']['force_constant'] )
-                text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maxIterations']         )
-                text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradient']           )
+                text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maximumIterations']         )
+                text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradientTolerance']           )
                 text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['RC2']['sigma_pk1pk3'], parameters['RC2']['sigma_pk3pk1']   )
                 text = text + "\n--------------------------------------------------------------------------------"
             else:
@@ -1177,9 +1180,9 @@ class RelaxedSurfaceScan:
             
                 #-------------------------------------------------------------------------------------------------------------
                 ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
-                                                         logFrequency           = parameters['log_frequency'],
-                                                         maximumIterations      = parameters['maxIterations'],
-                                                         rmsGradientTolerance   = parameters['rmsGradient'])
+                                                         logFrequency           = parameters['logFrequency'],
+                                                         maximumIterations      = parameters['maximumIterations'],
+                                                         rmsGradientTolerance   = parameters['rmsGradientTolerance'])
                 #-------------------------------------------------------------------------------------------------------------
                
                 distance = parameters['system'].coordinates3.Distance( atom1 , atom2  )
@@ -1213,9 +1216,9 @@ class RelaxedSurfaceScan:
                 
                 #-------------------------------------------------------------------------------------------------------------
                 ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
-                                                         logFrequency           = parameters['log_frequency'],
-                                                         maximumIterations      = parameters['maxIterations'],
-                                                         rmsGradientTolerance   = parameters['rmsGradient'])
+                                                         logFrequency           = parameters['logFrequency'],
+                                                         maximumIterations      = parameters['maximumIterations'],
+                                                         rmsGradientTolerance   = parameters['rmsGradientTolerance'])
                 #-------------------------------------------------------------------------------------------------------------
                 distance1 = parameters['system'].coordinates3.Distance( atom1 , atom2  )
                 distance2 = parameters['system'].coordinates3.Distance( atom3 , atom4  )
@@ -1248,9 +1251,9 @@ class RelaxedSurfaceScan:
             
                 #-------------------------------------------------------------------------------------------------------------
                 ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
-                                                         logFrequency           = parameters['log_frequency'],
-                                                         maximumIterations      = parameters['maxIterations'],
-                                                         rmsGradientTolerance   = parameters['rmsGradient'])
+                                                         logFrequency           = parameters['logFrequency'],
+                                                         maximumIterations      = parameters['maximumIterations'],
+                                                         rmsGradientTolerance   = parameters['rmsGradientTolerance'])
                 #-------------------------------------------------------------------------------------------------------------
             
                 distance1 = parameters['system'].coordinates3.Distance( atom1 , atom2  )
@@ -1291,9 +1294,9 @@ class RelaxedSurfaceScan:
             
                 #-------------------------------------------------------------------------------------------------------------
                 ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
-                                                         logFrequency           = parameters['log_frequency'],
-                                                         maximumIterations      = parameters['maxIterations'],
-                                                         rmsGradientTolerance   = parameters['rmsGradient'])
+                                                         logFrequency           = parameters['logFrequency'],
+                                                         maximumIterations      = parameters['maximumIterations'],
+                                                         rmsGradientTolerance   = parameters['rmsGradientTolerance'])
                 #-------------------------------------------------------------------------------------------------------------
                 angle0 = parameters['system'].coordinates3.Dihedral (atom1, atom2, atom3, atom4)
                 #distance1 = parameters['system'].coordinates3.Distance( atom1 , atom2  )
@@ -1455,9 +1458,9 @@ class RelaxedSurfaceScan:
             try:
                 #-------------------------------------------------------------------------------------------------------------
                 ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
-                                                         logFrequency           = parameters['log_frequency'],
-                                                         maximumIterations      = parameters['maxIterations'],
-                                                         rmsGradientTolerance   = parameters['rmsGradient']  ,
+                                                         logFrequency           = parameters['logFrequency'],
+                                                         maximumIterations      = parameters['maximumIterations'],
+                                                         rmsGradientTolerance   = parameters['rmsGradientTolerance']  ,
                                                          log                    = None)
 
                 energy   = parameters['system'].Energy(log=None)
@@ -1558,9 +1561,9 @@ class RelaxedSurfaceScan:
                              'nsteps_RC2'      : parameters['RC2']['nsteps'],
                              'dincre_RC2'      : parameters['RC2']['dincre'],
                              
-                             'log_frequency'   : parameters['log_frequency'],
-                             'maxIterations'   : parameters['maxIterations'],
-                             'rmsGradient'     : parameters['rmsGradient'],
+                             'logFrequency'   : parameters['logFrequency'],
+                             'maximumIterations'   : parameters['maximumIterations'],
+                             'rmsGradientTolerance'     : parameters['rmsGradientTolerance'],
 
                              'folder'          : parameters['folder']    , 
                              'traj_folder_name': parameters['traj_folder_name']
@@ -1677,9 +1680,9 @@ class RelaxedSurfaceScan:
                 
                 #-------------------------------------------------------------------------------------------------------------
                 ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
-                                                         logFrequency           = parameters['log_frequency'],
-                                                         maximumIterations      = parameters['maxIterations'],
-                                                         rmsGradientTolerance   = parameters['rmsGradient'])
+                                                         logFrequency           = parameters['logFrequency'],
+                                                         maximumIterations      = parameters['maximumIterations'],
+                                                         rmsGradientTolerance   = parameters['rmsGradientTolerance'])
                 #-------------------------------------------------------------------------------------------------------------
 
                 
@@ -1779,8 +1782,8 @@ class UmbrellaSampling:
             text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOM_NAMES'][0] )
             text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOM_NAMES'][1] )
             text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']  , parameters['RC1']['force_constant'] )
-            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum'], parameters['OPT_parm']['maxIterations']         )
-            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']  , parameters['OPT_parm']['rmsGradient']           )
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum'], parameters['OPT_parm']['maximumIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']  , parameters['OPT_parm']['rmsGradientTolerance']           )
             text = text + "\n--------------------------------------------------------------------------------"
 
         
@@ -1791,8 +1794,8 @@ class UmbrellaSampling:
             text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOM_NAMES'][1] )
             text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
             text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']      , parameters['RC1']['force_constant'] ) 
-            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['OPT_parm']['maxIterations']         )
-            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['OPT_parm']['rmsGradient']           )
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['OPT_parm']['maximumIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['OPT_parm']['rmsGradientTolerance']           )
             text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['RC1']['sigma_pk1pk3'], parameters['RC1']['sigma_pk3pk1']   )
             text = text + "\n--------------------------------------------------------------------------------"
 
@@ -1813,8 +1816,8 @@ class UmbrellaSampling:
         #        text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOM_NAMES'][0] )
         #        text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOM_NAMES'][1] )
         #        text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']  , parameters['RC2']['force_constant'] )
-        #        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum'], parameters['maxIterations']         )
-        #        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']  , parameters['rmsGradient']           )
+        #        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum'], parameters['maximumIterations']         )
+        #        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']  , parameters['rmsGradientTolerance']           )
         #        text = text + "\n--------------------------------------------------------------------------------"
         #
         #    
@@ -1825,8 +1828,8 @@ class UmbrellaSampling:
         #        text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOM_NAMES'][1] )
         #        text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
         #        text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']      , parameters['RC2']['force_constant'] )
-        #        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maxIterations']         )
-        #        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradient']           )
+        #        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maximumIterations']         )
+        #        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradientTolerance']           )
         #        text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['RC2']['sigma_pk1pk3'], parameters['RC2']['sigma_pk3pk1']   )
         #        text = text + "\n--------------------------------------------------------------------------------"
         #    else:
@@ -2608,27 +2611,27 @@ def _run_parallel_umbrella_sampling_1D (job):
 
 def _us_geo_opt (system, parameters):
     """ Function doc """
-    parameters['log_frequency'] = 50
+    parameters['logFrequency'] = 50
     
     if parameters['optimizer'] == 'ConjugatedGradient':
         #-------------------------------------------------------------------------------------------------------------
         ConjugateGradientMinimize_SystemGeometry(system                     ,                
-                                                 logFrequency           = parameters['log_frequency'],
-                                                 maximumIterations      = parameters['maxIterations'],
-                                                 rmsGradientTolerance   = parameters['rmsGradient'])
+                                                 logFrequency           = parameters['logFrequency'],
+                                                 maximumIterations      = parameters['maximumIterations'],
+                                                 rmsGradientTolerance   = parameters['rmsGradientTolerance'])
         #-------------------------------------------------------------------------------------------------------------
     
     elif parameters['optimizer'] == 'SteepestDescent':
         SteepestDescentMinimize_SystemGeometry( system                                            ,               
-                                            logFrequency            = parameters['log_frequency'] ,
-                                            maximumIterations       = parameters['maxIterations'] ,
-                                            rmsGradientTolerance    = parameters['rmsGradient']   )
+                                            logFrequency            = parameters['logFrequency'] ,
+                                            maximumIterations       = parameters['maximumIterations'] ,
+                                            rmsGradientTolerance    = parameters['rmsGradientTolerance']   )
     
     elif parameters['optimizer'] == 'LFBGS':
         LBFGSMinimize_SystemGeometry(parameters['system']                               ,                
-                                     logFrequency         = parameters['log_frequency'] ,
-                                     maximumIterations    = parameters['maxIterations'] ,
-                                     rmsGradientTolerance = parameters['rmsGradient']   )
+                                     logFrequency         = parameters['logFrequency'] ,
+                                     maximumIterations    = parameters['maximumIterations'] ,
+                                     rmsGradientTolerance = parameters['rmsGradientTolerance']   )
     else:
         pass
 
@@ -2715,7 +2718,7 @@ def _us_molecular_dynamics (system, parameters, path_trajectory, mode = 0, i = N
         
 def _us_leap_frog_dynamics (system, trajectories, parameters ):
     """ Function doc """
-    if parameters['pressureControl']:
+    if parameters['temperatureControl']:
         LeapFrogDynamics_SystemGeometry ( parameters['system']                       ,
                                           logFrequency           = parameters['logFrequency'] ,
                                           #normalDeviateGenerator = normalDeviateGenerator ,
@@ -2807,7 +2810,7 @@ class WHAMAnalysis:
         results = {}
         
         try:
-            state = WHAM_ConjugateGradientMinimize ( parameters['fileNames']                                  ,
+            state = WHAM_ConjugateGradientMinimize ( parameters['file_names']                                  ,
                                                      bins                 = parameters['bins'                 ],
                                                      logFrequency         = parameters['logFrequency'         ],
                                                      maximumIterations    = parameters['maximumIterations'    ],
@@ -2841,7 +2844,7 @@ class WHAMAnalysis:
         results['histograms'] = []
         
         #try:
-        files = parameters['fileNames']
+        files = parameters['file_names']
         try:
             for _file in files:
                 print (_file)
@@ -2940,7 +2943,7 @@ class ChainOfStatesOptimizePath:
         ChainOfStatesOptimizePath_SystemGeometry ( system                                                   ,
                                                    trajectory                                               ,
                                                    
-                                                   logFrequency                  = parameters['log_frequency']       ,
+                                                   logFrequency                  = parameters['logFrequency']       ,
                                                    maximumIterations             = parameters['maximumIterations']   ,
                                                    rmsGradientTolerance          = parameters['rmsGradientTolerance'],
                                                    
@@ -3170,17 +3173,17 @@ def _run_second_coordinate_in_parallel ( job):
         
         ##-------------------------------------------------------------------------------------------------------------
         #ConjugateGradientMinimize_SystemGeometry(system                                ,                
-        #                                         logFrequency           = parameters['log_frequency'],
-        #                                         maximumIterations      = parameters['maxIterations'],
-        #                                         rmsGradientTolerance   = parameters['rmsGradient'], 
+        #                                         logFrequency           = parameters['logFrequency'],
+        #                                         maximumIterations      = parameters['maximumIterations'],
+        #                                         rmsGradientTolerance   = parameters['rmsGradientTolerance'], 
         #                                         log                    =                      None)
         ##-------------------------------------------------------------------------------------------------------------
         try:
             #-------------------------------------------------------------------------------------------------------------
             ConjugateGradientMinimize_SystemGeometry(system                                ,                
-                                                     logFrequency           = parameters['log_frequency'],
-                                                     maximumIterations      = parameters['maxIterations'],
-                                                     rmsGradientTolerance   = parameters['rmsGradient'], 
+                                                     logFrequency           = parameters['logFrequency'],
+                                                     maximumIterations      = parameters['maximumIterations'],
+                                                     rmsGradientTolerance   = parameters['rmsGradientTolerance'], 
                                                      log                    =                      None)
             #-------------------------------------------------------------------------------------------------------------
             energy   = system.Energy(log=None)
@@ -3545,9 +3548,9 @@ def run_scan_energy (parameters):
     try:
         #-------------------------------------------------------------------------------------------------------------
         ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
-                                                 logFrequency           = parameters['log_frequency'],
-                                                 maximumIterations      = parameters['maxIterations'],
-                                                 rmsGradientTolerance   = parameters['rmsGradient']  ,
+                                                 logFrequency           = parameters['logFrequency'],
+                                                 maximumIterations      = parameters['maximumIterations'],
+                                                 rmsGradientTolerance   = parameters['rmsGradientTolerance']  ,
                                                  log                    = None)
         energy   = parameters['system'].Energy(log=None)
         opt_convergency = ''
@@ -3792,16 +3795,16 @@ def write_header (parameters, logfile = 'output.log'):
         #text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['ATOMS_RC1'][0], parameters['ATOMS_RC1_NAMES'][0] )
         #text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['ATOMS_RC1'][1], parameters['ATOMS_RC1_NAMES'][1] )
         #text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['nsteps_RC1']  , parameters['force_constant_1']   )
-        #text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['dminimum_RC1'], parameters['maxIterations']      )
-        #text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['dincre_RC1']  , parameters['rmsGradient']        )
+        #text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['dminimum_RC1'], parameters['maximumIterations']      )
+        #text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['dincre_RC1']  , parameters['rmsGradientTolerance']        )
         #text = text + "\n--------------------------------------------------------------------------------"
         text = text + "\n"
         text = text + "\n----------------------- Coordinate 1 - Simple-Distance -------------------------"
         text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOM_NAMES'][0] )
         text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOM_NAMES'][1] )
         text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']  , parameters['RC1']['force_constant'] )
-        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum'], parameters['maxIterations']         )
-        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']  , parameters['rmsGradient']           )
+        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum'], parameters['maximumIterations']         )
+        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']  , parameters['rmsGradientTolerance']           )
         text = text + "\n--------------------------------------------------------------------------------"
 
     
@@ -3813,8 +3816,8 @@ def write_header (parameters, logfile = 'output.log'):
         text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
         text = text + "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC1']['ATOMS'][3]    , parameters['RC1']['ATOM_NAMES'][3] )
         text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']      , parameters['RC1']['force_constant'] )
-        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['maxIterations']         )
-        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['rmsGradient']           )
+        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['maximumIterations']         )
+        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['rmsGradientTolerance']           )
         #text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['RC1']['sigma_pk1pk3'], parameters['RC1']['sigma_pk3
         text = text + "\n--------------------------------------------------------------------------------"
 
@@ -3825,8 +3828,8 @@ def write_header (parameters, logfile = 'output.log'):
         text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOM_NAMES'][1] )
         text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
         text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']      , parameters['RC1']['force_constant'] )
-        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['maxIterations']         )
-        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['rmsGradient']           )
+        text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum']    , parameters['maximumIterations']         )
+        text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']      , parameters['rmsGradientTolerance']           )
         text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['RC1']['sigma_pk1pk3'], parameters['RC1']['sigma_pk3pk1']   )
         text = text + "\n--------------------------------------------------------------------------------"
 
@@ -3847,8 +3850,8 @@ def write_header (parameters, logfile = 'output.log'):
             text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOM_NAMES'][0] )
             text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOM_NAMES'][1] )
             text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']  , parameters['RC2']['force_constant'] )
-            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum'], parameters['maxIterations']         )
-            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']  , parameters['rmsGradient']           )
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum'], parameters['maximumIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']  , parameters['rmsGradientTolerance']           )
             text = text + "\n--------------------------------------------------------------------------------"
 
         
@@ -3860,8 +3863,8 @@ def write_header (parameters, logfile = 'output.log'):
             text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
             text = text + "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC2']['ATOMS'][3]    , parameters['RC2']['ATOM_NAMES'][3] )
             text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']      , parameters['RC2']['force_constant'] )
-            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maxIterations']         )
-            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradient']           )
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maximumIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradientTolerance']           )
             text = text + "\n--------------------------------------------------------------------------------"
         
         elif parameters['RC2']["rc_type"] == 'multiple_distance':
@@ -3871,8 +3874,8 @@ def write_header (parameters, logfile = 'output.log'):
             text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOM_NAMES'][1] )
             text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
             text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']      , parameters['RC2']['force_constant'] )
-            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maxIterations']         )
-            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradient']           )
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum']    , parameters['maximumIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']      , parameters['rmsGradientTolerance']           )
             text = text + "\nSigma atom1 - atom3    =%15.5f  Sigma atom3 - atom1    =%15.5f" % (parameters['RC2']['sigma_pk1pk3'], parameters['RC2']['sigma_pk3pk1']   )
             text = text + "\n--------------------------------------------------------------------------------"
         else:

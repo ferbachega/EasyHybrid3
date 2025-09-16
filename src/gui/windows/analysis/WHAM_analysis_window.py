@@ -183,11 +183,11 @@ class WHAMWindow(Gtk.Window):
         
         parameters = {'analysis_type'        : 'wham'    , 
                       'system'               : system    ,
-                      'fileNames'            : fileNames ,
+                      'file_names'            : fileNames ,
                       'type'                 : _type     ,
                       'logFrequency'         : int(frequency) ,
-                      'maximumIterations'    : int(max_int  ) ,
-                      'rmsGradientTolerance' : float(RMS_grad ) ,
+                      'maximumIterations'       : int(max_int  ) ,
+                      'rmsGradientTolerance'         : float(RMS_grad ) ,
                       'temperature'          : int(temp     )  
                       }
 

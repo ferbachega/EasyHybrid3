@@ -171,7 +171,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
         
         parameters={       "simulation_type"                            :"Nudged_Elastic_Band"  ,
                            "number_of_structures"                       : 11                    ,
-                           "log_frequency"                              : 1                     ,
+                           "logFrequency"                               : 1                     ,
                            "maximumIterations"                          : 600                   ,
                            "rmsGradientTolerance"                       : 0.1                   ,
                            "trajectory_name"                            : 'new_trajectory'       ,
@@ -195,7 +195,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
         '''        
         #parameters={    #"simulation_type"                 :"Nudged_Elastic_Band"  ,
         #                #"number_of_structures"            : 11                    , 
-        #                #"log_frequency"                   : 1                     , 
+        #                #"logFrequency"                   : 1                     , 
         #                #"maximumIterations"               : 600                   ,
         #                #"rmsGradientTolerance"            : 0.1                   ,
         #                #"spring_force_constant"           : 500                   ,
@@ -212,7 +212,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
 
         #----------------------------------------------------------------------------------
         #parameters['number_of_structures'           ] = int  (self.builder.get_object('entry_mun_of_structures').get_text()              )
-        #parameters["log_frequency"                  ] = int  (self.builder.get_object('entry_log_frequency').get_text()                  )
+        #parameters["logFrequency"                  ] = int  (self.builder.get_object('entry_log_frequency').get_text()                  )
         #parameters["maximumIterations"              ] = int  (self.builder.get_object('entry_max_int').get_text()                        )
         #parameters["rmsGradientTolerance"           ] = float(self.builder.get_object('entry_rmsd_tol').get_text()                       )
         #parameters["spring_force_constant"          ] = int  (self.builder.get_object('entry_spring_force_constant').get_text()          )
@@ -225,7 +225,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
         #parameters["folder"         ] = self.folder_chooser_button.get_folder()
         '''
         parameters['number_of_structures'           ] = int  (self.builder.get_object('entry_mun_of_structures').get_text()              )  
-        parameters["log_frequency"                  ] = int  (self.builder.get_object('entry_log_frequency').get_text()                  )  
+        parameters["logFrequency"                  ] = int  (self.builder.get_object('entry_log_frequency').get_text()                  )  
         parameters["maximumIterations"              ] = int  (self.builder.get_object('entry_max_int').get_text()                        )  
         parameters["rmsGradientTolerance"           ] = float(self.builder.get_object('entry_rmsd_tol').get_text()                       )
         

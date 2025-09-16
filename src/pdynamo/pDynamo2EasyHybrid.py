@@ -9,7 +9,7 @@
 ##############################################################
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gtk, GLib
 import multiprocessing
 
 import glob, math, os, os.path, sys, shutil
@@ -206,9 +206,10 @@ class LoadAndSaveData:
         #---------------------------------------------------------------
             
         for e_id, data in backup.items():
-            self.psystem[e_id]
-            self.psystem[e_id].e_treeview_iter   = data[0]
-            self.psystem[e_id].e_liststore_iter  = data[1]
+            pass
+            #self.psystem[e_id]
+            #self.psystem[e_id].e_treeview_iter   = data[0]
+            #self.psystem[e_id].e_liststore_iter  = data[1]
         
         self.main.session_filename = filename
         
@@ -725,214 +726,276 @@ class EasyHybridImportTrajectory:
         return charges
    
         
+
 class pSimulations:
-    """ Class doc """
-    
-    def __init__ (self):
-        """ Class initialiser """
-        pass
+    """Class responsible for managing and running molecular simulations 
+    using multiprocessing and GUI integration with EasyHybrid.
+    """
 
+    def __init__(self):
+        """Class initializer."""
+        self.process_pool = {}   # Holds active processes and their communication queues
+        self.psystem = {}        # Dictionary of systems currently loaded
+        self.active_id = None    # ID of the currently active system
+        self.changed = False     # Tracks whether the session/project has been modified
+        self.main = None         # Reference to the main application object
+        self.target_process = None
 
-    def _apply_restraints (self, parameters):
-        """ Function doc 
+    # ========================================================================
+    # RESTRAINTS
+    # ========================================================================
+
+    def _apply_restraints(self, parameters):
+        """Apply distance restraints to the system if specified in parameters.
         
-        parameters['system'].e_restraints_dict[rest_name] = [True, 
-                                                     rest_name ,
-                                                     'distance', 
-                                                     [parameters['atom1'],parameters['atom2']], 
-                                                     parameters['distance'],  
-                                                     parameters['force_constant']] 
-
+        parameters['system'].e_restraints_dict[rest_name] = [
+            True,                # Active or not
+            rest_name,           # Name of the restraint
+            'distance',          # Type of restraint
+            [atom1, atom2],      # Atoms involved
+            distance,            # Target distance
+            force_constant       # Force constant
+        ]
         """
-        #--------------------------------------------------------------------------
+        # Reset and define a new restraint model
         parameters['system'].DefineRestraintModel(None)
         restraints = RestraintModel()
-        parameters['system'].DefineRestraintModel( restraints )
+        parameters['system'].DefineRestraintModel(restraints)
+
+        # Iterate through all defined restraints
         for name, restraint_list in parameters['system'].e_restraints_dict.items():
-
-            if restraint_list[0]:
-                
+            if restraint_list[0]:  # Only apply if marked as active
                 if restraint_list[2] == 'distance':
-                    rmodel    = RestraintEnergyModel.Harmonic(restraint_list[4],restraint_list[5])
-                    restraint = RestraintDistance.WithOptions(energyModel = rmodel, 
-                                                                   point1 = restraint_list[3][0] , 
-                                                                   point2 = restraint_list[3][1] )
+                    rmodel = RestraintEnergyModel.Harmonic(restraint_list[4], restraint_list[5])
+                    restraint = RestraintDistance.WithOptions(
+                        energyModel=rmodel,
+                        point1=restraint_list[3][0],
+                        point2=restraint_list[3][1]
+                    )
                     restraints[name] = restraint
-        #--------------------------------------------------------------------------
+
         return parameters
-        
-    def run_simulation_thread (self, parameters):
-        
-        # Instância da classe
-        #tarefa = Tarefa()
 
-        # Evento de parada
-        stop_event = threading.Event()
+    # ========================================================================
+    # PROCESS QUEUE HANDLING
+    # ========================================================================
 
-        # Nome da tarefa
-        nome_da_tarefa = "T1"
+    def _check_queue(self):
+        """Check all process queues for messages.
 
-        # Criamos a thread com o argumento extra
-        thread = threading.Thread(
-            target = self.run_simulation_via_thread,
-            args   = (stop_event, parameters)
-        )
-        thread.start()
-
-        # Simulamos outra tarefa principal
-        time.sleep(3)
-
-        # Cancelamos a execução
-        print("[Main] Solicitando cancelamento da thread...")
-        stop_event.set()
-
-        # Aguardamos o encerramento
-        thread.join()
-        print("[Main] Programa encerrado.")
-
-    def background_task(self, stop_event):
-        #print("[Thread] Iniciando tarefa...")
-        
-        for i in range(10):
-            if stop_event.is_set():
-                print("[Thread] Cancelamento detectado. Encerrando tarefa.")
-                return
-            print(f"[Thread] Iteração {i+1}/10")
-            time.sleep(1)
-        print("[Thread] Tarefa concluída com sucesso!")
-
-        
-    def run_simulation (self, parameters):
-        """  
-        arameters['system'].e_restraints_dict[rest_name] = [ True, 
-                                                             rest_name,
-                                                             parameters['atom1'], 
-                                                             parameters['atom2'], 
-                                                             parameters['distance'],  
-                                                             parameters['force_constant']]
-        
-        
-        
-        
+        This function is periodically called by GLib.timeout_add to handle 
+        inter-process communication asynchronously without blocking the GTK loop.
         """
-        #self.main.refresh_main_statusbar(message = 'Running...', psystem = None)
-        #self.main.statusbar_main.push(1,'Running...')
-        
-        
-        parameters['system'] = self.psystem[self.active_id] 
-        parameters = self._apply_restraints (parameters)
-        
-        pprint(parameters)
-        
-        energy      = None
-        new_vobject = True
+        for e_id, (queue, process, result, path, treeiter) in list(self.process_pool.items()):
+            try:
+                # Read all messages available in the queue
+                while not queue.empty():
+                    msg = queue.get_nowait()
 
-        if parameters['simulation_type'] == 'Energy_Single_Point':
-            self.energy_calculations = EnergyCalculation()
-            energy, msg = self.energy_calculations.run(parameters)
-            
-            if energy:
-                pass
-            else:
-                self.main.simple_dialog.error(msg = msg )
-                
-            new_vobject = False
-        
-        elif parameters['simulation_type'] == 'Energy_Refinement':
-            self.energy_refinement = EnergyRefinement()
-            energy = self.energy_refinement.run(parameters)
-            new_vobject = False
+                    if isinstance(msg, tuple) and msg[0] == "RESULT":
+                        # Worker process returned results
+                        self._handle_result(msg[1])
 
-        elif parameters['simulation_type'] == 'Geometry_Optimization':
-            
-            
-            # estah funcionando!!!
-            '''
-            self.geometry_optimization_object = GeometryOptimization()
-            self.process = multiprocessing.Process(
-                target=self.geometry_optimization_object.run ,
-                args=(parameters,)
-            )
-            self.process.start()
-            '''
-            self.geometry_optimization_object = GeometryOptimization()
-            self.geometry_optimization_object.run(parameters)
-            
-        elif parameters['simulation_type'] == 'Molecular_Dynamics':
-            #pprint(parameters)
-            self.molecular_dynamics_object = MolecularDynamics()
-            self.molecular_dynamics_object.run(parameters)
-        
-        elif parameters['simulation_type'] == 'Relaxed_Surface_Scan':
-            self.relaxed_surface_scan = RelaxedSurfaceScan()
-            self.relaxed_surface_scan.run(parameters = parameters, interface = True)
-        
-        elif parameters['simulation_type'] == 'Umbrella_Sampling':
-            self.umbrella_sampling = UmbrellaSampling()
-            self.umbrella_sampling.run(parameters = parameters, interface = True)
-            
-        elif parameters['simulation_type'] == 'Nudged_Elastic_Band':
-            self.chain_of_states_opt = ChainOfStatesOptimizePath()
-            self.chain_of_states_opt.run(parameters)
-        
-        elif parameters['simulation_type'] == 'Normal_Modes':
-            self.normal_modes = NormalModes()
-            self.normal_modes.run(parameters)
-        
+                    elif msg == "DONE":
+                        # Worker process finished execution
+                        self._handle_done(e_id, process, path, treeiter)
+
+                    elif msg == "Running":
+                        # Update process status to "Running..."
+                        self.main.process_manager_window.set_status(treeiter, "Running...")
+
+            except Exception as e:
+                # Prevent GUI crash due to queue handling issues
+                print(f"Error checking the queue of process {e_id}: {e}")
+
+        # Keep the GLib timeout active
+        return True
+
+    def _handle_result(self, results):
+        """Handle 'RESULT' messages from a worker process.
+
+        Updates system coordinates, visualization objects, and job history.
+        """
+        system = self.psystem[results['e_id']]
+
+        if results.get('new_vobject'):
+            # Update coordinates
+            system.coordinates3 = results['coords']
+
+            # Generate unique name for visualization object
+            name = f"{results['simulation_type']}_{system.e_step_counter}"
+
+            # Add visual object to session
+            vobject = self._add_vismol_object_to_easyhybrid_session(system=system, name=name)
+            vobject.results = results
+
+            # Save job results in system history
+            system.e_job_history[system.e_step_counter] = results
         else:
-            pass
-        
-        
-        
-        
-        #if TrueFalse:
-        #    self.main.simple_dialog.info(msg = msg )
-        #else:
-        #    self.main.simple_dialog.error(msg = msg )
-        
-        
-        
-        
-        #. Updating the path to the working folder.
-        if parameters['folder']:
-            self.psystem[self.active_id].e_working_folder = parameters['folder']
-        else:
-            pass
-        
-        
-        
+            # Save job results in system history (no new visual object)
+            system.e_job_history[system.e_step_counter] = results
 
-        
-        if energy:
-            self.main.bottom_notebook.status_teeview_add_new_item(message = 'New VObejct:  {}   Energy:  {:.3f} kJ/mol'.format(parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter), energy), system = parameters['system'])
-        else:
-            self.main.bottom_notebook.status_teeview_add_new_item(message = 'New VObejct:  {} '.format(parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter)), system = parameters['system'])
-        
-        
-        
-        
-        
-        if new_vobject:
-            vismol_object = self._add_vismol_object_to_easyhybrid_session(system = self.psystem[self.active_id], 
-                                                                            name = parameters['simulation_type']+ ' ' + str(parameters['system'].e_step_counter))        
-            self._apply_fixed_representation_to_vobject(system_id = None, vismol_object = vismol_object)
-            self._apply_QC_representation_to_vobject   (system_id = None, vismol_object = vismol_object)
-        
-        else:
-            pass
+    def _handle_done(self, e_id, process, path, treeiter):
+        """Handle 'DONE' messages from a worker process.
 
+        Updates GUI, process pool status, and increments the step counter.
+        """
+        # Update GUI process manager window
+        self.main.process_manager_window.set_status(treeiter, "Finished")
+        self.main.process_manager_window.set_time(treeiter, False, True)
+        self.main.process_manager_window.set_step_counter(treeiter, self.psystem[e_id].e_step_counter)
 
+        # Mark process as completed in pool
+        self.process_pool[e_id][2] = "Finished"
 
-        parameters['system'].e_step_counter += 1
+        # Update bottom notebook GUI
+        iter_ = self.main.bottom_notebook.status_liststore.get_iter(path)
+        value = self.main.bottom_notebook.status_liststore.get_value(iter_, 1)
+        self.main.bottom_notebook.status_liststore.set_value(iter_, 1, value.replace('Running...', 'Finished!'))
+
+        # Release process resources
+        process.join()
+
+        # Increment step counter
+        self.psystem[e_id].e_step_counter += 1
+
+        # Mark project/session as changed
         self.changed = True
-        
-        #if self.main.session_filename:
-        #print('\n\n',  self.main.session_filename, '\n\n')
-        self.save_easyhybrid_session( filename = self.main.session_filename, tmp = True)
-        #self.main.refresh_main_statusbar(message = None, psystem = None)
-        return energy
-        
-        
+
+    # ========================================================================
+    # SIMULATION PROCESS
+    # ========================================================================
+
+    def _target_process(self, parameters):
+        """Target function executed inside a separate process.
+
+        Runs the selected simulation type and communicates results back 
+        to the parent process via a multiprocessing.Queue.
+        """
+        queue = parameters['queue']
+        queue.put("Running")  # Notify parent process that job started
+
+        # Map simulation type to class
+        simulation_classes = {
+            'Energy_Single_Point': EnergyCalculation,
+            'Energy_Refinement': EnergyRefinement,
+            'Geometry_Optimization': GeometryOptimization,
+            'Molecular_Dynamics': MolecularDynamics,
+            'Relaxed_Surface_Scan': RelaxedSurfaceScan,
+            'Umbrella_Sampling': UmbrellaSampling,
+            'Nudged_Elastic_Band': ChainOfStatesOptimizePath,
+            'Normal_Modes': NormalModes,
+        }
+
+        sim_type = parameters['simulation_type']
+        cls = simulation_classes.get(sim_type)
+
+        if not cls:
+            # Unknown simulation type → exit silently
+            return
+
+        # Instantiate simulation class
+        self.target_process = cls()
+
+        # Special flags for specific simulation types
+        if sim_type == 'Energy_Single_Point':
+            parameters['energy'] = True
+            parameters['new_vobject'] = False
+        elif sim_type == 'Energy_Refinement':
+            parameters['new_vobject'] = False
+
+        # Avoid passing queue object to child processes inside parameters
+        parameters['queue'] = None
+
+        # Run the simulation
+        self.target_process.run(parameters)
+
+        # Collect results
+        results = {
+            'new_vobject': parameters.get('new_vobject', True),
+            'energy': parameters.get('energy', False),
+            'coords': parameters['system'].coordinates3,
+            'e_id': parameters['system'].e_id,
+            'simulation_type': sim_type,
+            'logfile': parameters['logfile']
+        }
+
+        # Send results and completion notification
+        queue.put(("RESULT", results))
+        queue.put("DONE")
+
+    def run_simulation(self, parameters):
+        """Start a new subprocess for a molecular simulation.
+
+        Ensures that only one process per system (e_id) runs at a time.
+        """
+        # Assign system and apply restraints
+        system = self.psystem[self.active_id]
+        parameters['system'] = system
+        parameters = self._apply_restraints(parameters)
+
+        # Ensure process manager window is visible
+        self.main.process_manager_window.OpenWindow()
+
+        # Configure logfile path
+        if 'logfile' not in parameters:
+            if 'filename' in parameters:
+                parameters['logfile'] = os.path.join(parameters['folder'], parameters['filename']) + '.log'
+            elif 'trajectory_name' in parameters and parameters['trajectory_name']:
+                parameters['logfile'] = os.path.join(parameters['folder'], parameters['trajectory_name'], 'output.log')
+            else:
+                parameters['logfile'] = os.path.join(parameters['folder'], 'output.log')
+
+        pprint(parameters)
+
+        e_id = system.e_id
+        name = system.label
+
+        # Prevent multiple processes for the same system
+        if e_id in self.process_pool and self.process_pool[e_id][1].is_alive():
+            self.main.simple_dialog.error(
+                msg=f"There is already a process underway for the system:\n {e_id} - {name}"
+            )
+            return False
+
+        # Create queue for inter-process communication
+        queue = multiprocessing.Queue()
+        parameters['new_vobject'] = True
+        parameters['queue'] = queue
+
+        # Create and start subprocess
+        process = multiprocessing.Process(
+            target=self._target_process,
+            args=(parameters,)
+        )
+        process.start()
+
+        # Add entry to process manager window
+        message = f"{parameters['simulation_type']} {system.e_step_counter} - Running..."
+        hamiltonian = getattr(system.qcModel, 'hamiltonian', 'unk')
+
+        treeiter = self.main.process_manager_window.add_new_process(
+            system=system,
+            _type=parameters['simulation_type'],
+            potential=hamiltonian,
+            status='Queued'
+        )
+
+        # Add entry to bottom notebook
+        path = self.main.bottom_notebook.status_teeview_add_new_item(
+            message=message,
+            system=system
+        )
+
+        # Store process information in process pool
+        self.process_pool[e_id] = [queue, process, None, path, treeiter]
+
+        # Schedule periodic queue checks
+        GLib.timeout_add(200, self._check_queue)
+
+        return False
+
+
 class pAnalysis:
     """ Class doc """
     
@@ -1187,7 +1250,6 @@ class ModifyRepInVismol:
                                            indexes       = indexes, 
                                            color         = color)
 
-
     def _apply_QC_representation_to_vobject (self, system_id = None, vismol_object = None, static = True):
         """ Function doc """
         if vismol_object:
@@ -1220,7 +1282,6 @@ class ModifyRepInVismol:
             #print(self.psystem[system_id].e_qc_table)
             #psystem = self.p_session.psystem[self.p_session.active_id]
             if len(self.psystem[system_id].atoms) == len(self.psystem[system_id].e_qc_table ):
-                #print('\n\n\n\n\n\n\n\here 1215\n\n\n\n\n')
                 pass
             else:
             
@@ -1296,54 +1357,24 @@ class ModifyRepInVismol:
                 atom.selected  =  False
                 atom.vm_object.selected_atom_ids.discard(atom.atom_id)
             
-            '''
-            else:
-                
-                print('AQUIIIIIIIIIIIIIIIIIIIIIIIIIII')
-                selection = self.vm_session.create_new_selection()
-                selection.selecting_by_indexes(vismol_object, self.psystem[system_id].e_qc_table, clear=True)
-                
-                # 
-                #for _id , vismol_object in self.vm_session.vm_objects_dic.items():
-                #    selection.selecting_by_indexes(vismol_object, self.psystem[system_id].e_qc_table, clear=False)
-                #
-                # 
-    
-                self.vm_session.show_or_hide (rep_type = 'spheres',selection= selection ,  show = True )
-                #self.vm_session.show_or_hide (rep_type = 'spheres', show = True )
-    
-                if static:
-    
-                    #selection2 = self.vm_session.create_new_selection()
-                    #selection2.selecting_by_indexes(vismol_object, delete_lines, clear=True)
-    
-                    #self.vm_session.show_or_hide(rep_type = 'sticks',selection= selection , show = True )
-                    self.vm_session.show_or_hide(rep_type = 'dynamic',selection= selection , show = True )
-                    #self.vm_session.show_or_hide(rep_type = 'lines',selection= selection2 , show = False )
-                    #self.vm_session.show_or_hide(rep_type = 'sticks' , show = True )
-    
-                else:
-                    pass
-                    #self.vm_session.show_or_hide(_type = 'dynamic_bonds' , vobject = vobject, selection_table = self.systems[system_id]['qc_table'] , show = True )
-    
-                for atom in vismol_object.atoms.values():
-                    atom.selected  =  False
-                    atom.vm_object.selected_atom_ids.discard(atom.atom_id)
-            '''
-
-
     def  _apply_custom_colors_to_vobject (self,vismol_object = None):
         """ Function doc """
-        return False
-        e_qc_table = list(range(100))
-        selection  = self.vm_session.create_new_selection()
-        selection.selecting_by_indexes(vismol_object, 
-                                       e_qc_table, 
-                                       clear=True)
+        #return False
+        #e_qc_table = list(range(100))
+        
+        system = self.psystem[vismol_object.e_id]
+        for custom_color in system.e_custom_colors:
+            indexes = custom_color['indexes']
+            color   = custom_color['color']
+            
+            selection  = self.vm_session.create_new_selection()
+            selection.selecting_by_indexes(vismol_object, 
+                                           indexes, 
+                                           clear=True)
 
-        self.vm_session.set_color (symbol = 'C', 
-                                   color = [0.5, 0.0, 0.3], 
-                                   selection = selection )
+            self.vm_session.set_color (symbol = 'C', 
+                                       color = color, 
+                                       selection = selection )
 
 class Restraints:
     """ Class doc """
@@ -1521,7 +1552,20 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         "'''
         self.random_code = generate_random_code(10)
         self.changed = False
-
+        
+        '''
+        There is now a self.process_pool attribute (a dictionary),
+        which should store all generated processes, identified by the e_id
+        of each system. This allows multiple systems to run processes
+        simultaneously and be canceled if necessary.
+        
+        self.process_pool = {e_id_1 :  process_object_1, 
+                             e_id_2 :  process_object_2,}
+        
+        #'''
+        self.process_pool = {}
+        
+        
     
     def set_active(self, system_e_id = None):
         """ Function doc """
@@ -1825,19 +1869,27 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         if getattr ( system, "e_custom_colors", False ):
             pass
-            #system.e_selections               = {}             
+            #system.e_selections               = []             
         else:
-            system.e_custom_colors             = {} 
+            system.e_custom_colors             = [] 
         
         
         system.e_selections_counter       = 0             
         system.e_vm_objects               = {}                  
         
         
+        if getattr ( system, "e_job_history", False ):
+            pass
+        else:
+            system.e_job_history              = {}
+        
+        
         if getattr ( system, "e_logfile_data", False ):
             pass
         else:
             system.e_logfile_data             = {}             # <--- vobject_id : [data0, data1, data2], ...]  obs: each "data" is a dictionary 
+        
+        
         
         
         if getattr ( system, "e_step_counter", False ):
@@ -2592,16 +2644,16 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         else:
             system = self.psystem[self.active_id]
         #print(system.label)
-        backup = []
-        backup.append(system.e_treeview_iter)
-        backup.append(system.e_liststore_iter)
+        #backup = []
+        #backup.append(system.e_treeview_iter)
+        #backup.append(system.e_liststore_iter)
         
-        system.e_treeview_iter   = None
-        system.e_liststore_iter  = None
+        #system.e_treeview_iter   = None
+        #system.e_liststore_iter  = None
 
         new_system = copy.deepcopy(system)
-        system.e_treeview_iter   = backup[0]
-        system.e_liststore_iter  = backup[1]
+        #system.e_treeview_iter   = backup[0]
+        #system.e_liststore_iter  = backup[1]
         
         #print('menuitem_clone')
 
@@ -3133,13 +3185,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             The pkl format is not capable of exporting GTK or openGL 
             elements (objects).
             '''
-            backup = []
-            backup.append(system.e_treeview_iter)
-            backup.append(system.e_liststore_iter)
-            backup.append(system.e_logfile_data)
+            #backup = []
+            #backup.append(system.e_treeview_iter)
+            #backup.append(system.e_liststore_iter)
+            #backup.append(system.e_logfile_data)
             
-            system.e_treeview_iter   = None
-            system.e_liststore_iter  = None
+            #system.e_treeview_iter   = None
+            #system.e_liststore_iter  = None
             
             if parameters['export_QC_atoms_only']:
                 system2 = system.PruneToQCRegion()
@@ -3152,9 +3204,10 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                     ExportSystem ( os.path.join ( folder, filename+'.pkl'), system )
                 else:
                     YAMLPickle (os.path.join ( folder, filename+'.yaml'), system )
-            system.e_treeview_iter   = backup[0]
-            system.e_liststore_iter  = backup[1]
-            system.e_logfile_data    = backup[2]
+            
+            #system.e_treeview_iter   = backup[0]
+            #system.e_liststore_iter  = backup[1]
+            #system.e_logfile_data    = backup[2]
         
         
         
@@ -3926,3 +3979,313 @@ def export_special_PDB (vobject = None, frame = -1, output = 'temp.pdb'):
         #print(ATOMLINE)
         text += ATOMLINE
     data.write(text)
+
+
+
+#class pSimulations:
+#    """ Class doc """
+#    
+#    def __init__ (self):
+#        """ Class initialiser """
+#
+#    def _apply_restraints (self, parameters):
+#        """ Function doc 
+#        
+#        parameters['system'].e_restraints_dict[rest_name] = [True, 
+#                                                     rest_name ,
+#                                                     'distance', 
+#                                                     [parameters['atom1'],parameters['atom2']], 
+#                                                     parameters['distance'],  
+#                                                     parameters['force_constant']] 
+#
+#        """
+#        #--------------------------------------------------------------------------
+#        parameters['system'].DefineRestraintModel(None)
+#        restraints = RestraintModel()
+#        parameters['system'].DefineRestraintModel( restraints )
+#        for name, restraint_list in parameters['system'].e_restraints_dict.items():
+#
+#            if restraint_list[0]:
+#                
+#                if restraint_list[2] == 'distance':
+#                    rmodel    = RestraintEnergyModel.Harmonic(restraint_list[4],restraint_list[5])
+#                    restraint = RestraintDistance.WithOptions(energyModel = rmodel, 
+#                                                                   point1 = restraint_list[3][0] , 
+#                                                                   point2 = restraint_list[3][1] )
+#                    restraints[name] = restraint
+#        #--------------------------------------------------------------------------
+#        return parameters
+#    
+#    
+#    def _check_queue(self):
+#        """
+#        Check all process queues for messages.
+#        This function is periodically called by GLib.timeout_add 
+#        to handle inter-process communication asynchronously 
+#        without blocking the GTK main loop.
+#        """
+#        for e_id, (queue, process, result, path, treeiter ) in list(self.process_pool.items()):
+#            try:
+#                # Read all messages currently available in the queue
+#                while not queue.empty():
+#                    msg = queue.get_nowait()
+#
+#                    # Message contains results data
+#                    if isinstance(msg, tuple) and msg[0] == "RESULT":
+#                        self._handle_result(msg[1])
+#
+#                    # Process has finished execution
+#                    elif msg == "DONE":
+#                        self._handle_done(e_id, process, path, treeiter)
+#                    
+#                    elif msg == "Running":
+#                        self.main.process_manager_window.set_status(treeiter, "Running...")
+#
+#            except Exception as e:
+#                # Any exception during queue handling is caught here.
+#                # This prevents the GUI loop from breaking.
+#                print(f"Error checking the queue of process {e_id}: {e}")
+#
+#        # Keep the GLib timeout active
+#        return True
+#
+#
+#    def _handle_result(self, results):
+#        """
+#        Process 'RESULT' messages received from a worker process.
+#        Updates molecular coordinates and optionally adds a new
+#        visual object to the EasyHybrid session.
+#        """
+#        
+#        if results.get('new_vobject'):
+#            system = self.psystem[results['e_id']]
+#            system.coordinates3 = results['coords']
+#
+#            # Generate a unique name for the new visual object
+#            name = f"{results['simulation_type']}_{system.e_step_counter}"
+#
+#            # Add the new object into the visualization environment
+#            vobject = self._add_vismol_object_to_easyhybrid_session(system=system, name=name)
+#            vobject.results = results
+#            
+#            system.e_job_history[system.e_step_counter] = results
+#
+#        else:
+#            system = self.psystem[results['e_id']]
+#            system.e_job_history[system.e_step_counter] = results
+#            
+#            
+#            #log  = LogFile(system)
+#            #    path = log.path
+#            #    with open(path, "r") as f:
+#            #        header = f.read()
+#            #else:
+#            #    header = '' 
+#            #
+#            #text = header+text
+#            #textwindow = TextWindow(text)
+#
+#    def _handle_done(self, e_id, process, path, treeiter):
+#        """
+#        Process 'DONE' messages from a worker process.
+#        Updates the GUI to reflect the finished process and 
+#        increments the step counter of the corresponding system.
+#        """
+#        self.main.process_manager_window.set_status (treeiter,"Finished")
+#        self.main.process_manager_window.set_time(treeiter, False, True)
+#        self.main.process_manager_window.set_step_counter(treeiter, self.psystem[e_id].e_step_counter)
+#        
+#        # Mark process as completed in the pool
+#        self.process_pool[e_id][2] = "Finished"
+#        
+#        # Update bottom_notebook GUI (replace "Running..." with "Done!")
+#        iter_ = self.main.bottom_notebook.status_liststore.get_iter(path)
+#        value = self.main.bottom_notebook.status_liststore.get_value(iter_, 1)
+#        self.main.bottom_notebook.status_liststore.set_value(iter_, 1, value.replace('Running...', 'Finished!'))
+#        # Ensure process resources are released
+#        process.join()
+#
+#        # Increment step counter for the system
+#        self.psystem[e_id].e_step_counter += 1
+#
+#        # Mark the project/session as changed
+#        self.changed = True
+#
+#
+#    def _target_process(self, parameters):
+#        """
+#        Target function executed inside a separate process.
+#        Runs the appropriate type of simulation and communicates
+#        results back to the parent process via a multiprocessing.Queue.
+#        """
+#        #queue = self.process_pool[parameters['system'].e_id][0]   
+#        queue = parameters['queue']
+#        queue.put("Running")  # Notify parent that the job has started
+#
+#        # Mapping between simulation types and corresponding classes
+#        simulation_classes = {
+#            'Energy_Single_Point': EnergyCalculation,
+#            'Energy_Refinement': EnergyRefinement,
+#            'Geometry_Optimization': GeometryOptimization,
+#            'Molecular_Dynamics': MolecularDynamics,
+#            'Relaxed_Surface_Scan': RelaxedSurfaceScan,
+#            'Umbrella_Sampling': UmbrellaSampling,
+#            'Nudged_Elastic_Band': ChainOfStatesOptimizePath,
+#            'Normal_Modes': NormalModes,
+#        }
+#
+#        sim_type = parameters['simulation_type']
+#        cls = simulation_classes.get(sim_type)
+#
+#        if cls:
+#            # Instantiate the simulation class
+#            self.target_process = cls()
+#
+#            # Special flags for specific simulations
+#            if sim_type == 'Energy_Single_Point':
+#                parameters['energy'] = True
+#                parameters['new_vobject'] = False
+#            elif sim_type == 'Energy_Refinement':
+#                parameters['new_vobject'] = False
+#        else:
+#            # Unknown simulation type → exit silently
+#            return
+#        parameters['queue'] =  None
+#        # Run the actual simulation
+#        self.target_process.run(parameters)
+#
+#        # Collect results
+#        results = {
+#            'new_vobject'    : parameters.get('new_vobject', True),
+#            'energy'         : parameters.get('energy', False),
+#            'coords'         : parameters['system'].coordinates3,
+#            'e_id'           : parameters['system'].e_id,
+#            'simulation_type': sim_type,
+#            'logfile'        : parameters['logfile']
+#        }
+#
+#        # Send results and completion message to parent process
+#        queue.put(("RESULT", results))
+#        queue.put("DONE")
+#
+#
+#    def run_simulation(self, parameters):
+#        """
+#        Starts a new subprocess for running a molecular simulation.
+#        Ensures that only one process per system (e_id) runs at a time.
+#        """
+#        # Assign system and apply restraints before running
+#        system = self.psystem[self.active_id]
+#        parameters['system'] = system
+#        parameters = self._apply_restraints(parameters)
+#        self.main.process_manager_window.OpenWindow()
+#        
+#        
+#        
+#        
+#        if 'logfile' in parameters.keys():
+#            pass
+#        else:
+#            if 'filename' in parameters.keys():
+#            
+#                full_path_trajectory = os.path.join(parameters['folder'], 
+#                                                    parameters['filename'])
+#                parameters['logfile'] = full_path_trajectory+'.log'
+#            
+#            else:
+#                if 'trajectory_name'in parameters.keys(): 
+#                    if parameters['trajectory_name']:
+#                        full_path_trajectory  = os.path.join(parameters['folder'], parameters['trajectory_name'],'output.log' )
+#                    else:
+#                        full_path_trajectory  = os.path.join(parameters['folder'], 'output.log')
+#                else:
+#                    full_path_trajectory  = os.path.join(parameters['folder'], 'output.log')
+#                
+#                parameters['logfile'] =  full_path_trajectory 
+#        
+#        pprint(parameters)
+#        
+#         
+#
+#
+#        e_id = system.e_id
+#        name = system.label
+#        # If a process is already running for this system, abort
+#        if e_id in self.process_pool and self.process_pool[e_id][1].is_alive():
+#            self.main.simple_dialog.error(
+#                msg=f"There is already a process underway for the system:\n {e_id} - {name}"
+#            )
+#            return False
+#
+#        # Create new queue for inter-process communication
+#        queue = multiprocessing.Queue()
+#        parameters['new_vobject'] = True
+#        parameters['queue']       = queue
+#        
+#        
+#        # Create and start subprocess
+#        process = multiprocessing.Process(
+#            target=self._target_process,
+#            args=(parameters,)
+#        )
+#        process.start()
+#
+#        # Add new entry in bottom_notebook to track progress
+#        message = f"{parameters['simulation_type']} {system.e_step_counter} - Running..."
+#        hamiltonian = getattr(system.qcModel, 'hamiltonian', 'unk')
+#        
+#        treeiter = self.main.process_manager_window.add_new_process(system    = system,
+#                                                                    _type     = parameters['simulation_type'],
+#                                                                    potential = hamiltonian,
+#                                                                    status    = 'Queued')
+#          
+#          
+#        
+#        
+#        path = self.main.bottom_notebook.status_teeview_add_new_item(
+#            message=message,
+#            system=system
+#        )
+#
+#        # Store process info in process_pool:
+#        # [queue, process, result_status, GUI_path]
+#        self.process_pool[e_id] = [queue, process, None, path, treeiter]
+#
+#        # Schedule periodic queue checks
+#        GLib.timeout_add(200, self._check_queue)
+#        #system.e_treeview_iter   = backup[0]
+#        #system.e_liststore_iter  = backup[1]
+#        return False
+#    
+#    
+#    def cancel_process(self, e_id):
+#        """
+#        Cancel (terminate) a running process for the given system ID (e_id).
+#        Updates the GUI and cleans up the process pool.
+#        """
+#        if e_id not in self.process_pool:
+#            print(f"No active process found for system {e_id}.")
+#            return False
+#
+#        queue, process, result, path = self.process_pool[e_id]
+#
+#        if process.is_alive():
+#            # Forcefully terminate the process
+#            process.terminate()
+#            process.join()
+#
+#            # Update GUI status to reflect cancellation
+#            iter_ = self.main.bottom_notebook.status_liststore.get_iter(path)
+#            value = self.main.bottom_notebook.status_liststore.get_value(iter_, 1)
+#            self.main.bottom_notebook.status_liststore.set_value(iter_, 1, value.replace('Running...', 'Canceled!'))
+#
+#            # Mark the process as canceled
+#            self.process_pool[e_id][2] = "Canceled"
+#            print(f"Process for system {e_id} was canceled.")
+#
+#            return True
+#        else:
+#            print(f"Process for system {e_id} is not running.")
+#            return False
+#
+#
