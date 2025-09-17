@@ -33,7 +33,7 @@ import numpy as np
 
 from gui.widgets.custom_widgets import SystemComboBox
 from gui.widgets.custom_widgets import CoordinatesComboBox
-
+from pprint import pprint
 VISMOL_HOME = os.environ.get('VISMOL_HOME')
 HOME        = os.environ.get('HOME')
 
@@ -74,7 +74,10 @@ class EasyHybridPreferencesWindow():
         self.vm_session            = main.vm_session
         
         self.gl_parameters = self.vm_session.vm_config.gl_parameters
-
+        self.set_paths_and_folders_in_parameters()
+        
+        
+        
     def OpenWindow (self):
         """ Function doc /home/fernando/programs/VisMol/easyhybrid/gui/selection_list.glade"""
         if self.visible  ==  False:
@@ -570,11 +573,50 @@ class EasyHybridPreferencesWindow():
 
     def set_paths_and_folders (self):
         """ Function doc """
-        startup_path = self.vm_session.vm_config.gl_parameters['startup_path']
-        self.entry_startup_path.set_text(startup_path)
-    
-    
-    
+        self.set_paths_and_folders_in_parameters()
+        parameters = self.vm_session.vm_config.gl_parameters      
+        self.builder.get_object('entry_tmp_path').set_text(parameters['tmp_path'])
+        self.builder.get_object('entry_workspace_path').set_text(parameters['workspace_path'])
+        self.builder.get_object('entry_startup_path').set_text(parameters['startup_path'])
+
+
+    def set_paths_and_folders_in_parameters (self):
+        """ Function doc """
+        parameters = self.vm_session.vm_config.gl_parameters      
+        if 'tmp_path' in parameters.keys():         
+            if os.path.isdir(parameters['tmp_path']):
+                pass
+            else:
+                print('Folder not found:', parameters['tmp_path'])
+                PDYNAMO3_SCRATCH = os.environ.get('PDYNAMO3_SCRATCH')
+                parameters['tmp_path'] = PDYNAMO3_SCRATCH
+        else:            
+            PDYNAMO3_SCRATCH = os.environ.get('PDYNAMO3_SCRATCH')
+            parameters['tmp_path'] = PDYNAMO3_SCRATCH
+        
+        
+        if 'workspace_path'  in parameters.keys():
+            if os.path.isdir(parameters['workspace_path']):
+                pass
+            else:
+                print('Folder not found:', parameters['workspace_path'])
+                workspace_path = os.path.join(self.home, 'workspace')
+                parameters['workspace_path'] = workspace_path
+        else:
+            workspace_path = os.path.join(self.home, 'workspace')
+            parameters['workspace_path'] = workspace_path
+       
+        
+        if 'startup_path' in parameters.keys():
+            if os.path.isdir(parameters['startup_path']):
+                pass
+            else:
+                print('Folder not found:', parameters['startup_path'])
+                parameters['startup_path'] = self.home
+        else:
+            parameters['startup_path'] = self.home
+
+               
     def __apply_light_parameters (self):
         #---------------------------------------------------------------
         light_pos = self.entry_light_position.get_text()
@@ -647,8 +689,6 @@ class EasyHybridPreferencesWindow():
         
         self.gl_parameters['sticks_radius'] = stick_radius
         self.gl_parameters['sticks_type']   = stick_type  
-        #self.gl_parameters[]
-        #self.gl_parameters[]
 
     def __apply_lines_parameters (self):
         lines_with            = float(self.entry_lines_with           .get_text())
@@ -784,43 +824,93 @@ class EasyHybridPreferencesWindow():
         #---------------------------------------------------------------
     def __apply_interface_general_parameters (self):
         """ Function doc """
-        path = self.entry_startup_path.get_text()
         
+        #---------------------------------------------------------------
+        #                       Startup Path
+        #---------------------------------------------------------------
+        path = self.entry_startup_path.get_text()
         if os.path.isdir(path):
             self.vm_session.vm_config.gl_parameters['startup_path'] = path
             print('Defining New Startup Path:', path)
+
         else:
             dialog = Gtk.MessageDialog(
                                 flags=0,
                                 message_type=Gtk.MessageType.ERROR,
                                 buttons=Gtk.ButtonsType.OK,
-                                text="ERROR: Folder not found.",
+                                text="ERROR: Startup folder not found.",
                             )
 
             dialog.format_secondary_text(
                                     "If the desired path is correct, create the folder using your file manager."
                                         )
             dialog.run()
-            #print("ERROR dialog closed")
             dialog.destroy()
+        #---------------------------------------------------------------
         
         
+        #---------------------------------------------------------------
+        #                       Workspace 
+        #---------------------------------------------------------------
+        workspace_path = self.builder.get_object('entry_workspace_path').get_text()
+        if os.path.isdir(workspace_path):
+            self.vm_session.vm_config.gl_parameters['workspace_path'] = workspace_path
+            print('Defining workspace path:', workspace_path)
+        else:
+            dialog = Gtk.MessageDialog(
+                                flags=0,
+                                message_type=Gtk.MessageType.ERROR,
+                                buttons=Gtk.ButtonsType.OK,
+                                text="ERROR: Workspace folder not found.",
+                            )
+            dialog.format_secondary_text(
+                                    "If the desired path is correct, create the folder using your file manager."
+                                        )
+            dialog.run()
+            dialog.destroy()
+        #---------------------------------------------------------------
+
+        #---------------------------------------------------------------
+        #                       Temp 
+        #---------------------------------------------------------------
+        tmp_path       = self.builder.get_object('entry_tmp_path').get_text()
+        if os.path.isdir(tmp_path):
+            self.vm_session.vm_config.gl_parameters['tmp_path'] = tmp_path
+            print('Defining temporary path:', tmp_path)
+        else:
+            dialog = Gtk.MessageDialog(
+                                flags=0,
+                                message_type=Gtk.MessageType.ERROR,
+                                buttons=Gtk.ButtonsType.OK,
+                                text="ERROR: Temporary folder not found.",
+                            )
+            dialog.format_secondary_text(
+                                    "If the desired path is correct, create the folder using your file manager."
+                                        )
+            dialog.run()
+            dialog.destroy()
+        #---------------------------------------------------------------
+        
+        
+
         a = self.builder.get_object('checkbox_tmp_autosave').get_active()
         b = self.builder.get_object('checkbox_ask_autosave_and_unsaved').get_active()
         c = self.builder.get_object('checkbox_save_window_size').get_active()
-        
-        
+
         self.vm_session.vm_config.gl_parameters['autosave']      = a
         self.vm_session.vm_config.gl_parameters['askSaveUnsave'] = b
         print(a,b)
         #self.vm_session.vm_config.gl_parameters['startup_path'] =
         
         
-        
+        #pprint(self.vm_session.vm_config.gl_parameters)
+        #startup_path   = self.builder.get_object('entry_startup_path').get_text()
+        #workspace_path = self.builder.get_object('entry_workspace_path').get_text()
+        #tmp_path       = self.builder.get_object('entry_tmp_path').get_text()
         #
-        #b = self.builder.get_object('entry_startup_path')
-        #b = self.builder.get_object('entry_scratch_path')
-        #b = self.builder.get_object('entry_tempfiles_path')
+        #self.vm_session.vm_config.gl_parameters['startup_path'  ] = startup_path  
+        #self.vm_session.vm_config.gl_parameters['workspace_path'] = workspace_path
+        #self.vm_session.vm_config.gl_parameters['tmp_path'      ] = tmp_path      
 
 
 

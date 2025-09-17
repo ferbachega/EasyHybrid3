@@ -968,18 +968,24 @@ class pSimulations:
             target=self._target_process,
             args=(parameters,)
         )
-        process.start()
-
-        # Add entry to process manager window
-        message = f"{parameters['simulation_type']} {system.e_step_counter} - Running..."
-        hamiltonian = getattr(system.qcModel, 'hamiltonian', 'unk')
-
+        
+        try:
+            process.start()
+            # Add entry to process manager window
+            message = f"{parameters['simulation_type']} {system.e_step_counter} - Running..."
+            hamiltonian = getattr(system.qcModel, 'hamiltonian', 'unk')
+            status = 'Queued'
+        except:
+            message = f"{parameters['simulation_type']} {system.e_step_counter} - Aborted!"
+            hamiltonian = getattr(system.qcModel, 'hamiltonian', 'unk')
+            status = 'Aborted!'
+        
         treeiter = self.main.process_manager_window.add_new_process(
             system=system,
             _type=parameters['simulation_type'],
             potential=hamiltonian,
-            status='Queued'
-        )
+            status = status
+            )
 
         # Add entry to bottom notebook
         path = self.main.bottom_notebook.status_teeview_add_new_item(
@@ -992,7 +998,10 @@ class pSimulations:
 
         # Schedule periodic queue checks
         GLib.timeout_add(200, self._check_queue)
-
+    
+            
+        
+        
         return False
 
 

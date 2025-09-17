@@ -245,6 +245,7 @@ class GeometryOptimization(Gtk.Window):
         self.Visible    =  False
         GLib.timeout_add(500, self.verificar_process)
         #'''
+
     
     def _starting_coordinates_model_update (self, init = False):
         """ Function doc """
@@ -290,6 +291,7 @@ class GeometryOptimization(Gtk.Window):
         dialog.run()
         dialog.destroy()
 
+
     def update (self, parameters = None):
         """ Function doc """
         self._starting_coordinates_model_update()
@@ -302,6 +304,7 @@ class GeometryOptimization(Gtk.Window):
                 self.save_trajectory_box.set_filename (output_name )
             else:
                 pass
+
 
     def update_working_folder_chooser (self, folder = None):
         """ Function doc """

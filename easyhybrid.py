@@ -92,6 +92,7 @@ def main():
                                  home       =  EASYHYBRID_HOME,
                                  version    = EASYHYBRID_VERSION)
         vm_session.main_session = main_window                  
+        print(vm_session.vm_config.gl_parameters)
         #main_window.window.connect('destroy', Gtk.main_quit)
         
         

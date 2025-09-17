@@ -130,8 +130,6 @@ class TextWindow:
         self.window.show_all()
         
         
-
-
 class InfoWindow:
     """ 
     Create a text window. Currently used to display system 
@@ -983,6 +981,7 @@ class EasyHybridSelectionWindow:
         else:
             self.main.simple_dialog.error(msg = msg )
 
+
 class SolvateSystemWindow:
     """ Class doc """
     
@@ -1155,6 +1154,7 @@ class SolvateSystemWindow:
         #print(parameters)
         self.p_session.solvate_system (e_id = system_id, parameters = parameters)
 
+
 class MakeSolventBoxWindow:
     """ Class doc """
     
@@ -1249,6 +1249,7 @@ class MakeSolventBoxWindow:
         parameters['molecule'] = self.main.p_session.psystem[system_id]
         self.p_session.make_solvent_box(parameters)
         self.CloseWindow(None)
+
 
 class PDynamoSelectionWindow:
     """ Class doc """
@@ -1540,6 +1541,7 @@ class SetupXTBplusWindow:
             self.window.destroy()
         self.Visible    =  False
         
+
 class SetupDFTBplusWindow:
     """ Class doc """
     
@@ -1744,6 +1746,7 @@ class SetupDFTBplusWindow:
     def on_skf_folder_chooser_changed (self, widget):
         """ Function doc """
         pass
+
 
 class SetupORCAWindow:
     """ Class doc """
@@ -2106,6 +2109,7 @@ class SetupORCAWindow:
         new_text = '{} {} {} {} {} {}'.format(self.restrited_label,  method, basis, scf_conv, e_states, ncpu )
         textbuffer.set_text(new_text)
 
+
 class EasyHybridSetupQCModelWindow:
     """ Class doc """
     
@@ -2457,7 +2461,8 @@ class EasyHybridSetupQCModelWindow:
     def update (self):
         """ Function doc """
         pass
-        
+    
+    
 class EasyHybridGoToAtomWindow(Gtk.Window):
     def __init__(self, main = None, system_liststore = None):
         """ Class initialiser """
@@ -3297,51 +3302,186 @@ class EasyHybridDialogPrune:
 
 
 class ImportANewSystemWindow(Gtk.Window):
-    """ Class doc """
+    """
+    Window for importing a new molecular system into EasyHybrid.
+    
+    This class provides a GTK-based interface that allows the user to 
+    load molecular systems prepared in different formats (AMBER, CHARMM, 
+    OPLS, DYFF, pDynamo, etc.) and configure their working folder.
+    """
     def __init__(self, main = None, home = None):
-        """ Class initialiser """
+        """
+        Initialize the ImportANewSystemWindow class.
+
+        Parameters
+        ----------
+        main : object
+            Reference to the main EasyHybrid instance.
+        home : str
+            Path to the EasyHybrid home directory.
+        """
         
-        self.easyhybrid_main     = main
-        self.home                = main.home
-        self.Visible             = False        
-        self.vm_session          = self.easyhybrid_main.vm_session
+        self.easyhybrid_main = main
+        self.home = main.home
+        self.Visible = False
+        self.vm_session = self.easyhybrid_main.vm_session
+
+        # Store for loaded residue data (filename, type, number of atoms)
         self.residue_liststore = Gtk.ListStore(str, str, str)
-        #self.atom_liststore    = Gtk.ListStore(bool, int, str, str, int, int)
-        #self.residue_filter    = False
+
+        # Default working folder
+        #self.folder = self.vm_session.vm_config.gl_parameters["workspace_path"]
         
+        # Descriptions for different system types
         self.charmm_txt = '''When using the traditional CHARMM/PSF format for system preparation, it is necessary to have three types of files: parameter files (in formats such as prm or par), topology files in the form of psf, and coordinate files (which can be in various formats including chm, crd, pdb, xyz, etc. It's worth noting that multiple parameter files may be required depending on the system being simulated.'''
         self.amber_txt = '''In order to properly run simulations utilizing the AMBER force field, it is necessary to have two types of files: topologies (in the form of either top or prmtop files) and coordinates (which can be in the form of crd, pdb, xyz, or other similar file types).'''
         self.OPLS_txt = '''When preparing systems natively in pDynamo utilizing the OPLS force field, it is necessary to have two components: a folder containing the OPLS parameters, and a topology and coordinate file (in formats such as pdb, mol2, or mol).'''
         self.DYFF_txt = '''The DYFF force field is a generic force field specifically designed for use within the pDynamo program. When utilizing DYFF to prepare systems natively in pDynamo, it is essential to have two components: a folder containing the necessary force field parameters, and a coordinate file in formats such as pdb, mol2, or mol.'''
         self.gmx_txt = '''Systems prepared natively in GROMACS using the CHARMM(or AMBER) force field require: A parameter/topology (top) file and coordinate file (pdb, mol2, mol, ...) .  '''
         self.xyz_pdb_text = '''If you load a coordinate file in this manner, you won't be able to perform any molecular mechanics simulations.'''
-        
         self.pkl_text = '''If you load a coordinate file in this manner, you won't be able to perform any molecular mechanics simulations.'''
     
     
         self.color_pallet = {
-                             0  : (124 /255 ,252 /255 ,0  /255 , 255/255)  , # gramado verde # 7CFC00
-                             1  : (238 /255 ,130 /255 ,238/255 , 255/255), # tolet # EE82EE
-                             2  : (255 /255 ,255 /255 ,0  /255 , 255/255)  , # yellow
-                             3  : (135/255  ,206/255  ,250/255 , 255/255), # light sky blue	#87CEFA
-                             4  : (255 /255 ,99  /255 ,71 /255 , 255/255)  , #'tomate',
-                             5  : (0   /255 ,250 /255 ,154/255 , 255/255)  , #00FA9A medium spring green
-                             #6  : (138 /255 ,43  /255 ,226/255 , 255/255) , #8A2BE2 blue violet
-                             6  : (123/255 ,104/255 ,238/255, 255/255),
-                             7  : (238 /255 ,232 /255 ,170/255 , 255/255), #'pale gold', 
-                             8  : (224 /255 ,255 /255 ,255/255 , 255/255), #E0FFFF	light cyan
-                             9  : (219 /255 ,112 /255 ,147/255 , 255/255), #DB7093 pale violet red
-                             10 : (255 /255 ,215 /255 ,0  /255 , 255/255)  , #'gold',
-                             }
+            0: (124 / 255, 252 / 255, 0 / 255, 255 / 255),   # Lawn green
+            1: (238 / 255, 130 / 255, 238 / 255, 255 / 255), # Violet
+            2: (255 / 255, 255 / 255, 0 / 255, 255 / 255),   # Yellow
+            3: (135 / 255, 206 / 255, 250 / 255, 255 / 255), # Light sky blue
+            4: (255 / 255, 99 / 255, 71 / 255, 255 / 255),   # Tomato
+            5: (0 / 255, 250 / 255, 154 / 255, 255 / 255),   # Medium spring green
+            6: (123 / 255, 104 / 255, 238 / 255, 255 / 255), # Medium slate blue
+            7: (238 / 255, 232 / 255, 170 / 255, 255 / 255), # Pale goldenrod
+            8: (224 / 255, 255 / 255, 255 / 255, 255 / 255), # Light cyan
+            9: (219 / 255, 112 / 255, 147 / 255, 255 / 255), # Pale violet red
+            10: (255 / 255, 215 / 255, 0 / 255, 255 / 255),  # Gold
+        }
         
+        # Counter used to assign colors cyclically
         self.color_counter = 0
     
+    def OpenWindow(self):
+        """Open and configure the 'Import New System' window."""
+
+        if not self.Visible:
+            # Load the Glade UI definition file
+            self.builder = Gtk.Builder()
+            self.builder.add_from_file(
+                os.path.join(self.home, 'src/gui/windows/setup/import_system_window_new.glade')
+            )
+            self.builder.connect_signals(self)
+
+            # Retrieve and configure the main window
+            self.window = self.builder.get_object('ImportNewSystemWindow')
+            self.window.set_border_width(10)
+            self.window.set_default_size(500, 370)
+
+            # --------------------------------------------------------------------------------------------
+            # Create a ListStore to hold system types
+            self.system_type_store = Gtk.ListStore(str, int)
+            system_types = [
+                ["AMBER", 0],
+                ["CHARMM", 1],
+                ["OPLS", 2],
+                ['DYFF', 5],
+                ["pdynamo files (*.pkl, *.yaml)", 3],
+                ["other (*.pdb, *.xyz, *.mol2)", 4],
+            ]
+            for system_type in system_types:
+                self.system_type_store.append(system_type)
+
+            # Create a combo box to select the system type
+            self.system_types_combo = Gtk.ComboBox.new_with_model(self.system_type_store)
+            self.system_types_combo.set_tooltip_text(self.amber_txt)
+            self.box_combo = self.builder.get_object('box')
+            self.box_combo.pack_start(self.system_types_combo, True, True, 0)
+
+            # Hide unused label (legacy support)
+            self.builder.get_object('gtk_label_fftype').hide()
+
+            # Connect callback for when the system type changes
+            self.system_types_combo.connect("changed", self.on_name_combo_changed)
+            self.system_types_combo.set_model(self.system_type_store)
+
+            # Renderer to display system type names in the combo box
+            renderer_text = Gtk.CellRendererText()
+            self.system_types_combo.pack_start(renderer_text, True)
+            self.system_types_combo.add_attribute(renderer_text, "text", 0)
+            # --------------------------------------------------------------------------------------------
+
+            # Configure the treeview for listing loaded files
+            self.treeview = self.builder.get_object('gtktreeview_import_system')
+            for i, column_title in enumerate(['file', "type", "number of atoms"]):
+                renderer = Gtk.CellRendererText()
+                column = Gtk.TreeViewColumn(column_title, renderer, text=i)
+                self.treeview.append_column(column)
+
+            # --------------------------------------------------------------------------------------------
+            # System name entry field
+            self.entry_system_name = self.builder.get_object('entry_system_name')
+            self.entry_system_name.connect('changed', self.on_entry_system_name_change)
+
+            # Show the window and connect signals
+            self.window.show_all()
+            self.builder.connect_signals(self)
+
+            # Hide OPLS folder chooser by default
+            self.builder.get_object('gtkbox_OPLS_folderchooser').hide()
+
+            # Mark window as visible
+            self.Visible = True
+
+            # Initialize dictionary to store input files
+            self.files = {
+                'amber_prmtop': None,
+                'charmm_par': [],
+                'charmm_psf': None,
+                'charmm_extra': None,
+                'prm_folder': [],
+                'coordinates': None,
+            }
+            # Set default system type to AMBER
+            self.system_types_combo.set_active(0)
+
+            # Connect window and button signals
+            self.window.connect('destroy', self.CloseWindow)
+            self.builder.get_object('button_load_files').connect('clicked', self.on_button_load_files_clicked)
+            self.builder.get_object('button_remove_files').connect('clicked', self.on_button_delete_files_clicked)
+            self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+            self.builder.get_object('import_import_system').connect('clicked', self.on_button_import_system_clicked)
+
+            # Configure the system color button with the current color from the palette
+            color = Gdk.RGBA(
+                self.color_pallet[self.color_counter][0],
+                self.color_pallet[self.color_counter][1],
+                self.color_pallet[self.color_counter][2],
+                self.color_pallet[self.color_counter][3],
+            )
+            self.color_button = self.builder.get_object('button_color')
+            self.color_button.set_rgba(color)
+
+            # --------------------------------------------------------------------------------------------
+            # Configure working folder widgets
+            self.entry_working_folder = self.builder.get_object('entry_working_folder')
+            self.btn_choose_folder = self.builder.get_object('btn_choose_folder')
+            self.set_working_folder_path()
+
+            # Checkbox to toggle creation of a new working folder
+            self.cb_create_folder_change = self.builder.get_object('cb_create_folder')
+            self.cb_create_folder_change.connect('toggled', self.on_cb_create_folder_change)
+            
+            self.btn_choose_folder = self.builder.get_object('btn_choose_folder')
+            self.btn_choose_folder.connect('clicked', self.on_btn_choose_folder)
+            # --------------------------------------------------------------------------------------------
+
+        else:
+            # If already visible, just bring the window to the front
+            self.window.present()
     
-    def OpenWindow (self):
+    def OpenWindow_old (self):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
-            self.builder.add_from_file(os.path.join(self.home,'src/gui/windows/setup/import_system_window.glade'))
+            self.builder.add_from_file(os.path.join(self.home,'src/gui/windows/setup/import_system_window_new.glade'))
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('ImportNewSystemWindow')
@@ -3385,12 +3525,13 @@ class ImportANewSystemWindow(Gtk.Window):
                 self.treeview.append_column(column)
 
             # - - - - - - - - - - - working folder  - - - - - - - - - - - -
-            self.folder_chooser_button = FolderChooserButton(main =  self, sel_type = 'folder', home =  self.home)
-            self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
-            try:
-                self.folder_chooser_button.set_folder(self.vm_session.vm)
-            except:
-                self.folder_chooser_button.set_folder(self.vm_session.vm_config.gl_parameters['startup_path'])
+            #self.folder_chooser_button = FolderChooserButton(main =  self, sel_type = 'folder', home =  self.home)
+            #self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
+            #try:
+            #    self.folder_chooser_button.set_folder(self.vm_session.vm)
+            #except:
+            #    self.folder_chooser_button.set_folder(self.vm_session.vm_config.gl_parameters['startup_path'])
+            
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
             
             
@@ -3432,16 +3573,31 @@ class ImportANewSystemWindow(Gtk.Window):
             #self.color_pallet[self.color_counter]
             self.color_button = self.builder.get_object('button_color')
             self.color_button.set_rgba ( color )
-        
+            
+            #-------------------------------------------------------------------------
+            #self.builder.get_object('folder_chooser_box').hide()
+            #self.builder.get_object('label_folder_button').hide()
+            
+            #self.label_folder_button.hide()
+            #self.folder_chooser_button.hide()
+            #-------------------------------------------------------------------------
+            
+            
+            
+            #-------------------------------------------------------------------------
+            self.entry_working_folder = self.builder.get_object('entry_working_folder')
+            self.btn_choose_folder = self.builder.get_object('btn_choose_folder')
+            self.set_working_folder_path()
+            #-------------------------------------------------------------------------
+            self.cb_create_folder_change = self.builder.get_object('cb_create_folder')
+            self.cb_create_folder_change.connect('toggled', self.on_cb_create_folder_change)
         else:
             self.window.present()
             #----------------------------------------------------------------
     def CloseWindow (self, button, data  = None):
         """ Function doc """
-        #self.BackUpWindowData()
         self.window.destroy()
         self.Visible    =  False
-        #print('self.Visible',self.Visible)
 
     def on_entry_system_name_change (self, widget):
         """ Function doc """
@@ -3456,7 +3612,7 @@ class ImportANewSystemWindow(Gtk.Window):
             pass
         
         self.builder.get_object('entry_system_tag').set_text(tag)
-        #print(name)
+        self.on_entry_widget_change()
         
     def on_name_combo_changed(self, widget):
         """ Function doc """
@@ -3524,9 +3680,6 @@ class ImportANewSystemWindow(Gtk.Window):
             path = os.path.join(path,'forceFields/dyff/dyff-1.0')
             self.builder.get_object('OPLS_folderchooserbutton').set_filename(path)
             self.system_types_combo.set_tooltip_text(self.DYFF_txt)
-            
-            #except:
-            #    pass
                 
     def filetype_parser(self, filein, systemtype):
         filetype = get_file_type(filein)
@@ -3570,10 +3723,6 @@ class ImportANewSystemWindow(Gtk.Window):
             return 'pDynamo coordinates'
         else:
             return 'unknow'
-        
-    #def GetFileType(self, filename):
-    #    file_type = filename.split('.')
-    #    return file_type[-1]
 
     def on_button_delete_files_clicked (self, button):
         """ Function doc """
@@ -3622,11 +3771,23 @@ class ImportANewSystemWindow(Gtk.Window):
         blue  = color.blue  
         
         
+        
         #print(self.files, systemtype, color, [red, green,blue ])
 
         #'''
-        wfolder  = self.folder_chooser_button.get_folder()
         
+        #                  Working Folder
+        #wfolder  = self.folder_chooser_button.get_folder()
+        if self.builder.get_object('cb_create_folder').get_active():
+            wfolder = self.builder.get_object('entry_working_folder').get_text()
+            
+            if not os.path.exists(wfolder):
+                try:
+                    os.makedirs(wfolder)
+                except:
+                    print('Failed to create the working directory {}'.format(wfolder))
+        else:
+            wfolder = None
         
         '''
         self.easyhybrid_main.p_session.load_a_new_pDynamo_system_from_dict(input_files    = self.files, 
@@ -3659,9 +3820,55 @@ class ImportANewSystemWindow(Gtk.Window):
             self.easyhybrid_main.bottom_notebook.status_teeview_add_new_item(message = 'Error: Could not import the system.', system = None)
             simpledialog = SimpleDialog(self.easyhybrid_main)
             simpledialog.error("Error: Could not import the system.")
-            
-        #'''
+
+    def on_entry_widget_change (self, widget = None):
+        """ Function doc """
+        #system_name = widget.get_text()
+        self.set_working_folder_path()
+    
+    def set_working_folder_path (self, path = None):
+        """ Function doc """
+        system_name = self.entry_system_name.get_text()
         
+        folder = self.vm_session.vm_config.gl_parameters["workspace_path"]
+        path  = os.path.join(folder, system_name)
+        self.entry_working_folder.set_text(path)
+ 
+    def on_cb_create_folder_change (self, widget):
+        """ Function doc """
+        if self.builder.get_object('cb_create_folder').get_active():
+            #self.builder.get_object('cb_create_folder').get_active(False):
+            self.builder.get_object('entry_working_folder').set_sensitive(True)
+            self.builder.get_object('btn_choose_folder').set_sensitive(True)
+            
+        else:
+            #self.builder.get_object('cb_create_folder').get_active(True):
+            #self.builder.get_object('entry_working_folder').get_active(True):
+            self.builder.get_object('entry_working_folder').set_sensitive(False)
+            self.builder.get_object('btn_choose_folder').set_sensitive(False)
+
+    def on_btn_choose_folder (self, widget):
+        """ Function doc """
+        dialog = Gtk.FileChooserDialog(
+            title="Please choose a folder",
+            parent=self.window,
+            action=Gtk.FileChooserAction.SELECT_FOLDER
+        )
+        
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OPEN, Gtk.ResponseType.OK
+        )
+        path = self.vm_session.vm_config.gl_parameters['startup_path']
+        dialog.set_current_folder(path)
+
+        response = dialog.run()
+
+        if response == Gtk.ResponseType.OK:
+            self.folder = dialog.get_filename()
+            self.set_working_folder_path()
+
+        dialog.destroy()
 
     def update (self):
         """ Function doc """
