@@ -218,7 +218,6 @@ class ProcessManagerWindow(Gtk.Window):
         logfile = system.e_job_history[step_counter]['logfile']
         data = open(logfile, 'r')
         data = data.read()
-        
         textwindow = TextWindow(data)
         
         
