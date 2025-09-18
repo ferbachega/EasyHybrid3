@@ -153,8 +153,6 @@
                   <object class="GtkTreeView" id="selection_treeview">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
-                    <property name="vexpand">True</property>
-                    <signal name="row-activated" handler="on_treeview_Objects_row_activated" swapped="no"/>
                     <child internal-child="selection">
                       <object class="GtkTreeSelection"/>
                     </child>

@@ -731,7 +731,11 @@ class pSimulations:
     """Class responsible for managing and running molecular simulations 
     using multiprocessing and GUI integration with EasyHybrid.
     """
-
+    #MSG_RESULT  = "RESULT"
+    #MSG_ERROR   = "ERROR"
+    #MSG_DONE    = "DONE"
+    #MSG_RUNNING = "RUNNING"
+    
     def __init__(self):
         """Class initializer."""
         self.process_pool = {}   # Holds active processes and their communication queues
@@ -741,8 +745,16 @@ class pSimulations:
         self.main = None         # Reference to the main application object
         self.target_process = None
 
+        # --- constants for messages
+        #self.MSG_RESULT  = "RESULT"
+        #self.MSG_ERROR   = "ERROR"
+        #self.MSG_DONE    = "DONE"
+        #self.MSG_RUNNING = "RUNNING"
+
+
+
     # ========================================================================
-    # RESTRAINTS
+    # RESTRAINTS and SETUP
     # ========================================================================
 
     def _apply_restraints(self, parameters):
@@ -776,6 +788,18 @@ class pSimulations:
 
         return parameters
 
+    def _configure_logfile(self, parameters):
+        if 'logfile' in parameters:
+            return parameters
+        folder = parameters.get('folder', os.getcwd())
+        if 'filename' in parameters:
+            parameters['logfile'] = os.path.join(folder, parameters['filename'] + '.log')
+        elif parameters.get('trajectory_name'):
+            parameters['logfile'] = os.path.join(folder, parameters['trajectory_name'], 'output.log')
+        else:
+            parameters['logfile'] = os.path.join(folder, 'output.log')
+        return parameters
+
     # ========================================================================
     # PROCESS QUEUE HANDLING
     # ========================================================================
@@ -787,14 +811,37 @@ class pSimulations:
         inter-process communication asynchronously without blocking the GTK loop.
         """
         for e_id, (queue, process, result, path, treeiter) in list(self.process_pool.items()):
+            #print(e_id, (queue, process, result, path, treeiter))
             try:
                 # Read all messages available in the queue
                 while not queue.empty():
                     msg = queue.get_nowait()
-
+                    #print(msg)
+                    self._dispatch_message(msg, e_id, process, path, treeiter)
+                    
+                    '''
                     if isinstance(msg, tuple) and msg[0] == "RESULT":
                         # Worker process returned results
                         self._handle_result(msg[1])
+                    
+                    elif isinstance(msg, tuple) and msg[0] == "ERROR":
+                        # Worker process returned results
+                        results = msg[1]
+                        system = self.psystem[results['e_id']]
+                        # Update GUI process manager window
+                        self.main.process_manager_window.set_status(treeiter, "Error!")
+                        self.main.process_manager_window.set_time(treeiter, False, True)
+                        self.main.process_manager_window.set_step_counter(treeiter, system.e_step_counter)
+
+                        # Mark process as completed in pool
+                        self.process_pool[system.e_id][2] = "Error"
+
+                        # Update bottom notebook GUI
+                        iter_ = self.main.bottom_notebook.status_liststore.get_iter(path)
+                        value = self.main.bottom_notebook.status_liststore.get_value(iter_, 1)
+                        self.main.bottom_notebook.status_liststore.set_value(iter_, 1, value.replace('Running...', 'Error!'))
+                        
+                        system.e_job_history[system.e_step_counter] = results
 
                     elif msg == "DONE":
                         # Worker process finished execution
@@ -803,6 +850,8 @@ class pSimulations:
                     elif msg == "Running":
                         # Update process status to "Running..."
                         self.main.process_manager_window.set_status(treeiter, "Running...")
+                    '''
+
 
             except Exception as e:
                 # Prevent GUI crash due to queue handling issues
@@ -811,12 +860,39 @@ class pSimulations:
         # Keep the GLib timeout active
         return True
 
+    def _dispatch_message(self, msg, e_id, process, path, treeiter):
+        """ Function doc """
+        if isinstance(msg, tuple) and msg[0] ==  self.MSG_RESULT:
+            self._handle_result(msg[1])
+        elif isinstance(msg, tuple) and msg[0] ==  self.MSG_ERROR:
+            self._handle_error(msg[1], path, treeiter)
+        elif msg ==  self.MSG_DONE:
+            self._handle_done(e_id, process, path, treeiter)
+        elif msg ==  self.MSG_RUNNING:
+            self.main.process_manager_window.set_status(treeiter, "Running...")
+        
+    def _handle_error(self, results, path, treeiter):
+        """Handle 'ERROR' messages from worker processes."""
+        system = self.psystem[results['e_id']]
+        self.main.process_manager_window.set_status(treeiter, "Error!")
+        self.main.process_manager_window.set_time(treeiter, False, True)
+        self.main.process_manager_window.set_step_counter(treeiter, system.e_step_counter)
+
+        self.process_pool[system.e_id][2] = "Error"
+
+        iter_ = self.main.bottom_notebook.status_liststore.get_iter(path)
+        value = self.main.bottom_notebook.status_liststore.get_value(iter_, 1)
+        self.main.bottom_notebook.status_liststore.set_value(iter_, 1, value.replace('Running...', 'Error!'))
+
+        system.e_job_history[system.e_step_counter] = results
+        
     def _handle_result(self, results):
         """Handle 'RESULT' messages from a worker process.
 
         Updates system coordinates, visualization objects, and job history.
         """
-        system = self.psystem[results['e_id']]
+        e_id  = results['e_id']
+        system = self.psystem[e_id]
 
         if results.get('new_vobject'):
             # Update coordinates
@@ -834,7 +910,8 @@ class pSimulations:
         else:
             # Save job results in system history (no new visual object)
             system.e_job_history[system.e_step_counter] = results
-
+            self.psystem[e_id].e_step_counter += 1
+    
     def _handle_done(self, e_id, process, path, treeiter):
         """Handle 'DONE' messages from a worker process.
 
@@ -854,7 +931,10 @@ class pSimulations:
         self.main.bottom_notebook.status_liststore.set_value(iter_, 1, value.replace('Running...', 'Finished!'))
 
         # Release process resources
-        process.join()
+        if process.is_alive():
+            pass
+        else:
+            process.join()
 
         # Increment step counter
         self.psystem[e_id].e_step_counter += 1
@@ -873,7 +953,7 @@ class pSimulations:
         to the parent process via a multiprocessing.Queue.
         """
         queue = parameters['queue']
-        queue.put("Running")  # Notify parent process that job started
+        queue.put( self.MSG_RUNNING)  # Notify parent process that job started
 
         # Map simulation type to class
         simulation_classes = {
@@ -885,7 +965,7 @@ class pSimulations:
             'Umbrella_Sampling': UmbrellaSampling,
             'Nudged_Elastic_Band': ChainOfStatesOptimizePath,
             'Normal_Modes': NormalModes,
-        }
+            }
 
         sim_type = parameters['simulation_type']
         cls = simulation_classes.get(sim_type)
@@ -907,49 +987,85 @@ class pSimulations:
         # Avoid passing queue object to child processes inside parameters
         parameters['queue'] = None
 
-        # Run the simulation
-        self.target_process.run(parameters)
-
-        # Collect results
-        results = {
-            'new_vobject': parameters.get('new_vobject', True),
-            'energy': parameters.get('energy', False),
-            'coords': parameters['system'].coordinates3,
-            'e_id': parameters['system'].e_id,
-            'simulation_type': sim_type,
-            'logfile': parameters['logfile']
-        }
-
-        # Send results and completion notification
-        queue.put(("RESULT", results))
-        queue.put("DONE")
-
+        try:
+            self.target_process.run(parameters)
+            results = {
+                'new_vobject': parameters.get('new_vobject', True),
+                'energy': parameters.get('energy', False),
+                'coords': parameters['system'].coordinates3,
+                'e_id': parameters['system'].e_id,
+                'simulation_type': sim_type,
+                'logfile': parameters['logfile'],
+                'error': None
+            }
+            queue.put((self.MSG_RESULT, results))
+            queue.put(self.MSG_DONE)
+            
+        except Exception as exc:
+            print(f"Error {sim_type}: {exc}")
+            results = {
+                'new_vobject': False,
+                'energy': False,
+                'coords': None,
+                'e_id': parameters['system'].e_id,
+                'simulation_type': sim_type,
+                'logfile': parameters['logfile'],
+                'error': exc
+            }
+            queue.put((self.MSG_ERROR, results))
+        
     def run_simulation(self, parameters):
-        """Start a new subprocess for a molecular simulation.
-
-        Ensures that only one process per system (e_id) runs at a time.
         """
+        Start a new subprocess for a molecular simulation.
+
+        This method:
+          1. Ensures restraints are applied to the active system.
+          2. Configures the log file path if not provided.
+          3. Guarantees that only one process per system (e_id) runs at a time.
+          4. Creates a subprocess and registers it in the process manager.
+ 
+        """
+        # --- constants for messages
+        self.MSG_RESULT  = "RESULT"
+        self.MSG_ERROR   = "ERROR"
+        self.MSG_DONE    = "DONE"
+        self.MSG_RUNNING = "RUNNING"
+        
+        # Validate active system
+        if self.active_id not in self.psystem:
+            self.main.simple_dialog.error(
+                msg="No active system selected. Please load or select a system first."
+            )
+            return False
+        
+        
         # Assign system and apply restraints
         system = self.psystem[self.active_id]
         parameters['system'] = system
+        
+        # Apply restraints if needed
         parameters = self._apply_restraints(parameters)
 
         # Ensure process manager window is visible
         self.main.process_manager_window.OpenWindow()
-
+        
+        
+        parameters = self._configure_logfile(parameters)
         # Configure logfile path
-        if 'logfile' not in parameters:
-            if 'filename' in parameters:
-                parameters['logfile'] = os.path.join(parameters['folder'], parameters['filename']) + '.log'
-            elif 'trajectory_name' in parameters and parameters['trajectory_name']:
-                parameters['logfile'] = os.path.join(parameters['folder'], parameters['trajectory_name'], 'output.log')
-            else:
-                parameters['logfile'] = os.path.join(parameters['folder'], 'output.log')
-
+        #if 'logfile' not in parameters:
+        #    folder = parameters.get('folder', os.getcwd())
+        #    if 'filename' in parameters:
+        #        parameters['logfile'] = os.path.join(folder, parameters['filename'] + '.log')
+        #    
+        #    elif parameters.get('trajectory_name'):
+        #        parameters['logfile'] = os.path.join(folder, parameters['trajectory_name'], 'output.log')
+        #    
+        #    else:
+        #        parameters['logfile'] = os.path.join(folder, 'output.log')
+        
         pprint(parameters)
 
-        e_id = system.e_id
-        name = system.label
+        e_id, name = system.e_id, system.label
 
         # Prevent multiple processes for the same system
         if e_id in self.process_pool and self.process_pool[e_id][1].is_alive():
@@ -960,25 +1076,37 @@ class pSimulations:
 
         # Create queue for inter-process communication
         queue = multiprocessing.Queue()
-        parameters['new_vobject'] = True
-        parameters['queue'] = queue
+        parameters.update({
+                            'new_vobject': True,
+                            'queue': queue
+                            })
 
+        
         # Create and start subprocess
         process = multiprocessing.Process(
             target=self._target_process,
             args=(parameters,)
         )
         
-        try:
-            process.start()
-            # Add entry to process manager window
-            message = f"{parameters['simulation_type']} {system.e_step_counter} - Running..."
-            hamiltonian = getattr(system.qcModel, 'hamiltonian', 'unk')
-            status = 'Queued'
-        except:
-            message = f"{parameters['simulation_type']} {system.e_step_counter} - Aborted!"
-            hamiltonian = getattr(system.qcModel, 'hamiltonian', 'unk')
-            status = 'Aborted!'
+        hamiltonian = self.get_hamiltonian_type(e_id)
+        
+        #hamiltonian = getattr(system.qcModel, 'hamiltonian', 'unk')
+        status = 'Queued'
+        
+        
+        process.start()
+        message = f"{parameters['simulation_type']} {system.e_step_counter} - Running..."
+        
+        #try:
+        #    process.start()
+        #    # Add entry to process manager window
+        #    message = f"{parameters['simulation_type']} {system.e_step_counter} - Running..."
+        #    hamiltonian = getattr(system.qcModel, 'hamiltonian', 'unk')
+        #    status = 'Queued'
+        #except:
+        #    message = f"{parameters['simulation_type']} {system.e_step_counter} - Aborted!"
+        #    hamiltonian = getattr(system.qcModel, 'hamiltonian', 'unk')
+        #    status = 'Aborted!'
         
         treeiter = self.main.process_manager_window.add_new_process(
             system=system,
@@ -996,12 +1124,12 @@ class pSimulations:
         # Store process information in process pool
         self.process_pool[e_id] = [queue, process, None, path, treeiter]
 
-        # Schedule periodic queue checks
-        GLib.timeout_add(200, self._check_queue)
-    
-            
-        
-        
+
+        if self.GLib_monitor:
+            pass
+        else:
+            # Schedule periodic queue checks
+            self.GLib_monitor= GLib.timeout_add(200, self._check_queue)
         return False
 
 
@@ -1573,7 +1701,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         #'''
         self.process_pool = {}
-        
+        self.GLib_monitor =None
         
     
     def set_active(self, system_e_id = None):
@@ -1611,7 +1739,51 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         return name
         
+    
+    def get_hamiltonian_type (self, e_id = None):
+        """ Function doc """
+        psystem = self.psystem[e_id]
         
+        qc = False
+        mm = False
+        
+        if psystem.qcModel:
+            qc = 'QC'
+            #hamiltonian   = getattr(psystem.qcModel, 'hamiltonian', False)
+            #if hamiltonian:
+            #    pass
+            #else:
+            #    try:
+            #        itens = psystem.qcModel.SummaryItems()
+            #        #print(itens)
+            #        hamiltonian = itens[0][0]
+            #    except:
+            #        hamiltonian = 'external'    
+            
+        if psystem.mmModel:
+            mm = 'MM'
+            #forceField = psystem.mmModel.forceField
+            #string += 'force field: {}    '.format(forceField)
+            #
+            #if psystem.nbModel:
+            #    nbmodel = psystem.mmModel.forceField
+            #    string += 'nbModel: True    '
+            #    
+            #    summary_items = psystem.nbModel.SummaryItems()
+            #    
+            #
+            #else:
+            #    string += 'nbModel: False    '
+        if qc and mm:
+            return 'QC/MM'
+        elif qc:
+            return 'QC'
+        elif mm:
+            return 'MM'
+        else:
+            pass
+            
+    
     def load_a_new_pDynamo_system_from_dict (self, input_files = {}, system_type = 0, name = None, tag = None, color = None, working_folder = None):
         """ Function doc """
         #print('\n\n\ init - load_a_new_pDynamo_system_from_dict')
@@ -1791,7 +1963,10 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             if is_wf_already_set is False:
                 # . If not, the pdynamo scratch folder will be used
                 try:  
-                    system.e_working_folder = os.environ.get('PDYNAMO3_SCRATCH')
+                    if os.path.isdir(self.vm_session.gl_parameters["tmp_path"]):
+                        system.e_working_folder = self.vm_session.gl_parameters["tmp_path"]
+                    else:
+                        system.e_working_folder = os.environ.get('PDYNAMO3_SCRATCH')
                 except:
                     system.e_working_folder =  os.environ.get('HOME')
             
@@ -2661,6 +2836,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         #system.e_liststore_iter  = None
 
         new_system = copy.deepcopy(system)
+        new_system.e_step_counter = 0
         #system.e_treeview_iter   = backup[0]
         #system.e_liststore_iter  = backup[1]
         

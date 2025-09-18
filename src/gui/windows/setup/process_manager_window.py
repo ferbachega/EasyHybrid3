@@ -108,6 +108,7 @@ class ProcessManagerWindow(Gtk.Window):
         #---------------------------------------------------------------
         
         columns = {"Job Type"  : 1, 
+                   'job'       : 8,
                    "Potential" : 2, 
                    "Status"    : 5,
                    "Started"   : 3, 
@@ -159,7 +160,9 @@ class ProcessManagerWindow(Gtk.Window):
             start     = formatted_time
             #----------------------------------------------------------------------------
         
-        treeiter = self.liststore.append([name, _type, potential, start, end, status, sqr_color,  system.e_id, -1 ])
+        step_counter = system.e_step_counter
+        
+        treeiter = self.liststore.append([name, _type, potential, start, end, status, sqr_color,  system.e_id, step_counter ])
         #self.set_time (treeiter, start = True, end = False)
         return treeiter
 
@@ -235,9 +238,9 @@ class ProcessManagerWindow(Gtk.Window):
             # ... abort at some later point:
             process.terminate()    # requests immediate termination
             process.join(timeout=5)  # “awaits cleanup for up to 5 seconds”
-            
-            
             model[treeiter][5] = "Aborted"
+            
+            self.p_session.psystem[e_id].e_step_counter += 1
             #print(f"Parando: {model[treeiter][1]}")
             
         

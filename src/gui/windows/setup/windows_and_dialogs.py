@@ -1441,16 +1441,20 @@ class PDynamoSelectionWindow:
         pass
 
 
-class SetupXTBplusWindow:
+class SetupXTBWindow:
     """ Class doc """
     
     def __init__ (self, main, setup_QC_model_window):
         """ Class initialiser """
         self.main_session     = main
+        self.vm_session       = main.vm_session
         self.home             = main.home
         self.Visible          = False        
         self.vismol_object    = None 
         self.window           = None
+        
+        
+
         self.parameters = {
                           'gfn'          : 1  ,
                           'parallel'     : 1  ,
@@ -1458,7 +1462,7 @@ class SetupXTBplusWindow:
                           'iterations'   : 300,
                           'fermi_temp'   : 300.0,
                           'add_keywords' : '',
-                          'scratch'      : os.path.join(PDYNAMO3_SCRATCH,'XTBScratch')
+                          'scratch'      : None#os.path.join(scratch,'XTBScratch')
                           }
         
         self.setup_QC_model_window = setup_QC_model_window
@@ -1511,11 +1515,27 @@ class SetupXTBplusWindow:
             self.gfn_cbox.set_active(self.parameters['gfn']-1)
             self.spinbtn_parallel.set_value(self.parameters['parallel'])
             
+            if self.parameters['scratch'] is not None:
+                pass
+            else:
+                if os.path.isdir(self.vm_session.vm_config.gl_parameters["tmp_path"]):
+                    self.parameters['scratch'] = self.vm_session.vm_config.gl_parameters["tmp_path"]
+                else:
+                    self.parameters['scratch'] = PDYNAMO3_SCRATCH
+                
+            
+            
             self.entry_xtb_acc       .set_text(str(self.parameters['acc'         ]))    
             self.entry_xtb_iterations.set_text(str(self.parameters['iterations'  ]))
             self.entry_xtb_fermi_temp.set_text(str(self.parameters['fermi_temp'  ]))
             self.entry_keywords      .set_text(str(self.parameters['add_keywords']))
             self.entry_scratch       .set_text(str(self.parameters['scratch']))
+            
+            
+            
+            
+            
+            
             
             #self.refresh_orca_parameters (None)
             self.Visible  =  True
@@ -2156,7 +2176,7 @@ class EasyHybridSetupQCModelWindow:
         
         self.setup_orca_window = SetupORCAWindow(self.main_session, self)
         self.setup_dftb_window = SetupDFTBplusWindow(self.main_session, self)
-        self.setup_xtb_window  = SetupXTBplusWindow(self.main_session, self)
+        self.setup_xtb_window  = SetupXTBWindow(self.main_session, self)
         self.orca_options = ''
         self.orca_scratch = ''
         self.orca_random_scratch = False

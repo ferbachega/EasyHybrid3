@@ -21,7 +21,7 @@
 #  MA 02110-1301, USA.
 #
 #
-EASYHYBRID_VERSION = '3.0'
+EASYHYBRID_VERSION = '3.0.1'
 
 import os, sys, time
 import logging
@@ -68,6 +68,7 @@ class SplashScreen(Gtk.Window):
             self.add(image)
         except:
             print('splash.png file not found!')
+
 def load_modules(callback_final):
     def _load():
         print("Starting module loading...")
@@ -92,7 +93,7 @@ def main():
                                  home       =  EASYHYBRID_HOME,
                                  version    = EASYHYBRID_VERSION)
         vm_session.main_session = main_window                  
-        print(vm_session.vm_config.gl_parameters)
+        #print(vm_session.vm_config.gl_parameters)
         #main_window.window.connect('destroy', Gtk.main_quit)
         
         
@@ -102,7 +103,6 @@ def main():
         main_window.builder.get_object('test_item')             .hide()
         #main_window.builder.get_object('toolbutton_terminal')   .hide()
         #main_window.builder.get_object('menuitem_reimaging')   .hide()
-        
         #main_window.builder.get_object('menuitem_RMSD_tool')   .hide()
         main_window.builder.get_object('menuitem_rama')   .hide()
         splash.destroy()

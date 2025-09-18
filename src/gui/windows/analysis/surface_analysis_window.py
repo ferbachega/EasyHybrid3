@@ -144,8 +144,8 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.label_frame = self.builder.get_object('label_frame')
                  
             system  = self.main.p_session.get_system()
+
             for row in self.main.vobject_liststore_dict[self.main.p_session.active_id]:
-                
                 a = list (row)
                 self.coordinates_liststore.append([a[0], a[1], a[2]])
 
@@ -154,19 +154,25 @@ class SurfaceAnalysisWindow(Gtk.Window):
 
             columns = [' ', 'Orbital', 'Occ.', 'Energy']#, 'visible']
             
-            self.liststore = Gtk.ListStore(int, str, int, float, bool)
+            self.liststore = Gtk.ListStore(int, str, int, float)#, bool)
 
             self.treeview = self.builder.get_object('selection_treeview')#Gtk.TreeView(model=self.liststore)
+            
+            # Remove todas as colunas criadas pelo Glade
+            for col in self.treeview.get_columns():
+                print(col)
+                self.treeview.remove_column(col)
+            
             self.treeview.set_model(self.liststore)
              
             for i, column_title in enumerate(columns):
                 renderer = Gtk.CellRendererText()
-                if column_title == 'visible':
-                    renderer_toggle = Gtk.CellRendererToggle()
-                    renderer_toggle.connect("toggled", self.on_cell_toggled)
-                    column = Gtk.TreeViewColumn(column_title, renderer_toggle, active=4)
-                else:    
-                    column = Gtk.TreeViewColumn(column_title, renderer, text=i)
+                #if column_title == 'visible':
+                #    renderer_toggle = Gtk.CellRendererToggle()
+                #    renderer_toggle.connect("toggled", self.on_cell_toggled)
+                #    column = Gtk.TreeViewColumn(column_title, renderer_toggle, active=4)
+                #else:    
+                column = Gtk.TreeViewColumn(column_title, renderer, text=i)
                 self.treeview.append_column(column)
             
             #-----------------------------------------------------------
@@ -187,9 +193,11 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.btn_color_plus.set_rgba(rgba)
             
             
-            
-            
-            
+            try:
+                active_e_id = self.p_session.active_id
+                self.system_names_combo.set_active_system(e_id = active_e_id) 
+            except:
+                pass
             
             #self.refresh_system_liststore()
             #self.treeview_menu         = TreeViewMenu(self)

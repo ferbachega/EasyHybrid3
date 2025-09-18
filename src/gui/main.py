@@ -1388,15 +1388,18 @@ class MainWindow:
         self.p_session.psystem[e_id].e_tag = tag
 
     def rename (self, e_id = None, v_id = -1, name = None):
-
+        #print(name, v_id,  e_id)
         #print(name)
         if v_id == -1: #.change the header
-            _iter = self.p_session.psystem[e_id].e_treeview_iter
+            _iter = self.system_treeview_iters[e_id] 
+            #_iter = self.p_session.psystem[e_id].e_treeview_iter
             self.main_treeview.treestore[_iter][2] = str(e_id)+' - '+ name
             self.p_session.psystem[e_id].label  = name
-            liststore_iter = self.p_session.psystem[e_id].e_liststore_iter
+            
+            liststore_iter = self.system_liststore_iters[e_id]
+            #liststore_iter = self.p_session.psystem[e_id].e_liststore_iter
             self.system_liststore[liststore_iter][0] = str(e_id)+' - '+ name
-        
+  
         else:
             #print(self.vm_session.vobject_names.values())
             if name in self.vm_session.vobject_names.keys():
