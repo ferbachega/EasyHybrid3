@@ -3478,7 +3478,12 @@ class ImportANewSystemWindow(Gtk.Window):
             )
             self.color_button = self.builder.get_object('button_color')
             self.color_button.set_rgba(color)
-
+            
+            
+            tag = self.vm_session.gen_random_tag_string()
+            self.builder.get_object('entry_system_tag').set_text(tag)
+            
+            
             # --------------------------------------------------------------------------------------------
             # Configure working folder widgets
             self.entry_working_folder = self.builder.get_object('entry_working_folder')
@@ -3497,123 +3502,6 @@ class ImportANewSystemWindow(Gtk.Window):
             # If already visible, just bring the window to the front
             self.window.present()
     
-    def OpenWindow_old (self):
-        """ Function doc """
-        if self.Visible  ==  False:
-            self.builder = Gtk.Builder()
-            self.builder.add_from_file(os.path.join(self.home,'src/gui/windows/setup/import_system_window_new.glade'))
-            self.builder.connect_signals(self)
-            
-            self.window = self.builder.get_object('ImportNewSystemWindow')
-            self.window.set_border_width(10)
-            self.window.set_default_size(500, 370)  
-
-            
-            '''--------------------------------------------------------------------------------------------'''
-            self.system_type_store = Gtk.ListStore(str, int)
-            system_types = [
-                ["AMBER"                        , 0],
-                ["CHARMM"                       , 1],
-                ["OPLS"                         , 2],
-                ['DYFF'                         , 5], 
-                ["pdynamo files (*.pkl, *.yaml)", 3],
-                ["other (*.pdb, *.xyz, *.mol2)" , 4],
-                ]
-            for system_type in system_types:
-                self.system_type_store.append(system_type)
-                #print (system_type)
-            
-            self.system_types_combo = Gtk.ComboBox.new_with_model(self.system_type_store)
-            self.system_types_combo.set_tooltip_text(self.amber_txt)
-            self.box_combo = self.builder.get_object('box')
-            self.box_combo.pack_start(self.system_types_combo, True, True, 0)
-            
-            self.builder.get_object('gtk_label_fftype').hide()
-            self.system_types_combo.connect("changed", self.on_name_combo_changed)
-            self.system_types_combo.set_model(self.system_type_store)
-            
-            renderer_text = Gtk.CellRendererText()
-            self.system_types_combo.pack_start(renderer_text, True)
-            self.system_types_combo.add_attribute(renderer_text, "text", 0)
-            '''--------------------------------------------------------------------------------------------'''
-           
-            
-            self.treeview = self.builder.get_object('gtktreeview_import_system')
-            for i, column_title in enumerate(['file', "type", "number of atoms"]):
-                renderer = Gtk.CellRendererText()
-                column = Gtk.TreeViewColumn(column_title, renderer, text=i)
-                self.treeview.append_column(column)
-
-            # - - - - - - - - - - - working folder  - - - - - - - - - - - -
-            #self.folder_chooser_button = FolderChooserButton(main =  self, sel_type = 'folder', home =  self.home)
-            #self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
-            #try:
-            #    self.folder_chooser_button.set_folder(self.vm_session.vm)
-            #except:
-            #    self.folder_chooser_button.set_folder(self.vm_session.vm_config.gl_parameters['startup_path'])
-            
-            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
-            
-            
-            self.entry_system_name = self.builder.get_object('entry_system_name')
-            self.entry_system_name.connect('changed', self.on_entry_system_name_change)
-            
-            
-            self.window.show_all()                                               
-            self.builder.connect_signals(self)                                   
-            self.builder.get_object('gtkbox_OPLS_folderchooser').hide()
-
-            self.Visible  =  True
-            
-            self.files    = {
-                            'amber_prmtop': None,
-                            'charmm_par'  : [],
-                            'charmm_psf'  : None,
-                            'charmm_extra': None, 
-                            'prm_folder' : [],
-                            'coordinates' : None,
-                            }
-            self.system_types_combo.set_active(0)
-
-
-            self.window.connect('destroy', self.CloseWindow)
-            self.builder.get_object('button_load_files')        .connect('clicked', self.on_button_load_files_clicked)
-            self.builder.get_object('button_remove_files')      .connect('clicked', self.on_button_delete_files_clicked)
-            #self.builder.get_object('gtkbox_OPLS_folderchooser').connect('clicked',)
-            self.builder.get_object('button_cancel')            .connect('clicked', self.CloseWindow)
-            self.builder.get_object('import_import_system')     .connect('clicked', self.on_button_import_system_clicked)
-            #self.window.show_all()
-            
-            #color = Gdk.RGBA(1.0, 0.0, 0.0, 1.0)   
-            color = Gdk.RGBA( self.color_pallet[self.color_counter][0],
-                              self.color_pallet[self.color_counter][1],
-                              self.color_pallet[self.color_counter][2],
-                              self.color_pallet[self.color_counter][3],
-                               ) 
-            #self.color_pallet[self.color_counter]
-            self.color_button = self.builder.get_object('button_color')
-            self.color_button.set_rgba ( color )
-            
-            #-------------------------------------------------------------------------
-            #self.builder.get_object('folder_chooser_box').hide()
-            #self.builder.get_object('label_folder_button').hide()
-            
-            #self.label_folder_button.hide()
-            #self.folder_chooser_button.hide()
-            #-------------------------------------------------------------------------
-            
-            
-            
-            #-------------------------------------------------------------------------
-            self.entry_working_folder = self.builder.get_object('entry_working_folder')
-            self.btn_choose_folder = self.builder.get_object('btn_choose_folder')
-            self.set_working_folder_path()
-            #-------------------------------------------------------------------------
-            self.cb_create_folder_change = self.builder.get_object('cb_create_folder')
-            self.cb_create_folder_change.connect('toggled', self.on_cb_create_folder_change)
-        else:
-            self.window.present()
-            #----------------------------------------------------------------
     def CloseWindow (self, button, data  = None):
         """ Function doc """
         self.window.destroy()

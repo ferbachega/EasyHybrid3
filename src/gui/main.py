@@ -1477,8 +1477,14 @@ class MainWindow:
                     pop_list.append(index)
             '''removing from vm_object_dic'''
             for index in pop_list:
+                print('removing sys = {}, obj = {}, name = {}'.format(system_e_id, 
+                                                                      index,
+                                                                      self.vm_session.vm_objects_dic[index].name))
+                
+                name  = self.vm_session.vm_objects_dic[index].name
+                
                 self.vm_session.vm_objects_dic.pop(index)
-            
+                self.vm_session.vobject_names.pop(name)
             '''removing vobject from vobject_liststore_dict'''
             self.vobject_liststore_dict.pop(system_e_id)
             

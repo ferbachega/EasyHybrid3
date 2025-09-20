@@ -29,6 +29,8 @@ from gi.repository import Gtk, Gdk
 from vismol.core.vismol_session import VismolSession
 import vismol.utils.selectors as selectors
 
+import random
+import string
 #from gui.widgets.custom_widgets import get_distance
 
 from gui.windows.setup.windows_and_dialogs import EasyHybridDialogPrune
@@ -1087,7 +1089,6 @@ class EasyHybridSession(VismolSession, GLMenu):
             systemtype = 3  # Hardcoded system type (could be parameterized later)
             self.main_session.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
 
-
     def show (self, obj = None, rep = 'lines', sele = None):
         """
         Display the specified atoms of a VisMol object.
@@ -1245,7 +1246,9 @@ class EasyHybridSession(VismolSession, GLMenu):
         self.vm_objects_dic = {}
         self.vm_glcore.queue_draw()  
         
-    
+    def gen_random_tag_string(self, length=3):
+        chars = string.ascii_letters + string.digits  # letras (A-Z, a-z) + dígitos (0-9)
+        return ''.join(random.choice(chars) for _ in range(length))
     #-------------------------------------------------------------------
     #                        restricted methods
     #-------------------------------------------------------------------
@@ -1325,7 +1328,8 @@ class EasyHybridSession(VismolSession, GLMenu):
 
         # Ensure object name has no spaces
         vismol_object.name = vismol_object.name.replace(" ", "_")
-
+        
+        e_tag = self.main_session.p_session.psystem[vismol_object.e_id].e_tag
         # ------------------------------------------------------------------
         # Ensure unique naming for the VismolObject
         # ------------------------------------------------------------------
@@ -1334,6 +1338,7 @@ class EasyHybridSession(VismolSession, GLMenu):
 
         # If the name doesn't start with the object's e_id, prepend it
         if prefix_tag != str(vismol_object.e_id):
+            vismol_object.name = vismol_object.name.replace(prefix_tag+'_', '')
             vismol_object.name = f"{vismol_object.e_id}_{vismol_object.name}"
 
         # If the name is already in use, append suffixes until unique

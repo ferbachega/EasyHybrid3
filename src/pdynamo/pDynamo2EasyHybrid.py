@@ -138,12 +138,12 @@ class LoadAndSaveData:
             else:
                 data   = {}
     
-                backup[e_id] = []
-                backup[e_id].append(system.e_treeview_iter)
-                backup[e_id].append(system.e_liststore_iter)
+                #backup[e_id] = []
+                #backup[e_id].append(system.e_treeview_iter)
+                #backup[e_id].append(system.e_liststore_iter)
     
-                system.e_treeview_iter   = None
-                system.e_liststore_iter  = None
+                #system.e_treeview_iter   = None
+                #system.e_liststore_iter  = None
                 
                 data['system'] = system
                 data['vobjects'] = []
