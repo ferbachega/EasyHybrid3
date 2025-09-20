@@ -690,6 +690,7 @@ class EasyHybridImportTrajectory:
                     self.psystem[parameters['system_id']].e_logfile_data[vobject_id] = []
                     self.psystem[parameters['system_id']].e_logfile_data[vobject_id].append(data)
             
+            self.main.PES_analysis_window.refresh_vobject_liststore ()
             #print ('\n\n\n\n\n\n\n')
             #print (self.psystem[parameters['system_id']].e_logfile_data)
         else:

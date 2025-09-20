@@ -171,6 +171,7 @@ class PotentialEnergyAnalysisWindow:
             self.coordinates_combobox = CoordinatesComboBox(coordinates_liststore = self.vobject_liststore)
             self.coordinates_combobox.connect('changed', self.on_coordinates_combobox_change)
             self.grid.attach (self.coordinates_combobox, 1, 0, 1, 1)
+            
             self.refresh_vobject_liststore ()
 
 
@@ -291,6 +292,17 @@ class PotentialEnergyAnalysisWindow:
                 self.data_liststore.append([data['name'], index])
 
             self.data_combobox.set_active(0)
+            
+            try:
+                self.plot2.queue_draw()
+            except:
+                pass
+            
+            try:
+                self.plot.queue_draw()
+            except:
+                pass
+        
         except:
             pass
         #print( self.vobject.idx_2D_xy)
