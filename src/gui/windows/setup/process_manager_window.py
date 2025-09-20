@@ -5,50 +5,29 @@ from gi.repository import GdkPixbuf
 from gui.widgets.custom_widgets  import get_colorful_square_pixel_buffer
 from gui.windows.setup.windows_and_dialogs import TextWindow
 import os, sys, time
-
+from pprint import pprint
 
 class ProcessManagerWindow(Gtk.Window):
     def __init__(self, main = None):
         self.main                = main
         self.p_session           = main.p_session
         self.home                = main.home
-        
-        self.Visible             =  False
-        
-        # Criar ListStore (modelo da TreeView)
-        self.liststore = Gtk.ListStore(str,               #0.system name
-                                       str,               #1.job type
-                                       str,               #2.potential
-                                       str,               #3.start
-                                       str,               #4.ended
-                                       str,               #5.status
-                                       GdkPixbuf.Pixbuf,  #6.color 
-                                       int,               #7.e_id
-                                       int                #8.e_step_counter
-                                       )                
-        
-        
-        #self.liststore.append(["Sys001", "LigandA", "MD", "00:00", "01:00", "Running"])
-        #self.liststore.append(["Sys002", "LigandB", "QM/MM", "01:10", "02:30", "Finished"])
-        #self.liststore.append(["Sys003", "LigandC", "Docking", "02:40", "-", "Queued"])
-
-
+        self.Visible             = False
 
     def OpenWindow (self):
         """ Function doc """
         if self.Visible  ==  False:
-
+            
             self.window = Gtk.Window(title="Process Manager")
             #super().__init__(title="Janela Auxiliar - Processos")
             self.window.set_default_size(600, 300)
             self.window.set_border_width(10)
             self.window.set_keep_above(True)
-
+            
 
             self.build_treeview()
             self.build_popupmenu()
             
-
             # TreeView dentro de ScrolledWindow
             scrolled = Gtk.ScrolledWindow()
             scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
@@ -79,13 +58,17 @@ class ProcessManagerWindow(Gtk.Window):
         menu_item3 = Gtk.MenuItem(label="Remove")
         menu_item3.connect("activate", self.on_remove_activate)
         self.popup_menu.append(menu_item3)
+        
+        menu_item3 = Gtk.MenuItem(label="Clear List")
+        menu_item3.connect("activate", self.on_clear_list)
+        self.popup_menu.append(menu_item3)
 
         self.popup_menu.show_all()
 
     def build_treeview (self):
         """ Function doc """
         # Criar TreeView
-        self.treeview = Gtk.TreeView(model=self.liststore)
+        self.treeview = Gtk.TreeView(model = self.main.job_history_liststore)
         
         # Adicionar colunas
         #---------------------------------------------------------------
@@ -133,12 +116,10 @@ class ProcessManagerWindow(Gtk.Window):
         # Adicionar suporte para menu de contexto
         self.treeview.connect("button-press-event", self.on_button_press_event)
 
-    
     def CloseWindow (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
-
 
     def add_new_process (self,
                          system    = None, 
@@ -146,11 +127,13 @@ class ProcessManagerWindow(Gtk.Window):
                          potential = None,
                          start     = None, 
                          end       = ' ', 
-                         status    = None):
+                         status    = None,
+                         step      = None):
         """ Function doc """
-        name  = ' '+ system.label
-        sqr_color      = get_colorful_square_pixel_buffer(system)
         
+        name  = ' '+ system.label
+        sqr_color = get_colorful_square_pixel_buffer(system)
+        #print('step:', step)
         if start is not None:
             pass
         else:
@@ -160,36 +143,52 @@ class ProcessManagerWindow(Gtk.Window):
             start     = formatted_time
             #----------------------------------------------------------------------------
         
-        step_counter = system.e_step_counter
+        #when the step is external - from load EH session.
+        if step is not None:
+            step_counter = step
+        else:
+            step_counter = system.e_step_counter
         
-        treeiter = self.liststore.append([name, _type, potential, start, end, status, sqr_color,  system.e_id, step_counter ])
+        #print(step_counter)
+        #pprint(system.e_job_history )
+        system.e_job_history[step_counter]['started'] = start
+        treeiter = self.main.job_history_liststore.append([name, _type, potential, start, end, status, sqr_color,  system.e_id, step_counter ])
         #self.set_time (treeiter, start = True, end = False)
         return treeiter
 
-
     def set_status (self, treeiter = None, status = 'Queued' ):
         """ Function doc """
-        self.liststore[treeiter][5] = status
+        self.main.job_history_liststore[treeiter][5] = status
 
-    
     def set_time (self, treeiter, start = False, end = False):
         """ Function doc """
+        e_id = self.main.job_history_liststore[treeiter][7]
+        step_counter = self.main.job_history_liststore[treeiter][8]
+        try:
+            system = self.p_session.psystem[e_id]
+        except:
+            system = False
+        
         if start:
             current_time   = time.time()
             #formatted_time = time.strftime("%Y-%m-%d   %H:%M:%S", time.localtime(current_time))
             formatted_time = time.strftime("%d/%m %H:%M:%S", time.localtime(current_time))
-            self.liststore[treeiter][4] = formatted_time
-        
+            self.main.job_history_liststore[treeiter][4] = formatted_time
+            if system:
+                system.e_job_history[step_counter]['started'] = formatted_time
+            
+            
         if end:
             current_time   = time.time()
             #formatted_time = time.strftime("%Y-%m-%d   %H:%M:%S", time.localtime(current_time))
             formatted_time = time.strftime("%d/%m %H:%M:%S", time.localtime(current_time))
-            self.liststore[treeiter][4] = formatted_time
-
+            self.main.job_history_liststore[treeiter][4] = formatted_time
+            if system:
+                system.e_job_history[step_counter]['ended'] = formatted_time
     
     def set_step_counter (self, treeiter, e_step_counter):
         """ Function doc """
-        self.liststore[treeiter][8] = e_step_counter
+        self.main.job_history_liststore[treeiter][8] = e_step_counter
         
     def on_button_press_event(self, widget, event):
         if event.type == Gdk.EventType.BUTTON_PRESS and event.button == 3:
@@ -203,7 +202,6 @@ class ProcessManagerWindow(Gtk.Window):
             return True
         return False
 
-
     def on_row_activated(self, treeview, path, column):
         model = treeview.get_model()
         iter = model.get_iter(path)
@@ -213,20 +211,45 @@ class ProcessManagerWindow(Gtk.Window):
         step_counter = model[iter][8]
         print(f"Double click on: {e_id} {nome} {step_counter} (PID={pid})")
         system = self.p_session.psystem[e_id]
-        print(system.e_job_history[step_counter])
+        pprint(system.e_job_history[step_counter])
         
         logfile = system.e_job_history[step_counter]['logfile']
         data = open(logfile, 'r')
         data = data.read()
         textwindow = TextWindow(data)
         
-        
     def rerun_job(self, widget):
-        return False
+        #return False
+        
         model, treeiter = self.treeview.get_selection().get_selected()
-        if treeiter:
-            model[treeiter][5] = "Running"
-            print(f"Iniciando: {model[treeiter][1]}")
+        
+        #iter = model.get_iter(path)
+        nome = model[treeiter][0]
+        pid = model[treeiter][1]
+        e_id = model[treeiter][7]
+        step_counter = model[treeiter][8]
+        
+        self.main.main_treeview.set_active_system(e_id)
+        system = self.p_session.psystem[e_id]
+        
+        parameters = system.e_job_history[step_counter]['backup_parameters']
+        
+        if parameters['simulation_type'] == 'Geometry_Optimization':
+            if self.main.geometry_optimization_window.Visible:
+                self.main.geometry_optimization_window.CloseWindow(None, None)
+            self.main.geometry_optimization_window.OpenWindow()
+            self.main.geometry_optimization_window.restore_the_parameters_to_the_window (parameters)
+            
+        
+        
+        #pprint(system.e_job_history[step_counter])
+        
+        
+        
+        
+        #if treeiter:
+        #    model[treeiter][5] = "Running"
+        #    pprint(f"Iniciando: {model[treeiter][1]}")
 
     def on_stop_activate(self, widget):
         model, treeiter = self.treeview.get_selection().get_selected()
@@ -239,11 +262,25 @@ class ProcessManagerWindow(Gtk.Window):
             process.join(timeout=5)  # “awaits cleanup for up to 5 seconds”
             model[treeiter][5] = "Aborted"
             
-            self.p_session.psystem[e_id].e_step_counter += 1
-            #print(f"Parando: {model[treeiter][1]}")
+            system       = self.p_session.psystem[e_id]
+            step_counter = system.e_step_counter
+            system.e_job_history[step_counter]['status'] = "Aborted"
             
-        
-        
+            self.p_session.psystem[e_id].e_step_counter += 1
+            self.set_time ( treeiter= treeiter,  end = True)
+     
+     
+    def on_clear_list(self, widget):
+        self.main.job_history_liststore.clear()
+        #model, treeiter = self.treeview.get_selection().get_selected()
+        #if treeiter:
+        #    if model[treeiter][5] == "Running...":
+        #        
+        #        pass
+        #    else:
+        #        #print(f"Removing: {model[treeiter][1]}")
+        #        model.remove(treeiter)
+            
     def on_remove_activate(self, widget):
         model, treeiter = self.treeview.get_selection().get_selected()
         if treeiter:
@@ -254,7 +291,77 @@ class ProcessManagerWindow(Gtk.Window):
                 #print(f"Removing: {model[treeiter][1]}")
                 model.remove(treeiter)
 
-
     def update (self, parameters = None):
         """ Function doc """
         pass
+
+    def clear_liststore_job_history (self, clear = True):
+        """ Function doc """
+        if clear:
+            self.main.job_history_liststore.clear()
+    
+    def build_liststore_from_job_history (self, clear = True):
+        """ Function doc """
+        #if clear:
+        #print( self.main.job_history_liststore)
+        
+        #self.main.job_history_liststore.clear()
+        #if hasattr(self, 'treeview'):
+        #    self.main.job_history_liststore.clear()
+        #    self.treeview.set_model(Gtk.ListStore())
+        
+        for e_id in self.p_session.psystem.keys():
+            system    = self.p_session.psystem[e_id]
+            
+            
+            print (len(self.p_session.psystem.keys()),
+                   len(system.e_job_history.keys()),
+                   system.label
+                  
+                  )
+            # there might be several jobs in system.e_job_history dict for each system
+            for job_num in system.e_job_history.keys():
+                
+                #.the list of parameters to reload the liststore
+                keys = ['status','step_counter','simulation_type',
+                        'potential','status', 'started','ended']
+                
+                job = system.e_job_history[job_num]
+                
+                #. checking de parameters
+                for key in keys:
+                    if key in job.keys():
+                        pass
+                    else:
+                        job[key] = 'Unk'
+                    
+                
+               
+                
+                status    = job['status']
+                job_num   = job['step_counter']
+                job_type  = job['simulation_type']
+                potential = job['potential']
+               
+                started = job['started']
+                ended   = job['ended']
+                
+                name  = system.label
+                #print('\n\n')
+                #print(status, job_num,job_type, potential, started,  ended)
+                #print('\n\n')
+                
+                if job_num == 'Unk':
+                    return False
+                else:
+                #try:
+                    self.add_new_process ( 
+                                 system    = system, 
+                                 _type     = job_type, 
+                                 potential = potential,
+                                 start     = started, 
+                                 end       = ended, 
+                                 status    = status,
+                                 step      = job_num)
+                #except:
+                #    pass

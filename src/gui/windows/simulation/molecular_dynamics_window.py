@@ -161,12 +161,20 @@ class MolecularDynamicsWindow():
             self.save_trajectory_box = SaveTrajectoryBox(parent = self.main, home = self.home)
             self.builder.get_object('folder_chooser_box').pack_end(self.save_trajectory_box.box, True, True, 0)
             
+            try:
+                self.save_trajectory_box.set_folder(self.p_session.psystem[self.p_session.active_id].e_working_folder)
+                output_name = self.p_session.get_output_filename_from_system(self.sym_tag)
+                self.save_trajectory_box.set_filename (output_name )
+            except:
+                self.save_trajectory_box.set_folder(HOME)
+            
+            '''
             if self.p_session.psystem[self.p_session.active_id].e_working_folder:
                 self.save_trajectory_box.set_folder(self.p_session.psystem[self.p_session.active_id].e_working_folder)
             
             else:
                 self.save_trajectory_box.set_folder(HOME)
-                
+              
             
             if  self.p_session.psystem[self.p_session.active_id]:
                 output_name = self.p_session.get_output_filename_from_system(self.sym_tag)
@@ -174,7 +182,7 @@ class MolecularDynamicsWindow():
             
             else:
                 pass
-                
+            #'''    
             self.save_trajectory_box.set_active ()
             #'''--------------------------------------------------------------------------------------------'''
 

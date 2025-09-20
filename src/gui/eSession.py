@@ -1059,23 +1059,28 @@ class EasyHybridSession(VismolSession, GLMenu):
         # Handle EasyHybrid project files (*.easy)
         if filename.endswith(".easy"):
             temp_file = filename + "~"
+            
             if os.path.exists(temp_file):
                 msg = ("There is a newer temporary file for the project you are loading.\n"
                        "Would you like to load the most current file?")
                 dialog = SimpleDialog(self.main_session)
                 yes_or_no = dialog.question(msg)
-
+                
+                
+                
                 target_file = temp_file if yes_or_no else filename
                 self.main_session.p_session.load_easyhybrid_serialization_file(
                     target_file, tmp=yes_or_no
                 )
+                
             else:
                 self.main_session.p_session.load_easyhybrid_serialization_file(filename)
-
+                #self.main_session.process_manager_window.build_liststore_from_job_history (clear = True)
+        
         # Handle temporary EasyHybrid project files (*.easy~)
         elif filename.endswith(".easy~"):
             self.main_session.p_session.load_easyhybrid_serialization_file(filename)
-
+            #self.main_session.process_manager_window.build_liststore_from_job_history (clear = True)
         # Handle all other file types (assumed coordinate/system files)
         else:
             files = {"coordinates": filename}

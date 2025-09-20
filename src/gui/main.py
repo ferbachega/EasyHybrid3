@@ -135,7 +135,16 @@ class MainWindow:
                                        0 : Gtk.ListStore(str,  int, int, GdkPixbuf.Pixbuf)  # name, object_index, e_id, pixel_buffer
                                        }                                 
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
-
+        self.job_history_liststore = Gtk.ListStore(str,               #0.system name
+                                       str,               #1.job type
+                                       str,               #2.potential
+                                       str,               #3.start
+                                       str,               #4.ended
+                                       str,               #5.status
+                                       GdkPixbuf.Pixbuf,  #6.color 
+                                       int,               #7.e_id
+                                       int                #8.e_step_counter
+                                       )
 
 
         
@@ -315,7 +324,7 @@ class MainWindow:
         self.window_list.append(self.selection_list_window)
 
         
-        self.process_manager_window = ProcessManagerWindow( main=  self)
+        self.process_manager_window = ProcessManagerWindow( main =  self)
         self.window_list.append(self.process_manager_window)
         
         
@@ -406,8 +415,24 @@ class MainWindow:
         self.vobject_liststore_dict.clear()
         #self.bottom_notebook.treeview.clear()
         self.session_filename = None
-        self.vm_session.restart()
+        
+        #-------------------------------------------
+        self.p_session.restart()
+        #self.p_session.active_id = 0
+        #self.p_session.psystem   =  {
+        #                           0:None
+        #                          }
+        #self.p_session.psystem_name_list    = []
+        #self.p_session.psystem_name_counter = 1
+        #
+        #self.p_session.counter      = 0
+        #self.p_session.color_palette_counter = 0
+        #-------------------------------------------
 
+        
+        self.vm_session.restart()
+        self.job_history_liststore.clear()
+        
     def window_resize (self, a, b =None, c=None):
         """ Function doc """
         w, h = a.get_size()
@@ -1305,6 +1330,8 @@ class MainWindow:
         filename = self.filechooser.open(filters = filters)
         ''' - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
         self.vm_session.load(filename)
+        #print('HERE')
+        
         #'''
         #if filename:
         #    if filename[-4:] == 'easy':
@@ -1943,100 +1970,150 @@ class MainWindow:
 
 
 class EasyHybridMainTreeView(Gtk.TreeView):
-    
-    def __init__(self ):
-        super().__init__( )
-         
-        self.treestore = Gtk.TreeStore(int , #0 system_e_id           
-                                       int , #1 vobject 
-                                       str , #2 name 
-                                       
-                                       bool, #3 is the radiobutton visible?
-                                       bool, #4 is the radiobutton active?
-                                       
-                                       bool, #5 is the Toggle box visible?
-                                       bool, #6 is the toggle boz active?
-                                       
-                                       bool, #7 is the Frames visible?
-                                       int , #8 Number of frames
-                                       
-                                       GdkPixbuf.Pixbuf #9 Color
-                                       )
-        
-        
+    """
+    Main TreeView widget for managing systems and vismol objects
+    in the EasyHybrid application.
+    """
+
+    def __init__(self):
+        super().__init__()
+
+        # -----------------------------------------------------------
+        # Define TreeStore model
+        # Each row stores information about systems and vismol objects
+        self.treestore = Gtk.TreeStore(
+            int,               # 0 system_e_id
+            int,               # 1 vobject
+            str,               # 2 name
+
+            bool,              # 3 is the radio button visible?
+            bool,              # 4 is the radio button active?
+
+            bool,              # 5 is the toggle box visible?
+            bool,              # 6 is the toggle box active?
+
+            bool,              # 7 is the Frames visible?
+            int,               # 8 number of frames
+
+            GdkPixbuf.Pixbuf   # 9 color square
+        )
         self.set_model(self.treestore)
-        self.tree_iters         = []                               
-        
-        '''self.tree_iters_dict stores the path to 
-        access the vobject in the treeviewm. 
-        Every vobject has a key to access the "iter"'''
-        self.tree_iters_dict    = {}
+
+        # List of Gtk.TreeIter objects for quick access
+        self.tree_iters = []
+
+        # Dictionary mapping "treeview keys" to TreeIters
+        # Each vobject has a key to access its Gtk.TreeIter
+        self.tree_iters_dict = {}
+
+        # Counter to generate keys for tree_iters_dict
         self.tree_iters_counter = 0
-        self._create_treeview ()
-        
 
+        # Create TreeView columns and renderers
+        self._create_treeview()
 
-    
-    def add_new_system_to_treeview (self, system):
-        """ Function doc """
-        sqr_color   = get_colorful_square_pixel_buffer(system)
-        #color      =  system.e_color_palette['C']
-        #res_color  = [int(color[0]*255),int(color[1]*255),int(color[2]*255)] 
-        #sqr_color  =  getColouredPixmap( res_color[0], res_color[1], res_color[2] )
-        
+    # ---------------------------------------------------------------
+    def add_new_system_to_treeview(self, system):
+        """
+        Add a new system entry to the TreeView.
+        """
+        sqr_color = get_colorful_square_pixel_buffer(system)
+
+        # Deactivate all existing radio buttons
         for row in self.treestore:
             row[4] = False
-        parent = self.treestore.append(None, [system.e_id, -1,str(system.e_id)+' - '+ system.label, True, True, False, False, False, 0, sqr_color])
-        #system.e_treeview_iter = parent
+
+        # Append new system row
+        parent = self.treestore.append(
+            None,
+            [
+                system.e_id,
+                -1,
+                f"{system.e_id} - {system.label}",
+                True,   # radiobutton visible
+                True,   # radiobutton active
+                False,  # togglebox visible
+                False,  # togglebox active
+                False,  # frames visible
+                0,      # number of frames
+                sqr_color,
+            ]
+        )
+
+        # Register TreeIter reference for this system
         e_id = system.e_id
         self.main.system_treeview_iters[e_id] = parent
-        
-        '''To improve organization and accessibility, we will add a GtkListStore 
-        to a dictionary that will be accessed by all windows. Each GtkListStore 
-        in the dictionary will contain the vobjects for a particular system or project'''
 
+        # Add entry to system ListStore (for global access)
+        self.main.system_liststore_iters[e_id] = self.main.system_liststore.append(
+            [f"{system.e_id} - {system.label}", system.e_id, sqr_color]
+        )
 
-       
-        #system.e_liststore_iter = self.main.system_liststore.append([str(system.e_id)+' - '+ system.label, system.e_id, sqr_color])
-        self.main.system_liststore_iters[e_id] = self.main.system_liststore.append([str(system.e_id)+' - '+ system.label, system.e_id, sqr_color])
-        self.main.vobject_liststore_dict[system.e_id] = Gtk.ListStore(str, int, int,sqr_color)
+        # Create a ListStore for vismol objects of this system
+        self.main.vobject_liststore_dict[system.e_id] = Gtk.ListStore(str, int, int, sqr_color)
+
+        # Update notebook text to reflect active system
         self.main.bottom_notebook.set_active_system_text_to_textbuffer()
 
-    def add_vismol_object_to_treeview(self, vismol_object, vobj_parent = False):
-        """ Function doc """
-        e_id        = vismol_object.e_id
-        system      = self.main.p_session.psystem[e_id]
-        sqr_color   = get_colorful_square_pixel_buffer (system)
-        
-        print(system, vismol_object,e_id )
-        #color      =  system.e_color_palette['C']
-        #res_color  = [int(color[0]*255),int(color[1]*255),int(color[2]*255)] 
-        #sqr_color  =  getColouredPixmap( res_color[0], res_color[1], res_color[2] )
+    # ---------------------------------------------------------------
+    def add_vismol_object_to_treeview(self, vismol_object, vobj_parent=False):
+        """
+        Add a vismol object (e.g., trajectory, surface, etc.) to the TreeView.
+        """
+        e_id = vismol_object.e_id
+        system = self.main.p_session.psystem[e_id]
+        sqr_color = get_colorful_square_pixel_buffer(system)
+
+        print(system, vismol_object, e_id)
+
+        # If a parent is specified (e.g., surface), attach there
         if vobj_parent:
             vismol_object.is_surface = True
             parent = vobj_parent
-            sqr_color   = None
+            sqr_color = None
         else:
-            parent = self.main.system_treeview_iters[e_id] #self.tree_iters_dict[system.e_treeview_iter_parent_key]
-        
-        size   = len(vismol_object.frames)
-        _iter  = self.treestore.append(parent, [e_id,  vismol_object.index , vismol_object.name, False, False , True, vismol_object.active, True, size, sqr_color])
-        
+            # Otherwise attach to the system node
+            parent = self.main.system_treeview_iters[e_id]
+
+        # Number of frames in vismol object
+        size = len(vismol_object.frames)
+
+        # Append vismol object row
+        _iter = self.treestore.append(
+            parent,
+            [
+                e_id,
+                vismol_object.index,
+                vismol_object.name,
+                False,               # radiobutton visible
+                False,               # radiobutton active
+                True,                # togglebox visible
+                vismol_object.active,  # togglebox active
+                True,                # frames visible
+                size,                # number of frames
+                sqr_color,
+            ]
+        )
+
+        # Track iter and dictionary reference
         self.tree_iters.append(_iter)
         self.tree_iters_dict[self.tree_iters_counter] = parent
         vismol_object.e_treeview_iter_parent_key = self.tree_iters_counter
-        
         vismol_object.e_treeview_iter = _iter
-        
         self.tree_iters_counter += 1
-        
+
+        # Expand last row (keeps UI responsive for newly added objects)
         for row in self.treestore:
             pass
-
         self.expand_row(row.path, True)
+
+        # Refresh UI components linked to trajectories
         self.refresh_trajectory_scalebar()
-        # sequence 
-        self.main.bottom_notebook.seqview.refresh_vobject_sequence_list(self.main.vm_session.vm_objects_dic)
+
+        # Update sequence viewer with new vismol object
+        self.main.bottom_notebook.seqview.refresh_vobject_sequence_list(
+            self.main.vm_session.vm_objects_dic
+        )
 
     def _create_treeview (self):
         """ Function doc """
@@ -2084,7 +2161,6 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         self.connect('row-activated', self.on_select)
         self.connect('button-release-event', self.on_treeview_mouse_button_release_event )
 
-
     def on_cell_visible_toggled(self, widget, path):
         ##print(list(path))
         self.treestore[path][6] = not self.treestore[path][6]
@@ -2094,194 +2170,154 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         vismol_object = self.main.vm_session.vm_objects_dic[self.selectedID]
         vismol_object.active = self.treestore[path][6]
         
-        '''
-        #---------------------------------------------------------------
-        sequence = []
-        chains = vismol_object.chains.keys()
-        for key in chains:
-            chain = vismol_object.chains[key]
-            for resi in chain.residues.keys():
-                residue = chain.residues[resi]
-                sequence.append(residue.name)
-                print(chain, resi, residue.name)
-        #print(sequence)
-        #---------------------------------------------------------------
-        #'''
-        
+      
         self.main.bottom_notebook.seqview.refresh_vobject_sequence_list(self.main.vm_session.vm_objects_dic)
-        
-        ##self.main.bottom_notebook.seqview.add_new_3lettercode_sequence(sequence)
-        #
-        #self.main.bottom_notebook.seqview.clear_sequence_list()
-        #for index, vobject in self.main.vm_session.vm_objects_dic.items():
-        #    if vobject.active:
-        #        self.main.bottom_notebook.seqview.add_sequence_from_vobject(vobject)
-        #    else:
-        #        pass
-        #
-        ##sequence  ='---MISYLASIFLLATVSA-VPSGRVEVVFPSVETSRSGVK--TVKFTARVEVVFPSVETSRSGVK--TVKFTA' 
-        ##self.main.bottom_notebook.seqview.add_new_sequence(sequence)
-        
+       
         self.refresh_trajectory_scalebar()
-        '''
-        higher = 1
-        for index, vobject in self.main.vm_session.vm_objects_dic.items():
-            treeview_iter = vobject.e_treeview_iter
-            if vobject.active:
-                size = len(vobject.frames)
-                if size > higher:
-                    higher = size
-                else:
-                    pass
-            else:
-                pass
-            
-            #self.treestore[treeview_iter][8] = size
-            #print(index, self.treestore[treeview_iter][2], 'frames', len(vobject.frames))
-        self.main.trajectory_player_window.change_range(upper = higher)
-        self.main.trajectory_player_window.upper = higher
-        #'''
         self.main.vm_session.vm_glcore.queue_draw()
 
-    
+    def set_active_system(self, e_id):
+        """This function activates a system using the e_id as input."""
+        for i, row in enumerate(self.treestore):
+            # Only the row with the desired e_id will have the radio button set to True
+            row[4] = (i == e_id)
+        # Update the active system ID in the session
+        self.main.p_session.active_id = e_id
+
     def on_cell_active_radio_toggled(self, widget, path):
-        ##print (path)
+        """Callback triggered when a radio button in the TreeView is toggled."""
         selected_path = Gtk.TreePath(path)
-        
-        ##print(self.treestore[path][1], path, self.treestore[path][0])
-        #
+
         for row in self.treestore:
-            ##print(row.path, selected_path)
-            
+            # Store the system ID before switching to the new one
             active_id_before = self.main.p_session.active_id
-            
+
+            # Update the radio button state: True only for the selected row
             row[4] = row.path == selected_path
+
             if row.path == selected_path:
+                # Retrieve the system ID associated with the selected row
                 system_e_id = row[0]
+
+                # Retrieve the TreeIter of the selected system
+                treeview_iter = self.main.system_treeview_iters[system_e_id]
+
+                # Update the active system ID in the session
                 self.main.p_session.active_id = system_e_id
                 active_id_after = system_e_id
-                
+
+                # Update annotations in the text buffer with the new active system
                 self.main.bottom_notebook.change_annotations_textbuffer(
-                                                                  active_id_before,
-                                                                  active_id_after
-                                                                  )
-                #print (system_e_id, self.main.p_session.psystem[system_e_id].label)
+                    active_id_before,
+                    active_id_after
+                )
             else:
                 pass
-        #self.main.refresh_active_system_liststore ()
-        self.main.refresh_main_statusbar ()
+
+        # Refresh the main status bar with updated information
+        self.main.refresh_main_statusbar()
+
+        # Update all interface windows and dialogs to reflect the change
         self.main.uptade_interface_windows_and_dialogs()
     
     def on_select(self, tree, path, selection):
-        '''---------------------- Row information ---------------------'''
-        # Get the current selected row and the model.
+        """Triggered when a row in the TreeView is selected."""
+        # Get the currently selected row and the model
         model, iter = tree.get_selection().get_selected()        
-        
-        # Look up the current value on the selected row and get
-        # a new value to change it to.
+
+        # Retrieve values from the selected row
         data2 = model.get_value(iter, 2)
         data1 = model.get_value(iter, 1)
         data0 = model.get_value(iter, 0)
-        #print(data0, data1, data2, self.treestore[path][8])
-        self.main.trajectory_player_window.change_range(upper = self.treestore[path][8])
 
+        # Update the trajectory range in the player window
+        self.main.trajectory_player_window.change_range(upper=self.treestore[path][8])
+
+        # Store selected vobject index and system ID
         selection             = tree.get_selection()
         model                 = tree.get_model()
         self.vm_object_index  = int(model.get_value(iter, 1))
         self.system_e_id      = int(model.get_value(iter, 0))
-        '''------------------------------------------------------------'''
-        
-        
-        # - - - - - - printing the information form all rows - - - - - - - 
-        #'''
-        for index , vobject  in self.main.vm_session.vm_objects_dic.items():
+
+        # Update the number of frames for each vobject in the TreeView
+        for index, vobject in self.main.vm_session.vm_objects_dic.items():
             treeview_iter = vobject.e_treeview_iter
-            
             vobj_id = self.treestore[treeview_iter][1]
-            if vobj_id == -1:
-                pass
-                #print ('vobj_id', vobj_id)
-            else:
+
+            if vobj_id != -1:
                 vobj = self.main.vm_session.vm_objects_dic[vobj_id]
                 size = len(vobj.frames)
                 self.treestore[treeview_iter][8] = size
-                #print(vobj_id, self.treestore[treeview_iter][2], 'frames', len(vobj.frames))
-        #'''
 
-    def on_treeview_mouse_button_release_event (self, tree, event):
-        """ Function doc """
-        
+    def on_treeview_mouse_button_release_event(self, tree, event):
+        """Callback for mouse button release events inside the TreeView."""
         model, iter = tree.get_selection().get_selected()        
         selection   = tree.get_selection()
         model       = tree.get_model()
+
         try:
-            self.vm_object_index  = int(model.get_value(iter, 1))
-            self.system_e_id      = int(model.get_value(iter, 0))
+            self.vm_object_index = int(model.get_value(iter, 1))
+            self.system_e_id     = int(model.get_value(iter, 0))
         except:
             return False
         
-        
+        # Right-click → open context menu
         if event.button == 3:
             self.treeview_menu.open_menu(self.system_e_id, self.vm_object_index)
 
+        # Middle-click → center visualization on the selected vobject
         if event.button == 2:
-            #print('event.button 2',self.vm_object_index)
-            if self.vm_object_index == -1:
-                #means that is not a vismol object
-                pass
-            else:
+            if self.vm_object_index != -1:  # Ensure it is a vismol object
                 vismol_object = self.main.vm_session.vm_objects_dic[self.vm_object_index]
-                self.main.vm_session.vm_glcore.center_on_coordinates(vismol_object, vismol_object.mass_center)
+                self.main.vm_session.vm_glcore.center_on_coordinates(
+                    vismol_object,
+                    vismol_object.mass_center
+                )
 
+        # Left-click → currently does nothing
         if event.button == 1:
-            #print('event.button 1')
             pass
-    
-    
+
     def refresh_number_of_frames (self):
-        """ 
-        This function refreshes the number of frames  on the main treeview.  
-        The self.tree_iters list contains all the "parents", or the treeview lines, in the TreeView
-        vismol_object.e_treeview_iter_parent_key
-        """
+        """Refresh the number of frames in the TreeView for each vobject."""
+         
+        #.This function refreshes the number of frames  on the main treeview.  
+        #.The self.tree_iters list contains all the "parents", or the treeview lines, in the TreeView
+        #.vismol_object.e_treeview_iter_parent_key
+        
         for index, vobject in self.main.vm_session.vm_objects_dic.items():
             if getattr(vobject, 'e_treeview_iter', False):
                 treeview_iter = vobject.e_treeview_iter
                 size = len(vobject.frames)
+
+                # Update number of frames and active status
                 self.treestore[treeview_iter][8] = size
                 self.treestore[treeview_iter][6] = vobject.active
-                #print(index, self.treestore[treeview_iter][2], 'frames', len(vobject.frames))
 
-
-    def refresh_trajectory_scalebar (self):
-        """ Function doc """
+    def refresh_trajectory_scalebar(self):
+        """Update the trajectory scalebar range based on the largest active trajectory."""
         higher = 1
         for index, vobject in self.main.vm_session.vm_objects_dic.items():
-            
-            if getattr(vobject, 'e_treeview_iter', False):
-                treeview_iter = vobject.e_treeview_iter
-                if vobject.active:
-                    size = len(vobject.frames)
-                    if size > higher:
-                        higher = size
-                    else:
-                        pass
-                else:
-                    pass
-        self.main.trajectory_player_window.change_range(upper = higher)
+            if getattr(vobject, 'e_treeview_iter', False) and vobject.active:
+                size = len(vobject.frames)
+                if size > higher:
+                    higher = size
+
+        # Update the trajectory player window with the new range
+        self.main.trajectory_player_window.change_range(upper=higher)
         self.main.trajectory_player_window.upper = higher
 
-
-    def refresh (self):
-        """ Function doc """
+    def refresh(self):
+        """Rebuild the TreeView with the current systems and vobjects."""
+        # Clear the TreeStore before repopulating
         self.treestore.clear()
-        
+
+        # Add all systems to the TreeView
         for e_id in self.main.p_session.psystem.keys():
             system = self.main.p_session.psystem[e_id]
-            self.add_new_system_to_treeview (system)
-        
-        
-        
+            self.add_new_system_to_treeview(system)
+
+        # Add all vobjects to the TreeView
         for v_obj_index in self.main.vm_session.vm_objects_dic.keys():
             vismol_object = self.main.vm_session.vm_objects_dic[v_obj_index]
             self.add_vismol_object_to_treeview(vismol_object)
@@ -2386,8 +2422,6 @@ class TreeViewMenu:
         e_id             = int(model.get_value(iter, 0))
         vm_object_index  = int(model.get_value(iter, 1))
         self.main.edit_frames_dialog.OpenWindow (vm_object_index)
-        
-        
         
     def _show_info (self, widget):
         """ Function doc """

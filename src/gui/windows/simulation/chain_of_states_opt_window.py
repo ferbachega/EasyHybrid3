@@ -69,7 +69,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
             
             self.window = self.builder.get_object('chain_of_states_opt_window')
             self.window.set_title('Chain of State Optmization Window')
-            self.window.set_default_size(500, 600)
+            #self.window.set_default_size(500, 600)
             self.window.set_keep_above(True)
             #'''--------------------------------------------------------------------------------------------'''
 
@@ -146,6 +146,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
             self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
             self.builder.get_object('button_run').connect('clicked', self.run)
             self.builder.get_object('button_export').connect('clicked', self.on_btn_export)
+            self.window.set_size_request(-1, -1)
             self.window.show_all()
             
             self.builder.get_object('label_poolfactory').hide()
@@ -153,7 +154,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
             
             
             self.Visible  = True   
-
+            
 
         else:
             self.window.present()

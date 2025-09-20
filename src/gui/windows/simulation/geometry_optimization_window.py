@@ -98,14 +98,6 @@ class GeometryOptimization(Gtk.Window):
             
             # - - - - - - - - - - - - - Starting Coordinates ComboBox - - - - - - - - - - - - - - - - -
             '''--------------------------------------------------------------------------------------------'''
-            #self.combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
-            ##---------------------------------------------------------------------------------------------
-            #self._starting_coordinates_model_update(init = True)
-            #
-            #self.combobox_starting_coordinates.connect("changed", self.on_name_combo_changed)
-            #renderer_text = Gtk.CellRendererText()
-            #self.combobox_starting_coordinates.pack_start(renderer_text, True)
-            #self.combobox_starting_coordinates.add_attribute(renderer_text, "text", 0)
             #----------------------------------------------------------------------------------------------
             self.box_coordinates = self.builder.get_object('box_coordinates')
             self.combobox_starting_coordinates = CoordinatesComboBox() #self.builder.get_object('coordinates_combobox')
@@ -123,7 +115,7 @@ class GeometryOptimization(Gtk.Window):
             # updating data 
             
             #------------------------------------------------------------------------------------------------
-            print(self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder)
+            #print(self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder)
             if self.main.p_session.psystem[self.main.p_session.active_id]:
                 if self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder == None:
                     folder = HOME
@@ -138,22 +130,9 @@ class GeometryOptimization(Gtk.Window):
             else:
                 pass
 
-
-            '''
-            if 'tag' in self.main.p_session.psystem[self.main.p_session.active_id].keys():
-                pass
-            else:
-                self.main.p_session.systems[self.main.p_session.active_id]['tag'] = 'molsys'
-            
-            tag  = self.main.p_session.systems[self.main.p_session.active_id]['tag']
-            step = str(self.main.p_session.systems[self.main.p_session.active_id]['step_counter'])
-            tag  = step+'_'+tag+'_geo_opt'  
-            self.save_trajectory_box.builder.get_object('entry_trajectory_name').set_text(tag)
-            '''
-            #self._starting_coordinates_model_update()
             self.window.show_all()
             self.Visible  = True   
-        
+            #self.window.set_size_request(900, 900)
         else:
             self.window.present()
     
@@ -162,89 +141,97 @@ class GeometryOptimization(Gtk.Window):
         self.window.destroy()
         self.Visible    =  False
 
-
     def run_opt(self, button):
-        """ Function doc """
-        
-        '''this combobox has the reference to the starting coordinates of a simulation'''
-        simParameters={ "simulation_type":"Geometry_Optimization",
-                        "trajectory_name": None                  , 
-                        "dialog"         : False                 , 
-                        "folder"         :os.getcwd()            , 
-                        "optimizer"      :"ConjugatedGradient"   ,
-                        'maximumIterations'  :600                    ,
-                        "logFrequency"  :10                     ,
-                        "save_frequency" :10                     ,
-                        'rmsGradientTolerance'    :0.1                    ,
-                        "save_format"    :None                   ,
-                        "save_traj"      :False                  ,
-                        "save_pdb"       :False                  }
-        #----------------------------------------------------------------------------------
-        #combobox_starting_coordinates = self.builder.get_object('combobox_starting_coordinates')
+        """
+        Run a geometry optimization based on the parameters set in the GUI.
+        """
+
+        # ---------------------------------------------------------------
+        # Default simulation parameters
+        simParameters = {
+            "simulation_type"     : "Geometry_Optimization",
+            "trajectory_name"     : None,
+            "dialog"              : False,
+            "folder"              : os.getcwd(),
+            "optimizer"           : "ConjugatedGradient",
+            "maximumIterations"   : 600,
+            "logFrequency"        : 10,
+            "save_frequency"      : 10,
+            "rmsGradientTolerance": 0.1,
+            "save_format"         : None,
+            "save_traj"           : False,
+            "save_pdb"            : False,
+        }
+
+        # ---------------------------------------------------------------
+        # Get starting coordinates from the combobox
         tree_iter = self.combobox_starting_coordinates.get_active_iter()
         if tree_iter is not None:
-            
-            '''selecting the vismol object from the content that is in the combobox '''
+            # Select vismol object from combobox model
             model = self.combobox_starting_coordinates.get_model()
             name, vobject_id = model[tree_iter][:2]
             vobject = self.main.vm_session.vm_objects_dic[vobject_id]
-            
-            '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
-            #print('vobject:', vobject.name, len(vobject.frames) )
+
+            # Import coordinates of the vismol object into the pDynamo system
             self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
-                
-        simParameters["optimizer"]      = self.opt_methods[self.builder.get_object('combobox_geo_opt').get_active()]
-        simParameters["logFrequency"]  = int  ( self.builder.get_object('entry_log_frequence').get_text())
-        simParameters['maximumIterations']  = int  ( self.builder.get_object('entry_max_int').get_text() )
-        simParameters['rmsGradientTolerance']    = float( self.builder.get_object('entry_rmsd_tol').get_text() )
-        simParameters["vobject_name"]   = self.save_trajectory_box.builder.get_object('entry_trajectory_name').get_text()
-        
-        #------------------------------------------------------------------------------------
+
+        # ---------------------------------------------------------------
+        # Update parameters from GUI entries
+        simParameters["optimizer"]           = self.opt_methods[
+            self.builder.get_object('combobox_geo_opt').get_active()
+        ]
+        simParameters["logFrequency"]        = int(
+            self.builder.get_object('entry_log_frequence').get_text()
+        )
+        simParameters["maximumIterations"]   = int(
+            self.builder.get_object('entry_max_int').get_text()
+        )
+        simParameters["rmsGradientTolerance"] = float(
+            self.builder.get_object('entry_rmsd_tol').get_text()
+        )
+        simParameters["vobject_name"]        = self.save_trajectory_box.builder.get_object(
+            'entry_trajectory_name'
+        ).get_text()
+
+        # ---------------------------------------------------------------
+        # Configure trajectory saving (if enabled)
         if self.save_trajectory_box.builder.get_object('checkbox_save_traj').get_active():
             simParameters["save_traj"]       = True
             simParameters["dialog"]          = True
             simParameters["folder"]          = self.save_trajectory_box.folder_chooser_button.get_folder()
-            simParameters["trajectory_name"] = self.save_trajectory_box.builder.get_object('entry_trajectory_name').get_text()
-            saveFormat                       = self.save_trajectory_box.builder.get_object('combobox_format').get_active()
-            simParameters["save_frequency"]  = int( self.save_trajectory_box.builder.get_object('entry_trajectory_frequency').get_text() ) 
-            simParameters["trajectory_name"] = simParameters["trajectory_name"] + ".ptGeo"
+            simParameters["trajectory_name"] = self.save_trajectory_box.builder.get_object(
+                'entry_trajectory_name'
+            ).get_text()
+            simParameters["save_frequency"]  = int(
+                self.save_trajectory_box.builder.get_object('entry_trajectory_frequency').get_text()
+            )
+
+            # Append file extension to trajectory name
+            simParameters["trajectory_name"] += ".ptGeo"
+
+            # Select save format
+            saveFormat = self.save_trajectory_box.builder.get_object('combobox_format').get_active()
             if   saveFormat == 0: simParameters["save_format"] = ".ptGeo"
             elif saveFormat == 1: simParameters["save_format"] = ".mdcrd"
             elif saveFormat == 2: simParameters["save_format"] = ".dcd"
             elif saveFormat == 3: simParameters["save_format"] = ".xyz"
-            self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder = simParameters["folder"] 
-        #-------------------------------------------------------------------------------------    
-        #print(simParameters)
-        
-        isExist = os.path.exists(simParameters['folder'])
-        if isExist:
-            pass
-        else:
+
+            # Update working folder in the active system
+            self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder = simParameters["folder"]
+
+        # ---------------------------------------------------------------
+        # Check if the output folder exists
+        if not os.path.exists(simParameters['folder']):
             self.run_dialog()
             return None
-        
-        
-        
-        
-        #'''
-        self.main.p_session.run_simulation( parameters = simParameters )
-        #self.main.refresh_main_statusbar(message = 'Running geometry optimization...')
+
+        # ---------------------------------------------------------------
+        # Run simulation
+        self.main.p_session.run_simulation(parameters=simParameters)
+
+        # Close window
         self.window.destroy()
-        self.Visible    =  False
-        #'''
-        
-        #new code
-        '''
-        self.process = multiprocessing.Process(
-            target=self.main.p_session.run_simulation,
-            args=(simParameters,)
-        )
-        self.process.start()
-        
-        self.window.destroy()
-        self.Visible    =  False
-        GLib.timeout_add(500, self.verificar_process)
-        #'''
+        self.Visible = False
 
     
     def _starting_coordinates_model_update (self, init = False):
@@ -321,6 +308,63 @@ class GeometryOptimization(Gtk.Window):
                 pass
             #self.save_trajectory_box.set_folder(folder = folder)
             #self.save_trajectory_box.set_folder(folder = self.main.p_session.systems[self.main.p_session.active_id]['working_folder'])
-   
-#=====================================================================================
-   
+    
+    def restore_the_parameters_to_the_window(self, parameters):
+        """
+        Restore exported parameters into the GTK window.
+        """
+
+        # ---------------------------------------------------------------
+        # Select optimization method
+        e_id = parameters['system']
+
+        # Invert the opt_methods dictionary to get tag -> key
+        self.opt_tags = {value: key for key, value in self.opt_methods.items()}
+
+        # Set the optimizer method in the combo box
+        optimizer_key = self.opt_tags.get(parameters['optimizer'])
+        if optimizer_key is not None:
+            self.methods_combo.set_active(optimizer_key)
+
+        # ---------------------------------------------------------------
+        # Configure basic parameters
+        self.builder.get_object('entry_log_frequence').set_text(
+            str(parameters['logFrequency'])
+        )
+        self.builder.get_object('entry_max_int').set_text(
+            str(parameters['maximumIterations'])
+        )
+        self.builder.get_object('entry_rmsd_tol').set_text(
+            str(parameters['rmsGradientTolerance'])
+        )
+
+        # ---------------------------------------------------------------
+        # Configure trajectory settings (if enabled)
+        if parameters.get('save_traj'):
+            checkbox = self.save_trajectory_box.builder.get_object('checkbox_save_traj')
+            checkbox.set_active(True)
+
+            # Set folder
+            self.save_trajectory_box.folder_chooser_button.set_folder(
+                parameters.get('folder', "")
+            )
+
+            # Set trajectory name (if provided)
+            trajectory_name = parameters.get('trajectory_name')
+            if trajectory_name:
+                entry_name = self.save_trajectory_box.builder.get_object('entry_trajectory_name')
+                entry_name.set_text(trajectory_name)
+
+            # Set trajectory frequency
+            entry_freq = self.save_trajectory_box.builder.get_object('entry_trajectory_frequency')
+            entry_freq.set_text(str(parameters.get('save_frequency', "")))
+
+            # Set trajectory format (default: first option)
+            combobox_format = self.save_trajectory_box.builder.get_object('combobox_format')
+            combobox_format.set_active(0)
+
+        # ---------------------------------------------------------------
+        # Configure starting coordinates
+        #model = self.combobox_starting_coordinates.get_model()
+        #name, vobject_id = model[tree_iter][:2]
+        #vobject = self.main.vm_session.vm_objects_dic[vobject_id]

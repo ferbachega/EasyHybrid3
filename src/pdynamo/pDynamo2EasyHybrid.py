@@ -252,6 +252,13 @@ class LoadAndSaveData:
         
         for data  in easyhybrid_session_data['systems']:
             system = data['system']
+            
+            #.checking e_job_history attribute
+            if hasattr(system, 'e_job_history'):
+                pass
+            else:
+                system.e_job_history = {}
+            
             name   = system.label
             tag    = system.e_tag
             #print('\n\n\n\n',system, name, tag, data['system'], data['vobjects'] )
@@ -300,7 +307,9 @@ class LoadAndSaveData:
             self.main.session_filename = filename
         else:
             self.main.session_filename = filename
-
+        self.main.process_manager_window.build_liststore_from_job_history (clear = True)
+        
+    
     def save_special_PDB (vObject):
         """ Function doc """
         
@@ -874,17 +883,20 @@ class pSimulations:
     def _handle_error(self, results, path, treeiter):
         """Handle 'ERROR' messages from worker processes."""
         system = self.psystem[results['e_id']]
+        step_counter = system.e_step_counter
+        
         self.main.process_manager_window.set_status(treeiter, "Error!")
         self.main.process_manager_window.set_time(treeiter, False, True)
         self.main.process_manager_window.set_step_counter(treeiter, system.e_step_counter)
-
+        system.e_job_history[step_counter]['status'] = "Error!"
+        
         self.process_pool[system.e_id][2] = "Error"
 
         iter_ = self.main.bottom_notebook.status_liststore.get_iter(path)
         value = self.main.bottom_notebook.status_liststore.get_value(iter_, 1)
         self.main.bottom_notebook.status_liststore.set_value(iter_, 1, value.replace('Running...', 'Error!'))
 
-        system.e_job_history[system.e_step_counter] = results
+        system.e_job_history[system.e_step_counter].update(results)
         
     def _handle_result(self, results):
         """Handle 'RESULT' messages from a worker process.
@@ -906,10 +918,12 @@ class pSimulations:
             vobject.results = results
 
             # Save job results in system history
-            system.e_job_history[system.e_step_counter] = results
+            #system.e_job_history[system.e_step_counter] = results
+            system.e_job_history[system.e_step_counter].update(results)
         else:
             # Save job results in system history (no new visual object)
-            system.e_job_history[system.e_step_counter] = results
+            #system.e_job_history[system.e_step_counter] = results
+            system.e_job_history[system.e_step_counter].update(results)
             self.psystem[e_id].e_step_counter += 1
     
     def _handle_done(self, e_id, process, path, treeiter):
@@ -917,11 +931,12 @@ class pSimulations:
 
         Updates GUI, process pool status, and increments the step counter.
         """
+        step_counter = self.psystem[e_id].e_step_counter
         # Update GUI process manager window
         self.main.process_manager_window.set_status(treeiter, "Finished")
         self.main.process_manager_window.set_time(treeiter, False, True)
         self.main.process_manager_window.set_step_counter(treeiter, self.psystem[e_id].e_step_counter)
-
+        self.psystem[e_id].e_job_history[step_counter]['status'] = "Finished"
         # Mark process as completed in pool
         self.process_pool[e_id][2] = "Finished"
 
@@ -976,7 +991,9 @@ class pSimulations:
 
         # Instantiate simulation class
         self.target_process = cls()
+        
 
+        
         # Special flags for specific simulation types
         if sim_type == 'Energy_Single_Point':
             parameters['energy'] = True
@@ -986,7 +1003,10 @@ class pSimulations:
 
         # Avoid passing queue object to child processes inside parameters
         parameters['queue'] = None
-
+        
+        backup_parameters = copy.deepcopy(parameters)
+        backup_parameters['system'] = backup_parameters['system'].e_id
+        #backup_parameters['step_counter'] = parameters['system'].e_step_counter
         try:
             self.target_process.run(parameters)
             results = {
@@ -996,7 +1016,9 @@ class pSimulations:
                 'e_id': parameters['system'].e_id,
                 'simulation_type': sim_type,
                 'logfile': parameters['logfile'],
-                'error': None
+                'error': None,
+                'backup_parameters': backup_parameters,
+                'step_counter':parameters['system'].e_step_counter
             }
             queue.put((self.MSG_RESULT, results))
             queue.put(self.MSG_DONE)
@@ -1010,7 +1032,9 @@ class pSimulations:
                 'e_id': parameters['system'].e_id,
                 'simulation_type': sim_type,
                 'logfile': parameters['logfile'],
-                'error': exc
+                'error': exc,
+                'backup_parameters': backup_parameters,
+                'step_counter':parameters['system'].e_step_counter
             }
             queue.put((self.MSG_ERROR, results))
         
@@ -1041,6 +1065,20 @@ class pSimulations:
         
         # Assign system and apply restraints
         system = self.psystem[self.active_id]
+        system.e_job_history[system.e_step_counter] = {
+                'new_vobject'      : None,
+                'energy'           : None,
+                'e_id'             : system.e_id,
+                'simulation_type'  : parameters['simulation_type'],
+                'error'            : None,
+                'step_counter'     : system.e_step_counter,
+                'started'          : None,
+                'ended'            : None,
+                'status'           : 'Queued',
+                'potential'        :'UNK'
+            }
+        
+        
         parameters['system'] = system
         
         # Apply restraints if needed
@@ -1088,8 +1126,9 @@ class pSimulations:
             args=(parameters,)
         )
         
-        hamiltonian = self.get_hamiltonian_type(e_id)
         
+        hamiltonian = self.get_hamiltonian_type(e_id)
+        system.e_job_history[system.e_step_counter]['potential'] = hamiltonian
         #hamiltonian = getattr(system.qcModel, 'hamiltonian', 'unk')
         status = 'Queued'
         
@@ -1739,6 +1778,21 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         return name
         
+    
+    def restart (self):
+        """ Function doc """
+        #-------------------------------------------
+        self.active_id = 0
+        self.psystem   =  {
+                        0:None
+                        }
+        self.psystem_name_list    = []
+        self.psystem_name_counter = 1
+        
+        self.counter      = 0
+        self.color_palette_counter = 0
+        #-------------------------------------------
+    
     
     def get_hamiltonian_type (self, e_id = None):
         """ Function doc """
