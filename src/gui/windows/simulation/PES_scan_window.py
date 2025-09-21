@@ -60,7 +60,7 @@ class PotentialEnergyScanWindow():
         
         self.sym_tag = 'PES_scan'
 
-    def OpenWindow (self):
+    def open_window (self):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
@@ -160,7 +160,7 @@ class PotentialEnergyScanWindow():
             self.change_check_button_reaction_coordinate (None)
             
 
-            self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+            self.builder.get_object('button_cancel').connect('clicked', self.close_window)
             self.builder.get_object('button_export').connect('clicked', self.on_btn_export)
             self.builder.get_object('checkbtn_TS-centered_mode').connect('toggled', self.change_check_button_TS_centered_mode)
             #self.builder.get_object('checkbtn_TS-centered_mode').hide()
@@ -176,7 +176,7 @@ class PotentialEnergyScanWindow():
         else:
             self.window.present()
             
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
@@ -324,7 +324,7 @@ class PotentialEnergyScanWindow():
         vobject_id = self.combobox_starting_coordinates.get_vobject_id()
         vobject = self.main.vm_session.vm_objects_dic[vobject_id]
         '''This function imports the coordinates of a vobject into the dynamo system in memory.'''
-        self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+        self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
         #----------------------------------------------------------------------------------               
         parameters["initial_coordinates"] = vobject.name
         #----------------------------------------------------------------------------------               

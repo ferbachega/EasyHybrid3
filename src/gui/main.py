@@ -104,13 +104,26 @@ from pCore                     import Align                                     
 #teste
 
 class MainWindow:
-    """ Class doc """
+    """
+    The main application window for EasyHybrid, a graphical interface for pDynamo3.
+    This class handles the initialization of all GUI components, including system
+    and coordinate management, treeviews, notebooks, status bars, and auxiliary windows.
+    """
     def __init__ (self, vm_session = None, home = None, version = None):
-        """ Class initialiser """
+        """
+        Initialize the MainWindow instance.
+
+        Parameters:
+        vm_session : object
+            The virtual molecular session providing visualization and simulation tools.
+        home : str
+            Home directory path, used for loading resources such as UI files and icons.
+        version : str
+            The version string of the EasyHybrid application.
+        """
         self.home               =  home
         self.EASYHYBRID_VERSION =  version
-        #signal.signal(signal.SIGINT, self.on_sigint_received)
-        #print (self.home, self.EASYHYBRID_VERSION)
+
 
         '''Search home folder. Every time a file is loaded into memory 
         this attribute will be modified.'''
@@ -128,26 +141,27 @@ class MainWindow:
         
         '''The "vobject_liststore_dict" is a dictionary where the access key is
         the e_id, which is the index of the system of interest generated in 
-        "pDynamo2Easyhybrid/pDynamoSession/append_system_to_pdynamo_session". 
+        "pDynamo2Easyhybrid/pDynamoSession/add_new_system_to_psession". 
         Each dictionary element contains a liststore that includes the respective 
         vobjects.'''
         self.vobject_liststore_dict  = {               
                                        0 : Gtk.ListStore(str,  int, int, GdkPixbuf.Pixbuf)  # name, object_index, e_id, pixel_buffer
                                        }                                 
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
-        self.job_history_liststore = Gtk.ListStore(str,               #0.system name
-                                       str,               #1.job type
-                                       str,               #2.potential
-                                       str,               #3.start
-                                       str,               #4.ended
-                                       str,               #5.status
-                                       GdkPixbuf.Pixbuf,  #6.color 
-                                       int,               #7.e_id
-                                       int                #8.e_step_counter
-                                       )
+        self.job_history_liststore = Gtk.ListStore(
+            str,               # 0: system name
+            str,               # 1: job type
+            str,               # 2: potential
+            str,               # 3: start time
+            str,               # 4: end time
+            str,               # 5: status
+            GdkPixbuf.Pixbuf,  # 6: color/icon
+            int,               # 7: e_id
+            int                # 8: step counter
+        )
 
-
-        
+        # -------------------- GTK BUILDER --------------------
+        # Load Glade UI and connect signals
         self.builder = Gtk.Builder()
         self.builder.add_from_file(os.path.join(self.home,'src/gui/MainWindow.glade'))
         self.builder.connect_signals(self)
@@ -155,30 +169,34 @@ class MainWindow:
         self.window.set_default_size(1200, 600)                          
         self.window.set_title('EasyHybrid {}'.format(self.EASYHYBRID_VERSION))                          
         
+        # Set application icon
         self.pixbuf = GdkPixbuf.Pixbuf.new_from_file(os.path.join(self.home,"src/gui/icons/icon_2.png"))
         self.window.set_icon(self.pixbuf)
+        
+        # Status bar initialization
         self.statusbar_main = self.builder.get_object('statusbar1')
         self.statusbar_main.push(1,'Welcome to EasyHybrid version {}, a pDynamo3 graphical tool'.format(self.EASYHYBRID_VERSION))
         
         self.paned_V         = self.builder.get_object('paned_V')
+        
+        # -------------------- SESSION MANAGEMENT --------------------
         self.vm_session      = vm_session#( main = None)
         self.vm_session.main = self
         
         self.vm_session.vm_object_counter = 0
         self.vm_session.insert_glmenu()
         
+        # Connect key press/release events for 3D visualization widget
         self.window.connect("key-press-event",   self.vm_session.vm_widget.key_pressed)
         self.window.connect("key-release-event", self.vm_session.vm_widget.key_released)
         
                 
-        
+        # -------------------- SELECTION BOX --------------------
         self.menu_box = self.builder.get_object('toolbutton_selection_box')
         self.box2 = self.builder.get_object('box2')
-        
-        #self.selection_box = self.vm_session.selection_box
+    
         self.selection_box_frame = VismolSelectionTypeBox(vm_session = self.vm_session)
         self.vm_session.selection_box_frame = self.selection_box_frame 
-        #print('\n\n\n',self.selection_box_frame,self.vm_session.selection_box_frame ,'\n\n')
         self.menu_box.add(self.selection_box_frame.box)
 
         '''#- - - - - - - - - - - -  pDynamo - - - - - - - - - - - - - - -#'''
@@ -189,7 +207,6 @@ class MainWindow:
         '''This gtk list is declared in the VismolGLWidget file 
            (it does not depend on the creation of Treeview)'''
         #self.Vismol_Objects_ListStore = self.vm_session.Vismol_Objects_ListStore
-        
         #self.box2.pack_start(self.toolbar_builder, True, True, 1)
         
         #-------------------------------------------------------------------      
@@ -239,51 +256,30 @@ class MainWindow:
 
         
         if self.vm_session is not None:
-            #player
-
+            # Add the main visualization widget to the container
             self.container.pack_start(self.vm_session.vm_widget, True, True, 0)
-            
-            #self.traj_frame = self.vm_session.trajectory_frame
-            #self.container.pack_start(self.traj_frame, False, False, 1)
-            #self.container.pack_start(self.command_line_entry, False, False, 0)
-
             self.notebook_H2.append_page(child = self.container, tab_label = Gtk.Label(label = 'view'))
-            #self.notebook_H2.append_page(Gtk.TextView(), Gtk.Label('logs'))
             
-            
-            #self.HBOX = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 6)
+            # Horizontal paned layout: notebook_H1 on left, notebook_H2 on right
             self.HBOX = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 0)
             self.HBOX.pack_start(self.notebook_H1, True, True, 0)
-            #self.label_frame = Gtk.Label('Frame Number: 0')
-            #self.HBOX.pack_start(self.label_frame, False, False, 0)
-            #self.HBOX.pack_start(self.traj_frame, False, False, 1)
 
-            #self.paned_H.add(self.notebook_H1)
             self.paned_H.add(self.HBOX)
             self.paned_H.add(self.notebook_H2)
             self.paned_H.set_position(250)
-
             self.paned_V.add(self.paned_H)
             
+            # Bottom notebook for logs, status, and command terminal
             self.bottom_notebook = BottomNoteBook(main = self)
-            #self.paned_V.add(self.builder.get_object('notebook_text_and_logs'))
             self.paned_V.add(self.bottom_notebook.widget)
             self.paned_V_position = 400
             self.paned_V.set_position(self.paned_V_position)
 
             self.bottom_notebook.status_teeview_add_new_item(message = 'Welcome to EasyHybrid 3.0, have a happy simulation day!')
-            
-            #for i in range (10):
-            #    self.bottom_notebook.status_teeview_add_new_items([str(i),str(i),str(i)])
-            
-            #self.paned_V.add(Gtk.TextView())
-            
-            #self.paned_V.add(self.traj_frame)
+
         ''' - - - - - - - - - - - - Terminal e Trajectory Play - - - - - - - - - - - - - - - - '''
         self.trajectory_player_button = self.builder.get_object('toolbutton_trajectory_tool1')
         self.cmd_terminal_button      = self.builder.get_object('toolbutton_terminal')
-        #self.player_frame = self.vm_session.player_frame
-        #self.player_frame.show_all()
         ''' - - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - - - - - - - - - - - - '''
         
         
@@ -331,9 +327,7 @@ class MainWindow:
         self.go_to_atom_window            = EasyHybridGoToAtomWindow     ( main = self, system_liststore = self.system_liststore)
         self.window_list.append(self.go_to_atom_window)
 
-        
-        #self.pDynamo_selection_window     = PDynamoSelectionWindow       ( main = self)
-        self.pDynamo_selection_window     = EasyHybridSelectionWindow       ( main = self)
+        self.pDynamo_selection_window     = EasyHybridSelectionWindow    ( main = self)
         
         self.export_data_window           = ExportDataWindow             ( main = self)
         self.window_list.append(self.export_data_window)
@@ -369,10 +363,10 @@ class MainWindow:
         
         self.normal_modes_analysis_window =   NormalModesAnalysisWindow (main = self)
         self.surface_analysis_window =   SurfaceAnalysisWindow (main = self)
-        #self.surface_list_window =   SurfaceListWindow (main = self)
+
         self.distance_angle_dihedral_analysis_window = DistanceAngleDihedralAnalysisWindow (main = self)
         
-        #self.rmsd_tool_window = RMSDToolWindow (main = self, system_liststore = self.system_liststore)
+
         self.rmsd_analysis_window = RMSDAnalysisWindow (main = self, system_liststore = self.system_liststore)
         
         self.align_trajectory_window = AlignTrajectoryWindow (main = self, system_liststore = self.system_liststore)
@@ -397,15 +391,12 @@ class MainWindow:
         self.make_solvent_box_window = MakeSolventBoxWindow(main = self)
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
 
+        # -------------------- WINDOW SIGNALS --------------------
         #self.window.connect("destroy", Gtk.main_quit)
         #self.window.connect("delete-event", Gtk.main_quit)
         #self.window.connect("destroy",      self.quit_easyhybrid)
         self.window.connect("delete-event", self.on_delete_event)
-        self.window.connect("check-resize", self.window_resize)
-        
-        
-        #self.builder.get_object('button_test').connect("clicked",    self.run_test)
-        
+        self.window.connect("check-resize", self.window_resize)       
         self.window.show_all()
 
     def restart (self):
@@ -418,6 +409,7 @@ class MainWindow:
         
         #-------------------------------------------
         self.p_session.restart()
+        
         #self.p_session.active_id = 0
         #self.p_session.psystem   =  {
         #                           0:None
@@ -460,7 +452,7 @@ class MainWindow:
     def on_main_toolbar_clicked (self, button):
         """ Function doc """
         if button  == self.builder.get_object('toolbutton_new_system'):
-            self.NewSystemWindow.OpenWindow()
+            self.NewSystemWindow.open_window()
         
         if button  == self.builder.get_object('toolbutton_save'):
             
@@ -479,39 +471,39 @@ class MainWindow:
             
         if button == self.builder.get_object('toolbutton_terminal'):
             if button.get_active ():
-                self.terminal_window.OpenWindow()
+                self.terminal_window.open_window()
             else:
-                self.terminal_window.CloseWindow(None, None)
+                self.terminal_window.close_window(None, None)
         
         if button == self.builder.get_object('toolbutton_trajectory_tool1'):
             if button.get_active ():
-                self.trajectory_player_window.OpenWindow()
+                self.trajectory_player_window.open_window()
                 #self.traj_frame.hide()
             else:
-                self.trajectory_player_window.CloseWindow(button = None)
+                self.trajectory_player_window.close_window(button = None)
         
         if button == self.builder.get_object('button_go_to_atom'):
-            self.go_to_atom_window.OpenWindow()
+            self.go_to_atom_window.open_window()
 
         if button  == self.builder.get_object('selections'):
-            self.selection_list_window.OpenWindow()
+            self.selection_list_window.open_window()
 
         if button  == self.builder.get_object('toolbutton_energy'):
             #self.p_session.run_simulation (parameters = {'simulation_type' : 'Energy', 'system': self.p_session.psystem[self.p_session.active_id]})
-            #self.energy_refinement_window.OpenWindow()
-            self.single_point_window.OpenWindow()
+            #self.energy_refinement_window.open_window()
+            self.single_point_window.open_window()
             
         if button  == self.builder.get_object('toolbutton_setup_QCModel'):
-            self.setup_QCModel_window.OpenWindow()
+            self.setup_QCModel_window.open_window()
         
         if button  == self.builder.get_object('toolbutton_system_check'): 
             self.p_session.systems[self.p_session.active_id]['vobject'].get_backbone_indexes ()
 
         if button  == self.builder.get_object('toolbutton_geometry_optimization'):
-            self.geometry_optimization_window.OpenWindow()
+            self.geometry_optimization_window.open_window()
         
         if button  == self.builder.get_object('toolbutton_pDynamo_selections'):
-            self.pDynamo_selection_window.OpenWindow()
+            self.pDynamo_selection_window.open_window()
             
             '''
             atom1 = self.vm_session.picking_selections.picking_selections_list[0]
@@ -525,39 +517,39 @@ class MainWindow:
             '''
        
         if button  == self.builder.get_object('toolbutton_normal_modes'):
-            self.normal_modes_window.OpenWindow()
+            self.normal_modes_window.open_window()
         
         if button  == self.builder.get_object('toolbutton_pes_scan'):
-            self.PES_scan_window.OpenWindow()
+            self.PES_scan_window.open_window()
         
         #if button  == self.builder.get_object('toolbutton_pes_scan'):
-        #    self.PES_scan_window.OpenWindow()
+        #    self.PES_scan_window.open_window()
         
         if button  == self.builder.get_object('toolbutton_molecular_dynamics'):
-            self.molecular_dynamics_window.OpenWindow()
+            self.molecular_dynamics_window.open_window()
             
         if button  == self.builder.get_object('toolbutton_umbrella_sampling'):
             ##print('toolbutton_umbrella_sampling')
-            self.umbrella_sampling_window.OpenWindow()
+            self.umbrella_sampling_window.open_window()
         
         if button  == self.builder.get_object('toolbutton_chain_of_states_opt'):
             ##print('toolbutton_umbrella_sampling')
-            self.chain_of_states_opt_window.OpenWindow()
+            self.chain_of_states_opt_window.open_window()
         
         if button  == self.builder.get_object('toolbutton_monte_carlo'):
             ##print('toolbutton_umbrella_sampling')
-            self.normal_modes_analysis_window.OpenWindow()
+            self.normal_modes_analysis_window.open_window()
         
         if button  == self.builder.get_object('button_test'):
             ##print('toolbutton_umbrella_sampling')
-            self.process_manager_window.OpenWindow()
+            self.process_manager_window.open_window()
 
     def on_main_menu_activate (self, menuitem):
         """ Function doc """
         ##print(menuitem)
         
         if menuitem == self.builder.get_object('menuitem_new'):
-            self.NewSystemWindow.OpenWindow()
+            self.NewSystemWindow.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_open'):
             self.open_gtk_load_files (menuitem)
@@ -572,10 +564,10 @@ class MainWindow:
             self.gtk_save_as_file (menuitem)
 
         elif menuitem == self.builder.get_object('menuitem_export'):
-            self.export_data_window.OpenWindow(sys_selected = self.p_session.active_id)
+            self.export_data_window.open_window(sys_selected = self.p_session.active_id)
         
         elif menuitem == self.builder.get_object('menuitem_import'):
-            self.import_trajectory_window.OpenWindow()
+            self.import_trajectory_window.open_window()
             
         elif menuitem == self.builder.get_object('menuitem_quit'):
             self.on_delete_event(self, None)
@@ -587,12 +579,12 @@ class MainWindow:
         #                           E D I T 
         #----------------------------------------------------------------------
         elif menuitem == self.builder.get_object('menuitem_make_solvent_box'):
-            self.make_solvent_box_window.OpenWindow()
+            self.make_solvent_box_window.open_window()
         elif menuitem == self.builder.get_object('menuitem_go_to_atom'):
-            self.go_to_atom_window.OpenWindow()
+            self.go_to_atom_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_preferences'):
-            self.preferences_window.OpenWindow()
+            self.preferences_window.open_window()
             #print(menuitem, 'menuitem_preferences', self.vm_session.vm_glcore.bckgrnd_color)
             #self.vm_session.vm_glcore.bckgrnd_color = [1,1,1,1]
             #print(menuitem, 'menuitem_preferences', self.vm_session.vm_glcore.bckgrnd_color)
@@ -605,7 +597,7 @@ class MainWindow:
         #                           S E L E C T I N G
         #----------------------------------------------------------------------
         elif menuitem == self.builder.get_object('menuitem_list'):
-            self.selection_list_window.OpenWindow()
+            self.selection_list_window.open_window()
 
         elif menuitem == self.builder.get_object('menuitem_seltype_viewing'):
             if self.selection_box_frame:
@@ -632,7 +624,7 @@ class MainWindow:
             
             
         elif menuitem == self.builder.get_object('menuitem_extend_selection'):
-            self.pDynamo_selection_window.OpenWindow()
+            self.pDynamo_selection_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_by_atom'):
             self.vm_session.viewing_selection_mode(sel_type = 'atom')
@@ -692,46 +684,28 @@ class MainWindow:
                     #print('color', color)
                     self.p_session.prune_system (selection = atomlist, name = name, summary = True, tag = tag, color = color)
 
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+
         #----------------------------------------------------------------------
         #                            V I E W     M E N U
         #----------------------------------------------------------------------
         elif menuitem == self.builder.get_object('menuitem_terminal'):
             button = self.builder.get_object('toolbutton_terminal') 
-            self.terminal_window.OpenWindow()
+            self.terminal_window.open_window()
             if self.terminal_window.visible:
                 button.set_active (True) 
             else:
-                self.terminal_window.CloseWindow(button = None)
+                self.terminal_window.close_window(button = None)
 
 
 
         elif menuitem == self.builder.get_object('menuitem_trajectory_tool'):
             button = self.builder.get_object('toolbutton_trajectory_tool1') 
             
-            self.trajectory_player_window.OpenWindow()
+            self.trajectory_player_window.open_window()
             if self.trajectory_player_window.Visible:
                 button.set_active(True)
             else:
-                self.trajectory_player_window.CloseWindow(button = None)
+                self.trajectory_player_window.close_window(button = None)
 
         elif menuitem == self.builder.get_object('menuitem_file_tools'):
             if menuitem.get_active():
@@ -817,7 +791,7 @@ class MainWindow:
         
         
         elif menuitem == self.builder.get_object('menuitem_qc_setup'):
-            self.setup_QCModel_window.OpenWindow()
+            self.setup_QCModel_window.open_window()
             
         elif menuitem == self.builder.get_object('menuitem_show_cell'):
             system = self.p_session.psystem[self.p_session.active_id]
@@ -944,14 +918,14 @@ class MainWindow:
 
         
         elif menuitem == self.builder.get_object('menuitem_solvate'): 
-            self.solvate_system_window.OpenWindow()
+            self.solvate_system_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_merge'): 
             """ Function doc """
             system = self.p_session.psystem[self.p_session.active_id]
             e_id = system.e_id
             self.merge_system_window.selected_system_id = e_id
-            self.merge_system_window.OpenWindow()
+            self.merge_system_window.open_window()
             
         
         
@@ -970,7 +944,7 @@ class MainWindow:
             system.e_liststore_iter  = backup[1]
             #print('menuitem_clone')
             
-            new_system = self.p_session.append_system_to_pdynamo_session (system = new_system)
+            new_system = self.p_session.add_new_system_to_psession (system = new_system)
             self.main_treeview.add_new_system_to_treeview (new_system)
             ff  =  getattr(new_system.mmModel, 'forceField', "None")
         
@@ -981,7 +955,7 @@ class MainWindow:
             system = self.p_session.psystem[self.p_session.active_id]
             
             new_system = system.PruneToQCRegion()
-            new_system = self.p_session.append_system_to_pdynamo_session (system = new_system)            
+            new_system = self.p_session.add_new_system_to_psession (system = new_system)            
             self.main_treeview.add_new_system_to_treeview (new_system)
             # Determine the force field used
             # sys_type = {0: 'AMBER', 1: 'CHARMM'}        
@@ -998,25 +972,25 @@ class MainWindow:
         
         
         elif menuitem == self.builder.get_object('menuitem_energy'): 
-            self.single_point_window.OpenWindow()
+            self.single_point_window.open_window()
             
         elif menuitem == self.builder.get_object('menuitem_geometry_optimization'):
-            self.geometry_optimization_window.OpenWindow()
+            self.geometry_optimization_window.open_window()
             
         elif menuitem == self.builder.get_object('menuitem_molecular_dynamics'):
-            self.molecular_dynamics_window.OpenWindow()
+            self.molecular_dynamics_window.open_window()
             
         elif menuitem == self.builder.get_object('menuitem_normal_modes'):
-            self.normal_modes_window.OpenWindow()
+            self.normal_modes_window.open_window()
             
         elif menuitem == self.builder.get_object('menuitem_rection_coordinate_scans'):
-            self.PES_scan_window.OpenWindow()
+            self.PES_scan_window.open_window()
             
         elif menuitem == self.builder.get_object('menuitem_nudged_elastic_band'):
-            self.chain_of_states_opt_window.OpenWindow()
+            self.chain_of_states_opt_window.open_window()
             
         elif menuitem == self.builder.get_object('menuitem_umbrella_sampling'):
-            self.umbrella_sampling_window.OpenWindow()
+            self.umbrella_sampling_window.open_window()
         
 
 
@@ -1026,38 +1000,38 @@ class MainWindow:
 
 
         elif menuitem == self.builder.get_object('menuitem_energy_analysis'):
-            self.PES_analysis_window.OpenWindow()
+            self.PES_analysis_window.open_window()
 
         elif menuitem == self.builder.get_object('menuitem_mormal_modes_analysis'):
-            self.normal_modes_analysis_window.OpenWindow()
+            self.normal_modes_analysis_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_surface_analysis'):
-            self.surface_analysis_window.OpenWindow()
-            #self.surface_list_window.OpenWindow()
+            self.surface_analysis_window.open_window()
+            #self.surface_list_window.open_window()
 
         
         elif menuitem == self.builder.get_object('menuitem_energy_refinement'):
-            self.energy_refinement_window.OpenWindow()
+            self.energy_refinement_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_align_trajectory'):
             #print('Hello!!')
-            self.align_trajectory_window.OpenWindow()
-            #self.energy_refinement_window.OpenWindow()
+            self.align_trajectory_window.open_window()
+            #self.energy_refinement_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_reimaging'):
             #print('reimaging_trajectory!!')
-            self.reimaging_trajectory_window.OpenWindow()
-            #self.energy_refinement_window.OpenWindow()
+            self.reimaging_trajectory_window.open_window()
+            #self.energy_refinement_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_d_a_d_analysis'):
-            self.distance_angle_dihedral_analysis_window.OpenWindow()
+            self.distance_angle_dihedral_analysis_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_rama'):
             rama = RamachandranWindow()
         
         elif menuitem == self.builder.get_object('menuitem_RMSD_tool'):
-            #self.rmsd_tool_window.OpenWindow()
-            self.rmsd_analysis_window.OpenWindow()
+            #self.rmsd_tool_window.open_window()
+            self.rmsd_analysis_window.open_window()
         elif menuitem == self.builder.get_object('test_histograms'):
             from util.easyplot import ImagePlot, XYPlot
             import random
@@ -1235,7 +1209,7 @@ class MainWindow:
         
         
         elif menuitem == self.builder.get_object('menuitem_WHAM'):
-            self.WHAM_window.OpenWindow()
+            self.WHAM_window.open_window()
         
         
         
@@ -1330,36 +1304,7 @@ class MainWindow:
         filename = self.filechooser.open(filters = filters)
         ''' - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
         self.vm_session.load(filename)
-        #print('HERE')
-        
-        #'''
-        #if filename:
-        #    if filename[-4:] == 'easy':
-        #        if os.path.exists(filename+'~'):
-        #            msg = 'There is a newer temporary file for the project you are loading.\n Would you like to load the most current file?'
-        #            dialog = SimpleDialog(self)
-        #            yes_or_no = dialog.question (msg)
-        #            
-        #            if yes_or_no:
-        #                self.p_session.load_easyhybrid_serialization_file(filename+'~', tmp = True)
-        #            else:
-        #                self.p_session.load_easyhybrid_serialization_file(filename)
-        #        else:
-        #            self.p_session.load_easyhybrid_serialization_file(filename)
-        #
-        #    elif filename[-5:] == 'easy~':
-        #        #print('ehf file')            
-        #        #self.save_vismol_file = filename
-        #        self.p_session.load_easyhybrid_serialization_file(filename)            
-        #    else:
-        #        files = {'coordinates': filename}
-        #        systemtype = 3
-        #        self.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
-        #else:
-        #    pass
-        #'''
-        
-        
+
     def run_dialog_set_QC_atoms (self, _type = None, vismol_object = None):
         """ Function doc """
         dialog = EasyHybridDialogSetQCAtoms(self.window)
@@ -1367,7 +1312,7 @@ class MainWindow:
 
         if response == Gtk.ResponseType.YES:
             ##print("The OK button was clicked")
-            self.setup_QCModel_window.OpenWindow(vismol_object)
+            self.setup_QCModel_window.open_window(vismol_object)
         elif response == Gtk.ResponseType.CANCEL:
             pass
             #print("The Cancel button was clicked")
@@ -1452,20 +1397,24 @@ class MainWindow:
                     pass
     
     def delete_system (self, system_e_id = None ):
-        """ 
-        system_e_id = is the access key to the object. You can get it from vobject.e_id
+        """Remove a system and its associated vobjects from the session.
 
-        1) remove vobjects from vm_object_dic (self.vm_object_dic in vm_session object)
-        2) remove vobjects from vobject_liststore_dict (self.vobject_liststore_dict in main object)
-        
-        3) remove system from system_liststore (self.system_liststore in main object)
-        #4) remove system from treestore (system.e_treeview_iter)
-        4) remove system from treestore (self.system_treeview_iters[e_id])
-        
-        5) remove system from p_session (p_session.psystem[sys_e_id] in p_session object)
-        """
-        #print(system_e_id)
-        #parent_key = self.treeview.main.p_session.psystem[system_e_id].e_treeview_iter_parent_key       
+        This method deletes a system identified by its `system_e_id` from all
+        relevant data structures, including:
+            1. `vm_objects_dic` in `vm_session`.
+            2. `vobject_liststore_dict` in the main object.
+            3. `vobject_names` in `vm_session`.
+            4. `system_liststore` and `treestore` in the main object.
+            5. `psystem` in the `p_session` object.
+
+        Args:
+            system_e_id (int, optional): Identifier of the system (access key).
+                This value can be obtained from `vobject.e_id`. If `None`, 
+                nothing will be removed.
+
+        Returns:
+            None
+        """      
         
         if system_e_id != None:
             
@@ -1475,6 +1424,7 @@ class MainWindow:
                 if vobject.e_id == system_e_id:                   
                     self.main_treeview.treestore.remove(vobject.e_treeview_iter)
                     pop_list.append(index)
+            
             '''removing from vm_object_dic'''
             for index in pop_list:
                 print('removing sys = {}, obj = {}, name = {}'.format(system_e_id, 
@@ -1482,9 +1432,9 @@ class MainWindow:
                                                                       self.vm_session.vm_objects_dic[index].name))
                 
                 name  = self.vm_session.vm_objects_dic[index].name
-                
                 self.vm_session.vm_objects_dic.pop(index)
                 self.vm_session.vobject_names.pop(name)
+            
             '''removing vobject from vobject_liststore_dict'''
             self.vobject_liststore_dict.pop(system_e_id)
             
@@ -1497,6 +1447,7 @@ class MainWindow:
             self.main_treeview.treestore.remove(self.system_treeview_iters[e_id])
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             
+            # Remove the system from p_session and update the graphical view.
             a = self.p_session.delete_system(system_e_id)
             self.vm_session.vm_glcore.queue_draw()
 
@@ -1688,13 +1639,47 @@ class MainWindow:
         #'''
         #print('aloowww')
         #print(self.vm_session.vm_glcore.glcamera)
-        print(self.vm_session.vm_glcore.glcamera.z_near          ) #= self.z_far
-        print(self.vm_session.vm_glcore.glcamera.z_far        ) #= self.fog_end - self.min_zfar
+        print('z_near:', self.vm_session.vm_glcore.glcamera.z_near          ) #= self.z_far
+        print('z_far:', self.vm_session.vm_glcore.glcamera.z_far        ) #= self.fog_end - self.min_zfar
         print('\nview matrixes: \n', self.vm_session.vm_glcore.glcamera.view_matrix      ) #= self._get_view_matrix(pos)
         print('\nprojection_matrix: \n',self.vm_session.vm_glcore.glcamera.projection_matrix) #= self._get_projection_matrix()
         print('\ncamera position: \n', self.vm_session.vm_glcore.glcamera.get_position()) #= self._get_projection_matrix()
         
         camera = self.vm_session.vm_glcore.glcamera.get_position()
+        view_matrix       = self.vm_session.vm_glcore.glcamera.view_matrix
+        projection_matrix = self.vm_session.vm_glcore.glcamera.projection_matrix
+        camera_position   = self.vm_session.vm_glcore.glcamera.get_position()
+
+        for key, vobj in self.vm_session.vm_objects_dic.items():
+            print('model_mat:')
+            print(vobj.model_mat)
+            print('trans_mat:')
+            print(vobj.trans_mat)
+
+
+        # --------------------------
+        # Exemplo de uso com seus dados
+        #view_matrix = np.array([
+        #    [1, 0, 0, 0],
+        #    [0, 1, 0, 0],
+        #    [0, 0, 1, 0],
+        #    [0, 0, -10, 1]
+        #], dtype=float)
+        #
+        #projection_matrix = np.array([
+        #    [2.2277896, 0, 0, 0],
+        #    [0, 5.671282, 0, 0],
+        #    [0, 0, -3.3333333, -1],
+        #    [0, 0, -30.333334, 0]
+        #], dtype=float)
+        #
+        #camera_position = [0, 0, 10]
+
+        pov_camera_block = self.opengl_to_povray_camera(view_matrix, projection_matrix, camera_position)
+        print(pov_camera_block)   
+        
+        return False
+        
         for key, vobj in self.vm_session.vm_objects_dic.items():
             print(vobj.model_mat)
             print(vobj.trans_mat)
@@ -1923,6 +1908,57 @@ class MainWindow:
         os.system('povray +A0.1 -UV +W{} +H{} +Itemp.pov +Otemp2.png'.format(width, height))
         print('povray +A0.1 -UV +W{} +H{} +Itemp.pov +Otemp2.png'.format(width, height))
         #'''
+ 
+
+    def opengl_to_povray_camera(self,  view_matrix, projection_matrix, camera_position, use_clipping=True):
+        """
+        Converte matrizes OpenGL para um bloco de câmera POV-Ray.
+
+        Args:
+            view_matrix (np.ndarray): 4x4 matriz de visualização OpenGL.
+            projection_matrix (np.ndarray): 4x4 matriz de projeção OpenGL.
+            camera_position (list/np.ndarray): Posição da câmera [x, y, z].
+            use_clipping (bool): Se True, adiciona o clipping (near/far).
+
+        Returns:
+            str: Bloco de câmera POV-Ray.
+        """
+        import math
+        # Campo de visão vertical (em graus)
+        fov_y_rad = 2 * math.atan(1 / projection_matrix[1,1])
+        fov_y_deg = math.degrees(fov_y_rad)
+        
+        # Planos near/far da matriz de projeção
+        if use_clipping:
+            p22 = projection_matrix[2,2]
+            p32 = projection_matrix[3,2]
+            # resolver f e n: 
+            # p22 = -(f+n)/(f-n), p32 = -2*f*n/(f-n)
+            denom = p22 - 1e-12  # evitar divisão por zero
+            far = (-p32)/(p22 + 1)
+            near = far * (p22 - 1)/(p22 + 1)
+        else:
+            near, far = None, None
+
+        # POV-Ray look_at padrão (origem)
+        look_at = np.array([0,0,0], dtype=float)
+        
+        # Monta o bloco da câmera
+        pov_lines = []
+        pov_lines.append("camera {")
+        pov_lines.append(f"    location <{camera_position[0]}, {camera_position[1]}, {camera_position[2]}>")
+        pov_lines.append(f"    look_at <{look_at[0]}, {look_at[1]}, {look_at[2]}>")
+        pov_lines.append(f"    angle {fov_y_deg:.4f}")
+        
+        if use_clipping and near is not None and far is not None:
+            pov_lines.append(f"    clipping {{ {near:.4f}, {far:.4f} }}")
+        
+        pov_lines.append("}")
+        
+        return "\n".join(pov_lines)
+
+
+      
  
     def on_delete_event(self, widget, event):
         if self.p_session.changed:
@@ -2176,7 +2212,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         vismol_object = self.main.vm_session.vm_objects_dic[self.selectedID]
         vismol_object.active = self.treestore[path][6]
         
-      
+        
         self.main.bottom_notebook.seqview.refresh_vobject_sequence_list(self.main.vm_session.vm_objects_dic)
        
         self.refresh_trajectory_scalebar()
@@ -2427,7 +2463,7 @@ class TreeViewMenu:
         (model, iter)    = selection.get_selected()
         e_id             = int(model.get_value(iter, 0))
         vm_object_index  = int(model.get_value(iter, 1))
-        self.main.edit_frames_dialog.OpenWindow (vm_object_index)
+        self.main.edit_frames_dialog.open_window (vm_object_index)
         
     def _show_info (self, widget):
         """ Function doc """
@@ -2444,14 +2480,14 @@ class TreeViewMenu:
         (model, iter) = selection.get_selected()
         e_id          = int(model.get_value(iter, 0)) 
         #print(e_id)
-        self.treeview.main.export_data_window.OpenWindow(sys_selected = e_id)
+        self.treeview.main.export_data_window.open_window(sys_selected = e_id)
         
     def _menu_load_data_to_system (self, vobject = None ):
         """ Function doc """
         selection        = self.treeview.get_selection()
         model, iter      = selection.get_selected()
         #print (list(model))
-        self.main.import_trajectory_window.OpenWindow(sys_selected = model.get_value(iter, 0))
+        self.main.import_trajectory_window.open_window(sys_selected = model.get_value(iter, 0))
 
     def _menu_change_color_palette (self, widget):
         """ Function doc """
@@ -2487,7 +2523,7 @@ class TreeViewMenu:
         (model, iter) = selection.get_selected()
         e_id          = int(model.get_value(iter, 0)) 
         self.main.merge_system_window.selected_system_id = e_id
-        self.main.merge_system_window.OpenWindow()
+        self.main.merge_system_window.open_window()
     
     def _menu_clone_system (self, widget):
         """ Function doc """
@@ -2511,7 +2547,7 @@ class TreeViewMenu:
 
         
         vobject      = self.main.vm_session.vm_objects_dic[vobject_id]
-        self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject,
+        self.main.p_session.set_psystem_coordinates_from_vobject(vobject   = vobject,
                                                                            system_id =  e_id  )
         #print(e_id)
         self.main.p_session.clone_system( e_id    = e_id, 
@@ -2525,8 +2561,8 @@ class TreeViewMenu:
         """ Function doc """
         ##print('f2')
         #self._show_lines(vobject = self.vobjects[0], indices = [0,1,2,3,4] )
-        self.treeview.main.go_to_atom_window.OpenWindow()
-        #self.treeview.vm_session.go_to_atom_window.OpenWindow()
+        self.treeview.main.go_to_atom_window.open_window()
+        #self.treeview.vm_session.go_to_atom_window.open_window()
     def f3 (self, vobject = None):
         """ Function doc """
         

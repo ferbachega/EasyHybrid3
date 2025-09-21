@@ -82,7 +82,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
                             }
     
     
-    def OpenWindow (self):
+    def open_window (self):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = self.main.builder #Gtk.Builder()
@@ -95,7 +95,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.window = self.builder.get_object('umbrella_samppling_window')
             self.window.set_title('Umbrella Samppling Window')
             self.window.set_keep_above(True)
-            self.window.connect("destroy", self.CloseWindow)
+            self.window.connect("destroy", self.close_window)
             
 
             '''--------------------------------------------------------------------------------------------'''
@@ -210,7 +210,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.builder.get_object('frame_geometry_optimization').set_sensitive(False)
             
             self.builder.get_object('button_run').connect("clicked", self.run)
-            self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+            self.builder.get_object('button_cancel').connect('clicked', self.close_window)
             self.builder.get_object('button_export').connect('clicked', self.on_btn_export)
             #---------------------------------------------------------------------------------------------
             
@@ -239,7 +239,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.window.present()
             
 
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
@@ -479,7 +479,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
         if parameters['input_type'] == 0:
             vobject_id = self.combobox_starting_coordinates.get_vobject_id()
             vobject = self.main.vm_session.vm_objects_dic[vobject_id]
-            self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+            self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
             parameters['vobj'] = vobject.name
             parameters['source_folder'] = None
             
@@ -504,7 +504,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
 
         #vobject_id = self.combobox_starting_coordinates.get_vobject_id()
         #vobject = self.main.vm_session.vm_objects_dic[vobject_id]
-        #self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+        #self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
 
         '''
         

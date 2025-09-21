@@ -78,7 +78,7 @@ class EasyHybridPreferencesWindow():
         
         
         
-    def OpenWindow (self):
+    def open_window (self):
         """ Function doc /home/fernando/programs/VisMol/easyhybrid/gui/selection_list.glade"""
         if self.visible  ==  False:
             self.builder = Gtk.Builder()
@@ -89,7 +89,7 @@ class EasyHybridPreferencesWindow():
             self.window.set_default_size(600, 600)  
             self.window.set_title('Preferences')  
             self.window.set_keep_above(True)
-            self.window.connect('destroy-event', self.CloseWindow)
+            self.window.connect('destroy-event', self.close_window)
 
             
             self.elements_gtk_scrolled = self.builder.get_object('elements_gtk_scrolled')
@@ -141,7 +141,7 @@ class EasyHybridPreferencesWindow():
             
             
             self.btn_cancel = self.builder.get_object('btn_cancel')
-            self.btn_cancel.connect('clicked', self.CloseWindow)
+            self.btn_cancel.connect('clicked', self.close_window)
 
             self.window.show_all()                                               
             self.visible    =  True
@@ -150,7 +150,7 @@ class EasyHybridPreferencesWindow():
         else:
             self.window.present()
             
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         #self.BackUpWindowData()
         self.window.destroy()

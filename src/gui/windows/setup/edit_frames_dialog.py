@@ -50,7 +50,7 @@ class EditFrameDialog():
         
         self.gl_parameters = self.vm_session.vm_config.gl_parameters
 
-    def OpenWindow (self, vobj_id):
+    def open_window (self, vobj_id):
         """ Function doc /home/fernando/programs/VisMol/easyhybrid/gui/selection_list.glade"""
         self.vobj_id = vobj_id
         
@@ -58,13 +58,13 @@ class EditFrameDialog():
             self.builder = Gtk.Builder()
             self.builder.add_from_file(os.path.join(self.home,'src/gui/windows/setup/edit_frames_dialog.glade'))
             self.window = self.builder.get_object('dialog')
-            self.window.connect('destroy', self.CloseWindow) 
+            self.window.connect('destroy', self.close_window) 
             
             self.entry_delete_frames = self.builder.get_object('entry_delete_frames')
             self.button_cancel = self.builder.get_object('button_cancel')
             self.button_apply  = self.builder.get_object('button_apply')
             
-            self.button_cancel.connect('clicked', self.CloseWindow)
+            self.button_cancel.connect('clicked', self.close_window)
             self.button_apply.connect('clicked', self.apply)
             
             self.check_button_reverse = self.builder.get_object('check_button_reverse')
@@ -77,7 +77,7 @@ class EditFrameDialog():
         else:
             self.window.present()
             
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         #self.BackUpWindowData()
         self.window.destroy()
@@ -160,4 +160,4 @@ class EditFrameDialog():
         
         
         
-        self.CloseWindow(None, None)
+        self.close_window(None, None)

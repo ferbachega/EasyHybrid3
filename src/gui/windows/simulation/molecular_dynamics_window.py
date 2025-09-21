@@ -66,7 +66,7 @@ class MolecularDynamicsWindow():
         self.sym_tag = 'mol_dyn'
         self.joblist = []
 
-    def OpenWindow (self):
+    def open_window (self):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
@@ -75,7 +75,7 @@ class MolecularDynamicsWindow():
             self.window = self.builder.get_object('setup_md_window')
             self.window.set_title('Molecular Dynamics Setup')
             self.window.set_keep_above(True)
-            self.window.connect("destroy", self.CloseWindow)
+            self.window.connect("destroy", self.close_window)
         
                 
             #------------------------------------------------------------------------------------------
@@ -190,7 +190,7 @@ class MolecularDynamicsWindow():
             #-------------------------------------------------------------------------------------------
             button_send_job_to_list = self.builder.get_object('button_run')
             button_send_job_to_list.connect('clicked', self.run)
-            self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+            self.builder.get_object('button_cancel').connect('clicked', self.close_window)
             #-------------------------------------------------------------------------------------------
             
             
@@ -202,7 +202,7 @@ class MolecularDynamicsWindow():
         else:
             self.window.present()
             
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
@@ -321,7 +321,7 @@ class MolecularDynamicsWindow():
             vobject = self.main.vm_session.vm_objects_dic[vobject_id]
             
             '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
-            self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+            self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
         '''---------------------------------------------------------------------------------'''
 
         

@@ -5,8 +5,8 @@
   <object class="GtkWindow" id="setup_md_window">
     <property name="can_focus">False</property>
     <property name="resizable">False</property>
-    <signal name="delete-event" handler="CloseWindow" swapped="no"/>
-    <signal name="destroy-event" handler="CloseWindow" swapped="no"/>
+    <signal name="delete-event" handler="close_window" swapped="no"/>
+    <signal name="destroy-event" handler="close_window" swapped="no"/>
     <child type="titlebar">
       <placeholder/>
     </child>
@@ -468,7 +468,7 @@
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <signal name="clicked" handler="CloseWindow" swapped="no"/>
+                    <signal name="clicked" handler="close_window" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">True</property>

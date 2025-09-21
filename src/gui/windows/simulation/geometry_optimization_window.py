@@ -58,7 +58,7 @@ class GeometryOptimization(Gtk.Window):
                              }
 
     
-    def OpenWindow (self):
+    def open_window (self):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = self.main.builder #Gtk.Builder()
@@ -136,7 +136,7 @@ class GeometryOptimization(Gtk.Window):
         else:
             self.window.present()
     
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
@@ -173,7 +173,7 @@ class GeometryOptimization(Gtk.Window):
             vobject = self.main.vm_session.vm_objects_dic[vobject_id]
 
             # Import coordinates of the vismol object into the pDynamo system
-            self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+            self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
 
         # ---------------------------------------------------------------
         # Update parameters from GUI entries

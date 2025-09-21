@@ -104,7 +104,7 @@ class PotentialEnergyAnalysisWindow:
             
         
         
-    def OpenWindow (self, vobject = None):
+    def open_window (self, vobject = None):
         """ Function doc """
         if self.Visible  ==  False:
 
@@ -221,7 +221,7 @@ class PotentialEnergyAnalysisWindow:
 
 
 
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
@@ -696,7 +696,7 @@ class PotentialEnergyAnalysisWindow:
                     
                     try:
                         frame_number = self.vobject.idx_2D_xy[(y, x)]
-                        self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject   = self.vobject, 
+                        self.main.p_session.set_psystem_coordinates_from_vobject(vobject   = self.vobject, 
                                                                         system_id = self.vobject.e_id, 
                                                                         frame     = frame_number)
                         filename = 'frame{}_{}.pkl'.format(y, x)

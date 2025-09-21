@@ -70,7 +70,7 @@ class Command:
 class TerminalWindow():
     """ Class doc """
     
-    def OpenWindow (self):
+    def open_window (self):
         """ """
         if self.visible  ==  False:
             self.builder = Gtk.Builder()
@@ -82,8 +82,8 @@ class TerminalWindow():
             self.window.set_default_size(650, 350)  
             self.window.set_title('EasyHybrid Terminal')  
 
-            self.window.connect('destroy-event', self.CloseWindow)
-            #self.window.connect('delete-event', self.CloseWindow)
+            self.window.connect('destroy-event', self.close_window)
+            #self.window.connect('delete-event', self.close_window)
 
             self.window.set_keep_above(True)
             
@@ -125,7 +125,7 @@ class TerminalWindow():
             self.window.present()
             
 
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         #self.BackUpWindowData()
         self.window.destroy()

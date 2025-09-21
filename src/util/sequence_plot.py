@@ -573,11 +573,24 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
                 delete = True
                 pos = -1
                 #'''
+                
                 while delete:
-                    if sequence[-1].rcode == '-':
-                        sequence.pop(-1)
-                    else:
+                    try:
+                        if sequence[-1].rcode == '-':
+                            sequence.pop(-1)
+                        else:
+                            delete = False
+                    except:
                         delete = False
+                        
+                #while delete:
+                #    if len(sequence) > 0:
+                #        print(sequence[-1])
+                #        if sequence[-1].rcode == '-':
+                #            sequence.pop(-1)
+                #        else:
+                #            delete = False
+                    
                 #'''
                 vobject.e_sequence = sequence  
             

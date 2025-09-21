@@ -38,7 +38,7 @@ class EnergyRefinementWindow():
                            }
 
 
-    def OpenWindow (self, vobject = None):
+    def open_window (self, vobject = None):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
@@ -47,7 +47,7 @@ class EnergyRefinementWindow():
             #self.vobject = vobject
             self.window = self.builder.get_object('window')
             self.window.set_title('Energy Refinement Window')
-            self.window.connect('destroy', self.CloseWindow)
+            self.window.connect('destroy', self.close_window)
             
             
             
@@ -127,7 +127,7 @@ class EnergyRefinementWindow():
             
             self.comobobox_input_type.set_active(0)
            
-            self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+            self.builder.get_object('button_cancel').connect('clicked', self.close_window)
             self.builder.get_object('button_run').connect('clicked', self.on_button_run_clicked)
             
             self.Visible  = True
@@ -215,7 +215,7 @@ class EnergyRefinementWindow():
         self.data_combobox.set_active(0)
 
 
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False

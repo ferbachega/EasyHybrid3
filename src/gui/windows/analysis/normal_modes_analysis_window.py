@@ -62,7 +62,7 @@ class NormalModesAnalysisWindow(Gtk.Window):
                                            # system_e_id : Gtk.ListStore(str, int)
                                            }
     
-    def OpenWindow (self):
+    def open_window (self):
         """  """
         if self.visible  ==  False:
             self.builder = Gtk.Builder()
@@ -194,7 +194,7 @@ class NormalModesAnalysisWindow(Gtk.Window):
             self.visible    =  True
             '''--------------------------------------------------------------------------------------------'''
 
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
 
         self.stop(None)

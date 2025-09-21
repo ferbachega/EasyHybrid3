@@ -86,7 +86,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
                                            # system_e_id : Gtk.ListStore(str, int)
                                            }
     
-    def OpenWindow (self):
+    def open_window (self):
         """  """
         if self.visible  ==  False:
             self.builder = Gtk.Builder()
@@ -211,7 +211,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.visible    =  True
             '''--------------------------------------------------------------------------------------------'''
 
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
 
         #self.stop(None)
@@ -360,10 +360,10 @@ class SurfaceAnalysisWindow(Gtk.Window):
         joblist = []
         
         for frame in range(vismol_object.frames.shape[0]):
-            #self.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+            #self.p_session.set_psystem_coordinates_from_vobject(vobject)
             #'''
             print(vismol_object, frame)
-            self.p_session.get_coordinates_from_vobject_to_pDynamo_system( vobject = vismol_object, 
+            self.p_session.set_psystem_coordinates_from_vobject( vobject = vismol_object, 
                                                                            system_id = None, 
                                                                            frame = frame)
             
@@ -556,7 +556,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             joblist = []
             for frame in range(vismol_object.frames.shape[0]):
                 #'''
-                self.p_session.get_coordinates_from_vobject_to_pDynamo_system( vobject = vismol_object, 
+                self.p_session.set_psystem_coordinates_from_vobject( vobject = vismol_object, 
                                                                                system_id = None, 
                                                                                frame = frame)
                 parameters = {
@@ -650,7 +650,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             joblist = []
             for frame in range(vismol_object.frames.shape[0]):
                 #'''
-                self.p_session.get_coordinates_from_vobject_to_pDynamo_system( vobject = vismol_object, 
+                self.p_session.set_psystem_coordinates_from_vobject( vobject = vismol_object, 
                                                                                system_id = None, 
                                                                                frame = frame)
                 parameters = {
@@ -757,9 +757,9 @@ class SurfaceAnalysisWindow(Gtk.Window):
             joblist = []
             
             for frame in range(vismol_object.frames.shape[0]):
-                #self.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+                #self.p_session.set_psystem_coordinates_from_vobject(vobject)
                 #'''
-                self.p_session.get_coordinates_from_vobject_to_pDynamo_system( vobject = vismol_object, 
+                self.p_session.set_psystem_coordinates_from_vobject( vobject = vismol_object, 
                                                                                system_id = None, 
                                                                                frame = frame)
                 
@@ -908,7 +908,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
         trajectory = [None]*vismol_object.frames.shape[0]
         joblist = []
         for frame in range(vismol_object.frames.shape[0]):
-            self.p_session.get_coordinates_from_vobject_to_pDynamo_system( vobject = vismol_object, 
+            self.p_session.set_psystem_coordinates_from_vobject( vobject = vismol_object, 
                                                                           system_id = system_id, 
                                                                           frame = frame)
             parameters = None

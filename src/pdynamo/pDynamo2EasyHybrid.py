@@ -265,7 +265,7 @@ class LoadAndSaveData:
             if len(data['vobjects']) == 0:
                 pass
             else:
-                self.append_system_to_pdynamo_session (system = system, name  = name, tag = tag)
+                self.add_new_system_to_psession (system = system, name  = name, tag = tag)
                 self.main.main_treeview.add_new_system_to_treeview (system)
                 ff  =  getattr(system.mmModel, 'forceField', "None")
                 self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system = system)
@@ -284,7 +284,7 @@ class LoadAndSaveData:
                         print(vobj['is_surface'])
                         pass
                     else:
-                        vm_object = self._build_vobject_from_pDynamo_system ( system = system, name = name ) 
+                        vm_object = self._build_vobject_from_pdynamo_system ( system = system, name = name ) 
                         vm_object.frames = frames
                         vm_object.active = vobj['active']
                         self.vm_session._add_vismol_object(vm_object, show_molecule = True)
@@ -341,7 +341,7 @@ class EasyHybridImportTrajectory:
         else:
             '''append the coordinates to an existing object'''
             p_coords = ImportCoordinates3 ( parameters['data_path'] )
-            v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+            v_coords = self._convert_pdynamo_coords_to_vismol(p_coords)
             #print (parameters['vobject'].frames)
             #coords = np.vstack((coords, f))
             parameters['vobject'].frames = np.vstack((parameters['vobject'].frames, v_coords))
@@ -399,7 +399,7 @@ class EasyHybridImportTrajectory:
             # . Loop over the frames in the trajectory.
             while trajectory.RestoreOwnerData ( ):
                 p_coords = self.psystem[parameters['system_id']].coordinates3
-                v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+                v_coords = self._convert_pdynamo_coords_to_vismol(p_coords)
                 vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
                 system = self.psystem[parameters['system_id']]
             #vismol_object = self.interpolate_frames_of_a_vobject (system, vismol_object)
@@ -410,7 +410,7 @@ class EasyHybridImportTrajectory:
             '''
             for frame in range(1,len(pkl_files)):
                 p_coords = ImportCoordinates3 (os.path.join(parameters['data_path'], 'frame{}.pkl'.format(frame)))
-                v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+                v_coords = self._convert_pdynamo_coords_to_vismol(p_coords)
                 vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
             '''    
         else:
@@ -421,7 +421,7 @@ class EasyHybridImportTrajectory:
             # . Loop over the frames in the trajectory.
             while trajectory.RestoreOwnerData ( ):
                 p_coords = self.psystem[parameters['system_id']].coordinates3
-                v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+                v_coords = self._convert_pdynamo_coords_to_vismol(p_coords)
                 
                 #vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
                 vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
@@ -432,7 +432,7 @@ class EasyHybridImportTrajectory:
             '''
             for frame in range(0,len(pkl_files)):
                 p_coords = ImportCoordinates3 (os.path.join(parameters['data_path'], 'frame{}.pkl'.format(frame)))
-                v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+                v_coords = self._convert_pdynamo_coords_to_vismol(p_coords)
                 parameters['vobject'].frames = np.vstack((parameters['vobject'].frames, v_coords))
             '''
         self._apply_QC_representation_to_vobject(vismol_object = vismol_object)
@@ -475,7 +475,7 @@ class EasyHybridImportTrajectory:
             x_y = _file[5:-4].split('_')
             #print(x_y)
             p_coords = ImportCoordinates3 (os.path.join(parameters['data_path'], _file))
-            v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+            v_coords = self._convert_pdynamo_coords_to_vismol(p_coords)
             
             vismol_object.idx_2D_xy[(int(x_y[0]), int(x_y[1]))] = n
             vismol_object.idx_2D_f [n] = (int(x_y[0]), int(x_y[1]))
@@ -541,7 +541,7 @@ class EasyHybridImportTrajectory:
             
             while trajectory.RestoreOwnerData ( ):
                 p_coords = self.psystem[parameters['system_id']].coordinates3
-                v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+                v_coords = self._convert_pdynamo_coords_to_vismol(p_coords)
                 vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
                 x += 1
             
@@ -569,7 +569,7 @@ class EasyHybridImportTrajectory:
             trajectory.ReadHeader ( )
             while trajectory.RestoreOwnerData ( ):
                 p_coords = self.psystem[parameters['system_id']].coordinates3
-                v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+                v_coords = self._convert_pdynamo_coords_to_vismol(p_coords)
                 vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
                 system = self.psystem[parameters['system_id']]
             #vismol_object = self.interpolate_frames_of_a_vobject (system, vismol_object)
@@ -584,7 +584,7 @@ class EasyHybridImportTrajectory:
             # . Loop over the frames in the trajectory.
             while trajectory.RestoreOwnerData ( ):
                 p_coords = self.psystem[parameters['system_id']].coordinates3
-                v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+                v_coords = self._convert_pdynamo_coords_to_vismol(p_coords)
                 #vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
                 vismol_object.frames = np.vstack((vismol_object.frames, v_coords))
 
@@ -1086,7 +1086,7 @@ class pSimulations:
         parameters = self._apply_restraints(parameters)
 
         # Ensure process manager window is visible
-        self.main.process_manager_window.OpenWindow()
+        self.main.process_manager_window.open_window()
         
         
         parameters = self._configure_logfile(parameters)
@@ -1933,7 +1933,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         '''Storing the system source files'''
         system.e_input_files = input_files
-        system = self.append_system_to_pdynamo_session (system = system,  name = name, tag = tag, color = color, changed = True )
+        system = self.add_new_system_to_psession (system = system,  name = name, tag = tag, color = color, changed = True )
 
         '''-----------------------------------------------------------------'''
 
@@ -1960,7 +1960,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
     def _add_vismol_object_to_easyhybrid_session (self, system, show_molecule=True, name = 'new_coords'):
         """ Function doc """
         # Create a VisMol object from the given pDynamo system
-        vm_object = self._build_vobject_from_pDynamo_system ( system = system, name = name ) 
+        vm_object = self._build_vobject_from_pdynamo_system ( system = system, name = name ) 
         
         # Add the VisMol object to the VisMol session
         self.vm_session._add_vismol_object(vm_object, show_molecule=True)
@@ -1984,7 +1984,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         return vm_object
 
     
-    def append_system_to_pdynamo_session (self, 
+    def add_new_system_to_psession (self, 
                                           system         = None            ,
                                           name           = 'pDynamo system',
                                           tag            = None            ,
@@ -2181,7 +2181,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         return system
 
 
-    def _get_sequence_from_pDynamo_system (self, system = None):
+    def _get_sequence_from_pdynamo_system (self, system = None):
         """ Function doc """
         
         if system:
@@ -2289,7 +2289,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         """ Function doc """
         #for 
         #p_coords = ImportCoordinates3 ( parameters['data_path'] )
-        #v_coords = self._convert_pDynamo_coords_to_vismol(p_coords)
+        #v_coords = self._convert_pdynamo_coords_to_vismol(p_coords)
         #print (parameters['vobject'].frames)
         #coords = np.vstack((coords, f))
         
@@ -2363,7 +2363,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         return coords
 
 
-    def get_coordinates_from_vobject_to_pDynamo_system (self, vobject = None, system_id =  None, frame = -1):
+    def set_psystem_coordinates_from_vobject (self, vobject = None, system_id =  None, frame = -1):
         """ Function doc """
         if system_id != None:
             pass
@@ -2515,158 +2515,210 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             return  system.e_color_palette 
     
     
-    def _build_vobject_from_pDynamo_system (self                                          , 
-                                            system                    = None              , 
-                                            name                      = 'a_new_vismol_obj',
-                                            e_id                      = None              ,
-                                            is_vobject_active         = True              ,
-                                            autocenter                = True              ,
-                                            #refresh_qc_and_fixed     = True              ,
-                                            #add_vobject_to_vm_session = True             ,
-                                            frames                    = None
-                                           ):
-        
-        #for i, atom in enumerate(system.atoms):
-        #    print(i, atom.atomicNumber, atom.label)
-        
-        sequence  = self._get_sequence_from_pDynamo_system(system)
-        
-        #for i, atom in enumerate(system.atoms):
-        #    print(i, atom.atomicNumber, atom.label)
-        
-        atoms     = []     
-        atom_qtty = len(system.atoms.items) 
-        coords    = np.empty([1, atom_qtty, 3], dtype=np.float32)
+    def _build_vobject_from_pdynamo_system(
+            self,
+            system=None,
+            name='a_new_vismol_obj',
+            e_id=None,
+            is_vobject_active=True,
+            autocenter=True,
+            # refresh_qc_and_fixed=True,
+            # add_vobject_to_vm_session=True,
+            frames=None):
+        """
+        Build a VismolObject from a pDynamo System object.
+
+        This function translates a molecular system represented internally
+        in pDynamo into a VismolObject, which can be visualized, manipulated,
+        and integrated with the EasyHybrid / Vismol session.
+
+        Parameters
+        ----------
+        system : pDynamo System
+            The pDynamo System instance to be converted into a visualizable
+            VismolObject.
+
+        name : str
+            The name assigned to the new VismolObject.
+
+        e_id : int, optional
+            External identifier for linking this object with higher-level
+            EasyHybrid structures.
+
+        is_vobject_active : bool
+            Whether the new VismolObject should be set as active.
+
+        autocenter : bool
+            If True, the object will be centered when first created.
+
+        frames : np.ndarray, optional
+            Pre-existing coordinates (frames) to assign. If None, the
+            coordinates are extracted from the pDynamo system.
+
+        Returns
+        -------
+        VismolObject
+            The newly built VismolObject containing atoms, residues, chains,
+            bonds, coordinates, and other metadata derived from the
+            pDynamo System.
+        """
+
+        # -------------------------------------------------------------------------
+        # 1. Extract sequence information from the pDynamo system
+        # -------------------------------------------------------------------------
+        sequence = self._get_sequence_from_pdynamo_system(system)
+
+        # -------------------------------------------------------------------------
+        # 2. Prepare atom list and coordinates array
+        # -------------------------------------------------------------------------
+        atoms = []
+        atom_qtty = len(system.atoms.items)
+
+        # Allocate a single frame of coordinates [1 x N_atoms x 3]
+        coords = np.empty([1, atom_qtty, 3], dtype=np.float32)
+
+        # Fill coordinates and atom metadata
         j = 0
         for atom in system.atoms.items:
+            # Extract XYZ coordinates from the pDynamo system
             xyz = system.coordinates3[atom.index]
-            x = np.float32(xyz[0])
-            y = np.float32(xyz[1])
-            z = np.float32(xyz[2])
-            coords[0,j,:] = x, y, z
-            
-            is_from_mol2 = getattr(system, 'sequence_from_mol2', False)
-            #print(atom, atom.label )
-            atoms.append(self._get_atom_info_from_pdynamo_atom_obj(sequence =  sequence, atom = atom, is_from_mol2 = is_from_mol2))
-            j += 1
-            
-        vm_object = VismolObject(self.vm_session, 
-                                 len(self.vm_session.vm_objects_dic), 
-                                 name = name, 
-                                 color_palette = system.e_color_palette)
-                                 
-        vm_object.set_model_matrix(self.vm_session.vm_glcore.model_mat)
-        
-        # Maybe we have to change it later
-        #unique_id = len(self.vm_session.atom_dic_id)
+            x, y, z = np.float32(xyz[0]), np.float32(xyz[1]), np.float32(xyz[2])
+            coords[0, j, :] = x, y, z
 
+            # Check whether system was read from MOL2 file (affects labels)
+            is_from_mol2 = getattr(system, 'sequence_from_mol2', False)
+
+            # Build atom metadata dictionary from the pDynamo atom object
+            atoms.append(
+                self._get_atom_info_from_pdynamo_atom_obj(
+                    sequence=sequence,
+                    atom=atom,
+                    is_from_mol2=is_from_mol2
+                )
+            )
+            j += 1
+
+        # -------------------------------------------------------------------------
+        # 3. Create the VismolObject to represent the system visually
+        # -------------------------------------------------------------------------
+        vm_object = VismolObject(
+            self.vm_session,
+            len(self.vm_session.vm_objects_dic),  # assign unique index
+            name=name,
+            color_palette=system.e_color_palette
+        )
+
+        # Set model transformation matrix (used for rendering in OpenGL)
+        vm_object.set_model_matrix(self.vm_session.vm_glcore.model_mat)
+
+        # -------------------------------------------------------------------------
+        # 4. Build hierarchy: Chains → Residues → Atoms
+        # -------------------------------------------------------------------------
         initial = time.time()
         atom_id = 0
+
         for _atom in atoms:
+            # Ensure chain exists in the VismolObject
             if _atom["chain"] not in vm_object.chains.keys():
                 vm_object.chains[_atom["chain"]] = Chain(vm_object, name=_atom["chain"])
             _chain = vm_object.chains[_atom["chain"]]
-            
-            if _atom["resi"] not in _chain.residues.keys():
-                #print(_atom["resn"], _atom["chain"],_atom["resi"] )
-                _r = Residue(vm_object, name=_atom["resn"], index=_atom["resi"], chain=_chain)
-                #vm_object.residues[_atom["resi"]] = _r
-                _chain.residues[_atom["resi"]] = _r
-            
-            _residue = _chain.residues[_atom["resi"]]
-            #print(_residue.name, _residue.index )
-            #print(_atom)
-            #atom = Atom()
-            atom = Atom(vismol_object = vm_object,#
-                        name          =_atom["name"] , 
-                        index         =_atom["index"],
-                        symbol        =_atom["symbol"],
-                        residue       =_residue      , 
-                        chain         =_chain, 
-                        atom_id       = atom_id,
-                        occupancy     =_atom["occupancy"], 
-                        bfactor       =_atom["bfactor"],
-                        charge        =_atom["charge"])
-                        
 
-                        
-                        
+            # Ensure residue exists inside the chain
+            if _atom["resi"] not in _chain.residues.keys():
+                _r = Residue(
+                    vm_object,
+                    name=_atom["resn"],
+                    index=_atom["resi"],
+                    chain=_chain
+                )
+                _chain.residues[_atom["resi"]] = _r
+
+            _residue = _chain.residues[_atom["resi"]]
+
+            # Create the Atom object inside the VismolObject
+            atom = Atom(
+                vismol_object=vm_object,
+                name=_atom["name"],
+                index=_atom["index"],
+                symbol=_atom["symbol"],
+                residue=_residue,
+                chain=_chain,
+                atom_id=atom_id,
+                occupancy=_atom["occupancy"],
+                bfactor=_atom["bfactor"],
+                charge=_atom["charge"]
+            )
+
+            # Assign unique identifiers and update dictionaries
             atom.unique_id = self.vm_session.atom_id_counter
             atom._generate_atom_unique_color_id()
+
             _residue.atoms[atom_id] = atom
             vm_object.atoms[atom_id] = atom
-            atom_id += 1
-            #unique_id += 1
-            self.vm_session.atom_id_counter += 1
-            
-        logger.debug("Time used to build the tree: {:>8.5f} secs".format(time.time() - initial))
-        
 
+            atom_id += 1
+            self.vm_session.atom_id_counter += 1
+
+        logger.debug(
+            "Time used to build the tree: {:>8.5f} secs".format(time.time() - initial)
+        )
+
+        # -------------------------------------------------------------------------
+        # 5. Assign coordinates and mass center
+        # -------------------------------------------------------------------------
         vm_object.frames = coords
         vm_object.mass_center = np.mean(vm_object.frames[0], axis=0)
-        
-        '''
-            -----------------------------------------------------------
-            Extracting chemical bonds from the pdynamo system topology.
-        '''
-        is_mmState  = getattr(system, 'mmState', None)
+
+        # -------------------------------------------------------------------------
+        # 6. Extract chemical bonds
+        # -------------------------------------------------------------------------
+        is_mmState = getattr(system, 'mmState', None)
         index_bonds = None
+
         if is_mmState:
+            # If system contains MM terms, extract harmonic bond terms
             for term in system.mmState.mmTerms:
                 if term.label == 'Harmonic Bond':
                     print('Bonds defined from pDynamo system topology.')
-                    index_bonds = term.Get12Indices() # some thing like:[1, 0, 2, 1, 3, 2, 4, 3, 5, 0, 5, 4, 6, 0, 7, 6, 8, 7, 9, 8, 10, 1, 10, 9, 11, 10, 12, 9, 13, 6, 14, 13, 15, 14, 16, 15, 17, 16, 18, 13, 18, 17, 19...]
-            
+                    index_bonds = term.Get12Indices()
+
             if index_bonds:
-                vm_object.define_bonds_from_external(index_bonds = index_bonds)
+                vm_object.define_bonds_from_external(index_bonds=index_bonds)
             else:
                 vm_object.find_bonded_and_nonbonded_atoms()
                 print('Bonds defined from distance.')
         else:
+            # No topology: fallback to distance-based bond assignment
             vm_object.find_bonded_and_nonbonded_atoms()
             print('Bonds defined from distance.')
 
+        # -------------------------------------------------------------------------
+        # 7. Final metadata and flags
+        # -------------------------------------------------------------------------
         vm_object.e_id = system.e_id
         vm_object._generate_color_vectors(self.vm_session.atom_id_counter)
         vm_object.active = True
-        #vm_object.e_treeview_iter_parent_key = None
-        '''
-            -----------------------------------------------------------
-        '''
-        
-        
-        
-        '''-----------------------------------------------------'''
-        '''Now each pdynamo system object and vismol object has a 
-        "treeview_iter" / "liststore_iter" attribute, which is a reference to access 
-        the main treeview elements  and the self.main.vobject_liststore_dict[sys_e_id]'''
+
+        # TreeView / ListStore integration (used in GTK interface)
         vm_object.e_treeview_iter = None
         vm_object.liststore_iter = None
-        
-        '''When an object is removed it has to be removed from the treeview and 
-        vobject_liststore_dict, in addition to the vm_object_dic in the .vm_session.'''
-        
-        '''-----------------------------------------------------'''
 
-
-
-
-        '''Unit Cell'''
-        #'''
-        cell_object = None
+        # -------------------------------------------------------------------------
+        # 8. Unit Cell (if periodic system)
+        # -------------------------------------------------------------------------
         if system.symmetry:
-
             a = system.symmetryParameters.a
             b = system.symmetryParameters.b
             c = system.symmetryParameters.c
-
-            alpha = system.symmetryParameters.alpha 
-            beta  = system.symmetryParameters.beta  
+            alpha = system.symmetryParameters.alpha
+            beta = system.symmetryParameters.beta
             gamma = system.symmetryParameters.gamma
-            
-            vm_object.set_cell (a, b, c, alpha, beta, gamma, color = [0.7, 0.7, 0.2] )
-       
-        #'''
+
+            vm_object.set_cell(a, b, c, alpha, beta, gamma, color=[0.7, 0.7, 0.2])
+
+        # -------------------------------------------------------------------------
+        # Return the fully constructed VismolObject
+        # -------------------------------------------------------------------------
         return vm_object
 
 
@@ -2795,7 +2847,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                                      rmsGradientTolerance   = 0.01)
 
 
-        new_system = self.append_system_to_pdynamo_session (system = solvent)
+        new_system = self.add_new_system_to_psession (system = solvent)
         self.main.main_treeview.add_new_system_to_treeview (new_system)
         ff  =  getattr(new_system.mmModel, 'forceField', "None")
 
@@ -2868,7 +2920,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         #--------------------------------------------------------------------------------------------
 
         #--------------------------------------------------------------------------------------------
-        new_system = self.append_system_to_pdynamo_session (system = solution)
+        new_system = self.add_new_system_to_psession (system = solution)
         self.main.main_treeview.add_new_system_to_treeview (new_system)
         ff  =  getattr(new_system.mmModel, 'forceField', "None")
 
@@ -2897,7 +2949,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         #print('menuitem_clone')
 
-        new_system = self.append_system_to_pdynamo_session (system = new_system,
+        new_system = self.add_new_system_to_psession (system = new_system,
                                                             name   = name  , 
                                                             tag    = tag   , 
                                                             color  = color )
@@ -2922,12 +2974,12 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         system1 = self.psystem[e_id1]
         vob1 = self.vm_session.vm_objects_dic[vob_id1]
-        self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vob1, 
+        self.set_psystem_coordinates_from_vobject(vobject   = vob1, 
                                                             system_id = e_id1)
         
         system2 = self.psystem[e_id2]        
         vob2    = self.vm_session.vm_objects_dic[vob_id2]        
-        self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vob2, 
+        self.set_psystem_coordinates_from_vobject(vobject   = vob2, 
                                                             system_id = e_id2)
         
         system2.Energy()
@@ -2936,7 +2988,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         system = MergeByAtom( system1, system2 )
         self.define_NBModel ( system = system  )
         system.Summary ( )
-        system = self.append_system_to_pdynamo_session (system = system,  
+        system = self.add_new_system_to_psession (system = system,  
                                                         name   = name  , 
                                                         tag    = tag   , 
                                                         color  = color )
@@ -2962,7 +3014,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         #print('color', color)
         #print('color', color)
-        system = self.append_system_to_pdynamo_session ( 
+        system = self.add_new_system_to_psession ( 
                                                         system = system,  name = name, tag = tag, color = color )
         
         '''-----------------------------------------------------------------'''
@@ -3230,45 +3282,95 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             return self.psystem[self.active_id]['name']
 
 
-    def p_selections (self, system_id = None, _centerAtom = None, _radius = None, _method = None):
-        """ Function doc """
-       
-        if system_id != None:
-            pass
-        else:
-            system_id = self.active_id
+    def p_selections(self, system_id=None, _centerAtom=None, _radius=None, _method=None):
+        """
+        Select atoms from a pDynamo system based on a center atom and a radius.
 
-        
-        
-        atomref = AtomSelection.FromAtomPattern( self.psystem[system_id], _centerAtom )
-        
-        core    = AtomSelection.Within(self.psystem[system_id],
-                                            atomref,
-                                            _radius)
+        Parameters
+        ----------
+        system_id : int or None
+            The identifier of the system stored in self.psystem.
+            If None, the function will use the currently active system (self.active_id).
 
-        if _method ==0:
-            core    = AtomSelection.ByComponent(self.psystem[system_id],core)
-            core    = list(core)
-        
-        if _method == 1:
-            core    = AtomSelection.ByComponent(self.psystem[system_id],core)
-            core    = list(core)
-            #'''******************** invert ? **********************
-            inverted = []
-            for i in range(0, len(self.psystem[system_id].atoms)):
-                if i in core:
-                    pass
-                else:
-                    inverted.append(i)
+        _centerAtom : str or int
+            Atom pattern or atom index used as the reference ("center atom")
+            for the spatial selection.
+
+        _radius : float
+            Cutoff distance (in Angstroms). All atoms within this distance
+            from the center atom will be included in the initial selection.
+
+        _method : int
+            Defines how the selection will be processed:
             
-            core =  inverted
+            - 0 : Select all atoms within the radius, then expand the selection
+                  to include the entire molecular component(s) (e.g., whole residues
+                  or molecules). Returns the list of atom indices.
+
+            - 1 : Same as method 0, but then invert the selection.
+                  Returns all atoms *not* belonging to the selected component(s).
+
+            - 2 : Select only the atoms strictly within the radius.
+                  Does not expand to the whole molecular component(s).
+
+        Returns
+        -------
+        list of int
+            The indices of the selected atoms, depending on the chosen method.
+        """
+
+        # -------------------------------------------------------------------------
+        # 1. Determine which system to use
+        # -------------------------------------------------------------------------
+        if system_id is not None:
+            pass  # If the user provides a system_id, use it directly.
+        else:
+            system_id = self.active_id  # Otherwise, fall back to the active system.
+
+        # -------------------------------------------------------------------------
+        # 2. Get the reference atom from the given pattern/index
+        #    This identifies the "center" of the spherical selection.
+        # -------------------------------------------------------------------------
+        atomref = AtomSelection.FromAtomPattern(self.psystem[system_id], _centerAtom)
+
+        # -------------------------------------------------------------------------
+        # 3. Select all atoms within the radius around the reference atom.
+        # -------------------------------------------------------------------------
+        core = AtomSelection.Within(self.psystem[system_id], atomref, _radius)
+
+        # -------------------------------------------------------------------------
+        # 4. Process the selection depending on the method chosen
+        # -------------------------------------------------------------------------
+
+        if _method == 0:
+            # Expand the selection to include the entire molecular component(s)
+            # (e.g., if an atom belongs to a residue, the whole residue is included).
+            core = AtomSelection.ByComponent(self.psystem[system_id], core)
+            core = list(core)  # Convert to a Python list of indices.
+
+        if _method == 1:
+            # Same expansion as in method 0
+            core = AtomSelection.ByComponent(self.psystem[system_id], core)
+            core = list(core)
+
+            # Now invert the selection: select all atoms NOT in 'core'.
+            inverted = []
+            for i in range(len(self.psystem[system_id].atoms)):
+                if i not in core:
+                    inverted.append(i)
+
+            core = inverted  # Replace the selection with the inverted one.
 
         if _method == 2:
-            core    = list(core)
-        
+            # Do not expand to components; just use the atoms strictly within the radius.
+            core = list(core)
+
+        # -------------------------------------------------------------------------
+        # 5. Return the final list of atom indices
+        # -------------------------------------------------------------------------
         return core
-
-
+    
+    
     def remove_NBModel (self, system = None ):
         """ Function doc """
         if system:
@@ -3413,7 +3515,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                     frame =  vobject.idx_2D_xy[(parameters['last'],parameters['last2'])]
                 else:
                     frame = parameters['last']   
-                self.get_coordinates_from_vobject_to_pDynamo_system(vobject       = vobject, 
+                self.set_psystem_coordinates_from_vobject(vobject       = vobject, 
                                                                     system_id     = parameters['system_id'], 
                                                                     frame         = frame)
             else:
@@ -3460,7 +3562,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 else:
                     frame = parameters['last'] 
                 
-                self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
+                self.set_psystem_coordinates_from_vobject(vobject   = vobject, 
                                                                     system_id = parameters['system_id'], 
                                                                     frame     = frame)
                 
@@ -3494,7 +3596,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                         for frame_j in range(parameters['first2'], parameters['last2']+1, parameters['stride2']):
                     
                             frame = vobject.idx_2D_xy[(frame_i, frame_j)]
-                            self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
+                            self.set_psystem_coordinates_from_vobject(vobject   = vobject, 
                                                                                 system_id = parameters['system_id'], 
                                                                                 frame     = frame)                
                             system   = self.psystem[parameters['system_id']]
@@ -3515,7 +3617,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                     i = 0
                     for frame in range(parameters['first'], parameters['last']+1, parameters['stride']):
                         
-                        self.get_coordinates_from_vobject_to_pDynamo_system(vobject = vobject, 
+                        self.set_psystem_coordinates_from_vobject(vobject = vobject, 
                                                                                   system_id     = parameters['system_id'], 
                                                                                   frame         = frame)
                         
@@ -3534,7 +3636,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             #'''   When is Single File     '''
             if parameters['is_single_file']:
                 
-                self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
+                self.set_psystem_coordinates_from_vobject(vobject   = vobject, 
                                                                     system_id = parameters['system_id'], 
                                                                     frame     = parameters['last'])
                 
@@ -3581,7 +3683,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                         for frame_j in range(parameters['first2'], parameters['last2']+1, parameters['stride2']):
                     
                             frame = vobject.idx_2D_xy[(frame_i, frame_j)]
-                            self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
+                            self.set_psystem_coordinates_from_vobject(vobject   = vobject, 
                                                                                 system_id = parameters['system_id'], 
                                                                                 frame     = frame)                
                             system   = self.psystem[parameters['system_id']]
@@ -3611,7 +3713,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                     i = 0
                     for frame in range(parameters['first'], parameters['last']+1, parameters['stride']):
                         
-                        self.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
+                        self.set_psystem_coordinates_from_vobject(vobject   = vobject, 
                                                                             system_id = parameters['system_id'], 
                                                                             frame     = frame)
 
@@ -3646,7 +3748,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self.active_id  = active_id
 
     
-    def _convert_pDynamo_coords_to_vismol(self, p_coords):
+    def _convert_pdynamo_coords_to_vismol(self, p_coords):
         '''
         This function converts pDynamo coordinates ( which is a 
         list containg all the coords) into a vObject coordinates 
@@ -3741,7 +3843,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             itotal  = sum(system.mmState.charges)
             #print('total charge =', total)
 
-            vobj_tmp = self._build_vobject_from_pDynamo_system (system = system)
+            vobj_tmp = self._build_vobject_from_pdynamo_system (system = system)
             n = 0
             for chain in vobj_tmp.chains:
                 for resi, residue in vobj_tmp.chains[chain].residues.items():
@@ -4418,7 +4520,7 @@ def export_special_PDB (vobject = None, frame = -1, output = 'temp.pdb'):
 #        system = self.psystem[self.active_id]
 #        parameters['system'] = system
 #        parameters = self._apply_restraints(parameters)
-#        self.main.process_manager_window.OpenWindow()
+#        self.main.process_manager_window.open_window()
 #        
 #        
 #        

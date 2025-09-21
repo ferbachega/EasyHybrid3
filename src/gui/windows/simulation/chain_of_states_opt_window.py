@@ -57,7 +57,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
                              }
 
     
-    def OpenWindow (self):
+    def open_window (self):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = self.main.builder #Gtk.Builder()
@@ -143,7 +143,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
                 pass
             #------------------------------------------------------------------------------------------------
             
-            self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+            self.builder.get_object('button_cancel').connect('clicked', self.close_window)
             self.builder.get_object('button_run').connect('clicked', self.run)
             self.builder.get_object('button_export').connect('clicked', self.on_btn_export)
             self.window.set_size_request(-1, -1)
@@ -160,7 +160,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
             self.window.present()
        
             
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
@@ -261,7 +261,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
             vobject = self.main.vm_session.vm_objects_dic[vobject_id]
             
             '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
-            self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+            self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
             parameters["reac_coordinates"] = copy.deepcopy(self.main.p_session.psystem[self.main.p_session.active_id].coordinates3)
             #print (list(parameters["reac_coordinates"]))
         '''---------------------------------------------------------------------------------'''
@@ -277,7 +277,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
             vobject = self.main.vm_session.vm_objects_dic[vobject_id]
             
             '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
-            self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+            self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
             parameters["prod_coordinates"] = copy.deepcopy(self.main.p_session.psystem[self.main.p_session.active_id].coordinates3)
             #print (list(parameters["prod_coordinates"]))
         '''---------------------------------------------------------------------------------'''

@@ -55,7 +55,7 @@ class NormalModesWindow(Gtk.Window):
                              }
 
     
-    def OpenWindow (self):
+    def open_window (self):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = self.main.builder #Gtk.Builder()
@@ -140,7 +140,7 @@ class NormalModesWindow(Gtk.Window):
         else:
             self.window.present()
             
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
@@ -175,7 +175,7 @@ class NormalModesWindow(Gtk.Window):
             
             '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
             #print('vobject:', vobject.name, len(vobject.frames) )
-            self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+            self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
                 
         parameters["cycles"]       = int( self.builder.get_object('entry_cycles').get_text())
         parameters["frames"]       = int( self.builder.get_object('entry_frames_per_cycles').get_text())

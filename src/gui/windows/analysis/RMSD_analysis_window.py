@@ -59,7 +59,7 @@ class RMSDAnalysisWindow:
         
         self.is_frame_reference = True
 
-    def OpenWindow (self, vobject = None):
+    def open_window (self, vobject = None):
         """ Function doc """
         if self.Visible  ==  False:
 
@@ -84,7 +84,7 @@ class RMSDAnalysisWindow:
             self.chk_step_size.connect('toggled' ,self.on_step_size_checkbox)
             
             self.btn_close = self.builder.get_object('btn_close')
-            self.btn_close.connect('clicked' ,self.CloseWindow)
+            self.btn_close.connect('clicked' ,self.close_window)
             #on_button_toggled
             
             #self.window.set_keep_above(True)            
@@ -101,7 +101,7 @@ class RMSDAnalysisWindow:
             #self.btn_distance.connect("button_press_event"  ,self.define_measurement) 
             ##------------------------------------------------------------------------
             #self.btn_cancel = self.builder.get_object('btn_cancel')
-            #self.btn_cancel.connect("button_press_event"  ,self.CloseWindow)
+            #self.btn_cancel.connect("button_press_event"  ,self.close_window)
             ##------------------------------------------------------------------------
             ##------------------------------------------------------------------------
             #self.btn_clear = self.builder.get_object('btn_clear')
@@ -212,7 +212,7 @@ class RMSDAnalysisWindow:
         self.treeview.connect("key-press-event", self.on_key_press)
 
 
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False

@@ -66,7 +66,7 @@ class ReimagingTrajectoryWindow:
                      }
         
 
-    def OpenWindow (self, vobject = None):
+    def open_window (self, vobject = None):
         """ Function doc """
         if self.Visible  ==  False:
 
@@ -167,7 +167,7 @@ class ReimagingTrajectoryWindow:
         self.coordinates_combobox.set_active_vobject(-1)
             
 
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False

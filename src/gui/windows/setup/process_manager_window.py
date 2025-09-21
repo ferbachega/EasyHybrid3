@@ -8,69 +8,123 @@ import os, sys, time
 from pprint import pprint
 
 class ProcessManagerWindow(Gtk.Window):
+    """
+    A GTK window that provides an interface to manage simulation or computational jobs.
+
+    This window displays a history of submitted jobs, their metadata, and allows
+    interaction through a popup menu (e.g., rerun, abort, remove, clear).
+    """
     def __init__(self, main = None):
+        """
+        Initialize the ProcessManagerWindow.
+
+        Args:
+            main (MainWindow): Reference to the main EasyHybrid window.
+                Provides access to session objects and job history.
+        """
         self.main                = main
         self.p_session           = main.p_session
         self.home                = main.home
         self.Visible             = False
 
-    def OpenWindow (self):
-        """ Function doc """
-        if self.Visible  ==  False:
-            
+    def open_window (self):
+        """
+        Open the process manager window.
+
+        If the window is not already visible, it creates a new GTK window,
+        sets up the treeview and popup menu, and shows the interface.
+        If the window is already open, it is brought to the front.
+        """
+        if not self.Visible:
             self.window = Gtk.Window(title="Process Manager")
-            #super().__init__(title="Janela Auxiliar - Processos")
             self.window.set_default_size(600, 300)
             self.window.set_border_width(10)
             self.window.set_keep_above(True)
-            
 
+            # Build widgets
             self.build_treeview()
             self.build_popupmenu()
-            
-            # TreeView dentro de ScrolledWindow
+
+            # Add treeview inside a scrolled window
             scrolled = Gtk.ScrolledWindow()
             scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
             scrolled.add(self.treeview)
             self.window.add(scrolled)
-            self.window.connect('destroy', self.CloseWindow)
-            self.treeview.connect("row-activated", self.on_row_activated)
-            self.window.show_all()
-            #self.methods_combo.set_active(0)
-            self.Visible  = True
 
+            # Connect signals
+            self.window.connect("destroy", self.close_window)
+            self.treeview.connect("row-activated", self.on_row_activated)
+
+            self.window.show_all()
+            self.Visible = True
         else:
+            # Bring existing window to front
             self.window.present()
+
+    def close_window (self, button, data  = None):
+        """
+        Close the process manager window and update visibility state.
+
+        Args:
+            button (Gtk.Widget): The widget that triggered the close.
+            data (Any, optional): Additional signal data.
+        """
+        self.window.destroy()
+        self.Visible    =  False
     
     def build_popupmenu (self):
-        """ Function doc """
+        """
+        Build the context popup menu for job management.
+
+        Provides the following options:
+            - Rerun a job
+            - Abort a job
+            - Remove a job from the list
+            - Clear the entire job list
+        """
         # Criar popup menu
         self.popup_menu = Gtk.Menu()
-
+        
+        # Rerun job
         menu_item1 = Gtk.MenuItem(label="Rerun")
         menu_item1.connect("activate", self.rerun_job)
         self.popup_menu.append(menu_item1)
 
+        # Abort job
         menu_item2 = Gtk.MenuItem(label="Abort")
         menu_item2.connect("activate", self.on_stop_activate)
         self.popup_menu.append(menu_item2)
-
+        
+        # Remove job
         menu_item3 = Gtk.MenuItem(label="Remove")
         menu_item3.connect("activate", self.on_remove_activate)
         self.popup_menu.append(menu_item3)
         
-        menu_item3 = Gtk.MenuItem(label="Clear List")
-        menu_item3.connect("activate", self.on_clear_list)
-        self.popup_menu.append(menu_item3)
-
+        # Clear all jobs
+        menu_item4 = Gtk.MenuItem(label="Clear List")
+        menu_item4.connect("activate", self.on_clear_list)
+        self.popup_menu.append(menu_item4)
+        
         self.popup_menu.show_all()
 
     def build_treeview (self):
-        """ Function doc """
-        # Criar TreeView
+        """
+        Build the TreeView widget for displaying job history.
+
+        The TreeView is populated using `main.job_history_liststore` and
+        includes the following columns:
+            - Job ID
+            - System Name (with pixbuf icon)
+            - Job Type
+            - Job Index
+            - Potential
+            - Status
+            - Start Time
+            - End Time
+        """
+        
         self.treeview = Gtk.TreeView(model = self.main.job_history_liststore)
         
-        # Adicionar colunas
         #---------------------------------------------------------------
         renderer_int = Gtk.CellRendererText()
         column_int = Gtk.TreeViewColumn("id", renderer_int, text=7)
@@ -105,21 +159,9 @@ class ProcessManagerWindow(Gtk.Window):
             column = Gtk.TreeViewColumn(title, renderer, text=i)
             column.set_sort_column_id(i)
             self.treeview.append_column(column)
-            
-        #titles = ["Type", "Potential", "Started", "End", "Status"]
-        #for i, title in enumerate(titles):
-        #    renderer = Gtk.CellRendererText()
-        #    column = Gtk.TreeViewColumn(title, renderer, text=i+1)
-        #    column.set_sort_column_id(i+1)
-        #    self.treeview.append_column(column)
 
-        # Adicionar suporte para menu de contexto
+        # Enable context menu on right-click
         self.treeview.connect("button-press-event", self.on_button_press_event)
-
-    def CloseWindow (self, button, data  = None):
-        """ Function doc """
-        self.window.destroy()
-        self.Visible    =  False
 
     def add_new_process (self,
                          system    = None, 
@@ -129,11 +171,39 @@ class ProcessManagerWindow(Gtk.Window):
                          end       = ' ', 
                          status    = None,
                          step      = None):
-        """ Function doc """
         
+        """Add a new process entry to the process history list.
+
+        This method creates a new row in the job history ListStore, associated 
+        with the provided `system`. If no start time is given, the current time 
+        will be automatically generated. The function also updates the system's 
+        job history and assigns a step counter.
+
+        Args:
+            system (object, optional): The system object containing job history 
+                and identifier information.
+            _type (str, optional): Type of the process (e.g., minimization, 
+                dynamics).
+            potential (str, optional): The potential used in the process.
+            start (str, optional): Start time of the process. If not provided, 
+                the current time is used.
+            end (str, optional): End time of the process. Defaults to a single 
+                space (' ').
+            status (str, optional): Current status of the process (e.g., running, 
+                finished).
+            step (int, optional): Step counter of the process. If not provided, 
+                the value from `system.e_step_counter` is used.
+
+        Returns:
+            Gtk.TreeIter: An iterator pointing to the newly added row in 
+            `job_history_liststore`.
+        """
+        
+        # Prepare process name and graphical square icon.
         name  = ' '+ system.label
         sqr_color = get_colorful_square_pixel_buffer(system)
-        #print('step:', step)
+        
+        # If no start time was provided, generate current formatted timestamp.
         if start is not None:
             pass
         else:
@@ -144,16 +214,21 @@ class ProcessManagerWindow(Gtk.Window):
             #----------------------------------------------------------------------------
         
         #when the step is external - from load EH session.
+        # Use provided step counter or fallback to system default.
         if step is not None:
             step_counter = step
         else:
             step_counter = system.e_step_counter
         
-        #print(step_counter)
-        #pprint(system.e_job_history )
+        # Update system job history with the start time.
         system.e_job_history[step_counter]['started'] = start
-        treeiter = self.main.job_history_liststore.append([name, _type, potential, start, end, status, sqr_color,  system.e_id, step_counter ])
-        #self.set_time (treeiter, start = True, end = False)
+        
+        # Append new process entry to the job history ListStore.
+        treeiter = self.main.job_history_liststore.append([
+            name, _type, potential, start, end, status, sqr_color,  
+            system.e_id, step_counter 
+            ])
+        
         return treeiter
 
     def set_status (self, treeiter = None, status = 'Queued' ):
@@ -236,8 +311,8 @@ class ProcessManagerWindow(Gtk.Window):
         
         if parameters['simulation_type'] == 'Geometry_Optimization':
             if self.main.geometry_optimization_window.Visible:
-                self.main.geometry_optimization_window.CloseWindow(None, None)
-            self.main.geometry_optimization_window.OpenWindow()
+                self.main.geometry_optimization_window.close_window(None, None)
+            self.main.geometry_optimization_window.open_window()
             self.main.geometry_optimization_window.restore_the_parameters_to_the_window (parameters)
             
         
@@ -301,15 +376,27 @@ class ProcessManagerWindow(Gtk.Window):
             self.main.job_history_liststore.clear()
     
     def build_liststore_from_job_history (self, clear = True):
-        """ Function doc """
-        #if clear:
-        #print( self.main.job_history_liststore)
+        """Rebuild the job history ListStore from the stored session data.
+
+        This method iterates over all systems in the current session (`p_session`),
+        accesses their job history, validates job attributes, and reconstructs the
+        corresponding entries in the `job_history_liststore`. Each valid job is 
+        added to the ListStore via `add_new_process`.
+
+        Args:
+            clear (bool, optional): Whether to clear the current ListStore before 
+                rebuilding. Defaults to True.
+
+        Returns:
+            bool: Returns False if an invalid job entry is found (e.g., with 
+            unknown step counter). Otherwise, returns None.
+        """
+        # TODO: Implement optional clearing logic for job_history_liststore if needed.
+        # Example:
+        # if clear and hasattr(self, "treeview"):
+        #     self.main.job_history_liststore.clear()
         
-        #self.main.job_history_liststore.clear()
-        #if hasattr(self, 'treeview'):
-        #    self.main.job_history_liststore.clear()
-        #    self.treeview.set_model(Gtk.ListStore())
-        
+        # Iterate over all systems in the session.
         for e_id in self.p_session.psystem.keys():
             system    = self.p_session.psystem[e_id]
             
@@ -323,8 +410,15 @@ class ProcessManagerWindow(Gtk.Window):
             for job_num in system.e_job_history.keys():
                 
                 #.the list of parameters to reload the liststore
-                keys = ['status','step_counter','simulation_type',
-                        'potential','status', 'started','ended']
+                keys = [
+                    "status",
+                    "step_counter",
+                    "simulation_type",
+                    "potential",
+                    "status",
+                    "started",
+                    "ended",
+                ]
                 
                 job = system.e_job_history[job_num]
                 
@@ -334,9 +428,6 @@ class ProcessManagerWindow(Gtk.Window):
                         pass
                     else:
                         job[key] = 'Unk'
-                    
-                
-               
                 
                 status    = job['status']
                 job_num   = job['step_counter']
@@ -346,22 +437,25 @@ class ProcessManagerWindow(Gtk.Window):
                 started = job['started']
                 ended   = job['ended']
                 
-                name  = system.label
+                name  = system.label  # System label (system name) for display purposes.
+                
+                #'''
                 #print('\n\n')
                 #print(status, job_num,job_type, potential, started,  ended)
                 #print('\n\n')
+                #'''
                 
+                # Validate job number (step counter).
                 if job_num == 'Unk':
                     return False
-                else:
-                #try:
-                    self.add_new_process ( 
-                                 system    = system, 
-                                 _type     = job_type, 
-                                 potential = potential,
-                                 start     = started, 
-                                 end       = ended, 
-                                 status    = status,
-                                 step      = job_num)
-                #except:
-                #    pass
+ 
+                # Append job to the ListStore.
+                self.add_new_process ( 
+                             system    = system, 
+                             _type     = job_type, 
+                             potential = potential,
+                             start     = started, 
+                             end       = ended, 
+                             status    = status,
+                             step      = job_num)
+ 

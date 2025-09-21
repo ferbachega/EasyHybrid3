@@ -18,7 +18,7 @@ class SinglePointWindow:
         self.starting_coords_liststore = Gtk.ListStore(str, int)
         self.is_single_frame  = True
     
-    def OpenWindow (self, sys_selected = None):
+    def open_window (self, sys_selected = None):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
@@ -75,9 +75,9 @@ class SinglePointWindow:
             
             
             
-            self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+            self.builder.get_object('button_cancel').connect('clicked', self.close_window)
             self.builder.get_object('button_run').connect('clicked', self.on_button_run_clicked)
-            self.window.connect('destroy', self.CloseWindow)
+            self.window.connect('destroy', self.close_window)
 
             if  self.p_session.psystem[self.p_session.active_id]:
                 output_name = self.p_session.get_output_filename_from_system('single_point')
@@ -90,7 +90,7 @@ class SinglePointWindow:
         else:
             self.window.present()
     
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
@@ -113,7 +113,7 @@ class SinglePointWindow:
             vobject = self.main.vm_session.vm_objects_dic[vobject_id]
             
             '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
-            self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject = vobject, frame = frame)
+            self.main.p_session.set_psystem_coordinates_from_vobject(vobject = vobject, frame = frame)
         
         
         parameters["folder"]          = self.folder_chooser_button.get_folder()

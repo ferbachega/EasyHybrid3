@@ -608,7 +608,7 @@ class GLMenu:
                         
                         # Sync vobject coordinates with pDynamo system
                         vobject = self.main.vm_session.vm_objects_dic[vobject_id]
-                        self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject)
+                        self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
                         
                         # Perform the prune operation
                         self.main.p_session.prune_system (selection = atomlist, name = name, summary = True, tag = tag, color = color)
@@ -661,7 +661,7 @@ class GLMenu:
             
             def call_selection_modify_window (_):
                 """ Function doc """
-                self.main.pDynamo_selection_window.OpenWindow()
+                self.main.pDynamo_selection_window.open_window()
             
             
             sele_menu = {
@@ -792,11 +792,11 @@ class GLMenu:
                 #self.filechooser   = FileChooser()
                 #filename = self.filechooser.open()
                 #self.load (filename, widget = None, autocenter = True)
-                self.main.selection_list_window.OpenWindow()
+                self.main.selection_list_window.open_window()
             
             def import_system_menu (_):
                 """ Function doc """
-                self.main.NewSystemWindow.OpenWindow()
+                self.main.NewSystemWindow.open_window()
             
             def active_selection (_):
                 """ Function doc """
@@ -1244,6 +1244,7 @@ class EasyHybridSession(VismolSession, GLMenu):
             vobject.active = False
         
         self.vm_objects_dic = {}
+        self.vobject_names  = {}
         self.vm_glcore.queue_draw()  
         
     def gen_random_tag_string(self, length=3):

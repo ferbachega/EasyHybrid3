@@ -49,7 +49,7 @@ class WHAMWindow(Gtk.Window):
         self.liststore= Gtk.ListStore(bool, str)
 
     
-    def OpenWindow (self):
+    def open_window (self):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = self.main.builder #Gtk.Builder()
@@ -134,7 +134,7 @@ class WHAMWindow(Gtk.Window):
             
             self.button_cancel = self.builder.get_object('button_cancel')
             self.button_cancel.connect("clicked", self.clear_treeview)
-            self.window.connect("destroy", self.CloseWindow)
+            self.window.connect("destroy", self.close_window)
             self.window.show_all()
             
             self.builder.get_object('entry_bins_RC2').hide()
@@ -146,7 +146,7 @@ class WHAMWindow(Gtk.Window):
         else:
             self.window.present()
     
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False

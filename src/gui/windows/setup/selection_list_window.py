@@ -74,7 +74,7 @@ class SelectionListWindow(Gtk.Window):
         #--------------------------------------------
         
         
-    def OpenWindow (self):
+    def open_window (self):
         """ Function doc /home/fernando/programs/VisMol/easyhybrid/gui/selection_list.glade"""
         if self.visible  ==  False:
             self.builder = Gtk.Builder()
@@ -176,7 +176,7 @@ class SelectionListWindow(Gtk.Window):
         else:
             self.window.present()
             
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         #self.BackUpWindowData()
         self.window.destroy()

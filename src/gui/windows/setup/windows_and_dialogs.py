@@ -245,8 +245,8 @@ class ExportScriptDialog:
         )
         
         # Connect signals for window and button actions
-        self.builder.get_object('dialog').connect('destroy', self.CloseWindow)
-        self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+        self.builder.get_object('dialog').connect('destroy', self.close_window)
+        self.builder.get_object('button_cancel').connect('clicked', self.close_window)
         self.builder.get_object('button_export').connect('clicked', self.on_button_export_clicked)
         
         # Set up the folder chooser with the default path from parameters
@@ -359,7 +359,7 @@ system.Summary()
         self.Visible = False
         
 
-    def CloseWindow(self, button, data=None):
+    def close_window(self, button, data=None):
         """ 
         Close the dialog window and mark it as not visible. 
         """
@@ -401,7 +401,7 @@ class AddHarmonicRestraintDialog:
             os.path.join(self.home, 'src/gui/windows/setup/add_harmonic_restraint_dialog.glade')
         )
         self.builder.connect_signals(self)
-        self.builder.get_object('dialog').connect('destroy', self.CloseWindow)
+        self.builder.get_object('dialog').connect('destroy', self.close_window)
         
         # If editing an existing restraint, populate fields with provided values
         if edit:
@@ -421,7 +421,7 @@ class AddHarmonicRestraintDialog:
             self.builder.get_object('entry_FORCE_coord1').set_text(str(force))
 
         # Connect buttons to their callbacks
-        self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+        self.builder.get_object('button_cancel').connect('clicked', self.close_window)
         self.builder.get_object('button_add').connect('clicked', self.on_button_ok_clicked)
 
         # Variables to store the dialog results
@@ -444,7 +444,7 @@ class AddHarmonicRestraintDialog:
         self.ok    = True
         self.builder.get_object('dialog').destroy()
         
-    def CloseWindow(self, button, data=None):
+    def close_window(self, button, data=None):
         """ 
         Event handler for cancel or dialog close.  
         Closes the dialog without applying changes. 
@@ -475,7 +475,7 @@ class ExportDataWindow:
         self.is_2D_trajectory = False  # Default: not a 2D trajectory
 
 
-    def CloseWindow(self, button, data=None):
+    def close_window(self, button, data=None):
         """ 
         Close the export window and update visibility state. 
         """
@@ -483,7 +483,7 @@ class ExportDataWindow:
         self.Visible = False
 
 
-    def OpenWindow(self, sys_selected=None):
+    def open_window(self, sys_selected=None):
         """ 
         Open the Export Data window.  
         Creates and initializes all GUI components if the window is not already open. 
@@ -847,9 +847,20 @@ class ExportDataWindow:
 
 
 class EasyHybridSelectionWindow:
-    """ Class doc """
+    """Window for managing and executing atom/residue/molecule selections.
+
+    This class provides a GTK-based window that allows users to configure and
+    run selection operations (Expand, Around, Complete, etc.) in the EasyHybrid
+    environment. The user can choose the selection type, select by atom/residue/
+    molecule/chain, and set a selection radius.
+    """
     def __init__(self, main = None):
-        """ Class initialiser """
+        """Initialize the selection window.
+
+        Args:
+            main (object, optional): Reference to the main EasyHybrid application
+                instance. Used to access sessions, home directory, and utilities.
+        """
         self.main = main
         self.vm_session      = main.vm_session
         self.Visible         = False        
@@ -877,8 +888,13 @@ class EasyHybridSelectionWindow:
                              }
         
         
-    def OpenWindow (self):
-        """ Function doc """
+    def open_window (self):
+        """Open the selection window.
+
+        Loads the GTK interface from a Glade file, builds the combo boxes for
+        selection type and selection target, configures spin buttons, and shows
+        the window. If already open, brings it to the foreground.
+        """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
             self.builder.add_from_file(os.path.join(self.home, 'src/gui/windows/setup/modify_selection_window.glade'))
@@ -947,14 +963,26 @@ class EasyHybridSelectionWindow:
             self.window.present()
     
 
-    def CloseWindow (self, button, data  = None):
-        """ Function doc """
+    def close_window (self, button, data  = None):
+        """Close the selection window.
+
+        Args:
+            button (Gtk.Button): The button that triggered the event.
+            data (Any, optional): Additional signal data.
+        """
         self.window.destroy()
         self.Visible    =  False
     
     
     def run_selection (self, button):
-        """ Function doc """
+        """Run the selection operation based on user input.
+
+        Collects parameters from the UI (selection type, target, radius) and
+        executes an advanced selection via `vm_session`.
+
+        Args:
+            button (Gtk.Button): The button that triggered the event.
+        """
         #self.method_combo
         #self.select_by_combo
 
@@ -993,7 +1021,7 @@ class SolvateSystemWindow:
         self.home            = main.home
         self.p_session       = main.p_session
     
-    def OpenWindow (self):
+    def open_window (self):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
@@ -1045,11 +1073,11 @@ class SolvateSystemWindow:
             #self.solvent_filechooser.btn.hide()
             
             
-            self.window.connect('destroy', self.CloseWindow)                                               
+            self.window.connect('destroy', self.close_window)                                               
             #self.combobox_systems.set_active(0)
             self.visible    =  True
     
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
@@ -1166,7 +1194,7 @@ class MakeSolventBoxWindow:
         self.home            = main.home
         self.p_session       = main.p_session
         
-    def OpenWindow (self):
+    def open_window (self):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
@@ -1201,13 +1229,13 @@ class MakeSolventBoxWindow:
             self.combobox_systems.set_active_iter(system.e_liststore_iter)
             
             self.window.show_all()                                               
-            self.window.connect('destroy', self.CloseWindow)                                               
+            self.window.connect('destroy', self.close_window)                                               
             #self.combobox_systems.set_active(0)
             self.visible    =  True
             '''--------------------------------------------------------------------------------------------'''
         
         #print(idnum, text )
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
@@ -1243,12 +1271,12 @@ class MakeSolventBoxWindow:
         vobject    = self.main.vm_session.vm_objects_dic[vobject_id]
         
         '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
-        self.main.p_session.get_coordinates_from_vobject_to_pDynamo_system(vobject   = vobject, 
+        self.main.p_session.set_psystem_coordinates_from_vobject(vobject   = vobject, 
                                                                            system_id = system_id )
         
         parameters['molecule'] = self.main.p_session.psystem[system_id]
         self.p_session.make_solvent_box(parameters)
-        self.CloseWindow(None)
+        self.close_window(None)
 
 
 class PDynamoSelectionWindow:
@@ -1268,7 +1296,7 @@ class PDynamoSelectionWindow:
         self.atom  = ''
 
  
-    def OpenWindow (self):
+    def open_window (self):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
@@ -1365,7 +1393,7 @@ class PDynamoSelectionWindow:
         text      = self.combobox_pdynamo_system.get_active_text()
         
         #print(idnum, text )
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
@@ -1467,7 +1495,7 @@ class SetupXTBWindow:
         
         self.setup_QC_model_window = setup_QC_model_window
 
-    def OpenWindow (self, vismol_object = None):
+    def open_window (self, vismol_object = None):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
@@ -1481,7 +1509,7 @@ class SetupXTBWindow:
             self.button_ok         = self.builder.get_object('btn_xtb_ok') 
             self.button_cancel     = self.builder.get_object('btn_xtb_cancel') 
             self.button_ok.connect("clicked", self.on_button_ok)
-            self.button_cancel.connect("clicked", self.CloseWindow)
+            self.button_cancel.connect("clicked", self.close_window)
             
             self.box_gfn = self.builder.get_object('box_gfn_type')
             
@@ -1507,7 +1535,7 @@ class SetupXTBWindow:
             
             
             #.Interface Show All
-            self.window.connect("destroy", self.CloseWindow)
+            self.window.connect("destroy", self.close_window)
             self.window.show_all()
             
             
@@ -1553,9 +1581,9 @@ class SetupXTBWindow:
         
         print(self.parameters)
         print('on_button_ok')
-        self.CloseWindow (widget,None)
+        self.close_window (widget,None)
         
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         if self.window:
             self.window.destroy()
@@ -1627,7 +1655,7 @@ class SetupDFTBplusWindow:
 
 
 
-    def OpenWindow (self, vismol_object = None):
+    def open_window (self, vismol_object = None):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
@@ -1643,7 +1671,7 @@ class SetupDFTBplusWindow:
             self.button_ok         = self.builder.get_object('dftb_button_ok') 
             self.button_cancel     = self.builder.get_object('dftb_button_cancel') 
             self.button_ok.connect("clicked", self.on_button_ok)
-            self.button_cancel.connect("clicked", self.CloseWindow)
+            self.button_cancel.connect("clicked", self.close_window)
             
             
             self.skf_folder_chooser = self.builder.get_object('folder_chooser_skf_files')            
@@ -1666,7 +1694,7 @@ class SetupDFTBplusWindow:
             
             
             #. Interface Sholl All
-            self.window.connect("destroy", self.CloseWindow)
+            self.window.connect("destroy", self.close_window)
             self.window.show_all()
             self.on_chk_extended_input(None)
             
@@ -1694,7 +1722,7 @@ class SetupDFTBplusWindow:
     
     
 
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         if self.window:
             self.window.destroy()
@@ -1727,7 +1755,7 @@ class SetupDFTBplusWindow:
         #self.use_scc          = self.checkbox_use_scc         .get_active()
         #self.delete_job_files = self.checkbox_delete_job_files.get_active()
         #self.random_scratch   = self.checkbox_random_scratch  .get_active()
-        #self.CloseWindow (None, None)
+        #self.close_window (None, None)
     
     def on_button_ok (self, button):
         """ Function doc """
@@ -1758,7 +1786,7 @@ class SetupDFTBplusWindow:
         else:
             self.text_extended_input = None
         
-        self.CloseWindow (None, None)
+        self.close_window (None, None)
     
         
     
@@ -1855,7 +1883,7 @@ class SetupORCAWindow:
 
 
     
-    def OpenWindow (self, vismol_object = None):
+    def open_window (self, vismol_object = None):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
@@ -1984,9 +2012,9 @@ class SetupORCAWindow:
             
             self.button_ok.connect("clicked", self.on_button_ok)
             #self.button_ok.connect("clicked", self.on_button_ok2)
-            self.button_cancel.connect("clicked", self.CloseWindow)
+            self.button_cancel.connect("clicked", self.close_window)
             
-            self.window.connect("destroy", self.CloseWindow)
+            self.window.connect("destroy", self.close_window)
             self.refresh_orca_parameters (None)
             self.Visible  =  True
             
@@ -2046,7 +2074,7 @@ class SetupORCAWindow:
         self.builder.get_object('combobox_orca_type')
                          
 
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         if self.window:
             self.window.destroy()
@@ -2065,7 +2093,7 @@ class SetupORCAWindow:
         
         print (text)
         print ('checkbox_random_scratch', self.setup_QC_model_window.orca_random_scratch, self.builder.get_object('checkbox_orca_random_scratch').get_active())
-        self.CloseWindow (None)
+        self.close_window (None)
     
     def on_button_ok2 (self, button):
         """ Function doc """
@@ -2185,7 +2213,7 @@ class EasyHybridSetupQCModelWindow:
         """ Function doc """
         self.update_number_of_qc_atoms()
        
-    def OpenWindow (self, vismol_object = None):
+    def open_window (self, vismol_object = None):
         """ Function doc """
         if self.Visible  ==  False:
             self.builder = Gtk.Builder()
@@ -2259,8 +2287,8 @@ class EasyHybridSetupQCModelWindow:
             self.button_cancel = self.builder.get_object('button_cancel') 
             
             self.button_ok.connect("clicked", self.on_button_ok)
-            self.button_cancel.connect("clicked", self.CloseWindow)
-            self.window.connect("destroy", self.CloseWindow)
+            self.button_cancel.connect("clicked", self.close_window)
+            self.window.connect("destroy", self.close_window)
             
             
             self.button_orca_setup = self.builder.get_object('button_setup_orca') 
@@ -2323,19 +2351,19 @@ class EasyHybridSetupQCModelWindow:
             self.entry_number_of_qc_atoms.set_text(str(number_of_qc_atoms)+ ' (all)')
         '''----------------------------------------------------------------------------------------------'''
 
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
 
         if self.setup_orca_window.Visible:
-            self.setup_orca_window.CloseWindow ( None,  None)
+            self.setup_orca_window.close_window ( None,  None)
         
         if self.setup_dftb_window.Visible:
-            self.setup_dftb_window.CloseWindow ( None,  None)
+            self.setup_dftb_window.close_window ( None,  None)
         
         if self.setup_xtb_window.Visible:
-            self.setup_dftb_window.CloseWindow ( None,  None)
+            self.setup_dftb_window.close_window ( None,  None)
 
             
     def on_spian_button_change (self, widget):
@@ -2358,21 +2386,21 @@ class EasyHybridSetupQCModelWindow:
             self.builder.get_object('button_setup_orca').show()
             self.builder.get_object('button_setup_dftb').hide()
             self.builder.get_object('expander_DIISSCF_converger').hide()
-            self.setup_orca_window.OpenWindow()
+            self.setup_orca_window.open_window()
         
         elif self.method_id == 7:
             self.builder.get_object('button_setup_dftb').set_label('DFTB+ Setup')
             self.builder.get_object('button_setup_dftb').show()
             self.builder.get_object('button_setup_orca').hide()
             self.builder.get_object('expander_DIISSCF_converger').hide()
-            self.setup_dftb_window.OpenWindow()
+            self.setup_dftb_window.open_window()
         
         elif self.method_id == 8:
             self.builder.get_object('button_setup_dftb').set_label('xTB Setup')
             self.builder.get_object('button_setup_dftb').show()
             self.builder.get_object('button_setup_orca').hide()
             self.builder.get_object('expander_DIISSCF_converger').hide()
-            self.setup_xtb_window.OpenWindow()
+            self.setup_xtb_window.open_window()
         else:
             pass
 
@@ -2462,16 +2490,16 @@ class EasyHybridSetupQCModelWindow:
 
     def on_button_setup_orca (self, button):
         """ Function doc """
-        self.setup_orca_window.OpenWindow()
+        self.setup_orca_window.open_window()
     
     def on_button_setup_dftb (self, button):
         """ Function doc """
         if self.method_id == 7:
-            self.setup_dftb_window.OpenWindow()
+            self.setup_dftb_window.open_window()
         
         elif self.method_id == 8:
             print(self.method_id, self.setup_xtb_window)
-            self.setup_xtb_window.OpenWindow() 
+            self.setup_xtb_window.open_window() 
         
         else:
             pass
@@ -2482,10 +2510,21 @@ class EasyHybridSetupQCModelWindow:
         """ Function doc """
         pass
     
-    
+
 class EasyHybridGoToAtomWindow(Gtk.Window):
+    """Window for navigating through systems, residues, and atoms.
+
+    This class provides a GTK3-based interface to select a molecular
+    system, view chains, residues, and atoms, and perform visualization 
+    actions such as centering and selecting.
+    """
     def __init__(self, main = None, system_liststore = None):
-        """ Class initialiser """
+        """Initialize the Go-To-Atom window.
+
+        Args:
+            main: Reference to the main application object.
+            system_liststore: GTK ListStore containing the available systems.
+        """
         
         self.main  = main
         self.vm_session    = self.main.vm_session
@@ -2500,7 +2539,8 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         self.visible           = False
         
         self.shift = False
-
+        
+        # Dictionary for assigning colors to residues.
         self.residues_dictionary = {
                                'WAT': [165,42,42], 
                                'SOL': [165,42,42], 
@@ -2542,10 +2582,19 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
                                'TYR': [6,176,176], 
                                'MET': [30, 144, 255]}
 
+    def open_window (self):
+        """Open the Go-To-Atom window.
 
-
-    def OpenWindow (self):
-        """ Function doc """
+        Builds and displays the interface elements such as system 
+        combobox, residue and chain lists, and atom treeviews.
+        
+        Args:
+            main: Reference to the main application object.
+            system_liststore: GTK ListStore containing the available systems.
+        
+        """
+       
+        #'''
         if self.visible  ==  False:
             
             #self.vm_session.Vismol_Objects_ListStore
@@ -2566,11 +2615,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             self.combobox_systems.connect("changed", self.on_combobox_systems_changed)
             self.box_horizontal1.pack_start(self.combobox_systems, False, False, 0)
             #------------------------------------------------------------------#
-            
-            
-            
-            
-            
+
             #------------------------------------------------------------------#
             #                  COORDINATES combobox and Label
             #------------------------------------------------------------------#
@@ -2579,20 +2624,10 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             self.box_horizontal1.pack_start(self.label1, False, False, 0)
             self.coordinates_combobox = CoordinatesComboBox(self.main.vobject_liststore_dict[self.main.p_session.active_id])
             
-            
-            #self.coordinates_combobox = Gtk.ComboBox.new_with_model(self.main.vobject_liststore_dict[self.main.p_session.active_id])
-            ##self.coordinates_combobox.connect("changed", self.on_self.coordinates_combobox_changed)
-            #renderer_text = Gtk.CellRendererText()
-            #self.coordinates_combobox.pack_start(renderer_text, True)
-            #self.coordinates_combobox.add_attribute(renderer_text, "text", 0)
-            
             self.box_horizontal1.pack_start(self.coordinates_combobox, False, False, 0)
             #------------------------------------------------------------------#
             
-            
 
-
-            
             #------------------------------------------------------------------#
             #                  CHAIN combobox and Label
             #------------------------------------------------------------------#
@@ -2610,12 +2645,9 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             renderer_text = Gtk.CellRendererText()
             self.combobox_chains.pack_start(renderer_text, True)
             self.combobox_chains.add_attribute(renderer_text, "text", 0)
-            #vbox.pack_start(self.combobox_chains, False, False, True)
             self.box_horizontal2.pack_start(self.combobox_chains, False, False, 0)
             
-            
-            
-            
+
             #------------------------------------------------------------------#
             #                  RESIDUES combobox and Label
             #------------------------------------------------------------------#
@@ -2631,20 +2663,12 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             renderer_text = Gtk.CellRendererText()
             self.combobox_residues.pack_start(renderer_text, True)
             self.combobox_residues.add_attribute(renderer_text, "text", 0)
-            #vbox.pack_start(self.combobox_chains, False, False, True)
             self.box_horizontal2.pack_start(self.combobox_residues, False, False, 0)
             
             
             #------------------------------------------------------------------#
-            
-            
-            
-            
-            
             self.treeviewbox_horizontal = Gtk.Box(orientation = Gtk.Orientation.HORIZONTAL, spacing = 6)
-            
             #------------------------------------------------------------------------------------------
-            #self.treeview = Gtk.TreeView(model =self.residue_liststore)
             
             
             #-----------------------------------------------------------------------------------------
@@ -2665,31 +2689,20 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             self.treeview.connect("row-activated", self.on_treeview_row_activated_event)
             self.treeview.connect("key-press-event",   self.key_pressed )
             self.treeview.connect("key-release-event", self.key_released)
-            #        seqview.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
 
             for i, column_title in enumerate(
                 ['', "index", "Residue",  "Chain", 'size']
             ):
                 if i == 0:
-                    #cell = Gtk.CellRendererToggle()
-                    #cell.set_property('activatable', True)
-                    #cell.connect('toggled', self.on_chk_renderer_toggled, self.residue_liststore)
-                    
                     column = Gtk.TreeViewColumn(column_title, Gtk.CellRendererPixbuf(), pixbuf=0)
-                    
-                    #column = Gtk.TreeViewColumn(column_title, cell )
-                    #column.add_attribute(cell, 'active', 0)
                     self.treeview.append_column(column)
-                    #print ('aqui')
                 else:
                     renderer = Gtk.CellRendererText()
-                    #renderer.connect('toggled', self.on_chk_renderer_toggled, self.residue_liststore)
                     column = Gtk.TreeViewColumn(column_title, renderer, text=i)
                     self.treeview.append_column(column)
 
             
             self.current_filter_chain = None
-            
 
             self.scrollable_treelist = Gtk.ScrolledWindow()
             self.scrollable_treelist.set_vexpand(True)
@@ -2698,8 +2711,6 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             
 
 
-            
-            
             #------------------------------------------------------------------------------------------
             self.treeview_atom = Gtk.TreeView(model =self.atom_liststore)
             self.treeview_atom.connect("button-release-event", self.on_treeview_atom_button_release_event)
@@ -2709,14 +2720,8 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
                 ['', "index", "name", "MM atom", 'MM charge']
             ):
                 if i == 0:
-                    #cell = Gtk.CellRendererToggle()
-                    #cell.set_property('activatable', True)
-                    #cell.connect('toggled', self.on_chk_renderer_toggled, self.atom_liststore)
-                    #column = Gtk.TreeViewColumn(column_title, cell )
-                    #column.add_attribute(cell, 'active', 0)
                     column = Gtk.TreeViewColumn(column_title, Gtk.CellRendererPixbuf(), pixbuf=0)
                     self.treeview_atom.append_column(column)
-                    #print ('aqui')
                 else:
                     renderer = Gtk.CellRendererText()
                     column = Gtk.TreeViewColumn(column_title, renderer, text=i)
@@ -2728,15 +2733,6 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             #------------------------------------------------------------------------------------------
             
             
-            
-            
-            
-            
-            
-            
-            
-            
-            
             self.box_vertical.pack_start(self.box_horizontal1, False, True, 0)
             self.box_vertical.pack_start(self.box_horizontal2, False, True, 0)
             self.treeviewbox_horizontal.pack_start(self.scrollable_treelist, True, True, 0)
@@ -2744,15 +2740,13 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             
             self.box_vertical.pack_start(self.treeviewbox_horizontal, False, True, 0)
             
-            #self.refresh_system_liststore()
-            #self.update_window (system_names = True, coordinates = True)
             
             self.combobox_systems.set_active(0)
             self.window =  Gtk.Window()
             self.window.set_border_width(10)
             self.window.set_default_size(600, 600)  
             self.window.add(self.box_vertical)
-            self.window.connect("destroy", self.CloseWindow)
+            self.window.connect("destroy", self.close_window)
             self.window.set_title('Go to Atom Window') 
             self.window.show_all() 
                                                           
@@ -2760,19 +2754,14 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             #self.builder.connect_signals(self)                                   
             
             self.visible  =  True
-            #self.PutBackUpWindowData()
-            #gtk.main()
             #----------------------------------------------------------------
         else:
             self.window.present()
-
-    def CloseWindow (self, button):
+        #'''
+    def close_window (self, button):
         """ Function doc """
-        #self.BackUpWindowData()
         self.window.destroy()
         self.visible    =  False
-        #print('self.visible',self.visible)
-
 
     def getColouredPixmap( self, r, g, b, a=255 ):
         """ Given components, return a colour swatch pixmap """
@@ -2782,7 +2771,6 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         swatch = GdkPixbuf.Pixbuf.new( GdkPixbuf.Colorspace.RGB, True, CHANNEL_BITS, WIDTH, HEIGHT ) 
         swatch.fill( (r<<24) | (g<<16) | (b<<8) | a ) # RGBA
         return swatch
-
 
     def refresh (self, option = 'all'):
         """ Function doc """
@@ -2818,51 +2806,82 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
                 self.refresh_coordinates_liststore ()
             
     def refresh_coordinates_liststore(self, system_id = None):
-        """ Function doc """
+        """
+        Refreshes the coordinates ListStore associated with the currently selected system.
+
+        This method updates the model of the coordinates_combobox with the ListStore corresponding 
+        to the system currently selected in the systems combobox. It then resets the active selection 
+        in the coordinates_combobox to a default state (-1), which typically means no selection.
+
+        Parameters
+        ----------
+        system_id : optional
+            Not used directly; the selected system ID is obtained from the combobox.
+        """
+        # Override any passed system_id with the ID obtained from the combobox.
         system_id = self.combobox_systems.get_system_id()
-        #print(2313, system_id,self.main.vobject_liststore_dict )
+
+        # Update the coordinates combobox model with the ListStore for the selected system.
+        # vobject_liststore_dict  maps system IDs to their associated ListStore objects.
         self.coordinates_combobox.set_model(self.main.vobject_liststore_dict[system_id])
+
+        # Reset the active selection in the coordinates combobox. -1 typically indicates no selection.
         self.coordinates_combobox.set_active_vobject(-1)
-        #self.coordinates_liststore.clear()
-        #n = 0
-        #for key , vobject in self.vm_session.vm_objects_dic.items():
-        #    if vobject.e_id == system_id:
-        #        self.coordinates_liststore.append([vobject.name, key])
-        #        n += 1
-        #
-        #self.coordinates_combobox.set_active(n-1)
-        
+
     def refresh_system_liststore (self):
         """ Function doc """
-        #self.main.refresh_system_liststore()
 
     def on_combobox_residues_changed (self, widget):
-        """ Function doc """
+        """
+        Callback triggered when the selected residue in a combobox changes.
+
+        This function retrieves the currently selected residue from the provided combobox widget, 
+        updates an internal state variable `current_filter_residue`, and triggers a refiltering 
+        of a proxy model (filter) if it exists. This pattern is common in GTK3 when using a filtered 
+        TreeModel (Gtk.TreeModelFilter) to dynamically update the visible entries in a TreeView 
+        based on selection criteria.
+
+        Parameters
+        ----------
+        widget : Gtk.ComboBox
+            The combobox that emitted the "changed" signal.
+        """
+
+        # Retrieve the iterator for the currently selected row.
         tree_iter = widget.get_active_iter()
+
+        # Only proceed if a valid row is selected.
         if tree_iter is not None:
+            # Obtain the ListStore (model) backing the combobox.
             model = widget.get_model()
+
+            # Extract the first column's value of the selected row.
             residue = model[tree_iter][0]
-            #print("Selected: country=%s" % country)
-        
+
+            # Update the internal state variable to store the currently selected residue.
             self.current_filter_residue = residue
-            
-            #print("%s Chain selected!" % self.current_filter_residue)
-            
-            # we update the filter, which updates in turn the view
+
+            # If a residue filter exists, trigger a refiltering of the model.
+            # This will automatically update any TreeView or widget displaying filtered data.
             if self.residue_filter:
                 self.residue_filter.refilter()
-        
-        
+
     def on_combobox_chains_changed (self, widget):
-        """ Function doc """
-        ##---------------------------------------------------------------
-        #self.current_filter_chain = None
-        ## Creating the filter, feeding it with the liststore model
-        #self.chain_filter = self.residue_liststore.filter_new()
-        ## setting the filter function, note that we're not using the
-        #self.chain_filter.set_visible_func(self.chain_filter_func)
-        ##---------------------------------------------------------------
-        
+        """
+        Callback triggered when the selected residue in a combobox changes.
+
+        This function retrieves the currently selected residue from the provided combobox widget, 
+        updates an internal state variable `current_filter_residue`, and triggers a refiltering 
+        of a proxy model (filter) if it exists. This pattern is common in GTK3 when using a filtered 
+        TreeModel (Gtk.TreeModelFilter) to dynamically update the visible entries in a TreeView 
+        based on selection criteria.
+
+        Parameters
+        ----------
+        widget : Gtk.ComboBox
+            The combobox that emitted the "changed" signal.
+        """
+        # Retrieve the iterator for the currently selected row.
         tree_iter = self.combobox_chains.get_active_iter()
         if tree_iter is not None:
             model = self.combobox_chains.get_model()
@@ -2873,13 +2892,12 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         #print("%s Chain selected!" % self.current_filter_chain)
         # we update the filter, which updates in turn the view
         self.chain_filter.refilter()
-    
-    
+
     def _build_chain_liststore (self):
         """ Function doc """
         self.liststore_chains = Gtk.ListStore(str)
         self.liststore_chains.append(['all'])
-        chains = self.VObj.chains.keys()
+        chains = self.vobject.chains.keys()
 
         #self.chain_liststore = Gtk.ListStore(str)
 
@@ -2890,16 +2908,14 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
     
     def _build_res_liststore(self):
         self.residue_liststore.clear() #= Gtk.ListStore(GdkPixbuf.Pixbuf, int, str, str, int)
-        for chain in self.VObj.chains:
-            for index, resi in self.VObj.chains[chain].residues.items():
+        for chain in self.vobject.chains:
+            for index, resi in self.vobject.chains[chain].residues.items():
                 #print(resi.index, resi.name, chain,  len(resi.atoms) ) 
-                color  =  self.VObj.color_palette['C']
+                color  =  self.vobject.color_palette['C']
                 res_color  = [int(color[0]*255),int(color[1]*255),int(color[2]*255)] 
                 swatch = self.getColouredPixmap( res_color[0], res_color[1], res_color[2] )
                 
-                self.residue_liststore.append(list([swatch, index, resi.name , chain,  len(self.VObj.chains[chain].residues[index].atoms)]))
-                #self.residue_liststore.append(list([swatch, self.VObj.residues[resi].index, self.VObj.residues[resi].name , chain,  len(self.VObj.residues[resi].atoms)]))
-                #self.residue_liststore.append(list([swatch, self.VObj.residues[resi].index, resn , chain,  len(self.VObj.residues[resi].atoms)]))
+                self.residue_liststore.append(list([swatch, index, resi.name , chain,  len(self.vobject.chains[chain].residues[index].atoms)]))
 
     def on_combobox_systems_changed (self, widget):
         """ Function doc """
@@ -2912,7 +2928,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             key =  self.coordinates_combobox.get_vobject_id()
             #_, key = self.coordinates_liststore[cb_id]
             
-            self.VObj = self.vm_session.vm_objects_dic[key]
+            self.vobject = self.vm_session.vm_objects_dic[key]
             self._build_chain_liststore()
             self._build_res_liststore()
             
@@ -2936,11 +2952,11 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             self.liststore_residues.append(['all'])
             
             resn_labels = {}
-            for chain in self.VObj.chains.keys():
-                for resi, residue in self.VObj.chains[chain].residues.items():
+            for chain in self.vobject.chains.keys():
+                for resi, residue in self.vobject.chains[chain].residues.items():
                     resn_labels[residue.name] = True
             
-            #for resi, residue in self.VObj.residues.items():
+            #for resi, residue in self.vobject.residues.items():
             #    resn_labels[residue.name] = True
             
             for resn in resn_labels.keys():
@@ -2962,7 +2978,6 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             
             self.treeview.set_model(self.residue_filter)
             
-        
     def on_treeview_atom_button_release_event(self, tree, event):
         if event.button == 2:
             selection     = tree.get_selection()
@@ -2972,7 +2987,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             
             if iter != None:
                 self.selectedID  = int(model.get_value(iter, 1))-1  # @+
-                atom = self.VObj.atoms[self.selectedID]
+                atom = self.vobject.atoms[self.selectedID]
                 self.vm_session.vm_glcore.center_on_atom(atom)
        
     def on_treeview_atom_row_activated_event (self, tree, rowline , column):
@@ -2983,16 +2998,11 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         pickedID    = data[-1]
                 
                 
-        #cb_id =  self.coordinates_combobox.get_active()
         key =  self.coordinates_combobox.get_vobject_id()
-        #_, key = self.coordinates_liststore[cb_id]
-        self.VObj = self.vm_session.vm_objects_dic[key]
+        self.vobject = self.vm_session.vm_objects_dic[key]
                 
-        atom_picked = self.VObj.atoms[pickedID]
+        atom_picked = self.vobject.atoms[pickedID]
                     
-        #atom_picked = self.vm_session.atom_dic_id[pickedID]
-
-        #self.vm_session.selections[self.vm_session.current_selection].selection_function_viewing_set( selected= [atom_picked], _type= "atom")
         self.vm_session.selections[self.vm_session.current_selection].selecting_by_atom([atom_picked],  True)
         self.vm_session.selections[self.vm_session.current_selection]._build_selected_atoms_coords_and_selected_objects_from_selected_atoms()
         self.vm_session.vm_glcore.queue_draw()
@@ -3011,32 +3021,25 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         self.selectedChn = str(data[3])
         
         key =  self.coordinates_combobox.get_vobject_id()
-        #_, key = self.coordinates_liststore[cb_id]
-        self.VObj = self.vm_session.vm_objects_dic[key]
+        self.vobject = self.vm_session.vm_objects_dic[key]
         
-        res = self.VObj.chains[self.selectedChn].residues[self.selectedID]
+        res = self.vobject.chains[self.selectedChn].residues[self.selectedID]
         frame = self.vm_session.get_frame ()
         res.get_center_of_mass(frame = frame)
         '''centering and selecting'''
 
         if self.shift:
             
-            for chain in self.VObj.chains.keys():
-                for resi, residue in self.VObj.chains[chain].residues.items():
-                #for index, residue in self.VObj.residues.items():
+            for chain in self.vobject.chains.keys():
+                for resi, residue in self.vobject.chains[chain].residues.items():
                     if residue.name == res.name:
                         atom_keys = list(residue.atoms.values())
                         self.vm_session._selection_function_set({atom_keys[0]})
-                    #print('here', res.name, res.index)
         else:
-            #self.vm_session.vm_glcore.center_on_coordinates(res.vm_object, res.mass_center)
             atom_keys = list(res.atoms.values())
             self.vm_session._selection_function_set({atom_keys[0]})
             
         self.vm_session.vm_glcore.updated_coords = True
-        #self.vm_session.selections[self.vm_session.current_selection].selection_function_viewing_set( selected= {atom_keys[0]}, _type= "residue")
-        #self.vm_session.selections[self.vm_session.current_selection].selecting_by_residue( selected_atoms = {atom_keys[0]} )
-        #self.vm_session.selections[self.vm_session.current_selection]._build_selected_atoms_coords_and_selected_objects_from_selected_atoms()
         self.vm_session.vm_glcore.queue_draw()
         
     def on_treeview_Objects_button_release_event(self, tree, event):
@@ -3044,25 +3047,8 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         
         if event.button == 3:
             print ("button 3", event)
-            #selection     = tree.get_selection()
-            #model         = tree.get_model()
-            #(model, iter) = selection.get_selected()
-            #
-            #
-            #
-            #if iter != None:
-            #    self.selectedID  = int(model.get_value(iter, 1))  # @+
-            #    self.selectedObj = str(model.get_value(iter, 2))
-            #    print(self.selectedID, self.selectedObj, self.VObj.residues[self.selectedID])
-            #    #self.builder.get_object('TreeViewObjLabel').set_label('- ' +self.selectedObj+' -' )
-            #
-            #    #widget = self.builder.get_object('treeview_menu')
-            #    #widget.popup(None, None, None, None, event.button, event.time)
-            #    #print ('button == 3')
-
 
         if event.button == 2:
-            #print ('button == 2')
             self.treeview.get_selection().set_mode(Gtk.SelectionMode.SINGLE)
 
             
@@ -3074,23 +3060,20 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
                 self.selectedID  = int(model.get_value(iter, 1))  # @+
                 self.selectedObj = str(model.get_value(iter, 2))
                 self.selectedChn = str(model.get_value(iter, 3))
-                res = self.VObj.chains[self.selectedChn].residues[self.selectedID]
+                res = self.vobject.chains[self.selectedChn].residues[self.selectedID]
                 frame = self.vm_session.get_frame ()
                 res.get_center_of_mass(frame = frame)
                 
                 
-                #atomTypes       =      self.p_session.psystem[self.VObj.e_id].mmState.atomTypes
-                charges         = list(self.p_session.psystem[self.VObj.e_id].mmState.charges)
-                atomTypes       =      self.p_session.psystem[self.VObj.e_id].mmState.atomTypes
-                atomTypeIndices = list(self.p_session.psystem[self.VObj.e_id].mmState.atomTypeIndices)
+                charges         = list(self.p_session.psystem[self.vobject.e_id].mmState.charges)
+                atomTypes       =      self.p_session.psystem[self.vobject.e_id].mmState.atomTypes
+                atomTypeIndices = list(self.p_session.psystem[self.vobject.e_id].mmState.atomTypeIndices)
                 
                 self.vm_session.vm_glcore.center_on_coordinates(res.vm_object, res.mass_center)
         
                 self.atom_liststore.clear()
                 for atom in res.atoms.values():
-                    #self.atom_liststore.append(list([True, int(atom.index), atom.name, atom.symbol, atom.charge, atom.atom_id ]))
-                    #self.atom_liststore.append(list([True, int(atom.index), atom.name, atom.symbol ,  charges[atom.index-1] , int(atom.atom_id)]))
-                    color  =  self.VObj.color_palette[atom.symbol]
+                    color  =  self.vobject.color_palette[atom.symbol]
                     swatch = self.getColouredPixmap( int(color[0]*255), int(color[1]*255), int(color[2]*255) )
                     self.atom_liststore.append(list([swatch, int(atom.index), atom.name, atom.symbol ,  charges[atom.index-1] , int(atom.atom_id) ]))
             
@@ -3110,7 +3093,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
                 self.selectedID  = int(model.get_value(iter, 1))  # @+
                 self.selectedObj = str(model.get_value(iter, 2))
                 self.selectedChn = str(model.get_value(iter, 3))
-                res = self.VObj.chains[self.selectedChn].residues[self.selectedID]
+                res = self.vobject.chains[self.selectedChn].residues[self.selectedID]
                 
                 
                 self.atom_liststore.clear()
@@ -3120,34 +3103,26 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
                  in another way.'''
                 #--------------------------------------------------------------------------------------
                 try:
-                    charges         = list(self.p_session.psystem[self.VObj.e_id].mmState.charges)
-                    atomTypes       =      self.p_session.psystem[self.VObj.e_id].mmState.atomTypes
-                    atomTypeIndices = list(self.p_session.psystem[self.VObj.e_id].mmState.atomTypeIndices)
+                    charges         = list(self.p_session.psystem[self.vobject.e_id].mmState.charges)
+                    atomTypes       =      self.p_session.psystem[self.vobject.e_id].mmState.atomTypes
+                    atomTypeIndices = list(self.p_session.psystem[self.vobject.e_id].mmState.atomTypeIndices)
                 except:
-                    charges         = [0.0]*len(self.p_session.psystem[self.VObj.e_id].atoms)
+                    charges         = [0.0]*len(self.p_session.psystem[self.vobject.e_id].atoms)
                     atomTypes       = []
                     atomTypeIndices = []
-                    for atom in self.p_session.psystem[self.VObj.e_id].atoms.items:
+                    for atom in self.p_session.psystem[self.vobject.e_id].atoms.items:
                         atomTypes.append('-')
                         atomTypeIndices.append(atom.index)
                 #--------------------------------------------------------------------------------------
                 for atom in res.atoms.values():
-                     
-                    color  =  self.VObj.color_palette[atom.symbol]
-                    #print (color)
+                    color  =  self.vobject.color_palette[atom.symbol]
                     swatch = self.getColouredPixmap( int(color[0]*255), int(color[1]*255), int(color[2]*255) )
                     self.atom_liststore.append(list([swatch, int(atom.index), str(atom.name), str(atomTypes[atomTypeIndices[atom.index-1]]) ,  charges[atom.index-1] , int(atom.atom_id)]))
-                    #self.atom_liststore.append(list([True, int(atom.index), atom.name, atomTypes[atomTypeIndices[atom.index-1]] ,  charges[atom.index-1] , int(atom.atom_id)]))
 
-                
-                
-                #self.treeview_atom.set_model(self.atom_liststore)
             self.treeview.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
 
-    
     def on_chk_renderer_toggled(self, cell, path, model):
         print('on_chk_renderer_toggled -> model[path][0]: ', model[path][0])
-
 
     def residue_filter_func(self, model, iter, data):
         """Tests if the language in the row is the one in the filter"""
@@ -3158,8 +3133,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             return True
         else:
             return model[iter][2] == self.current_filter_residue
-   
-            
+
     def chain_filter_func(self, model, iter, data):
         """Tests if the language in the row is the one in the filter"""
         if (
@@ -3170,24 +3144,10 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         else:
             return model[iter][3] == self.current_filter_chain
 
-    #def on_selection_button_clicked(self, widget):
-    #    """Called on any of the button clicks"""
-    #    # we set the current language filter to the button's label
-    #    self.current_filter_language = widget.get_label()
-    #    print("%s language selected!" % self.current_filter_language)
-    #    # we update the filter, which updates in turn the view
-    #    self.language_filter.refilter()
-    #
-    #def on_button1_clicked(self, widget):
-    #    print("Hello")
-    #
-    #def on_button2_clicked(self, widget):
-    #    print("Goodbye")
     def update (self):
         """ Function doc """
         #print('VismolGoToAtomWindow2 update')
         pass
-        #self.self.combobox_systems.set_active(-1)
 
     def key_pressed  (self, widget, event):
         key = Gdk.keyval_name(event.keyval)
@@ -3201,8 +3161,8 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         if key == 'Shift_R' or key == 'Shift_L':
             self.shift = False
         print(widget, event, Gdk.keyval_name(event.keyval), self.shift)
-
-        
+#
+    
 class EasyHybridDialogSetQCAtoms(Gtk.Dialog):
     def __init__(self, parent):
         super().__init__(title="New QC list", transient_for=parent, flags=0)
@@ -3272,12 +3232,6 @@ class EasyHybridDialogPrune:
         #           - - - - - - - coordinates combobox - - - - - - -
         '''--------------------------------------------------------------------------------------------'''
         self.box2 = self.builder.get_object('box_coordinates')
-        
-        #if e_id:
-        #    self.coordinates_combobox = CoordinatesComboBox(self.main.vobject_liststore_dict[e_id]) 
-        #else:
-        #    #self.coordinates_combobox = CoordinatesComboBox(self.main.vobject_liststore_dict[self.p_session.active_id]) 
-        #    pass
         self.coordinates_combobox.set_active_vobject ( pos = -1)
         self.box2.pack_start(self.coordinates_combobox, False, False, 0)
         self.box2.show_all()
@@ -3379,7 +3333,7 @@ class ImportANewSystemWindow(Gtk.Window):
         # Counter used to assign colors cyclically
         self.color_counter = 0
     
-    def OpenWindow(self):
+    def open_window(self):
         """Open and configure the 'Import New System' window."""
 
         if not self.Visible:
@@ -3463,10 +3417,10 @@ class ImportANewSystemWindow(Gtk.Window):
             self.system_types_combo.set_active(0)
 
             # Connect window and button signals
-            self.window.connect('destroy', self.CloseWindow)
+            self.window.connect('destroy', self.close_window)
             self.builder.get_object('button_load_files').connect('clicked', self.on_button_load_files_clicked)
             self.builder.get_object('button_remove_files').connect('clicked', self.on_button_delete_files_clicked)
-            self.builder.get_object('button_cancel').connect('clicked', self.CloseWindow)
+            self.builder.get_object('button_cancel').connect('clicked', self.close_window)
             self.builder.get_object('import_import_system').connect('clicked', self.on_button_import_system_clicked)
 
             # Configure the system color button with the current color from the palette
@@ -3502,7 +3456,7 @@ class ImportANewSystemWindow(Gtk.Window):
             # If already visible, just bring the window to the front
             self.window.present()
     
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
@@ -3511,15 +3465,15 @@ class ImportANewSystemWindow(Gtk.Window):
         """ Function doc """
         name = self.entry_system_name.get_text()
         
-        tag  = name.replace(' ','')
-        size = len(tag)
-        
-        if size > 15:
-            tag = tag[:15]
-        else:
-            pass
-        
-        self.builder.get_object('entry_system_tag').set_text(tag)
+        #tag  = name.replace(' ','')
+        #size = len(tag)
+        #
+        #if size > 15:
+        #    tag = tag[:15]
+        #else:
+        #    pass
+        #
+        #self.builder.get_object('entry_system_tag').set_text(tag)
         self.on_entry_widget_change()
         
     def on_name_combo_changed(self, widget):
@@ -3705,7 +3659,7 @@ class ImportANewSystemWindow(Gtk.Window):
                                                                            color          = [red, green, blue],
                                                                            working_folder = wfolder)
     
-        self.CloseWindow(button, data  = None)
+        self.close_window(button, data  = None)
         #'''
         
         #'''
@@ -3717,7 +3671,7 @@ class ImportANewSystemWindow(Gtk.Window):
                                                                                color          = [red, green, blue],
                                                                                working_folder = wfolder)
         
-            self.CloseWindow(button, data  = None)
+            self.close_window(button, data  = None)
             if self.color_counter > 10:
                 self.color_counter == 0 
             else:
@@ -3811,7 +3765,7 @@ class ImportTrajectoryWindow:
         
         self.folder_type_list = ['pklfolder', 'pklfolder2D', 'pdbfolder']
 
-    def OpenWindow (self, sys_selected = None):
+    def open_window (self, sys_selected = None):
         """ Function doc """
         if self.Visible  ==  False:
             '''--------------------------------------------------------------------------------------------'''
@@ -3912,7 +3866,7 @@ class ImportTrajectoryWindow:
         else:
             self.window.present()
     
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
@@ -4139,12 +4093,12 @@ class TrajectoryPlayerWindow:
         self.upper = 1
         
         
-    def OpenWindow (self):
+    def open_window (self):
         """ Function doc """
         if self.Visible  ==  False:
             self.window = Gtk.Window()
-            self.window.connect('destroy-event', self.CloseWindow)
-            self.window.connect('delete-event', self.CloseWindow)
+            self.window.connect('destroy-event', self.close_window)
+            self.window.connect('delete-event', self.close_window)
             self.vm_traj_obj = VismolTrajectoryFrame(self.vm_session)
             self.vm_traj_obj.change_range(upper = self.upper)
             self.vm_traj_obj.scale.set_value(self.vm_session.frame)
@@ -4161,7 +4115,7 @@ class TrajectoryPlayerWindow:
             self.window.present()
         
 
-    def CloseWindow (self, button, data  = None):
+    def close_window (self, button, data  = None):
         """ Function doc """
         self.vm_traj_obj.stop(None)
 
@@ -4178,19 +4132,37 @@ class TrajectoryPlayerWindow:
         
 
 class MergeSystemWindow(Gtk.Window):
-    """ Class doc """
+    """ 
+    A GTK3 window class to facilitate merging of two molecular or simulation systems.
+    This window allows the user to select two systems, choose coordinate sets, and
+    merge them with specific metadata like name, tag, and color.
+    """
     
-    def __init__(self, main = None ):
-        """ Class initialiser """
-        self.main     = main
-        self.home     = main.home 
-        self.p_session= main.p_session 
-        self.Visible  =  False        
-        self.liststore= Gtk.ListStore(bool, str)
-        self.selected_system_id = None
+    def __init__(self, main=None):
+        """
+        Initialize the MergeSystemWindow instance.
+
+        Parameters:
+        main : object
+            Reference to the main application object, providing access to the home
+            directory, session, and other application-wide resources.
+        """
+        self.main = main
+        self.home = main.home  # Home directory for UI files and resources
+        self.p_session = main.p_session  # The session responsible for performing merges
+        self.Visible = False  # Tracks whether the window is currently visible
+        # ListStore holds system selections: first column for selection state, second for system name
+        self.liststore = Gtk.ListStore(bool, str)
+        self.selected_system_id = None  # Optional: preselected system for convenience
     
-    def OpenWindow (self, system_id = None):
-        """ Function doc """
+    def open_window (self, system_id = None):
+        """
+        Open and display the MergeSystem window. If already open, bring it to the front.
+
+        Parameters:
+        system_id : int or None
+            Optional system ID to preselect in the first system combo box.
+        """
         if self.Visible  ==  False:
             self.builder = self.main.builder #Gtk.Builder()
             
@@ -4212,7 +4184,9 @@ class MergeSystemWindow(Gtk.Window):
             self.box1.pack_start(self.combobox_systems1, False, False, 0)
             '''--------------------------------------------------------------------------------------------'''
             if self.selected_system_id:
+                # Preselect a system if provided
                 self.combobox_systems1.set_active_system (e_id = self.selected_system_id)
+            # Connect the combobox change signal to update corresponding coordinates
             self.combobox_systems1.connect("changed", self.on_combobox_systems_changed)        
             
             
@@ -4225,22 +4199,14 @@ class MergeSystemWindow(Gtk.Window):
             self.box2.pack_start(self.combobox_systems2, False, False, 0)
             '''--------------------------------------------------------------------------------------------'''
             self.combobox_systems2.connect("changed", self.on_combobox_systems_changed)        
-            
-            
-            
-            
-            
-            
-            
+
             #------------------------------------------------------------------#
             self.box_coordinates1 = self.builder.get_object('box_coordinates1')
             self.coordinates_combobox1 = CoordinatesComboBox(self.main.vobject_liststore_dict[self.selected_system_id])            
             self.box_coordinates1.pack_start(self.coordinates_combobox1, False, False, 0)
             #------------------------------------------------------------------#
             self.coordinates_combobox1.index = 1
-            
-            
-            
+
             #------------------------------------------------------------------#
             self.box_coordinates2 = self.builder.get_object('box_coordinates2')
             self.coordinates_combobox2 = CoordinatesComboBox(self.main.vobject_liststore_dict[self.selected_system_id])            
@@ -4248,76 +4214,93 @@ class MergeSystemWindow(Gtk.Window):
             #------------------------------------------------------------------#
             self.coordinates_combobox2.index2 = 2
 
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
             self.button_ok     = self.builder.get_object('button_merge')
             self.button_ok.connect("clicked", self.merge)
 
             self.button_cancel = self.builder.get_object('button_cancel')
-            self.button_cancel.connect("clicked", self.CloseWindow)
+            self.button_cancel.connect("clicked", self.close_window)
 
-            #self.window.connect("destroy", self.CloseWindow)
+            # Display the fully constructed window
             self.window.show_all()
             self.Visible  = True   
         
         else:
             self.window.present()
     
-    def CloseWindow (self, button, data  = None):
-        """ Function doc """
+    def close_window (self, button, data  = None):
+        """
+        Close and destroy the MergeSystem window, marking it as not visible.
+
+        Parameters:
+        button : Gtk.Button
+            The button that triggered this closure.
+        data : any
+            Optional extra data (not used here).
+        """
         self.window.destroy()
         self.Visible    =  False
 
-    def on_combobox_systems_changed (self, widget):
-        """ Function doc """
+    def on_combobox_systems_changed(self, widget):
+        """
+        Callback function to update coordinate comboboxes when the selected system changes.
+
+        Parameters:
+        widget : SystemComboBox
+            The system combobox that triggered the event.
+        """
         e_id = widget.get_system_id()
         if widget.index == 1:
+            # Update coordinates combobox for system 1
             self.coordinates_combobox1.set_model(self.main.vobject_liststore_dict[e_id])
             self.coordinates_combobox1.set_active_vobject(-1)
-        
         elif widget.index == 2:
+            # Update coordinates combobox for system 2
             self.coordinates_combobox2.set_model(self.main.vobject_liststore_dict[e_id])
             self.coordinates_combobox2.set_active_vobject(-1)
 
-    def merge (self, widget):
-        """ Function doc """
+    def merge(self, widget):
+        """
+        Execute the merge operation using selected systems, coordinates, and user-defined parameters.
+
+        Parameters:
+        widget : Gtk.Button
+            The button that triggered the merge.
+        """
         system1_e_id = self.combobox_systems1.get_system_id()
         system2_e_id = self.combobox_systems2.get_system_id()
         
         vobject1_id = self.coordinates_combobox1.get_vobject_id()
         vobject2_id = self.coordinates_combobox2.get_vobject_id()
         
-        name   =  self.builder.get_object('entry_name').get_text()
-        tag   =  self.builder.get_object('entry_tag').get_text()
-        color  =  self.builder.get_object('button_color').get_rgba()
-        red    = color.red 
-        green  = color.green 
-        blue   = color.blue 
+        # Retrieve metadata from UI entries
+        name = self.builder.get_object('entry_name').get_text()
+        tag = self.builder.get_object('entry_tag').get_text()
+        color = self.builder.get_object('button_color').get_rgba()
+        
+        # Extract RGB components
+        red = color.red
+        green = color.green
+        blue = color.blue
 
-        self.p_session.merge_system (e_id1   = system1_e_id      , 
-                                     e_id2   = system2_e_id      , 
-                                     vob_id1 = vobject1_id       ,
-                                     vob_id2 = vobject2_id       ,
-                                     name    = name              , 
-                                     tag     = tag               , 
-                                     color   = [red, green, blue])
-        self.Visible    =  False
+        # Call the session's merge function with all parameters
+        self.p_session.merge_system(
+            e_id1=system1_e_id,
+            e_id2=system2_e_id,
+            vob_id1=vobject1_id,
+            vob_id2=vobject2_id,
+            name=name,
+            tag=tag,
+            color=[red, green, blue]
+        )
+        # Close the window after merging
+        self.Visible = False
         self.window.destroy()
 
 
 def main(args):
     
     win = PotentialEnergyAnalysisWindow()
-    win.OpenWindow()
+    win.open_window()
     Gtk.main()
     return 0
 

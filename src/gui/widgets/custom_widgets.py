@@ -796,31 +796,49 @@ class VismolTrajectoryFrame(Gtk.Frame):
 
 
 class SystemComboBox(Gtk.ComboBox):
-    """ Class doc """
+    """
+    A custom GTK3 ComboBox widget for selecting a system from the application's
+    available systems. Supports optional linkage to a coordinates combobox.
+    """
     
-    def __init__ (self, main = None, coord_combobox = False):
-        """ Class initialiser """
+    def __init__(self, main=None, coord_combobox=False):
+        """
+        Initialize the SystemComboBox instance.
+
+        Parameters:
+        main : object
+            Reference to the main application object, which provides access
+            to the global system liststore and other resources.
+        coord_combobox : bool
+            Flag indicating whether this combobox is linked to a coordinates
+            combobox for updating available coordinate sets when the system changes.
+        """
+        # Initialize base Gtk.ComboBox
         Gtk.ComboBox.__init__(self)
         
-        self.main = main
+        self.main = main  # Reference to main application object
         
+        # Set the model for the combobox using the main application's system liststore
         self.system_liststore = self.main.system_liststore
         self.set_model(self.system_liststore)
         
-        #self.combobox_systems.connect("changed", self.on_combobox_systems_changed)
-        
+        # -------------------- RENDERERS --------------------
+        # Add a pixbuf renderer to display system icons (e.g., molecule images)
         renderer_pixbuf = Gtk.CellRendererPixbuf()
         self.pack_start(renderer_pixbuf, True)
-        self.add_attribute(renderer_pixbuf, "pixbuf", 2)
+        self.add_attribute(renderer_pixbuf, "pixbuf", 2)  # Column 2 holds icon data
         
+        # Add a text renderer to display the system's name
         renderer_text2 = Gtk.CellRendererText()
         self.pack_start(renderer_text2, True)
-        self.add_attribute(renderer_text2, "text", 0)
-
-        #self.set_popup_fixed_width(100)
+        self.add_attribute(renderer_text2, "text", 0)  # Column 0 holds system names
+        
+        # -------------------- SIGNALS --------------------
+        # Connect the "changed" signal to update linked coordinate comboboxes if needed
         self.connect("changed", self.on_change)
+        
+        # Store whether this combobox should update a coordinates combobox
         self.coord_combobox = coord_combobox
-    
     
     def get_system_id(self, widget = None):
         _, system_id, pixbuf = self._get_system()
@@ -829,7 +847,6 @@ class SystemComboBox(Gtk.ComboBox):
     def get_system_name(self, widget = None):
         name, system_id, pixbuf = self._get_system()
         return name
-        
         
     def _get_system(self, widget = None):
         """ Function doc """
@@ -843,7 +860,6 @@ class SystemComboBox(Gtk.ComboBox):
             _, system_id, pixbuf = self.system_liststore[index]
             #print(_, system_id, pixbuf)
             return _, system_id, pixbuf
-
 
     def set_active_system (self, e_id = 0):
         """ Function doc """
@@ -862,7 +878,6 @@ class SystemComboBox(Gtk.ComboBox):
         
         self.set_active(set_active)
 
-    
     def on_change (self, widget):
         """ Function doc """
         #print('AQUI', self.coord_combobox)
@@ -880,31 +895,62 @@ class SystemComboBox(Gtk.ComboBox):
             pass
 
 class CoordinatesComboBox(Gtk.ComboBox):
-    """ Class doc """
+    """
+    A custom GTK3 ComboBox widget for selecting a coordinate set (vobject) associated
+    with a molecular or simulation system. Supports optional pixbuf icons for visual
+    representation.
+    """
     
-    def __init__ (self, coordinates_liststore = None, system_combobox = None, pixbuf = True):
-        """ Class initialiser """
+    def __init__(self, coordinates_liststore=None, system_combobox=None, pixbuf=True):
+        """
+        Initialize the CoordinatesComboBox instance.
+
+        Parameters:
+        coordinates_liststore : Gtk.ListStore
+            The ListStore containing coordinate sets for the selected system.
+            Typically each row holds metadata about a coordinate set.
+        system_combobox : SystemComboBox or None
+            Optional reference to the system combobox this coordinates combobox is linked to.
+            Can be used to update the coordinates dynamically when the system changes.
+        pixbuf : bool
+            Flag to determine whether to display icons in the combobox using a CellRendererPixbuf.
+        """
+        # Initialize base Gtk.ComboBox
         Gtk.ComboBox.__init__(self)
         
+        # Set the ListStore containing coordinate sets as the model for this combobox
         self.coordinates_liststore = coordinates_liststore
         self.set_model(self.coordinates_liststore)
-        #self.coordinates_combobox.connect("changed", self.on_self.coordinates_combobox_changed)
         
+        # -------------------- RENDERERS --------------------
         if pixbuf:
+            # Add an optional pixbuf renderer to display a small image for each coordinate set
             renderer_pixbuf = Gtk.CellRendererPixbuf()
             self.pack_start(renderer_pixbuf, True)
-            self.add_attribute(renderer_pixbuf, "pixbuf", 3)
+            self.add_attribute(renderer_pixbuf, "pixbuf", 3)  # Column 3 holds icon data
         
+        # Add a text renderer to display the coordinate set name
         renderer_text = Gtk.CellRendererText()
         self.pack_start(renderer_text, True)
-        self.add_attribute(renderer_text, "text", 0)
+        self.add_attribute(renderer_text, "text", 0)  # Column 0 holds coordinate names
 
-    def get_vobject (self):
-        """ Function doc """
-        name, key1,  key2, pixbuf = self._get_coordinates_info()
+    def get_vobject(self):
+        """
+        Retrieve the currently selected vobject (coordinate object) from the combobox.
+
+        Returns:
+        tuple
+            Information about the selected coordinate set, typically including:
+            - name: The display name of the vobject
+            - key1: Primary identifier (e.g., system ID)
+            - key2: Secondary identifier (e.g., coordinate set ID)
+            - pixbuf: Optional icon associated with the vobject
+        """
+        # Fetch all coordinate info from the selected row
+        name, key1, key2, pixbuf = self._get_coordinates_info()
         
-        #self.vobject  = self.main.vm_session.vm_objects_dic[vobject_index]
-     
+        # Placeholder for linking to actual vobject in VM session
+        # self.vobject = self.main.vm_session.vm_objects_dic[vobject_index]
         
     def get_vobject_id (self):
         """ Returns the id of the vobject (id number of the vobject - 
