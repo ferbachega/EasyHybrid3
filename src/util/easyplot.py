@@ -1,3 +1,33 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#  
+#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  Module: Selection utilities for pDynamo systems
+#
+#  Copyright 2022-2025 Fernando Bachega
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
+#  Maintainer:
+#      Fernando Bachega <ferbachega@gmail.com> or <easyhybrid3@gmail.com>
+#
+#  Description:
+#      Provides functions for selecting atoms and residues in pDynamo systems
+#      to facilitate QM/MM partitioning and molecular simulations.
+#
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk
@@ -1066,7 +1096,11 @@ class ImagePlot(Canvas):
 class XYPlot(Gtk.DrawingArea):
     """ Class doc """
     
-    def __init__ (self, bg_color = [1,1,1], mode = None ):
+    def __init__ (self, bg_color = [1,1,1], 
+                        pl_color = [0,0,0], 
+                        sel_color = [1,0,0], 
+                        bl_color = [0.5,0.5,0.5], 
+                        mode = None ):
         """ Class initialiser """
         super().__init__( )
 
@@ -1104,15 +1138,15 @@ class XYPlot(Gtk.DrawingArea):
         self.connect("motion-notify-event", self.on_motion)
 
 
-        self.line_color     = [0,0,0]
+        self.line_color     = pl_color
         #self.bg_color       = [1,1,1]
-        self.sel_color      = [1,0,0]
+        self.sel_color      = sel_color
         
         #self.line_color     = [1,1,1]
         #self.bg_color       = [0,0,0]
         #self.sel_color      = [1,0,0]
         
-        self.bglines_color  = [0.5,0.5,0.5]
+        self.bglines_color  = bl_color
         self.bx = 100#80
         self.by = 50#50 
 
@@ -1367,7 +1401,9 @@ class XYPlot(Gtk.DrawingArea):
         
         
         ''' backgound lines '''
-        cr.set_source_rgb( 0.3, 0.3, 0.3)
+        cr.set_source_rgb( self.bglines_color[0], 
+                           self.bglines_color[1],
+                           self.bglines_color[2])
         #---------------------------------------------------------------------------------------------------
         x_major_factor = (self.x_box_size) / float(self.x_major_ticks)
         x_minor_factor = x_major_factor / float(self.x_minor_ticks)
@@ -1483,10 +1519,11 @@ class XYPlot(Gtk.DrawingArea):
                     x = data['Xnorm'][i]    
                     y = data['Ynorm'][i]
                     color = data['line_color']
-                    color = [0,0,0]
+                    #color = line_color
                     
                     if data['sym'] is not None:
-                        color = data['sym_color']
+                        #color = data['sym_color']
+                        color = data['line_color']
                         
                         #cr.set_source_rgb( color[0], color[1], color[2])
                         cr.set_source_rgb( self.sel_color[0], self.sel_color[1], self.sel_color[2])
@@ -1499,7 +1536,9 @@ class XYPlot(Gtk.DrawingArea):
                         cr.set_source_rgb( self.sel_color[0], self.sel_color[1], self.sel_color[2])
                         cr.fill()
                     else:
-                        cr.set_source_rgb( self.line_color[0], self.line_color[1], self.line_color[2])
+                        color = data['line_color']
+                        #cr.set_source_rgb( self.line_color[0], self.line_color[1], self.line_color[2])
+                        cr.set_source_rgb( color[0], color[1], color[2])
                         cr.stroke ()
     
     

@@ -1,26 +1,33 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+#  
+#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  Module: Selection utilities for pDynamo systems
 #
-#  easyhybrid_pDynamo_selection.py
-#  
-#  Copyright 2022 Fernando <fernando@winter>
-#  
+#  Copyright 2022-2025 Fernando Bachega
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation; either version 2 of the License, or
+#  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-#  
-#  
+#
+#  Maintainer:
+#      Fernando Bachega <ferbachega@gmail.com> or <easyhybrid3@gmail.com>
+#
+#  Description:
+#      Provides functions for selecting atoms and residues in pDynamo systems
+#      to facilitate QM/MM partitioning and molecular simulations.
+#
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -220,8 +227,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.window.show_all()
             
             self.input_type_combo.set_active(0)
-            self.RC_box1.set_rc_type(0)
-            self.RC_box2.set_rc_type(0)
+
             self.opt_methods_combo.set_active(0)
             self.md_integrators_combobox.set_active(0)
             self.update_working_folder_chooser ( )
@@ -232,7 +238,8 @@ class UmbrellaSamplingWindow(Gtk.Window):
             else:
                 pass
             
-            
+            self.RC_box1.set_rc_type(0)
+            self.RC_box2.set_rc_type(0)
             self.Visible  = True   
 
         else:
@@ -266,14 +273,14 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.RC_box2.entry_dmin_coord.set_sensitive(True)
         
             self.RC_box1.label_step_size     .set_sensitive(True)
-            self.RC_box1.label_nsteps        .set_sensitive(True)        
+            #self.RC_box1.label_nsteps        .set_sensitive(True)        
             #self.RC_box1.label_force_constant.set_sensitive(True)        
-            self.RC_box1.label_dmin          .set_sensitive(True)        
+            #self.RC_box1.label_dmin          .set_sensitive(True)        
             
             self.RC_box2.label_step_size     .set_sensitive(True)
-            self.RC_box2.label_nsteps        .set_sensitive(True)        
+            #self.RC_box2.label_nsteps        .set_sensitive(True)        
             #self.RC_box2.label_force_constant.set_sensitive(True)        
-            self.RC_box2.label_dmin          .set_sensitive(True)        
+            #self.RC_box2.label_dmin          .set_sensitive(True)        
         
         
         
@@ -295,12 +302,12 @@ class UmbrellaSamplingWindow(Gtk.Window):
 
 
             self.RC_box1.label_step_size.set_sensitive(False)
-            self.RC_box1.label_nsteps   .set_sensitive(False)        
-            self.RC_box1.label_dmin     .set_sensitive(False)        
+            #self.RC_box1.label_nsteps   .set_sensitive(False)        
+            #self.RC_box1.label_dmin     .set_sensitive(False)        
             
             self.RC_box2.label_step_size.set_sensitive(False)
-            self.RC_box2.label_nsteps   .set_sensitive(False)        
-            self.RC_box2.label_dmin     .set_sensitive(False)
+            #self.RC_box2.label_nsteps   .set_sensitive(False)        
+            #self.RC_box2.label_dmin     .set_sensitive(False)
 
 
     def on_md_integrator_combobox (self, widget = None):
@@ -553,9 +560,6 @@ class UmbrellaSamplingWindow(Gtk.Window):
         
         return parameters
     
-
-
-
         
     def run (self, button):
         """ Function doc """
@@ -590,9 +594,6 @@ class UmbrellaSamplingWindow(Gtk.Window):
 
         export_dialog =  ExportScriptDialog(self.main, parameters = parameters)
         
-
-        
-
 
     def _define_OPT_parameters (self):
         parameters = {}
@@ -669,3 +670,135 @@ class UmbrellaSamplingWindow(Gtk.Window):
                     'collisionFrequency'        : collision_frequency,
                     }
         return parameters
+
+
+    def restore_the_parameters_to_the_window(self, parameters):
+        """Update the GUI widgets with values from the parameters dictionary."""
+        MD_ids = {
+             "Verlet"   : 0 ,
+             "LeapFrog" : 1 ,
+             "Langevin" : 2 ,
+             }
+        
+        
+        pprint(parameters)
+        if not parameters:
+            return
+
+        # ----------------------------
+        # Input type
+        # ----------------------------
+        input_type = parameters.get('input_type', 0)
+        self.input_type_combo.set_active(input_type)
+
+        # Set starting coordinates or trajectory folder
+        if input_type == 0 and parameters.get('vobj') is not None:
+            # Set starting coordinates
+            vobj_name = parameters['vobj']
+            vobject_ids = self.main.vm_session.vm_objects_dic
+            for vobj_id, vobj in vobject_ids.items():
+                if vobj.name == vobj_name:
+                    self.combobox_starting_coordinates.set_active(vobj_id)
+                    break
+            self.combobox_starting_coordinates.show()
+            self.folder_chooser_button.btn.hide()
+            self.spinbutton.hide()
+        elif input_type == 1 and parameters.get('source_folder') is not None:
+            # Set trajectory folder
+            self.folder_chooser_button.set_folder(parameters['source_folder'])
+            self.folder_chooser_button.btn.show()
+            self.spinbutton.show()
+            self.combobox_starting_coordinates.hide()
+
+        # ----------------------------
+        # Reaction Coordinates
+        # ----------------------------
+        if 'RC1' in parameters and parameters['RC1'] is not None:
+            self.RC_box1.set_rc_data(parameters['RC1'])
+
+        if 'RC2' in parameters and parameters['RC2'] is not None:
+            self.RC_box2.set_rc_data(parameters['RC2'])
+            self.builder.get_object('checkbox_reaction_coordinate2').set_active(True)
+            self.RC_box2.set_sensitive(True)
+        else:
+            self.builder.get_object('checkbox_reaction_coordinate2').set_active(False)
+            self.RC_box2.set_sensitive(False)
+
+        # ----------------------------
+        # Geometry Optimization
+        # ----------------------------
+        if parameters.get('OPT_parm') is not None:
+            self.builder.get_object('checkbox_geometry_optimization').set_active(True)
+            self.builder.get_object('frame_geometry_optimization').set_sensitive(True)
+            opt_index = list(self.opt_methods.values()).index(parameters['OPT_parm']['optimizer'])
+            self.opt_methods_combo.set_active(opt_index)
+            self.builder.get_object('entry_max_int').set_text(str(parameters['OPT_parm']['maximumIterations']))
+            self.builder.get_object('entry_rmsd_tol').set_text(str(parameters['OPT_parm']['rmsGradientTolerance']))
+        else:
+            self.builder.get_object('checkbox_geometry_optimization').set_active(False)
+            self.builder.get_object('frame_geometry_optimization').set_sensitive(False)
+
+        # ----------------------------
+        # Molecular Dynamics
+        # ----------------------------
+        if parameters.get('MD_parm') is not None:
+            md_parm = parameters['MD_parm']
+            #integrator = md_parm['integrator']
+            integrator_index = MD_ids[md_parm['integrator']]
+            
+            #integrator_index = list(md_parm['integrator'] for md_parm in md_parm.items() if md_parm).index(md_parm['integrator']) \
+            #    if md_parm['integrator'] in ["Verlet", "LeapFrog", "Langevin"] else 0
+            self.md_integrators_combobox.set_active(integrator_index)
+
+            self.builder.get_object('entry_number_of_steps_eq').set_text(str(md_parm.get('steps_eq', 0)))
+            self.builder.get_object('entry_number_of_steps_dc').set_text(str(md_parm.get('steps_dc', 0)))
+            self.builder.get_object('entry_time_step').set_text(str(md_parm.get('timeStep', 0.0)))
+            self.builder.get_object('entry_log_frequency').set_text(str(md_parm.get('logFrequency', 0)))
+            self.builder.get_object('entry_random_seed').set_text(str(md_parm.get('seed', 0)))
+            self.builder.get_object('entry_temp_start').set_text(str(md_parm.get('temperatureStart', 300)))
+            self.builder.get_object('entry_temp_scale_factor').set_text(str(md_parm.get('temperatureScaleFrequency', 1)))
+            self.builder.get_object('entry_collision_frequency').set_text(str(md_parm.get('collisionFrequency', 0.0)))
+            self.builder.get_object('entry_pressure').set_text(str(md_parm.get('pressure', 1.0)))
+            self.builder.get_object('entry_pressure_coupling').set_text(str(md_parm.get('temperatureCoupling', 1.0)))
+            self.builder.get_object('entry_temp_coupling').set_text(str(md_parm.get('temperatureCoupling', 1.0)))
+
+        # ----------------------------
+        # Trajectory folder name
+        # ----------------------------
+        if 'traj_folder_name' in parameters:
+            self.builder.get_object('entry_traj_name').set_text(parameters['traj_folder_name'])
+
+        # ----------------------------
+        # Number of threads (CPUs)
+        # ----------------------------
+        if 'NmaxThreads' in parameters:
+            self.spinbutton.set_value(parameters['NmaxThreads'])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

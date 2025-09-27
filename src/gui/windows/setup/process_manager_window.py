@@ -1,3 +1,33 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#  
+#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  Module: Selection utilities for pDynamo systems
+#
+#  Copyright 2022-2025 Fernando Bachega
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
+#  Maintainer:
+#      Fernando Bachega <ferbachega@gmail.com> or <easyhybrid3@gmail.com>
+#
+#  Description:
+#      Provides functions for selecting atoms and residues in pDynamo systems
+#      to facilitate QM/MM partitioning and molecular simulations.
+#
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
@@ -286,7 +316,11 @@ class ProcessManagerWindow(Gtk.Window):
         step_counter = model[iter][8]
         print(f"Double click on: {e_id} {nome} {step_counter} (PID={pid})")
         system = self.p_session.psystem[e_id]
+        system.e_job_history[step_counter]['e_id'] = e_id
         pprint(system.e_job_history[step_counter])
+        
+        
+        #print('system:', system.e_id, system.e_job_history[step_counter]['backup_parameters']['system'].e_id)
         
         logfile = system.e_job_history[step_counter]['logfile']
         data = open(logfile, 'r')
@@ -308,12 +342,41 @@ class ProcessManagerWindow(Gtk.Window):
         system = self.p_session.psystem[e_id]
         
         parameters = system.e_job_history[step_counter]['backup_parameters']
+        parameters['e_id'] = system.e_id
         
         if parameters['simulation_type'] == 'Geometry_Optimization':
             if self.main.geometry_optimization_window.Visible:
                 self.main.geometry_optimization_window.close_window(None, None)
             self.main.geometry_optimization_window.open_window()
             self.main.geometry_optimization_window.restore_the_parameters_to_the_window (parameters)
+        
+        if parameters['simulation_type'] == 'Molecular_Dynamics':
+            if self.main.molecular_dynamics_window.Visible:
+                self.main.molecular_dynamics_window.close_window(None, None)
+            self.main.molecular_dynamics_window.open_window()
+            self.main.molecular_dynamics_window.restore_the_parameters_to_the_window (parameters)
+            
+        
+        if parameters['simulation_type'] == 'Relaxed_Surface_Scan':
+            if self.main.PES_scan_window.Visible:
+                self.main.PES_scan_window.close_window(None, None)
+            self.main.PES_scan_window.open_window()
+            self.main.PES_scan_window.restore_the_parameters_to_the_window (parameters)
+            
+        
+        if parameters['simulation_type'] == 'Umbrella_Sampling':
+            if self.main.umbrella_sampling_window.Visible:
+                self.main.umbrella_sampling_window.close_window(None, None)
+            self.main.umbrella_sampling_window.open_window()
+            self.main.umbrella_sampling_window.restore_the_parameters_to_the_window (parameters)
+            
+        
+        
+        if parameters['simulation_type'] == 'Nudged_Elastic_Band':
+            if self.main.chain_of_states_opt_window.Visible:
+                self.main.chain_of_states_opt_window.close_window(None, None)
+            self.main.chain_of_states_opt_window.open_window()
+            self.main.chain_of_states_opt_window.restore_the_parameters_to_the_window (parameters)
             
         
         

@@ -1,12 +1,33 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-#Lembrar de colocar uma header nesse arquivo
-
-##############################################################
-#-----------------...EasyHybrid 3.0...-----------------------#
-#-----------Credits and other information here---------------#
-##############################################################
+#  
+#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  Module: Selection utilities for pDynamo systems
+#
+#  Copyright 2022-2025 Fernando Bachega
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
+#  Maintainer:
+#      Fernando Bachega <ferbachega@gmail.com> or <easyhybrid3@gmail.com>
+#
+#  Description:
+#      Provides functions for selecting atoms and residues in pDynamo systems
+#      to facilitate QM/MM partitioning and molecular simulations.
+#
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
@@ -698,6 +719,7 @@ class EasyHybridImportTrajectory:
         
         
         self.main.main_treeview.refresh_number_of_frames()
+        self.main.main_treeview.refresh_trajectory_scalebar()
 
     def chrg_file_parser (self,_file = None, _type = None):
         """ Function doc 
@@ -735,7 +757,6 @@ class EasyHybridImportTrajectory:
         
         return charges
    
-        
 
 class pSimulations:
     """Class responsible for managing and running molecular simulations 
@@ -1005,8 +1026,10 @@ class pSimulations:
         # Avoid passing queue object to child processes inside parameters
         parameters['queue'] = None
         
+        #backup_parameters = parameters
         backup_parameters = copy.deepcopy(parameters)
-        backup_parameters['system'] = backup_parameters['system'].e_id
+        backup_parameters['system'] = None
+        
         #backup_parameters['step_counter'] = parameters['system'].e_step_counter
         try:
             self.target_process.run(parameters)
@@ -1552,6 +1575,7 @@ class ModifyRepInVismol:
             self.vm_session.set_color (symbol = 'C', 
                                        color = color, 
                                        selection = selection )
+
 
 class Restraints:
     """ Class doc """

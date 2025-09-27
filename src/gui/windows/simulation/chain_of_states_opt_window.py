@@ -1,26 +1,33 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+#  
+#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  Module: Selection utilities for pDynamo systems
 #
-#  easyhybrid_pDynamo_selection.py
-#  
-#  Copyright 2022 Fernando <fernando@winter>
-#  
+#  Copyright 2022-2025 Fernando Bachega
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation; either version 2 of the License, or
+#  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-#  
-#  
+#
+#  Maintainer:
+#      Fernando Bachega <ferbachega@gmail.com> or <easyhybrid3@gmail.com>
+#
+#  Description:
+#      Provides functions for selecting atoms and residues in pDynamo systems
+#      to facilitate QM/MM partitioning and molecular simulations.
+#
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -388,6 +395,140 @@ class ChainOfStatesOptWindow(Gtk.Window):
                 self.folder_chooser_button.set_folder(folder = folder)
             else:
                 pass
-   
+
+
+    def restore_the_parameters_to_the_window(self, parameters):
+        """Update the GUI widgets with values from the parameters dictionary."""
+
+        if not parameters:
+            return
+
+        # ----------------------------
+        # Number of structures
+        # ----------------------------
+        if 'number_of_structures' in parameters:
+            self.builder.get_object('entry_mun_of_structures').set_text(str(parameters['number_of_structures']))
+
+        # ----------------------------
+        # Log frequency
+        # ----------------------------
+        if 'logFrequency' in parameters:
+            self.builder.get_object('entry_log_frequency').set_text(str(parameters['logFrequency']))
+
+        # ----------------------------
+        # Maximum iterations
+        # ----------------------------
+        if 'maximumIterations' in parameters:
+            self.builder.get_object('entry_max_int').set_text(str(parameters['maximumIterations']))
+
+        # ----------------------------
+        # RMS gradient tolerance
+        # ----------------------------
+        if 'rmsGradientTolerance' in parameters:
+            self.builder.get_object('entry_rmsd_tol').set_text(str(parameters['rmsGradientTolerance']))
+
+        # ----------------------------
+        # Fixed terminal images
+        # ----------------------------
+        self.builder.get_object('check_fixed_terminal_images').set_active(
+            parameters.get('fixedTerminalImages', True)
+        )
+
+        # ----------------------------
+        # Force single image optimizations
+        # ----------------------------
+        self.builder.get_object('check_force_one_single_image_optimization').set_active(
+            parameters.get('forceOneSingleImageOptimization', False)
+        )
+        self.builder.get_object('check_force_single_image_optimizations').set_active(
+            parameters.get('forceSingleImageOptimizations', False)
+        )
+        self.builder.get_object('check_force_spline_redistribution_check_per_iteration').set_active(
+            parameters.get('forceSplineRedistributionCheckPerIteration', False)
+        )
+
+        # ----------------------------
+        # Freeze RMS gradient tolerance
+        # ----------------------------
+        if 'freezeRMSGradientTolerance' in parameters:
+            self.builder.get_object('entry_freeze_RMS_gradient_tolerance').set_text(
+                str(parameters['freezeRMSGradientTolerance'])
+            )
+
+        # ----------------------------
+        # Pool factory
+        # ----------------------------
+        if 'poolFactory' in parameters and parameters['poolFactory'] is not None:
+            self.builder.get_object('entry_poolfactory').set_text(str(parameters['poolFactory']))
+
+        # ----------------------------
+        # RMS gradient tolerance scale
+        # ----------------------------
+        if 'rmsGradientToleranceScale' in parameters:
+            self.builder.get_object('entry_optimizer_tolerance_scaling').set_text(
+                str(parameters['rmsGradientToleranceScale'])
+            )
+
+        # ----------------------------
+        # Spline redistribution tolerance
+        # ----------------------------
+        if 'splineRedistributionTolerance' in parameters:
+            self.builder.get_object('entry_spline_redistribution_tolerance').set_text(
+                str(parameters['splineRedistributionTolerance'])
+            )
+
+        # ----------------------------
+        # Spring force constant
+        # ----------------------------
+        if 'springForceConstant' in parameters:
+            self.builder.get_object('entry_spring_force_constant').set_text(
+                str(parameters['springForceConstant'])
+            )
+
+        # ----------------------------
+        # Use spline redistribution
+        # ----------------------------
+        self.builder.get_object('check_use_spline_redistribution').set_active(
+            parameters.get('useSplineRedistribution', False)
+        )
+
+        # ----------------------------
+        # Trajectory name
+        # ----------------------------
+        if 'trajectory_name' in parameters:
+            self.builder.get_object('traj_name').set_text(parameters['trajectory_name'])
+
+        # ----------------------------
+        # Folder chooser
+        # ----------------------------
+        if 'folder' in parameters and parameters['folder']:
+            self.folder_chooser_button.set_folder(parameters['folder'])
+
+        # ----------------------------
+        # Starting coordinates (reactant)
+        # ----------------------------
+        if 'reac_coordinates' in parameters and parameters['reac_coordinates'] is not None:
+            model = self.combobox_starting_coordinates.get_model()
+            for row in model:
+                name, vobj_id = row[:2]
+                vobj = self.main.vm_session.vm_objects_dic[vobj_id]
+                if self.main.p_session.psystem[self.main.p_session.active_id].coordinates3 == parameters['reac_coordinates']:
+                    self.combobox_starting_coordinates.set_active(vobj_id)
+                    break
+
+        # ----------------------------
+        # Starting coordinates 2 (product)
+        # ----------------------------
+        if 'prod_coordinates' in parameters and parameters['prod_coordinates'] is not None:
+            model = self.combobox_starting_coordinates2.get_model()
+            for row in model:
+                name, vobj_id = row[:2]
+                vobj = self.main.vm_session.vm_objects_dic[vobj_id]
+                if self.main.p_session.psystem[self.main.p_session.active_id].coordinates3 == parameters['prod_coordinates']:
+                    self.combobox_starting_coordinates2.set_active(vobj_id)
+                    break
+
+
+
 #=====================================================================================
    

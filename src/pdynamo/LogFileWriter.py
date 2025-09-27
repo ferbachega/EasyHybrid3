@@ -1,12 +1,33 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-#FILE = LofFile.py
-
-##############################################################
-#-----------------...EasyHybrid 3.0...-----------------------#
-#-----------Credits and other information here---------------#
-##############################################################
+#  
+#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  Module: Selection utilities for pDynamo systems
+#
+#  Copyright 2022-2025 Fernando Bachega
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
+#  Maintainer:
+#      Fernando Bachega <ferbachega@gmail.com> or <easyhybrid3@gmail.com>
+#
+#  Description:
+#      Provides functions for selecting atoms and residues in pDynamo systems
+#      to facilitate QM/MM partitioning and molecular simulations.
+#
 
 from pCore import *
 from datetime import datetime
@@ -200,9 +221,217 @@ class LogFileWriter:
     #    logObj = TextLogFileWriter.WithOptions(self.filePath)
     #    return(logObj)
   
-  
 #*******************************************************************************
 class LogFileReader:
+    """Class for reading and parsing EasyHybrid log files."""
+
+    def __init__(self, logfile):
+        """Initialize LogFileReader with the path to the logfile."""
+
+        self.type = None  # Type of log file (to be determined)
+
+        # Extract base name (file name only) and directory path of the logfile
+        self.basename = os.path.basename(logfile)
+        self.dirname  = os.path.dirname(logfile)
+
+        # Open file and read all lines
+        data = open(logfile, "r")
+        self.data = data.readlines()
+        # Suggestion: use a context manager (with open(...)) instead of manually closing
+
+        # Identify the log type from the file content
+        self.get_logtype()
+        # self.get_data()  # Not needed here, parsing can be done on demand
+
+        data.close()
+
+    #===================================================================
+    def get_data(self):
+        """Parse the log file depending on its type and return structured data."""
+
+        if self.type == 'EasyHybrid-SCAN2D':
+            '''
+            Example of EasyHybrid-SCAN2D log file block:
+            (Coordinates and scan parameters for 2D scans)
+             
+            ----------------------- Coordinate 1 - Simple-Distance -------------------------
+            ATOM1                  =           3887  ATOM NAME1             =             O1
+            ATOM2                  =           3890  ATOM NAME2             =              N
+            NUMBER OF STEPS        =             25  FORCE CONSTANT         =           4000
+            DMINIMUM               =        2.30677  MAX INTERACTIONS       =           6000
+            STEP SIZE              =     -0.0500000  RMS GRAD               =      0.1000000
+            --------------------------------------------------------------------------------
+
+            ----------------------- Coordinate 2 - Simple-Distance -------------------------
+            ATOM1                  =           3841  ATOM NAME1             =             Fe
+            ATOM2                  =           3887  ATOM NAME2             =             O1
+            NUMBER OF STEPS        =            250  FORCE CONSTANT         =           4000
+            DMINIMUM               =        1.53720  MAX INTERACTIONS       =           6000
+            STEP SIZE              =      0.0500000  RMS GRAD               =      0.1000000
+            --------------------------------------------------------------------------------
+            '''
+            rc1_atoms = []  # Atoms involved in reaction coordinate 1
+            rc2_atoms = []  # Atoms involved in reaction coordinate 2
+
+            datalines = []
+            _is_rc1 = True
+            for line in self.data:
+                if "DATA" in line:
+                    line2 = line.split()
+                    if line2[0] == 'DATA':
+                        datalines.append(line2[1:])
+
+                if 'Coordinate 2' in line:
+                    _is_rc1 = False
+
+                if 'ATOM' in line:
+                    line2 = line.split()
+                    # Suggestion: improve robustness (check len(line2) before indexing)
+                    if line2[1] == '=':
+                        if _is_rc1:
+                            rc1_atoms.append(line2[2])
+                        else:
+                            rc2_atoms.append(line2[2])
+
+            # Get grid dimensions from the last "DATA" line
+            lastline = datalines[-1]
+            x_size = int(lastline[0])
+            y_size = int(lastline[1])
+
+            rows = y_size + 1
+            cols = x_size + 1
+
+            # Initialize matrices for energy (Z) and reaction coordinates
+            Z   = [[0]*cols for _ in range(rows)]
+            RC1 = [[0]*cols for _ in range(rows)]
+            RC2 = [[0]*cols for _ in range(rows)]
+
+            # Fill matrices with parsed values
+            for line in datalines[0:]:
+                x = int(line[0])
+                y = int(line[1])
+                Z[y][x]   = float(line[-1])
+                RC1[y][x] = float(line[-3])
+                RC2[y][x] = float(line[-2])
+
+            data = {
+                'name': self.basename,
+                'type': "plot2D",
+                'RC1': RC1,
+                'RC2': RC2,
+                'Z': Z,
+                'RC1_indexes': rc1_atoms,
+                'RC2_indexes': rc2_atoms
+            }
+            return data
+
+        elif self.type == 'EasyHybrid-SCAN':
+            '''
+            Example of EasyHybrid-SCAN log file block:
+            (Coordinates and scan parameters for 1D scans)
+            ---------------------- Coordinate 1 - multiple-Distance ------------------------
+            ATOM1                  =           3841  ATOM NAME1             =             Fe
+            ATOM2*                 =           3887  ATOM NAME2             =             O1
+            ATOM3                  =           3890  ATOM NAME3             =              N
+            NUMBER OF STEPS        =             30  FORCE CONSTANT         =           4000
+            DMINIMUM               =        0.60039  MAX INTERACTIONS       =           6000
+            STEP SIZE              =      0.0500000  RMS GRAD               =      0.1000000
+            Sigma atom1 - atom3    =        0.79949  Sigma atom3 - atom1    =       -0.20051
+            --------------------------------------------------------------------------------
+            '''
+            datalines = []
+            rc_atoms  = []
+            n = 0
+            for line in self.data:
+                if "DATA" in line:
+                    line2 = line.split()
+                    if line2[0] == "DATA":
+                        datalines.append(line2[1:])
+                        n += 1
+
+                if 'ATOM' in line:
+                    line2 = line.split()
+                    if line2[1] == '=':
+                        rc_atoms.append(line2[2])
+
+            lastline = datalines[-1]
+            x_size   = n  # Number of data points in the scan
+
+            Z   = []
+            RC1 = []
+            RC2 = []  # Declared but unused, consider removing
+
+            for line in datalines:
+                Z.append(float(line[-1]))
+                RC1.append(float(line[1]))
+
+            data = {
+                'name': self.basename,
+                'type': "plot1D",
+                'RC1': RC1,
+                'Z': Z,
+                'RC1_indexes': rc_atoms
+            }
+            return data
+
+        elif self.type == 'Chain-Of-States':
+            '''
+            Chain-of-states optimization output parsing.
+            Extracts energy (Z) and reaction coordinate (RC1).
+            '''
+            Z   = []
+            RC1 = []
+
+            data2   = self.data
+            counter = 0
+            start   = 0
+
+            # Find where the "Path Summary" starts
+            for line in data2:
+                if "Path Summary" in line:
+                    start = counter
+                counter += 1
+
+            # Extract values after "Path Summary"
+            for line in data2[start:]:
+                line2 = line.split()
+                if len(line2) >= 9:
+                    try:
+                        Z.append(float(line2[1]))
+                        RC1.append(float(line2[-1]))
+                    except ValueError:
+                        print('Logfile parsing: line is not valid data')
+
+            data = {
+                'name': self.basename,
+                'type': "plot1D",
+                'RC1': RC1,
+                'Z': Z
+            }
+            return data
+
+        else:
+            # Suggestion: raise an exception instead of silently passing
+            return None
+
+    #==============================================================
+    def get_logtype(self):
+        """Determine the type of EasyHybrid log file based on its content."""
+
+        for line in self.data:
+            if "EasyHybrid-SCAN2D" in line.split():
+                self.type = 'EasyHybrid-SCAN2D'
+            elif "EasyHybrid-SCAN" in line.split():
+                self.type = 'EasyHybrid-SCAN'
+            elif 'Summary of Chain-Of-States Optimizer' in line:
+                self.type = 'Chain-Of-States'
+            # Suggestion: consider using `break` after finding the type for efficiency
+
+
+
+  
+#*******************************************************************************
+class LogFileReader_old:
     """ Class doc """
     
     def __init__ (self, logfile):
@@ -252,7 +481,8 @@ class LogFileReader:
             for line in self.data:
                 if "DATA" in line:
                     line2 = line.split()
-                    datalines.append(line2[1:])
+                    if line2[0] == 'DATA':
+                        datalines.append(line2[1:])
                 
                 if 'Coordinate 2' in line:
                     _is_rc1 = False
@@ -324,9 +554,12 @@ class LogFileReader:
             n = 0
             for line in self.data:
                 if "DATA" in line:
+                    #print(line)
+                    
                     line2 = line.split()
-                    datalines.append(line2[1:])
-                    n += 1
+                    if line2[0] == "DATA":
+                        datalines.append(line2[1:])
+                        n += 1
                 
                 if 'ATOM' in line:
                     line2 = line.split()
@@ -343,8 +576,12 @@ class LogFileReader:
             RC2     = []
             
             for line in datalines:
+                print(line)
+                #if line[0] == 'DATA':
                 Z.append(float(line[-1])) 
-                RC1.append(float(line[1])) 
+                RC1.append(float(line[1]))
+ 
+                    
             data = {
                    'name': self.basename,
                    'type': "plot1D",

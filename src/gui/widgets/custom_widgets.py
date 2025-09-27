@@ -1,3 +1,33 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#  
+#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  Module: Selection utilities for pDynamo systems
+#
+#  Copyright 2022-2025 Fernando Bachega
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
+#  Maintainer:
+#      Fernando Bachega <ferbachega@gmail.com> or <easyhybrid3@gmail.com>
+#
+#  Description:
+#      Provides functions for selecting atoms and residues in pDynamo systems
+#      to facilitate QM/MM partitioning and molecular simulations.
+#
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -326,8 +356,15 @@ class SaveTrajectoryBox:
         """ Function doc """
         return int(self.builder.get_object('entry_trajectory_frequency').get_text())
     
+    def set_trajectory_frequency (self, freq = 10):
+        """ Function doc """
+        self.builder.get_object('entry_trajectory_frequency').set_text(str(freq))
+    
     def get_format (self):
         return  self.formats_combo.get_active()
+    
+    def set_format (self, _format):
+        return  self.formats_combo.set_active(_format)
         
     def get_active (self):
         """ Function doc  """
@@ -1973,6 +2010,11 @@ class ReactionCoordinateBox(Gtk.Box):
             
     def refresh_dmininum (self, coord1 =  False, coord2 = False):
         """ Function doc """
+        if hasattr(self, 'vobject'):
+            pass
+        else:
+            return False
+        
         _type = self.combobox_reaction_coord1.get_active()
         if _type == 0:
             index1 = int(self.builder.get_object('entry_atom1_index_coord1').get_text() )
@@ -2275,7 +2317,66 @@ class ReactionCoordinateBox(Gtk.Box):
             parameters["dincre"]         = 0.00
         return (parameters)
         
+    def set_rc_data(self, parameters):
+        """ Preenche os widgets da interface com os dados de parâmetros """
         
+        rc_type = parameters.get("rc_type", "simple_distance")
+        
+        # Define o tipo de coordenação de reação no combobox
+        type_map = {
+            "simple_distance": 0,
+            "multiple_distance": 1,
+            "multiple_distance*4atoms": 2,
+            "dihedral": 3
+        }
+        self.combobox_reaction_coord1.set_active(type_map.get(rc_type, 0))
+        self.change_cb_coordType1 (self.combobox_reaction_coord1)
+        
+        atoms = parameters.get("ATOMS", [])
+        atom_names = parameters.get("ATOM_NAMES", [])
+        
+        # Preenche índices e nomes dos átomos
+        for i, atom_index in enumerate(atoms, start=1):
+            entry_index = self.builder.get_object(f'entry_atom{i}_index_coord1')
+            if entry_index:
+                entry_index.set_text(str(atom_index))
+        
+        for i, atom_name in enumerate(atom_names, start=1):
+            entry_name = self.builder.get_object(f'entry_atom{i}_name_coord1')
+            if entry_name:
+                entry_name.set_text(str(atom_name))
+        
+        # Preenche dminimum
+        dmin = parameters.get("dminimum", 0.0)
+        entry_dmin = self.builder.get_object('entry_dmin_coord1')
+        if entry_dmin:
+            entry_dmin.set_text(str(dmin))
+        
+        # Preenche sigma_pk1pk3 e sigma_pk3pk1
+        sigma_pk1pk3 = parameters.get("sigma_pk1pk3", 1.0)
+        sigma_pk3pk1 = parameters.get("sigma_pk3pk1", -1.0)
+        
+        # Se houver widget de mass restraints, ativa
+        mass_restraints = self.builder.get_object('mass_restraints1')
+        if mass_restraints:
+            mass_restraints.set_active(parameters.get("MC", False))
+        
+        # Preenche constantes de força, passos e incremento
+        entry_force = self.builder.get_object('entry_FORCE_coord1')
+        if entry_force:
+            entry_force.set_text(str(parameters.get("force_constant", 0.0)))
+        
+        entry_nsteps1 = self.builder.get_object('entry_nsteps1')
+        if entry_nsteps1:
+            entry_nsteps1.set_text(str(parameters.get("nsteps", 0)))
+        
+        entry_step_size1 = self.builder.get_object('entry_step_size1')
+        if entry_step_size1:
+            entry_step_size1.set_text(str(parameters.get("dincre", 0.0)))
+        
+        entry_nsteps2 = self.builder.get_object('entry_nsteps2')
+        if entry_nsteps2 and "nsteps_back" in parameters:
+            entry_nsteps2.set_text(str(parameters["nsteps_back"]))
 
 class SequenceViewerBox(Gtk.Box):
     """ Class doc """

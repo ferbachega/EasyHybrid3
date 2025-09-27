@@ -1,26 +1,33 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+#  
+#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  Module: Selection utilities for pDynamo systems
 #
-#  easyhybrid_pDynamo_selection.py
-#  
-#  Copyright 2022 Fernando <fernando@winter>
-#  
+#  Copyright 2022-2025 Fernando Bachega
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation; either version 2 of the License, or
+#  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-#  
-#  
+#
+#  Maintainer:
+#      Fernando Bachega <ferbachega@gmail.com> or <easyhybrid3@gmail.com>
+#
+#  Description:
+#      Provides functions for selecting atoms and residues in pDynamo systems
+#      to facilitate QM/MM partitioning and molecular simulations.
+#
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -57,6 +64,13 @@ class PotentialEnergyAnalysisWindow:
                                                GdkPixbuf.Pixbuf) # PixBuf
         
         self.data_liststore    = Gtk.ListStore(str, int)
+        
+        #.colors
+        self.xy_bg_color     = [0,0,0]
+        self.matrix_bg_color = [1,1,1]
+        
+        self.line_plot_color = [0,0,0] 
+        self.line_data_color = [0,0,0]
         
         # plotting attributes
         self.interpolate = True
@@ -157,7 +171,11 @@ class PotentialEnergyAnalysisWindow:
 
 
             '''-------------------------------------------------------------'''
-            self.plot2 = XYPlot()
+            self.plot2 = XYPlot(bg_color  = [1,1,1], 
+                                pl_color  = [0,0,0], 
+                                sel_color = [1,0,0], 
+                                bl_color  = [0.7,0.7,0.7],
+                                )
 
             self.plot2.x_minor_ticks = 1
             self.plot2.x_major_ticks = 5
@@ -342,7 +360,13 @@ class PotentialEnergyAnalysisWindow:
                 self.data['Z'][index] = value-_min
             
             
-            self.plot2.add( X = range(0, len(self.data['Z'])), Y = self.data['Z'], symbol = 'dot', sym_fill = False, sym_color = [0,1,1], line = 'solid', line_color = [0,0,0] )
+            self.plot2.add( X = range(0, len(self.data['Z'])), 
+                            Y = self.data['Z'], 
+                            symbol = 'dot', 
+                            sym_fill = False, 
+                            #sym_color = [1,1,1], 
+                            line = 'solid', 
+                            line_color = self.line_data_color )
             self.plot.hide()
             self.scale_traj_new_definitions(set_range = len(self.data['Z']))
         

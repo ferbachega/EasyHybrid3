@@ -1,26 +1,33 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+#  
+#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  Module: Selection utilities for pDynamo systems
 #
-#  main.py
-#  
-#  Copyright 2023 Fernando <fernando@fernando-Victus-by-HP-Gaming-Laptop-15-fb1xxx>
-#  
+#  Copyright 2022-2025 Fernando Bachega
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation; either version 2 of the License, or
+#  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-#  
-#  
+#
+#  Maintainer:
+#      Fernando Bachega <ferbachega@gmail.com> or <easyhybrid3@gmail.com>
+#
+#  Description:
+#      Provides functions for selecting atoms and residues in pDynamo systems
+#      to facilitate QM/MM partitioning and molecular simulations.
+#
 import os, sys, time
 import gi 
 import signal
@@ -1589,6 +1596,8 @@ class MainWindow:
 
     def refresh_widgets (self, statusbar = True):
         """ Function doc """
+        #if self.main_treeview:
+        #    self.main_treeview.refresh_trajectory_scalebar()
         if statusbar:
             self.refresh_main_statusbar()
 
@@ -2150,6 +2159,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         self.expand_row(row.path, True)
 
         # Refresh UI components linked to trajectories
+        print('Refresh UI components linked to trajectories')
         self.refresh_trajectory_scalebar()
 
         # Update sequence viewer with new vismol object
@@ -2340,11 +2350,13 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         """Update the trajectory scalebar range based on the largest active trajectory."""
         higher = 1
         for index, vobject in self.main.vm_session.vm_objects_dic.items():
-            if getattr(vobject, 'e_treeview_iter', False) and vobject.active:
+            #print(index, vobject.name, len(vobject.frames))
+            
+            if vobject.active:
                 size = len(vobject.frames)
                 if size > higher:
                     higher = size
-
+        #print('higher', higher)
         # Update the trajectory player window with the new range
         self.main.trajectory_player_window.change_range(upper=higher)
         self.main.trajectory_player_window.upper = higher
