@@ -2082,7 +2082,6 @@ class ReactionCoordinateBox(Gtk.Box):
         else:
             pass    
               
-
     def import_picking_selection_data (self, widget):
         """  
                    R                    R
@@ -2140,8 +2139,7 @@ class ReactionCoordinateBox(Gtk.Box):
         else: print('use picking selection to chose the central atom')
             
         self.refresh_dmininum( coord1 =  True)
-            
-        
+                
     def change_cb_coordType1 (self, combo_box):
         """ Function doc """
         
@@ -2213,12 +2211,10 @@ class ReactionCoordinateBox(Gtk.Box):
             except:
                 print(texto_d1)
                 print(texto_d2d1)
-
     
     def set_rc_type (self, rc_type = 0):
         """ Chenges the type -  simple distance is default """
         self.combobox_reaction_coord1.set_active(rc_type)
-
 
     def set_hide_scan_parameters (self):
         """ Function doc """
@@ -2264,6 +2260,9 @@ class ReactionCoordinateBox(Gtk.Box):
             
             if self.builder.get_object('mass_restraints1').get_active():
                 parameters["MC"] = True
+                #if self.sigma_pk1_pk3 and self.sigma_pk3_pk1:
+                #    self.sigma_pk1_pk3, self.sigma_pk3_pk1  = compute_sigma_a1_a3(self.vobject, index1, index3)
+                
                 parameters["sigma_pk1pk3"] = self.sigma_pk1_pk3 
                 parameters["sigma_pk3pk1"] = self.sigma_pk3_pk1 
             else:
@@ -2353,8 +2352,8 @@ class ReactionCoordinateBox(Gtk.Box):
             entry_dmin.set_text(str(dmin))
         
         # Preenche sigma_pk1pk3 e sigma_pk3pk1
-        sigma_pk1pk3 = parameters.get("sigma_pk1pk3", 1.0)
-        sigma_pk3pk1 = parameters.get("sigma_pk3pk1", -1.0)
+        self.sigma_pk1_pk3 = parameters.get("sigma_pk1pk3", 1.0)
+        self.sigma_pk3_pk1 = parameters.get("sigma_pk3pk1", -1.0)
         
         # Se houver widget de mass restraints, ativa
         mass_restraints = self.builder.get_object('mass_restraints1')

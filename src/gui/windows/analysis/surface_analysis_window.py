@@ -632,12 +632,12 @@ class SurfaceAnalysisWindow(Gtk.Window):
             vobject_tmp.parameters = parameters
             
             vobject_tmp.frames = vismol_object.frames
-            vobject_tmp.active = True
+            vobject_tmp.active = False
             vobject_tmp.is_surface = True
             vobject_tmp.e_id = system.e_id
             self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
             
-            
+            print('\n\nvismol_object.e_treeview_iter', vismol_object.e_treeview_iter,'\n\n')
             self.main.main_treeview.add_vismol_object_to_treeview(vobject_tmp,vismol_object.e_treeview_iter )
             # Add the VisMol object to the vobject liststore dictionary
             self.main.add_vobject_to_vobject_liststore_dict(vobject_tmp)
@@ -717,7 +717,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             vobject_tmp.parameters = parameters
             
             vobject_tmp.frames = vismol_object.frames
-            vobject_tmp.active = True
+            vobject_tmp.active = False
             vobject_tmp.is_surface = True
             vobject_tmp.e_id = system.e_id
             self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
@@ -827,7 +827,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             vobject_tmp.parameters = parameters
             
             vobject_tmp.frames = vismol_object.frames
-            vobject_tmp.active = True
+            vobject_tmp.active = False
             vobject_tmp.is_surface = True
             vobject_tmp.e_id = system.e_id
             self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
@@ -841,47 +841,14 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.vm_session.vm_glcore.queue_draw()
             self.counter +=1
 
-    #def on_system_names_combobox_changed (self, widget):
-    #    """ Function doc """
-    #    system_id = self.system_names_combo.get_system_id()
-    #    system  = self.main.p_session.get_system(system_id)
-    #    
-    #    if system_id is not None:
-    #        self.coordinates_combobox.set_model(self.main.vobject_liststore_dict[system_id])
-    #        #self.refresh_selection_liststore (system_id)            
-    #        size  =  len(list(self.main.vobject_liststore_dict[system_id]))
-    #        self.coordinates_combobox.set_active(size-1)
-    
-    
-    #def refresh_coordinates_liststore(self, system_id = None):
-    #    """ Function doc """
-    #    cb_id = self.coordinates_combobox.get_active()
-    #    
-    #    if system_id:
-    #        pass
-    #    else:
-    #        _id = self.system_names_combo.get_active()
-    #        if _id == -1:
-    #            return False
-    #        else:
-    #            #print('_id', _id)
-    #            _, system_id = self.main.system_liststore[_id]
-    #    
-    #    self.coordinates_liststore.clear()
-    #    for key , vobject in self.vm_session.vm_objects_dic.items():
-    #        if vobject.is_surface:
-    #            print(vobject.is_surface)
-    #            pass
-    #        else:
-    #            if vobject.e_id == system_id:
-    #                self.coordinates_liststore.append([vobject.name, key])
-    #    
-    #    self.coordinates_combobox.set_active(len(self.coordinates_liststore)-1)
-
-
-
-
-
+        else:
+            pass
+        
+        
+        if vobject_tmp:
+            vobject_tmp.active = True
+            self.main.main_treeview.treestore.set_value(vobject_tmp.e_treeview_iter, 6, True)
+            #self.main.main_treeview.refresh()
 
 
 
