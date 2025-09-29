@@ -263,7 +263,7 @@ class PotentialEnergyScanWindow:
         if model:
             self.combobox_starting_coordinates.set_active(len(model) - 1)
 
-    def update(self, parameters: dict | None = None) -> None:
+    def update(self, parameters = None) -> None:
         """Refresh window contents when system state changes."""
         
         if self.Visible:
@@ -273,7 +273,7 @@ class PotentialEnergyScanWindow:
                 output_name = self.p_session.get_output_filename_from_system(self.sym_tag)
                 self.builder.get_object("traj_name").set_text(output_name)
 
-    def update_working_folder_chooser(self, folder: str | None = None) -> None:
+    def update_working_folder_chooser(self, folder = None) -> None:
         """Update folder chooser button to current working folder."""
         if folder:
             self.folder_chooser_button.set_folder(folder=folder)
@@ -288,7 +288,7 @@ class PotentialEnergyScanWindow:
         parameters.pop("vobject_name", None)
         ExportScriptDialog(self.main, parameters=parameters)
 
-    def restore_the_parameters_to_the_window(self, parameters: dict | None = None) -> None:
+    def restore_the_parameters_to_the_window(self, parameters = None) -> None:
         """
         Reapply previously used scan parameters back into the GUI.
         If parameters are not provided, use the last stored ones.
