@@ -344,14 +344,20 @@ class ProcessManagerWindow(Gtk.Window):
         parameters = system.e_job_history[step_counter]['backup_parameters']
         parameters['e_id'] = system.e_id
         
-        
-        key6 = parameters['obj1_key6']
-        parameters['cb1_active'] = self.get_combobox_active_id(e_id, key6)
+        #---------------------------------------------------------------------
+        if 'obj1_key6'in parameters.keys():
+            key6 = parameters['obj1_key6']
+            parameters['cb1_active'] = self.get_combobox_active_id(e_id, key6)
+        else:
+            parameters['cb1_active'] = -1
         
         if 'obj2_key6' in parameters.keys():
             key6 = parameters['obj2_key6']
             parameters['cb2_active'] = self.get_combobox_active_id(e_id, key6)
-
+        else:
+            parameters['cb2_active'] = -1
+        #---------------------------------------------------------------------
+            
         if parameters['simulation_type'] == 'Geometry_Optimization':
             if self.main.geometry_optimization_window.Visible:
                 self.main.geometry_optimization_window.close_window(None, None)
