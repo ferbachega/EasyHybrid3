@@ -165,16 +165,18 @@ class PotentialEnergyScanWindow:
         self.RC_box1.set_rc_mode(rc_mode=mode)
         self.RC_box2.set_rc_mode(rc_mode=mode)
 
-    def change_check_button_reaction_coordinate(self, widget: Gtk.CheckButton | None) -> None:
+    def change_check_button_reaction_coordinate(self, widget):
         """Enable/disable second reaction coordinate."""
         active = self.builder.get_object("label_check_button_reaction_coordinate2").get_active()
         self.RC_box2.set_sensitive(active)
         self.builder.get_object("n_CPUs_spinbutton").set_sensitive(active)
         self.builder.get_object("n_CPUs_label").set_sensitive(active)
 
-    def run_dialog(self, text: str | None = None, secondary_text: str | None = None) -> None:
+    def run_dialog(self, text = None, secondary_text = None):
         """Show error dialog."""
-        text = text or "Folder not found"
+        if text is None:
+             text="Folder not found"
+
         secondary_text = secondary_text or (
             "The folder you have selected does not appear to be valid. "
             "Please select a different folder or create a new one."
