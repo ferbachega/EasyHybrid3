@@ -846,9 +846,9 @@ class SurfaceAnalysisWindow(Gtk.Window):
         
         
         if vobject_tmp:
+            #setting vobject as active in main treeview.
             vobject_tmp.active = True
             self.main.main_treeview.treestore.set_value(vobject_tmp.e_treeview_iter, 6, True)
-            #self.main.main_treeview.refresh()
 
 
 
