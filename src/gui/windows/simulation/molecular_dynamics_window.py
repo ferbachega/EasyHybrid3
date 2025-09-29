@@ -284,7 +284,9 @@ class MolecularDynamicsWindow:
             )
         else:
             parameters["trajectory_name"] = None
-
+        
+        parameters['obj1_key6'] = vobject.key6
+        
         # Save last run parameters for rerun
         self.last_parameters = parameters.copy()
 
@@ -357,8 +359,9 @@ class MolecularDynamicsWindow:
 
     def update(self, parameters: dict | None = None) -> None:
         """Refresh window contents when system state changes."""
-        self._starting_coordinates_model_update()
+        
         if self.Visible:
+            self._starting_coordinates_model_update()
             self.update_working_folder_chooser()
             if self.p_session.psystem[self.p_session.active_id]:
                 output_name = self.p_session.get_output_filename_from_system(self.sym_tag)
@@ -377,7 +380,12 @@ class MolecularDynamicsWindow:
         if not parameters:
             print("No previous parameters available to rerun.")
             return
-
+        
+        
+        ##--------------------------------------------------------------
+        self.combobox_starting_coordinates.set_active(parameters['cb1_active'])
+        #--------------------------------------------------------------
+        
         # Refill widgets with stored values
         integrator_map = {"Verlet": 0, "LeapFrog": 1, "Langevin": 2}
         temp_scale_map = {"constant": 0, "linear": 1, "exponential": 2}
@@ -764,6 +772,7 @@ class MolecularDynamicsWindow_OLD():
                     
                     #LangevinDynamics
                     'collisionFrequency'        : collision_frequency,
+                    
                     }
         
         
@@ -781,6 +790,7 @@ class MolecularDynamicsWindow_OLD():
         
         # restraints
         parameters['restraints'] = None
+        
         
         #pprint(parameters)
         self.p_session.run_simulation(parameters)
@@ -891,8 +901,9 @@ class MolecularDynamicsWindow_OLD():
 
     def update (self, parameters = None):
         """ Function doc """
-        self._starting_coordinates_model_update()
+        
         if self.Visible:
+            self._starting_coordinates_model_update()
             self.update_working_folder_chooser()
         
         

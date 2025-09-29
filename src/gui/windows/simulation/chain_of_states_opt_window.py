@@ -271,6 +271,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
             self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
             parameters["reac_coordinates"] = copy.deepcopy(self.main.p_session.psystem[self.main.p_session.active_id].coordinates3)
             #print (list(parameters["reac_coordinates"]))
+            parameters['obj1_key6'] = vobject.key6
         '''---------------------------------------------------------------------------------'''
         
         
@@ -286,6 +287,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
             '''This function imports the coordinates of a vobject into the dynamo system in memory.''' 
             self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
             parameters["prod_coordinates"] = copy.deepcopy(self.main.p_session.psystem[self.main.p_session.active_id].coordinates3)
+            parameters['obj2_key6'] = vobject.key6
             #print (list(parameters["prod_coordinates"]))
         '''---------------------------------------------------------------------------------'''
         return parameters
@@ -402,7 +404,14 @@ class ChainOfStatesOptWindow(Gtk.Window):
 
         if not parameters:
             return
-
+        
+        #--------------------------------------------------------------
+        self.combobox_starting_coordinates.set_active(parameters['cb1_active'])
+        #--------------------------------------------------------------    
+        #--------------------------------------------------------------
+        self.combobox_starting_coordinates2.set_active(parameters['cb2_active'])
+        #--------------------------------------------------------------    
+        
         # ----------------------------
         # Number of structures
         # ----------------------------

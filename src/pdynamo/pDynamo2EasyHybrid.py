@@ -177,6 +177,7 @@ class LoadAndSaveData:
                         vobj_data['color_palette'] = vobject.color_palette
                         vobj_data['name']          = vobject.name
                         vobj_data['active']        = vobject.active
+                        vobj_data['key6']          = vobject.key6
                         
                         
                         if key in system.e_logfile_data.keys():
@@ -295,6 +296,8 @@ class LoadAndSaveData:
                     frames = vobj['frames']
                     name   = vobj['name']
                     
+                    #if 'key6' in vobj.keys():
+                    
                     
                     if 'is_surface' in vobj.keys():
                         pass
@@ -308,6 +311,11 @@ class LoadAndSaveData:
                         vm_object = self._build_vobject_from_pdynamo_system ( system = system, name = name ) 
                         vm_object.frames = frames
                         vm_object.active = vobj['active']
+                        
+                        if 'key6' in vobj.keys():
+                            vm_object.key6 = vobj['key6']
+                         
+                        
                         self.vm_session._add_vismol_object(vm_object, show_molecule = True)
                         
                         self.main.main_treeview.add_vismol_object_to_treeview(vm_object)
@@ -1099,7 +1107,7 @@ class pSimulations:
                 'started'          : None,
                 'ended'            : None,
                 'status'           : 'Queued',
-                'potential'        :'UNK'
+                'potential'        :'UNK',
             }
         
         

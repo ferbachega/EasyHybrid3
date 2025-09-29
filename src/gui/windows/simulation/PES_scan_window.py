@@ -230,6 +230,8 @@ class PotentialEnergyScanWindow:
 
         vobject_id = self.combobox_starting_coordinates.get_vobject_id()
         vobject = self.main.vm_session.vm_objects_dic[vobject_id]
+        parameters['obj1_key6'] = vobject.key6
+        
         self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
         parameters["initial_coordinates"] = vobject.name
 
@@ -261,8 +263,9 @@ class PotentialEnergyScanWindow:
 
     def update(self, parameters: dict | None = None) -> None:
         """Refresh window contents when system state changes."""
-        self._starting_coordinates_model_update()
+        
         if self.Visible:
+            self._starting_coordinates_model_update()
             self.update_working_folder_chooser()
             if self.p_session.psystem[self.p_session.active_id]:
                 output_name = self.p_session.get_output_filename_from_system(self.sym_tag)
@@ -295,7 +298,11 @@ class PotentialEnergyScanWindow:
         if not parameters:
             print("No previous PES scan parameters available to rerun.")
             return
-
+        
+        #--------------------------------------------------------------
+        self.combobox_starting_coordinates.set_active(parameters['cb1_active'])
+        #--------------------------------------------------------------        
+        
         # Optimizer
         opt_map = {v: k for k, v in self.opt_methods.items()}
         self.methods_combo.set_active(opt_map.get(parameters["optimizer"], 0))

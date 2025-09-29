@@ -373,9 +373,9 @@ class SaveTrajectoryBox:
         else:
             return False
     
-    def set_active (self):
+    def set_active (self, active = True):
         """ Function doc  """
-        self.builder.get_object('checkbox_save_traj').set_active(True) 
+        self.builder.get_object('checkbox_save_traj').set_active(active) 
 
     #====================================================================================
     def get_folder (self):

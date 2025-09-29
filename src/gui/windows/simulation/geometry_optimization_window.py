@@ -181,7 +181,9 @@ class GeometryOptimization(Gtk.Window):
 
             # Import coordinates of the vismol object into the pDynamo system
             self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
-
+        
+        simParameters['obj1_key6'] = vobject.key6
+        
         # ---------------------------------------------------------------
         # Update parameters from GUI entries
         simParameters["optimizer"]           = self.opt_methods[
@@ -288,8 +290,9 @@ class GeometryOptimization(Gtk.Window):
 
     def update (self, parameters = None):
         """ Function doc """
-        self._starting_coordinates_model_update()
+        
         if self.Visible:
+            self._starting_coordinates_model_update()
             self.update_working_folder_chooser()
             
 
@@ -324,6 +327,10 @@ class GeometryOptimization(Gtk.Window):
         # ---------------------------------------------------------------
         # Select optimization method
         e_id = parameters['system']
+
+        #--------------------------------------------------------------
+        self.combobox_starting_coordinates.set_active(parameters['cb1_active'])
+        #--------------------------------------------------------------    
 
         # Invert the opt_methods dictionary to get tag -> key
         self.opt_tags = {value: key for key, value in self.opt_methods.items()}

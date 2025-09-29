@@ -435,8 +435,9 @@ class UmbrellaSamplingWindow(Gtk.Window):
     
     def update (self, parameters = None):
         """ Function doc """
-        self._starting_coordinates_model_update()
+        
         if self.Visible:
+            self._starting_coordinates_model_update()
             self.update_working_folder_chooser()
         
             if  self.p_session.psystem[self.p_session.active_id]:
@@ -684,7 +685,11 @@ class UmbrellaSamplingWindow(Gtk.Window):
         pprint(parameters)
         if not parameters:
             return
-
+        
+        #--------------------------------------------------------------
+        self.combobox_starting_coordinates.set_active(parameters['cb1_active'])
+        #--------------------------------------------------------------    
+        
         # ----------------------------
         # Input type
         # ----------------------------

@@ -1254,7 +1254,7 @@ class EasyHybridSession(VismolSession, GLMenu):
         self.vobject_names  = {}
         self.vm_glcore.queue_draw()  
         
-    def gen_random_tag_string(self, length=3):
+    def gen_random_tag_string(self, length=4):
         chars = string.ascii_letters + string.digits  # letras (A-Z, a-z) + dígitos (0-9)
         return ''.join(random.choice(chars) for _ in range(length))
     #-------------------------------------------------------------------
@@ -1328,7 +1328,23 @@ class EasyHybridSession(VismolSession, GLMenu):
                 f"The VismolObject with id {vismol_object.index} already exists. "
                 "The data will be overwritten."
             )
-
+        
+        
+        # Defining the id_code
+        '''
+        We need a unique key for each vobject that ensures the 
+        object can still be accessed even after the session is saved 
+        and reloaded. The "index" is not sufficient, since it is 
+        rewritten when a new session is loaded. In other words, both 
+        "index" and "e_id" are regenerated every time a session is
+        loaded, and thus may change. The "key6" is a key that must 
+        remain unchanged for a given Vobject.'''
+        
+        if getattr(vismol_object, 'key6', False):
+            pass
+        else:
+            vismol_object.key6 = self.gen_random_tag_string(length=6)
+        
         # Assign new index and register object
         self.vm_objects_dic[self.vm_object_counter] = vismol_object
         vismol_object.index = self.vm_object_counter
@@ -1378,7 +1394,7 @@ class EasyHybridSession(VismolSession, GLMenu):
                 self.vm_glcore.center_on_coordinates(vismol_object, vismol_object.mass_center)
             else:
                 self.vm_glcore.queue_draw()
-
+        print(vismol_object.name,vismol_object.e_id, vismol_object.key6 )
         return vismol_object
         
     def build_index_list_from_atom_selection(self, return_vobject=False):

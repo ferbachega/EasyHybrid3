@@ -1329,7 +1329,12 @@ class MainWindow:
     def uptade_interface_windows_and_dialogs (self, parameters = None):
         """ Function doc """
         for window in self.window_list:
+            #try:
             window.update()
+            #except:
+            #    pass    
+            #if window.Visible:
+            #    window.update()
         
     def change_reference_color (self, system, new_color):
         """ Function doc """

@@ -344,6 +344,14 @@ class ProcessManagerWindow(Gtk.Window):
         parameters = system.e_job_history[step_counter]['backup_parameters']
         parameters['e_id'] = system.e_id
         
+        
+        key6 = parameters['obj1_key6']
+        parameters['cb1_active'] = self.get_combobox_active_id(e_id, key6)
+        
+        if 'obj2_key6' in parameters.keys():
+            key6 = parameters['obj2_key6']
+            parameters['cb2_active'] = self.get_combobox_active_id(e_id, key6)
+
         if parameters['simulation_type'] == 'Geometry_Optimization':
             if self.main.geometry_optimization_window.Visible:
                 self.main.geometry_optimization_window.close_window(None, None)
@@ -355,22 +363,18 @@ class ProcessManagerWindow(Gtk.Window):
                 self.main.molecular_dynamics_window.close_window(None, None)
             self.main.molecular_dynamics_window.open_window()
             self.main.molecular_dynamics_window.restore_the_parameters_to_the_window (parameters)
-            
-        
+
         if parameters['simulation_type'] == 'Relaxed_Surface_Scan':
             if self.main.PES_scan_window.Visible:
                 self.main.PES_scan_window.close_window(None, None)
             self.main.PES_scan_window.open_window()
             self.main.PES_scan_window.restore_the_parameters_to_the_window (parameters)
             
-        
         if parameters['simulation_type'] == 'Umbrella_Sampling':
             if self.main.umbrella_sampling_window.Visible:
                 self.main.umbrella_sampling_window.close_window(None, None)
             self.main.umbrella_sampling_window.open_window()
             self.main.umbrella_sampling_window.restore_the_parameters_to_the_window (parameters)
-            
-        
         
         if parameters['simulation_type'] == 'Nudged_Elastic_Band':
             if self.main.chain_of_states_opt_window.Visible:
@@ -393,19 +397,23 @@ class ProcessManagerWindow(Gtk.Window):
         model, treeiter = self.treeview.get_selection().get_selected()
         if treeiter:
             e_id = model[treeiter][7]
-            process = self.main.p_session.process_pool[e_id][1]
             
-            # ... abort at some later point:
-            process.terminate()    # requests immediate termination
-            process.join(timeout=5)  # “awaits cleanup for up to 5 seconds”
-            model[treeiter][5] = "Aborted"
-            
-            system       = self.p_session.psystem[e_id]
-            step_counter = system.e_step_counter
-            system.e_job_history[step_counter]['status'] = "Aborted"
-            
-            self.p_session.psystem[e_id].e_step_counter += 1
-            self.set_time ( treeiter= treeiter,  end = True)
+            if model[treeiter][5] != 'Running...':
+                pass
+            else:
+                process = self.main.p_session.process_pool[e_id][1]
+                
+                # ... abort at some later point:
+                process.terminate()    # requests immediate termination
+                process.join(timeout=5)  # “awaits cleanup for up to 5 seconds”
+                model[treeiter][5] = "Aborted"
+                
+                system       = self.p_session.psystem[e_id]
+                step_counter = system.e_step_counter
+                system.e_job_history[step_counter]['status'] = "Aborted"
+                
+                self.p_session.psystem[e_id].e_step_counter += 1
+                self.set_time ( treeiter= treeiter,  end = True)
      
      
     def on_clear_list(self, widget):
@@ -522,3 +530,151 @@ class ProcessManagerWindow(Gtk.Window):
                              status    = status,
                              step      = job_num)
  
+
+    def get_combobox_active_id (self, e_id = None, key6 = None):
+        """ Function doc """
+        cb_active = -1
+        #--------------------------------------------------------------
+        liststore = self.main.vobject_liststore_dict[e_id]
+        index = None
+        # base on key6 num, find the index
+        for vobject in self.main.vm_session.vobject_names.values():
+            if vobject.key6 == key6:
+                index = vobject.index
+        #based on the index number, find the combobox line 
+        cb_active = -1
+        for row_num, row in enumerate(liststore):
+            nome          = row[0]   # coluna 0
+            vobject_index = row[1]   # coluna 1
+            if vobject_index == index:
+                cb_active = row_num
+                return cb_active
+        return -1
+        #--------------------------------------------------------------
+
+
+class ProcessManagerWindow_filtro(Gtk.Window):
+    def __init__(self, main=None):
+        self.main      = main
+        self.p_session = main.p_session
+        self.home      = main.home
+        self.Visible   = False
+        self.current_filter_text = ""  # texto digitado no filtro
+
+    def open_window(self):
+        if not self.Visible:
+            self.window = Gtk.Window(title="Process Manager")
+            self.window.set_default_size(600, 350)
+            self.window.set_border_width(10)
+            self.window.set_keep_above(True)
+
+            # Layout vertical
+            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+            self.window.add(vbox)
+
+            # Campo de filtro
+            self.filter_entry = Gtk.Entry()
+            self.filter_entry.set_placeholder_text("Filtrar por nome do sistema...")
+            self.filter_entry.connect("changed", self.on_filter_entry_changed)
+            vbox.pack_start(self.filter_entry, False, False, 0)
+
+            # Criar modelo filtrado
+            self.filtered_model = self.main.job_history_liststore.filter_new()
+            self.filtered_model.set_visible_func(self.visible_func)
+
+            # Criar TreeView usando modelo filtrado
+            self.build_treeview()
+
+            scrolled = Gtk.ScrolledWindow()
+            scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+            scrolled.add(self.treeview)
+            vbox.pack_start(scrolled, True, True, 0)
+
+            # Popup menu
+            self.build_popupmenu()
+
+            # Conectar sinais
+            self.window.connect("destroy", self.close_window)
+            self.treeview.connect("row-activated", self.on_row_activated)
+
+            self.window.show_all()
+            self.Visible = True
+        else:
+            self.window.present()
+
+    def on_filter_entry_changed(self, entry):
+        """Atualiza o filtro quando o usuário digita no Entry."""
+        self.current_filter_text = entry.get_text().lower()
+        self.filtered_model.refilter()
+
+    def visible_func(self, model, iter, data=None):
+        """Função de filtro por nome de sistema (coluna 0)."""
+        system_name = model[iter][0].lower()
+        if self.current_filter_text in system_name:
+            return True
+        return False
+
+    def close_window(self, button, data=None):
+        self.window.destroy()
+        self.Visible = False
+
+    def build_popupmenu(self):
+        self.popup_menu = Gtk.Menu()
+        
+        menu_item1 = Gtk.MenuItem(label="Rerun")
+        menu_item1.connect("activate", self.rerun_job)
+        self.popup_menu.append(menu_item1)
+
+        menu_item2 = Gtk.MenuItem(label="Abort")
+        menu_item2.connect("activate", self.on_stop_activate)
+        self.popup_menu.append(menu_item2)
+
+        menu_item3 = Gtk.MenuItem(label="Remove")
+        menu_item3.connect("activate", self.on_remove_activate)
+        self.popup_menu.append(menu_item3)
+
+        menu_item4 = Gtk.MenuItem(label="Clear List")
+        menu_item4.connect("activate", self.on_clear_list)
+        self.popup_menu.append(menu_item4)
+
+        self.popup_menu.show_all()
+
+    def build_treeview(self):
+        self.treeview = Gtk.TreeView(model=self.filtered_model)
+
+        # Coluna ID
+        renderer_int = Gtk.CellRendererText()
+        column_int = Gtk.TreeViewColumn("id", renderer_int, text=7)
+        column_int.set_sort_column_id(0)
+        self.treeview.append_column(column_int)
+
+        # Coluna System Name (pixbuf + texto)
+        renderer_pixbuf = Gtk.CellRendererPixbuf()
+        renderer_text   = Gtk.CellRendererText()
+        column_text     = Gtk.TreeViewColumn("System Name")
+        column_text.pack_start(renderer_pixbuf, False)
+        column_text.add_attribute(renderer_pixbuf, "pixbuf", 6)
+        column_text.pack_start(renderer_text, True)
+        column_text.add_attribute(renderer_text, "text", 0)
+        column_text.set_sort_column_id(0)
+        self.treeview.append_column(column_text)
+
+        # Outras colunas
+        columns = {"Job Type"  : 1,
+                   'job'       : 8,
+                   "Potential" : 2,
+                   "Status"    : 5,
+                   "Started"   : 3,
+                   "Ended"     : 4}
+        for title, i in columns.items():
+            renderer = Gtk.CellRendererText()
+            column = Gtk.TreeViewColumn(title, renderer, text=i)
+            column.set_sort_column_id(i)
+            self.treeview.append_column(column)
+
+        # Habilitar popup no clique direito
+        self.treeview.connect("button-press-event", self.on_button_press_event)
+
+
+
+

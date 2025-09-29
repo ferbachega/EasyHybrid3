@@ -146,9 +146,9 @@ class SinglePointWindow:
             self.main.p_session.set_psystem_coordinates_from_vobject(vobject = vobject, frame = frame)
         
         
-        parameters["folder"]          = self.folder_chooser_button.get_folder()
-        parameters["filename"] = self.builder.get_object('entry_logfile_name').get_text()
-
+        parameters["folder"]    = self.folder_chooser_button.get_folder()
+        parameters["filename"]  = self.builder.get_object('entry_logfile_name').get_text()
+        parameters['obj1_key6'] = vobject.key6
         
         
         #------------------------------------------------------------------#
@@ -269,8 +269,9 @@ class SinglePointWindow:
 
     def update (self, parameters = None):
         """ Function doc """
-        self._starting_coordinates_model_update()
+        
         if self.Visible:
+            self._starting_coordinates_model_update()
             self.update_working_folder_chooser()
             
             if  self.p_session.psystem[self.p_session.active_id]:
