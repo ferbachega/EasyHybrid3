@@ -254,7 +254,6 @@ class PotentialEnergyScanWindow:
 
         return parameters
 
-
     def _starting_coordinates_model_update(self, init: bool = False) -> None:
         """Update coordinates combobox model."""
         e_id = self.main.p_session.active_id

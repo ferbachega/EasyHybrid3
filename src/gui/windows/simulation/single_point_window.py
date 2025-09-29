@@ -240,9 +240,6 @@ class SinglePointWindow:
         dialog.run()
         dialog.destroy()
         #--------------------------------------------------------------------
-    
-    
-    
     def _starting_coordinates_model_update (self, init = False):
         """ Function doc """
         #------------------------------------------------------------------------------------

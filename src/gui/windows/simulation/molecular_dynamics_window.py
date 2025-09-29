@@ -297,7 +297,7 @@ class MolecularDynamicsWindow:
         self.window.destroy()
         self.Visible = False
 
-    def combobox_change(self, widget: Gtk.ComboBox | None = None) -> None:
+    def combobox_change(self, widget = None) -> None:
         """Handle changes in integrator or temperature scaling comboboxes."""
         if widget == self.builder.get_object("comobobox_md_integrator"):
             active = widget.get_active()
@@ -339,7 +339,7 @@ class MolecularDynamicsWindow:
             self.builder.get_object("entry_temp_end").set_sensitive(sensitive)
             self.builder.get_object("label_temp_end").set_sensitive(sensitive)
 
-    def _toggle_widgets(self, show: list[str] | None = None, hide: list[str] | None = None) -> None:
+    def _toggle_widgets(self, show = None, hide = None) -> None:
         """Utility function to show or hide multiple widgets."""
         show = show or []
         hide = hide or []
@@ -348,7 +348,7 @@ class MolecularDynamicsWindow:
         for name in hide:
             self.builder.get_object(name).hide()
 
-    def update_working_folder_chooser(self, folder: str | None = None) -> None:
+    def update_working_folder_chooser(self, folder = None) -> None:
         """Update the working folder shown in the SaveTrajectoryBox."""
         if folder:
             self.save_trajectory_box.set_folder(folder=folder)
@@ -357,7 +357,7 @@ class MolecularDynamicsWindow:
             if folder:
                 self.save_trajectory_box.set_folder(folder=folder)
 
-    def update(self, parameters: dict | None = None) -> None:
+    def update(self, parameters = None) -> None:
         """Refresh window contents when system state changes."""
         
         if self.Visible:
@@ -367,7 +367,7 @@ class MolecularDynamicsWindow:
                 output_name = self.p_session.get_output_filename_from_system(self.sym_tag)
                 self.save_trajectory_box.set_filename(output_name)
 
-    def restore_the_parameters_to_the_window(self, parameters: dict | None = None) -> None:
+    def restore_the_parameters_to_the_window(self, parameters = None) -> None:
         """
         Reapply previously used simulation parameters back into the GUI widgets.
         If parameters are not provided, use the last stored ones from `run`.
