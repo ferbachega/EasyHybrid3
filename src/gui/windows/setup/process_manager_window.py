@@ -34,6 +34,7 @@ from gi.repository import Gtk, Gdk
 from gi.repository import GdkPixbuf
 from gui.widgets.custom_widgets  import get_colorful_square_pixel_buffer
 from gui.windows.setup.windows_and_dialogs import TextWindow
+from gui.windows.setup.windows_and_dialogs import SimpleDialog
 import os, sys, time
 from pprint import pprint
 
@@ -67,7 +68,7 @@ class ProcessManagerWindow(Gtk.Window):
         """
         if not self.Visible:
             self.window = Gtk.Window(title="Process Manager")
-            self.window.set_default_size(600, 300)
+            self.window.set_default_size(800, 300)
             self.window.set_border_width(10)
             self.window.set_keep_above(True)
 
@@ -264,7 +265,33 @@ class ProcessManagerWindow(Gtk.Window):
     def set_status (self, treeiter = None, status = 'Queued' ):
         """ Function doc """
         self.main.job_history_liststore[treeiter][5] = status
-
+        if status == 'Finished':
+            system_name = self.main.job_history_liststore[treeiter][0]
+            job_type    = self.main.job_history_liststore[treeiter][1]
+            potential   = self.main.job_history_liststore[treeiter][2]
+            start_time  = self.main.job_history_liststore[treeiter][3]
+            end_time    = self.main.job_history_liststore[treeiter][4]
+            status      = self.main.job_history_liststore[treeiter][5]
+            sys_num     = self.main.job_history_liststore[treeiter][7]
+            job_num     = self.main.job_history_liststore[treeiter][8]
+            
+            msg = (
+                f"The job has finished!\n\n"    
+                f"System: {sys_num} - {system_name}\n"
+                f"Job type: {job_num} -  {job_type} \n"
+                #f"Potential: {potential}\n"
+                #f"Start time: {start_time}\n"
+                #f"End time: {end_time}\n"
+                #f"Status: {status}"
+                )            
+            dialog = SimpleDialog(self )
+            dialog.info(msg = msg, modal = False, title = 'Finished!' )
+            #dialog.error_details (parent = self, msg = msg, details = '', title ='Error!')
+            
+            
+            #dialog = dialog.create_finished_dialog( msg1 = msg, msg2 = msg2,  modal = False)
+            #dialog.show_all()
+            
     def set_time (self, treeiter, start = False, end = False):
         """ Function doc """
         e_id = self.main.job_history_liststore[treeiter][7]
@@ -387,17 +414,6 @@ class ProcessManagerWindow(Gtk.Window):
                 self.main.chain_of_states_opt_window.close_window(None, None)
             self.main.chain_of_states_opt_window.open_window()
             self.main.chain_of_states_opt_window.restore_the_parameters_to_the_window (parameters)
-            
-        
-        
-        #pprint(system.e_job_history[step_counter])
-        
-        
-        
-        
-        #if treeiter:
-        #    model[treeiter][5] = "Running"
-        #    pprint(f"Iniciando: {model[treeiter][1]}")
 
     def on_stop_activate(self, widget):
         model, treeiter = self.treeview.get_selection().get_selected()
@@ -420,18 +436,9 @@ class ProcessManagerWindow(Gtk.Window):
                 
                 self.p_session.psystem[e_id].e_step_counter += 1
                 self.set_time ( treeiter= treeiter,  end = True)
-     
-     
+          
     def on_clear_list(self, widget):
         self.main.job_history_liststore.clear()
-        #model, treeiter = self.treeview.get_selection().get_selected()
-        #if treeiter:
-        #    if model[treeiter][5] == "Running...":
-        #        
-        #        pass
-        #    else:
-        #        #print(f"Removing: {model[treeiter][1]}")
-        #        model.remove(treeiter)
             
     def on_remove_activate(self, widget):
         model, treeiter = self.treeview.get_selection().get_selected()
@@ -536,7 +543,6 @@ class ProcessManagerWindow(Gtk.Window):
                              status    = status,
                              step      = job_num)
  
-
     def get_combobox_active_id (self, e_id = None, key6 = None):
         """ Function doc """
         cb_active = -1

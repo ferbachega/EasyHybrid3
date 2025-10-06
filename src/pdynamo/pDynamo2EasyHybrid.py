@@ -829,14 +829,32 @@ class pSimulations:
 
     def _configure_logfile(self, parameters):
         if 'logfile' in parameters:
+            system.e_job_history[system.e_step_counter]['logfile'] = parameters['logfile']
             return parameters
-        folder = parameters.get('folder', os.getcwd())
+        
+        #---------------------------------------------------------------
+        '''
+        here we are setting a temporary name for the log files that 
+        will be saved in the scratch directory
+        '''
+        system    = parameters['system']
+        folder    = os.environ.get('PDYNAMO3_SCRATCH')
+        e_id      = str(parameters['system'].e_id)
+        key       = system.e_job_history[system.e_step_counter]['key6'] # this is the new key6 - to the object that will be created
+        tmp_fname = '{}_{}.log'.format(e_id,key)
+        #---------------------------------------------------------------
+
+        
         if 'filename' in parameters:
             parameters['logfile'] = os.path.join(folder, parameters['filename'] + '.log')
+            system.e_job_history[system.e_step_counter]['logfile'] = parameters['logfile']
+        
         elif parameters.get('trajectory_name'):
             parameters['logfile'] = os.path.join(folder, parameters['trajectory_name'], 'output.log')
+            system.e_job_history[system.e_step_counter]['logfile'] = parameters['logfile']
         else:
-            parameters['logfile'] = os.path.join(folder, 'output.log')
+            parameters['logfile'] = os.path.join(folder, tmp_fname)
+            system.e_job_history[system.e_step_counter]['logfile'] = parameters['logfile']
         return parameters
 
     # ========================================================================
@@ -944,7 +962,8 @@ class pSimulations:
             name = f"{results['simulation_type']}_{system.e_step_counter}"
 
             # Add visual object to session
-            vobject = self._add_vismol_object_to_easyhybrid_session(system=system, name=name)
+            key6 = system.e_job_history[system.e_step_counter]['key6']
+            vobject = self._add_vismol_object_to_easyhybrid_session(system=system, name=name, key6 = key6)
             vobject.results = results
 
             # Save job results in system history
@@ -1035,8 +1054,8 @@ class pSimulations:
         parameters['queue'] = None
         
         #backup_parameters = parameters
-        backup_parameters = copy.deepcopy(parameters)
-        backup_parameters['system'] = None
+        #backup_parameters = copy.deepcopy(parameters)
+        #backup_parameters['system'] = None
         
         #backup_parameters['step_counter'] = parameters['system'].e_step_counter
         try:
@@ -1049,7 +1068,7 @@ class pSimulations:
                 'simulation_type': sim_type,
                 'logfile': parameters['logfile'],
                 'error': None,
-                'backup_parameters': backup_parameters,
+                #'backup_parameters': backup_parameters,
                 'step_counter':parameters['system'].e_step_counter
             }
             queue.put((self.MSG_RESULT, results))
@@ -1065,7 +1084,7 @@ class pSimulations:
                 'simulation_type': sim_type,
                 'logfile': parameters['logfile'],
                 'error': exc,
-                'backup_parameters': backup_parameters,
+                #'backup_parameters': backup_parameters,
                 'step_counter':parameters['system'].e_step_counter
             }
             queue.put((self.MSG_ERROR, results))
@@ -1097,7 +1116,15 @@ class pSimulations:
         
         # Assign system and apply restraints
         system = self.psystem[self.active_id]
+        key6 = self.vm_session.gen_random_tag_string(length=6)
+        #---------------------------------------------------------------
+        # Backup parameters
+        backup_parameters = copy.deepcopy(parameters)
+        backup_parameters['system'] = None
+        #---------------------------------------------------------------
+        
         system.e_job_history[system.e_step_counter] = {
+                'backup_parameters': backup_parameters,
                 'new_vobject'      : None,
                 'energy'           : None,
                 'e_id'             : system.e_id,
@@ -1108,6 +1135,7 @@ class pSimulations:
                 'ended'            : None,
                 'status'           : 'Queued',
                 'potential'        :'UNK',
+                'key6'             : key6
             }
         
         
@@ -1989,10 +2017,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         ''' '''
    
     
-    def _add_vismol_object_to_easyhybrid_session (self, system, show_molecule=True, name = 'new_coords'):
+    def _add_vismol_object_to_easyhybrid_session (self, system, show_molecule=True, name = 'new_coords', key6 = None):
         """ Function doc """
         # Create a VisMol object from the given pDynamo system
         vm_object = self._build_vobject_from_pdynamo_system ( system = system, name = name ) 
+        
+        if key6:
+            vm_object.key6 = key6
         
         # Add the VisMol object to the VisMol session
         self.vm_session._add_vismol_object(vm_object, show_molecule=True)

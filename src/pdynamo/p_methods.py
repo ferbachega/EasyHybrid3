@@ -586,6 +586,10 @@ class GeometryOptimization:
             self.logFile2.Header ( )
         else:
             pass
+            self.logFile2 = TextLogFileWriter.WithOptions ( path = parameters['logfile'] )
+            parameters['system'].Summary(log = self.logFile2)
+            self.logFile2.Header ( )
+            
             parameters['trajectory_name'] = None
             parameters['folder'] = None
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -630,7 +634,8 @@ class GeometryOptimization:
             ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
                                                      logFrequency           = parameters['logFrequency'],
                                                      maximumIterations      = parameters['maximumIterations'],
-                                                     rmsGradientTolerance   = parameters['rmsGradientTolerance'])
+                                                     rmsGradientTolerance   = parameters['rmsGradientTolerance'],
+                                                     log                    = self.logFile2 )
         else:            
             
             ConjugateGradientMinimize_SystemGeometry(parameters['system']                                                ,                
@@ -646,7 +651,8 @@ class GeometryOptimization:
             SteepestDescentMinimize_SystemGeometry(parameters['system']                               ,               
                                                 logFrequency            = parameters['logFrequency'] ,
                                                 maximumIterations       = parameters['maximumIterations'] ,
-                                                rmsGradientTolerance    = parameters['rmsGradientTolerance']   )
+                                                rmsGradientTolerance    = parameters['rmsGradientTolerance'],
+                                                log                    = self.logFile2   )
         else:
             SteepestDescentMinimize_SystemGeometry(parameters['system']                                               ,               
                                                 logFrequency            = parameters['logFrequency']                 ,
@@ -661,7 +667,8 @@ class GeometryOptimization:
             LBFGSMinimize_SystemGeometry(parameters['system']                               ,                
                                          logFrequency         = parameters['logFrequency'] ,
                                          maximumIterations    = parameters['maximumIterations'] ,
-                                         rmsGradientTolerance = parameters['rmsGradientTolerance']   )
+                                         rmsGradientTolerance = parameters['rmsGradientTolerance'],
+                                         log                  = self.logFile2)
         else:
 
             LBFGSMinimize_SystemGeometry(parameters['system']                                                ,                
@@ -679,7 +686,8 @@ class GeometryOptimization:
             QuasiNewtonMinimize_SystemGeometry( parameters['system']                               ,               
                                                 logFrequency         = parameters['logFrequency'] ,
                                                 maximumIterations    = parameters['maximumIterations'] ,
-                                                rmsGradientTolerance = parameters['rmsGradientTolerance']   )
+                                                rmsGradientTolerance = parameters['rmsGradientTolerance'],
+                                                log                  = self.logFile2   )
         else:
             QuasiNewtonMinimize_SystemGeometry( parameters['system']                                                ,
                                                 logFrequency         = parameters['logFrequency']                  ,
@@ -695,7 +703,8 @@ class GeometryOptimization:
             FIREMinimize_SystemGeometry( parameters['system']                               ,          
                                          logFrequency         = parameters['logFrequency'] ,
                                          maximumIterations    = parameters['maximumIterations'] ,
-                                         rmsGradientTolerance = parameters['rmsGradientTolerance']   )
+                                         rmsGradientTolerance = parameters['rmsGradientTolerance'],
+                                         log                  = self.logFile2   )
         else:
 
             FIREMinimize_SystemGeometry( parameters['system']                                                ,                
