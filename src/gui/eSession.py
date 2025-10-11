@@ -1065,6 +1065,92 @@ class EasyHybridSession(VismolSession, GLMenu):
         if not filename:
             return  # Nothing to load
 
+        try:
+            # Handle EasyHybrid project files (*.easy)
+            if filename.endswith(".easy"):
+                temp_file = filename + "~"
+
+                # Check if temp file exists (this could fail on some OS errors)
+                try:
+                    temp_exists = os.path.exists(temp_file)
+                except Exception as e:
+                    # Log or silently ignore, but do not stop execution
+                    temp_exists = False
+
+                if temp_exists:
+                    msg = (
+                        "There is a newer temporary file for the project you are loading.\n"
+                        "Would you like to load the most current file?"
+                    )
+                    try:
+                        dialog = SimpleDialog(self.main_session)
+                        yes_or_no = dialog.question(msg)
+                    except Exception:
+                        # If the dialog fails for any reason, fallback to original file
+                        dialog = SimpleDialog(self.main_session)
+                        dialog.error("Failed to display question dialog. Loading original file.")
+                        yes_or_no = False
+
+                    target_file = temp_file if yes_or_no else filename
+
+                    # Load the chosen file with specific error handling
+                    try:
+                        self.main_session.p_session.load_easyhybrid_serialization_file(
+                            target_file, tmp=yes_or_no
+                        )
+                    except Exception:
+                        dialog = SimpleDialog(self.main_session)
+                        dialog.error(f"Failed to load project file: {target_file}")
+
+                else:
+                    # No temp file, load normally
+                    try:
+                        self.main_session.p_session.load_easyhybrid_serialization_file(filename)
+                    except Exception:
+                        dialog = SimpleDialog(self.main_session)
+                        dialog.error(f"Failed to load project file: {filename}")
+
+            # Handle temporary EasyHybrid project files (*.easy~)
+            elif filename.endswith(".easy~"):
+                try:
+                    self.main_session.p_session.load_easyhybrid_serialization_file(filename)
+                except Exception:
+                    dialog = SimpleDialog(self.main_session)
+                    dialog.error(f"Failed to load temporary project file: {filename}")
+
+            # Handle all other file types (assumed coordinate/system files)
+            else:
+                files = {"coordinates": filename}
+                systemtype = 3  # Hardcoded system type (could be parameterized later)
+                try:
+                    self.main_session.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
+                except Exception:
+                    dialog = SimpleDialog(self.main_session)
+                    dialog.error(f"Failed to load system file: {filename}")
+
+        except Exception:
+            # Catch any unexpected error that was not handled above
+            dialog = SimpleDialog(self.main_session)
+            dialog.error(f"An unexpected error occurred while loading: {filename}")
+
+    def load_old(self, filename=None):
+        """
+        Load a file into the EasyHybrid session.
+        The behavior depends on the file extension:
+
+        - *.easy   : Load EasyHybrid project file. If a temporary file (*.easy~) exists,
+                     prompt the user whether to load the most recent one.
+        - *.easy~  : Load directly from the temporary project file.
+        - Other    : Assume coordinate/system file and load into a new pDynamo system.
+
+        Parameters
+        ----------
+        filename : str, optional
+            Path to the file to load. If None, the method does nothing.
+        """
+        if not filename:
+            return  # Nothing to load
+
         # Handle EasyHybrid project files (*.easy)
         if filename.endswith(".easy"):
             temp_file = filename + "~"

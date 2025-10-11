@@ -123,11 +123,11 @@ class EnergyCalculation:
     def run (self, parameters):
         """ Function doc """
         full_path_file = os.path.join(parameters['folder'])
-        self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(full_path_file, parameters['filename']+'.log') )
+        self.logFile2  = TextLogFileWriter.WithOptions ( path = os.path.join(full_path_file, parameters['filename']+'.log') )
         
         parameters['system'].Summary(log = self.logFile2)
         #try:
-        energy  = parameters['system'].Energy(log = self.logFile2)
+        energy = parameters['system'].Energy(log = self.logFile2)
         
         '''
         #---------------------------------------------------------------
@@ -741,6 +741,10 @@ class MolecularDynamics:
             self.logFile2.Header ( )
         else:
             pass
+            self.logFile2 = TextLogFileWriter.WithOptions ( path = parameters['logfile'] )
+            parameters['system'].Summary(log = self.logFile2)
+            self.logFile2.Header ( )
+            
             parameters['trajectory_name'] = None
             parameters['folder'] = None
         
@@ -807,8 +811,9 @@ class MolecularDynamics:
                                                         timeStep                  = parameters['timeStep']                 ,
                                                         temperatureScaleFrequency = parameters['temperatureScaleFrequency'],
                                                         temperatureScaleOption    = parameters['temperatureScaleOption']   ,
-                                                        temperatureStart          = parameters['temperatureStart']         )
-
+                                                        temperatureStart          = parameters['temperatureStart'],
+                                                        log                       = self.logFile2
+                                                        )
 
         else:
             # . Heating.
@@ -840,8 +845,9 @@ class MolecularDynamics:
                                                         temperatureScaleFrequency = parameters['temperatureScaleFrequency'],
                                                         temperatureScaleOption    = parameters['temperatureScaleOption']   ,
                                                         temperatureStart          = parameters['temperatureStart']         ,
-                                                        temperatureStop           = parameters['temperature_stop']          ,
-                                                         )
+                                                        temperatureStop           = parameters['temperature_stop'],
+                                                        log                       = self.logFile2
+                                                        )
 
 
 
@@ -886,7 +892,9 @@ class MolecularDynamics:
                                                   temperature            = parameters['temperatureStart'],
                                                   temperatureControl     = parameters['temperatureControl'],
                                                   temperatureCoupling    = parameters['temperatureCoupling'],
-                                                  timeStep               = parameters['timeStep'])
+                                                  timeStep               = parameters['timeStep'],
+                                                  log                    = self.logFile2
+                                                  )
         
         else:
             if parameters['trajectory_name']:
@@ -909,7 +917,9 @@ class MolecularDynamics:
                                                   temperature            = parameters['temperatureStart']       ,
                                                   temperatureControl     = parameters['temperatureControl']     ,
                                                   temperatureCoupling    = parameters['temperatureCoupling']    ,
-                                                  timeStep               = parameters['timeStep']               )
+                                                  timeStep               = parameters['timeStep'],
+                                                  log                    = self.logFile2
+                                                  )
 
 
     def _langevin_dynamics (self, parameters = None):
@@ -945,7 +955,9 @@ class MolecularDynamics:
                                               normalDeviateGenerator = normalDeviateGenerator           ,
                                               steps                  = parameters['steps']              ,
                                               temperature            = parameters['temperatureStart']   ,
-                                              timeStep               = parameters['timeStep']           )
+                                              timeStep               = parameters['timeStep'],
+                                              log                    = self.logFile2
+                                              )
             
             
 class RelaxedSurfaceScan:
@@ -2922,6 +2934,7 @@ class ChainOfStatesOptimizePath:
         self.trajectory = ExportTrajectory(trajectoryPath, parameters['system'], log=None )
 
         self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(trajectoryPath, 'output.log') )
+        parameters['logfile'] = os.path.join(trajectoryPath, 'output.log')
         parameters['system'].Summary(log = self.logFile2)
         self.logFile2.Header ( )
         '''-----------------------------------------------------------------------------------------------------'''        

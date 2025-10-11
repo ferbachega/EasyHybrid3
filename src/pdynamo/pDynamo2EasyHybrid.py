@@ -828,6 +828,7 @@ class pSimulations:
         return parameters
 
     def _configure_logfile(self, parameters):
+        system    = parameters['system']
         if 'logfile' in parameters:
             system.e_job_history[system.e_step_counter]['logfile'] = parameters['logfile']
             return parameters
@@ -837,7 +838,6 @@ class pSimulations:
         here we are setting a temporary name for the log files that 
         will be saved in the scratch directory
         '''
-        system    = parameters['system']
         folder    = os.environ.get('PDYNAMO3_SCRATCH')
         e_id      = str(parameters['system'].e_id)
         key       = system.e_job_history[system.e_step_counter]['key6'] # this is the new key6 - to the object that will be created
@@ -855,6 +855,8 @@ class pSimulations:
         else:
             parameters['logfile'] = os.path.join(folder, tmp_fname)
             system.e_job_history[system.e_step_counter]['logfile'] = parameters['logfile']
+        
+        print ('_configure_logfile:', parameters)
         return parameters
 
     # ========================================================================
@@ -973,7 +975,7 @@ class pSimulations:
             # Save job results in system history (no new visual object)
             #system.e_job_history[system.e_step_counter] = results
             system.e_job_history[system.e_step_counter].update(results)
-            self.psystem[e_id].e_step_counter += 1
+            #self.psystem[e_id].e_step_counter += 1
     
     def _handle_done(self, e_id, process, path, treeiter):
         """Handle 'DONE' messages from a worker process.
@@ -1148,19 +1150,7 @@ class pSimulations:
         self.main.process_manager_window.open_window()
         
         
-        parameters = self._configure_logfile(parameters)
-        # Configure logfile path
-        #if 'logfile' not in parameters:
-        #    folder = parameters.get('folder', os.getcwd())
-        #    if 'filename' in parameters:
-        #        parameters['logfile'] = os.path.join(folder, parameters['filename'] + '.log')
-        #    
-        #    elif parameters.get('trajectory_name'):
-        #        parameters['logfile'] = os.path.join(folder, parameters['trajectory_name'], 'output.log')
-        #    
-        #    else:
-        #        parameters['logfile'] = os.path.join(folder, 'output.log')
-        
+        parameters = self._configure_logfile(parameters)     
         pprint(parameters)
 
         e_id, name = system.e_id, system.label
@@ -1901,16 +1891,6 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
     
     def load_a_new_pDynamo_system_from_dict (self, input_files = {}, system_type = 0, name = None, tag = None, color = None, working_folder = None):
         """ Function doc """
-        #print('\n\n\ init - load_a_new_pDynamo_system_from_dict')
-        # This commented section prints information about the existing psystem dictionary
-
-        #for index , psystem in self.psystem.items():
-        #    if psystem:
-        #        print(' in load_a_new_pDynamo_system_from_dict', index, psystem.e_color_palette['C'])
-        #    else:
-        #        print(' in load_a_new_pDynamo_system_from_dict', index, None)
-        
-        #psystem = self.generate_pSystem_dictionary()
         
         system = None 
         if system_type == 0:

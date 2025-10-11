@@ -149,8 +149,8 @@ class SinglePointWindow:
         parameters["folder"]    = self.folder_chooser_button.get_folder()
         parameters["filename"]  = self.builder.get_object('entry_logfile_name').get_text()
         parameters['obj1_key6'] = vobject.key6
-        
-        
+        parameters['logfile']   = os.path.join(parameters["folder"], parameters["filename"]+'.log')
+        print ('\n\n\Parameters:' , parameters)
         #------------------------------------------------------------------#
         #                      RUN ENERGY CALCULATION                      #
         #------------------------------------------------------------------#
@@ -158,7 +158,7 @@ class SinglePointWindow:
         #------------------------------------------------------------------#
         
         
-        
+        '''
         #------------------------------------------------------------------#
         #                          DIALOG MESSAGE                          #
         #------------------------------------------------------------------#
@@ -239,6 +239,7 @@ class SinglePointWindow:
         )
         dialog.run()
         dialog.destroy()
+        #'''
         #--------------------------------------------------------------------
     def _starting_coordinates_model_update (self, init = False):
         """ Function doc """

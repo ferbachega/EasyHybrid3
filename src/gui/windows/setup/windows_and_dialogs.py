@@ -107,10 +107,14 @@ def call_message_dialog (text1 = '', text2 = '', transient_for = None):
 class TextWindow:
     """ Class doc """
     
-    def __init__ (self, text = 'No text'):
+    def __init__ (self, text = 'No text', title = None):
         """ Class initialiser """
-        self.window = Gtk.Window(title="System Summary")
+        self.window = Gtk.Window(title=title)
         self.window.set_default_size(1100, 600)
+        
+        #if title:
+        #    self.window.title = title
+        
         
         self.textview = Gtk.TextView()
         self.textbuffer = self.textview.get_buffer()
@@ -169,14 +173,14 @@ class InfoWindow:
 class SimpleDialog:
     """ A helper class to create simple dialog windows using GTK. """
     
-    def __init__(self, main):
+    def __init__(self, main = None, is_on_top = True):
         """ 
         Class initializer. 
         Stores a reference to the main application instance (main), 
         which is expected to have a window attribute used as the parent for dialogs. 
         """
         self.main = main
-
+        self.is_on_top = is_on_top
     def create_finished_dialog(self, parent=None, 
             msg1 = '',
             msg2 = '', 
@@ -397,6 +401,9 @@ class SimpleDialog:
             buttons=Gtk.ButtonsType.YES_NO,       # Provides Yes and No buttons
             message_format=msg
         )
+        if self.is_on_top:
+            dialog.set_keep_above(True)
+            
         response = dialog.run()   # Waits for the user's response
         dialog.destroy()
         if response == Gtk.ResponseType.YES:
@@ -3863,9 +3870,9 @@ class ImportANewSystemWindow(Gtk.Window):
         except Exception as e:
             error_str = str(e)  # converte a mensagem de erro para string
             print("Error:", error_str)
-            self.easyhybrid_main.bottom_notebook.status_teeview_add_new_item(message = 'Error: Could not import the system.', system = None)
+            self.easyhybrid_main.bottom_notebook.status_teeview_add_new_item(message = 'Could not import the system.', system = None)
             simpledialog = SimpleDialog(self.easyhybrid_main)
-            simpledialog.error("Error: Could not import the system.")
+            simpledialog.error("Could not import the system.\n\n{}".format(error_str))
 
     def on_entry_widget_change (self, widget = None):
         """ Function doc """
@@ -4256,8 +4263,21 @@ class ImportTrajectoryWindow:
             #-------------------------------------------------------------------------------------------
 
         #print('\n parameters: ', parameters)
-        self.main.p_session.import_data ( parameters ) 
-
+        try:
+            self.main.p_session.import_data ( parameters ) 
+        except Exception as e:
+            tb = traceback.format_exc()
+            self.main.bottom_notebook.status_teeview_add_new_item(
+                message=f"Error loading data: {e}", system=None)
+                #message=f"Error loading data: {e}\n{tb}", system=None)
+            
+            simpledialog = SimpleDialog(self.main )
+            simpledialog.error(f"Error loading data: {e}")
+            
+            print(f"Error loading data: {e}\n{tb}")
+           
+            #system = None
+        
     def update (self):
         """ Function doc """
         #print('VismolGoToAtomWindow2 update')

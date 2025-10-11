@@ -346,13 +346,10 @@ class ProcessManagerWindow(Gtk.Window):
         system.e_job_history[step_counter]['e_id'] = e_id
         pprint(system.e_job_history[step_counter])
         
-        
-        #print('system:', system.e_id, system.e_job_history[step_counter]['backup_parameters']['system'].e_id)
-        
         logfile = system.e_job_history[step_counter]['logfile']
         data = open(logfile, 'r')
         data = data.read()
-        textwindow = TextWindow(data)
+        textwindow = TextWindow(data, logfile)
         
     def rerun_job(self, widget):
         #return False
@@ -417,6 +414,16 @@ class ProcessManagerWindow(Gtk.Window):
 
     def on_stop_activate(self, widget):
         model, treeiter = self.treeview.get_selection().get_selected()
+        
+        simple_dialog = SimpleDialog(self.main)
+        msg = 'Do you want to abort process number {}: {}?'.format(model[treeiter][8], model[treeiter][1])
+        yes_or_no = simple_dialog.question(msg)
+        
+        if yes_or_no:
+            pass
+        else:
+            return False
+
         if treeiter:
             e_id = model[treeiter][7]
             
@@ -438,9 +445,27 @@ class ProcessManagerWindow(Gtk.Window):
                 self.set_time ( treeiter= treeiter,  end = True)
           
     def on_clear_list(self, widget):
-        self.main.job_history_liststore.clear()
+        simple_dialog = SimpleDialog(self.main)
+        
+        msg = 'You are about to delete the process history. This action is irreversible and some data may be permanently lost. \nDo you want to continue?'
+        yes_or_no = simple_dialog.question(msg)
+        
+        if yes_or_no:
+            self.main.job_history_liststore.clear()
             
     def on_remove_activate(self, widget):
+        model, treeiter = self.treeview.get_selection().get_selected()
+        
+        simple_dialog = SimpleDialog(self.main)
+        msg = 'Do you want to remove process number {}: {}?'.format(model[treeiter][8], model[treeiter][1])
+        yes_or_no = simple_dialog.question(msg)
+        
+        if yes_or_no:
+            pass
+        else:
+            return False
+
+        
         model, treeiter = self.treeview.get_selection().get_selected()
         if treeiter:
             if model[treeiter][5] == "Running...":
