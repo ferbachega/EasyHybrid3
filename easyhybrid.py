@@ -61,13 +61,13 @@ class SplashScreen(Gtk.Window):
         self.set_decorated(False)  # Sem bordas
         self.set_position(Gtk.WindowPosition.CENTER)
         #self.set_default_size(710 ,710  )
-        self.set_default_size(800 ,671  )
+        self.set_default_size(605 ,605)
         try:
             # Carrega imagem do splash
             pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
                 filename=(os.path.join(EASYHYBRID_HOME, "splash.png")),   
-                width=800,
-                height=671,
+                width=605,
+                height=605,
                 preserve_aspect_ratio=True
             )
 
