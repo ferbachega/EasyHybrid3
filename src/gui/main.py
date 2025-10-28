@@ -32,7 +32,7 @@ import os, sys, time
 import gi 
 import signal
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk
+from gi.repository import Gtk, Gdk, Pango
 from gi.repository import GdkPixbuf
 
 
@@ -69,6 +69,7 @@ from gui.windows.setup.process_manager_window import ProcessManagerWindow
 from gui.windows.simulation.single_point_window          import SinglePointWindow
 from gui.windows.simulation.geometry_optimization_window import GeometryOptimization
 from gui.windows.simulation.PES_scan_window              import PotentialEnergyScanWindow 
+from gui.windows.simulation.PES_advanced_scan_window     import AdvancedPotentialEnergyScanWindow 
 from gui.windows.simulation.molecular_dynamics_window    import MolecularDynamicsWindow 
 from gui.windows.simulation.umbrella_sampling_window     import UmbrellaSamplingWindow 
 from gui.windows.simulation.chain_of_states_opt_window   import ChainOfStatesOptWindow 
@@ -322,6 +323,9 @@ class MainWindow:
         
         self.PES_scan_window              = PotentialEnergyScanWindow    ( main=  self)
         self.window_list.append(self.PES_scan_window)
+        
+        self.PES_advanced_scan_window              = AdvancedPotentialEnergyScanWindow ( main=  self)
+        self.window_list.append(self.PES_advanced_scan_window)
 
         self.selection_list_window        = SelectionListWindow          ( main = self, system_liststore =  self.system_liststore)
         self.window_list.append(self.selection_list_window)
@@ -992,6 +996,9 @@ class MainWindow:
             
         elif menuitem == self.builder.get_object('menuitem_rection_coordinate_scans'):
             self.PES_scan_window.open_window()
+        
+        elif menuitem == self.builder.get_object('menuitem_advanced_rc_scans'):
+            self.PES_advanced_scan_window.open_window()
             
         elif menuitem == self.builder.get_object('menuitem_nudged_elastic_band'):
             self.chain_of_states_opt_window.open_window()
@@ -2184,9 +2191,11 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         self.append_column(column_radio)
 
         # column
-        
         renderer_pixbuf = Gtk.CellRendererPixbuf()
         renderer_text = Gtk.CellRendererText()
+        renderer_text.set_property("ellipsize", Pango.EllipsizeMode.END)  # reticências no fim
+        renderer_text.set_property("ellipsize-set", True)
+        renderer_text.set_property("width", 100)
         #renderer_text.connect("edited", self.text_edited, model, column)
         
         #column_text = Gtk.TreeViewColumn("System", renderer_text, text=2)

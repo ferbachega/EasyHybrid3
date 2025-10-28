@@ -98,6 +98,7 @@ from util.colorpalette import CUSTOM_COLOR_PALETTE
 
 from pdynamo.p_methods import GeometryOptimization
 from pdynamo.p_methods import RelaxedSurfaceScan
+from pdynamo.p_methods import AdvancedRelaxedSurfaceScan
 from pdynamo.p_methods import MolecularDynamics
 from pdynamo.p_methods import ChainOfStatesOptimizePath
 from pdynamo.p_methods import NormalModes
@@ -1028,6 +1029,7 @@ class pSimulations:
             'Geometry_Optimization': GeometryOptimization,
             'Molecular_Dynamics': MolecularDynamics,
             'Relaxed_Surface_Scan': RelaxedSurfaceScan,
+            'Advanced_Relaxed_Surface_Scan':AdvancedRelaxedSurfaceScan,
             'Umbrella_Sampling': UmbrellaSampling,
             'Nudged_Elastic_Band': ChainOfStatesOptimizePath,
             'Normal_Modes': NormalModes,
@@ -1058,8 +1060,10 @@ class pSimulations:
         #backup_parameters = parameters
         #backup_parameters = copy.deepcopy(parameters)
         #backup_parameters['system'] = None
-        
         #backup_parameters['step_counter'] = parameters['system'].e_step_counter
+
+        #self.target_process.run(parameters)
+        
         try:
             self.target_process.run(parameters)
             results = {
