@@ -211,26 +211,44 @@ class MolecularDynamicsWindow:
         
         
         # Extract parameters from GUI
-        integrator_id = self.builder.get_object("comobobox_md_integrator").get_active()
+        integrator_id   = self.builder.get_object("comobobox_md_integrator").get_active()
         number_of_steps = int(self.builder.get_object("entry_number_of_steps").get_text())
-        temp_scale_id = self.builder.get_object("combobox_temperature_scale_options").get_active()
-        temp_start = float(self.builder.get_object("entry_temp_start").get_text())
+        temp_scale_id   = self.builder.get_object("combobox_temperature_scale_options").get_active()
+        temp_start      = float(self.builder.get_object("entry_temp_start").get_text())
         
         if temp_scale_id ==1 or  temp_scale_id ==2:
             temp_end = float(self.builder.get_object("entry_temp_end").get_text())
         else:
             temp_end = None
+        
+        
         temp_scale_factor = int(self.builder.get_object("entry_temp_scale_factor").get_text())
         time_step = float(self.builder.get_object("entry_time_step").get_text())
         log_frequence = int(self.builder.get_object("entry_log_frequency").get_text())
         random_seed = int(self.builder.get_object("entry_random_seed").get_text())
-        collision_frequency = float(self.builder.get_object("entry_collision_frequency").get_text())
-        temp_coupling = float(self.builder.get_object("entry_temp_coupling").get_text())
+        
+        collision_frequency = None
+        temp_coupling       = None 
+        
+        if integrator_id == 2: #Langevin
+            collision_frequency = float(self.builder.get_object('entry_collision_frequency').get_text())
+        else:
+            collision_frequency = None        
+        
+        #LEapFrog
+        pressure_control = self.builder.get_object("check_pressure_control").get_active() # leapfrog / True / False
+        if integrator_id == 1: #LeapFrog
+            temp_coupling     = float(self.builder.get_object('entry_temp_coupling').get_text())
+            temp_control      = True
+            pressure          = float(self.builder.get_object("entry_pressure").get_text())
+            pressure_coupling = float(self.builder.get_object("entry_pressure_coupling").get_text())
 
-        pressure_control = self.builder.get_object("check_pressure_control").get_active()
-        pressure = float(self.builder.get_object("entry_pressure").get_text())
-        pressure_coupling = float(self.builder.get_object("entry_pressure_coupling").get_text())
-
+        else:
+            pressure          = None
+            pressure_coupling = None
+            temp_coupling     = None
+            temp_control      = True
+            
         if temp_scale_id == 0:  # "constant" → no end temperature
             temp_end = None
 
@@ -245,31 +263,31 @@ class MolecularDynamicsWindow:
 
 
         parameters: dict = {
-            "folder": HOME,
-            "integrator": MD_method[integrator_id],
-            "logFrequency": log_frequence,
-            "seed": random_seed,
-            "normal_deviate_generator": None,
-            "steps": number_of_steps,
-            "timeStep": time_step,
-            "trajectories": None,
+            #"folder"                  : HOME,
+            "integrator"                : MD_method[integrator_id],
+            "logFrequency"              : log_frequence,
+            "seed"                      : random_seed,
+            #"normal_deviate_generator"  : None,
+            "steps"                     : number_of_steps,
+            "timeStep"                  : time_step,
+            "trajectories"              : None,
             # Temperature scaling
-            "temperatureScaleFrequency": temp_scale_factor,
-            "temperatureScaleOption": temp_scale_options[temp_scale_id],
-            "temperatureStart": temp_start,
-            "temperatureStop": temp_end,
+            "temperatureScaleFrequency" : temp_scale_factor,
+            "temperatureScaleOption"    : temp_scale_options[temp_scale_id],
+            "temperatureStart"          : temp_start,
+            "temperatureStop"           : temp_end,
             # LeapFrog/Pressure-related
-            "pressure": pressure,
-            "pressureControl": pressure_control,
-            "pressureCoupling": pressure_coupling,
+            "pressure"                  : pressure,
+            "pressureControl"           : pressure_control,
+            "pressureCoupling"          : pressure_coupling,
             # Temperature coupling
-            "temperature": temp_start,
-            "temperatureControl": True,
-            "temperatureCoupling": temp_coupling,
+            "temperature"               : temp_start,
+            "temperatureControl"        : temp_control,
+            "temperatureCoupling"       : temp_coupling,
             # Langevin-specific
-            "collisionFrequency": collision_frequency,
-            "simulation_type": "Molecular_Dynamics",
-            "restraints": None,
+            "collisionFrequency"        : collision_frequency,
+            "simulation_type"           : "Molecular_Dynamics",
+            "restraints"                : None,
         }
 
         # Trajectory saving
@@ -696,7 +714,7 @@ class MolecularDynamicsWindow_OLD():
         time_step           = float(self.builder.get_object('entry_time_step').get_text())
         log_frequence       = int(self.builder.get_object('entry_log_frequency').get_text())
         random_seed         = int(self.builder.get_object('entry_random_seed').get_text())
-        collision_frequency = float(self.builder.get_object('entry_collision_frequency').get_text())
+        #collision_frequency = float(self.builder.get_object('entry_collision_frequency').get_text())
         
         
         temp_coupling       =  float(self.builder.get_object('entry_temp_coupling').get_text())
@@ -706,13 +724,33 @@ class MolecularDynamicsWindow_OLD():
         else:
             pressure_control = False
        
-        pressure          = float(self.builder.get_object('entry_pressure').get_text())
-        pressure_coupling = float(self.builder.get_object('entry_pressure_coupling').get_text())
-        
+        #-------------------------------------------------------------------------------------------
+        if integrator_id == 1: #LeapFrog
+            pressure          = float(self.builder.get_object('entry_pressure').get_text())
+            pressure_coupling = float(self.builder.get_object('entry_pressure_coupling').get_text())
+        else:
+            pressure          = None
+            pressure_coupling = None
+        #-------------------------------------------------------------------------------------------
+        #pressure          = float(self.builder.get_object('entry_pressure').get_text())
+        #pressure_coupling = float(self.builder.get_object('entry_pressure_coupling').get_text())
+
+        #-------------------------------------------------------------------------------------------
+        if integrator_id == 2: #Langevin
+            collision_frequency = float(self.builder.get_object('entry_collision_frequency').get_text())
+        else:
+            collision_frequency = None
+        #-------------------------------------------------------------------------------------------
+
         if temp_scale_id == 0:
             temp_end = None
         else:
             pass
+        
+        if integrator_id in [0,1]: #leapfrog or Langevin
+            temp_control = True
+        else:
+            temp_control = False
         
         '''---------------------------------------------------------------------------------'''
         tree_iter = self.combobox_starting_coordinates.get_active_iter()
@@ -767,7 +805,7 @@ class MolecularDynamicsWindow_OLD():
                     'pressureCoupling'          : pressure_coupling  ,  #  LeapFrogDynamics 
                                                                      
                     'temperature'               : temp_start         ,               
-                    'temperatureControl'        : True               ,  # True / False LeapFrogDynamics / LangevinDynamics
+                    'temperatureControl'        : temp_control       ,  # True / False LeapFrogDynamics / LangevinDynamics
                     'temperatureCoupling'       : temp_coupling      ,  #  LeapFrogDynamics / LangevinDynamics
                     
                     #LangevinDynamics

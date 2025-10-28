@@ -742,19 +742,32 @@ class UmbrellaSamplingWindow_new(Gtk.Window):
         time_step           = float(self.builder.get_object('entry_time_step').get_text())
         log_frequence       = int(self.builder.get_object('entry_log_frequency').get_text())
         random_seed         = int(self.builder.get_object('entry_random_seed').get_text())
-        collision_frequency = float(self.builder.get_object('entry_collision_frequency').get_text())
-
-        temp_coupling       =  float(self.builder.get_object('entry_temp_coupling').get_text())
+        
+        collision_frequency = None
+        temp_coupling       = None #float(self.builder.get_object('entry_temp_coupling').get_text())
         
         if self.builder.get_object('check_pressure_control').get_active():
             pressure_control = True
         else:
             pressure_control = False
-       
-        pressure          = float(self.builder.get_object('entry_pressure').get_text())
-        pressure_coupling = float(self.builder.get_object('entry_pressure_coupling').get_text())
         
-
+        #-------------------------------------------------------------------------------------------
+        if integrator_id == 1: #LeapFrog
+            temp_coupling     = float(self.builder.get_object('entry_temp_coupling').get_text())
+            pressure          = float(self.builder.get_object('entry_pressure').get_text())
+            pressure_coupling = float(self.builder.get_object('entry_pressure_coupling').get_text())
+            temp_control      = True
+        else:
+            pressure          = None
+            pressure_coupling = None
+            temp_control      = True
+        #-------------------------------------------------------------------------------------------
+        
+        if integrator_id == 2: #Langevin
+            temp_coupling       = float(self.builder.get_object('entry_temp_coupling').get_text())
+            collision_frequency = float(self.builder.get_object('entry_collision_frequency').get_text())
+        else:
+            collision_frequency = None
         
         MD_method = {
                      0 : "Verlet"   ,
@@ -766,37 +779,36 @@ class UmbrellaSamplingWindow_new(Gtk.Window):
 
         parameters = {
                     "simulation_type"           : "Umbrella_Sampling",
-                    "folder"                    : HOME                    ,
+                    #"folder"                    : HOME                    ,
                     'integrator'                : MD_method[integrator_id], # verlet / leapfrog /langevin
-                    'logFrequency'             : log_frequence           ,
+                    'logFrequency'              : log_frequence           ,
                     'seed'                      : random_seed             ,
-                    'normal_deviate_generator'    : None                    ,
+                    'normal_deviate_generator'  : None                    ,
                     'steps_eq'                  : number_of_steps_eq      ,
                     'steps_dc'                  : number_of_steps_dc      ,
-                    'timeStep'                 : time_step               ,
+                    'timeStep'                  : time_step               ,
                     #'trajectories'              : None                    ,
-                    'trajectory_frequency'      : int(self.builder.get_object('entry_traj_frequency').get_text()), 
-                    'trajectory_frequency_dc_ptRes'   : int(self.builder.get_object('entry_traj_frequency_dc1').get_text()), 
-                    'trajectory_frequency_dc_ptGeo'   : int(self.builder.get_object('entry_traj_frequency_dc2').get_text()), 
+                    'trajectory_frequency'          : int(self.builder.get_object('entry_traj_frequency').get_text()), 
+                    'trajectory_frequency_dc_ptRes' : int(self.builder.get_object('entry_traj_frequency_dc1').get_text()), 
+                    'trajectory_frequency_dc_ptGeo' : int(self.builder.get_object('entry_traj_frequency_dc2').get_text()), 
                     
                     #VelocityVerletDynamics
                     'temperatureScaleFrequency' : temp_scale_factor                ,
                     'temperatureStart'          : temp_start                       ,
                     
                     #LeapFrogDynamics
-                    'pressure'                  : pressure           ,  #  LeapFrogDynamics 
-                    'temperatureControl'           : pressure_control   ,  #  LeapFrogDynamics 
-                    'temperatureCoupling'          : pressure_coupling  ,  #  LeapFrogDynamics 
+                    'pressure'                  : pressure           ,  #  LeapFrogDynamics  1.0 default
+                    'pressureControl'           : pressure_control   ,  #  LeapFrogDynamics  True / False
+                    'pressureCoupling'          : pressure_coupling  ,  #  LeapFrogDynamics  2000
                                                                      
                     'temperature'               : temp_start         ,               
-                    'temperatureControl'        : True               ,  # True / False LeapFrogDynamics / LangevinDynamics
+                    'temperatureControl'        : temp_control   ,  # True / False LeapFrogDynamics / LangevinDynamics
                     'temperatureCoupling'       : temp_coupling      ,  #  LeapFrogDynamics / LangevinDynamics
                     
                     #LangevinDynamics
-                    'collisionFrequency'        : collision_frequency,
+                    'collisionFrequency'        : collision_frequency,  # Langevin 25
                     }
         return parameters
-
 
     def restore_the_parameters_to_the_window(self, parameters):
         """Update the GUI widgets with values from the parameters dictionary."""
@@ -889,7 +901,7 @@ class UmbrellaSamplingWindow_new(Gtk.Window):
             self.builder.get_object('entry_temp_scale_factor').set_text(str(md_parm.get('temperatureScaleFrequency', 1)))
             self.builder.get_object('entry_collision_frequency').set_text(str(md_parm.get('collisionFrequency', 0.0)))
             self.builder.get_object('entry_pressure').set_text(str(md_parm.get('pressure', 1.0)))
-            self.builder.get_object('entry_pressure_coupling').set_text(str(md_parm.get('temperatureCoupling', 1.0)))
+            self.builder.get_object('entry_pressure_coupling').set_text(str(md_parm.get('pressureCoupling', 1.0)))
             self.builder.get_object('entry_temp_coupling').set_text(str(md_parm.get('temperatureCoupling', 1.0)))
 
         # ----------------------------
@@ -903,9 +915,6 @@ class UmbrellaSamplingWindow_new(Gtk.Window):
         # ----------------------------
         if 'NmaxThreads' in parameters:
             self.spinbutton.set_value(parameters['NmaxThreads'])
-
-
-
 
 
 class UmbrellaSamplingWindow(Gtk.Window):
@@ -1470,19 +1479,32 @@ class UmbrellaSamplingWindow(Gtk.Window):
         time_step           = float(self.builder.get_object('entry_time_step').get_text())
         log_frequence       = int(self.builder.get_object('entry_log_frequency').get_text())
         random_seed         = int(self.builder.get_object('entry_random_seed').get_text())
-        collision_frequency = float(self.builder.get_object('entry_collision_frequency').get_text())
-
-        temp_coupling       =  float(self.builder.get_object('entry_temp_coupling').get_text())
+        
+        collision_frequency = None
+        temp_coupling       = None #float(self.builder.get_object('entry_temp_coupling').get_text())
         
         if self.builder.get_object('check_pressure_control').get_active():
             pressure_control = True
         else:
             pressure_control = False
-       
-        pressure          = float(self.builder.get_object('entry_pressure').get_text())
-        pressure_coupling = float(self.builder.get_object('entry_pressure_coupling').get_text())
         
-
+        #-------------------------------------------------------------------------------------------
+        if integrator_id == 1: #LeapFrog
+            temp_coupling     = float(self.builder.get_object('entry_temp_coupling').get_text())
+            pressure          = float(self.builder.get_object('entry_pressure').get_text())
+            pressure_coupling = float(self.builder.get_object('entry_pressure_coupling').get_text())
+            temp_control      = True
+        else:
+            pressure          = None
+            pressure_coupling = None
+            temp_control      = True
+        #-------------------------------------------------------------------------------------------
+        
+        if integrator_id == 2: #Langevin
+            temp_coupling       = float(self.builder.get_object('entry_temp_coupling').get_text())
+            collision_frequency = float(self.builder.get_object('entry_collision_frequency').get_text())
+        else:
+            collision_frequency = None
         
         MD_method = {
                      0 : "Verlet"   ,
@@ -1494,34 +1516,34 @@ class UmbrellaSamplingWindow(Gtk.Window):
 
         parameters = {
                     "simulation_type"           : "Umbrella_Sampling",
-                    "folder"                    : HOME                    ,
+                    #"folder"                    : HOME                    ,
                     'integrator'                : MD_method[integrator_id], # verlet / leapfrog /langevin
-                    'logFrequency'             : log_frequence           ,
+                    'logFrequency'              : log_frequence           ,
                     'seed'                      : random_seed             ,
-                    'normal_deviate_generator'    : None                    ,
+                    'normal_deviate_generator'  : None                    ,
                     'steps_eq'                  : number_of_steps_eq      ,
                     'steps_dc'                  : number_of_steps_dc      ,
-                    'timeStep'                 : time_step               ,
+                    'timeStep'                  : time_step               ,
                     #'trajectories'              : None                    ,
-                    'trajectory_frequency'      : int(self.builder.get_object('entry_traj_frequency').get_text()), 
-                    'trajectory_frequency_dc_ptRes'   : int(self.builder.get_object('entry_traj_frequency_dc1').get_text()), 
-                    'trajectory_frequency_dc_ptGeo'   : int(self.builder.get_object('entry_traj_frequency_dc2').get_text()), 
+                    'trajectory_frequency'          : int(self.builder.get_object('entry_traj_frequency').get_text()), 
+                    'trajectory_frequency_dc_ptRes' : int(self.builder.get_object('entry_traj_frequency_dc1').get_text()), 
+                    'trajectory_frequency_dc_ptGeo' : int(self.builder.get_object('entry_traj_frequency_dc2').get_text()), 
                     
                     #VelocityVerletDynamics
                     'temperatureScaleFrequency' : temp_scale_factor                ,
                     'temperatureStart'          : temp_start                       ,
                     
                     #LeapFrogDynamics
-                    'pressure'                  : pressure           ,  #  LeapFrogDynamics 
-                    'temperatureControl'           : pressure_control   ,  #  LeapFrogDynamics 
-                    'temperatureCoupling'          : pressure_coupling  ,  #  LeapFrogDynamics 
+                    'pressure'                  : pressure           ,  #  LeapFrogDynamics  1.0 default
+                    'pressureControl'           : pressure_control   ,  #  LeapFrogDynamics  True / False
+                    'pressureCoupling'          : pressure_coupling  ,  #  LeapFrogDynamics  2000
                                                                      
                     'temperature'               : temp_start         ,               
-                    'temperatureControl'        : True               ,  # True / False LeapFrogDynamics / LangevinDynamics
+                    'temperatureControl'        : temp_control   ,  # True / False LeapFrogDynamics / LangevinDynamics
                     'temperatureCoupling'       : temp_coupling      ,  #  LeapFrogDynamics / LangevinDynamics
                     
                     #LangevinDynamics
-                    'collisionFrequency'        : collision_frequency,
+                    'collisionFrequency'        : collision_frequency,  # Langevin 25
                     }
         return parameters
 
