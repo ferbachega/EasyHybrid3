@@ -111,6 +111,7 @@ def main():
         #main_window.builder.get_object('toolbutton_terminal')   .hide()
         #main_window.builder.get_object('menuitem_reimaging')   .hide()
         #main_window.builder.get_object('menuitem_RMSD_tool')   .hide()
+        
         main_window.builder.get_object('menuitem_rama')   .hide()
         main_window.builder.get_object('menuitem_advanced_rc_scans').hide()
         

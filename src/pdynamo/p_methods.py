@@ -2320,7 +2320,7 @@ class UmbrellaSampling:
                 atom3_name = parameters['RC1']['ATOM_NAMES'][2]
 
                 atom4      = parameters['RC1']['ATOMS'][3]
-                atom3_name = parameters['RC1']['ATOM_NAMES'][3]
+                atom4_name = parameters['RC1']['ATOM_NAMES'][3]
 
                 weight1 =  1.0#parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
                 weight2 = -1.0#parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
@@ -2359,7 +2359,7 @@ class UmbrellaSampling:
                     atom3_name = parameters['RC2']['ATOM_NAMES'][2]
 
                     atom4      = parameters['RC2']['ATOMS'][3]
-                    atom3_name = parameters['RC2']['ATOM_NAMES'][3]
+                    atom4_name = parameters['RC2']['ATOM_NAMES'][3]
 
                     weight1 =  1.0#parameters['RC2']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
                     weight2 = -1.0#parameters['RC2']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
