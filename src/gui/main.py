@@ -549,7 +549,10 @@ class MainWindow:
         
         if button  == self.builder.get_object('toolbutton_monte_carlo'):
             ##print('toolbutton_umbrella_sampling')
-            self.normal_modes_analysis_window.open_window()
+            lista = list(self.vm_session.vobject_names.keys())
+            print(lista)
+            obj = self.vm_session.vobject_names[lista[0]]
+            print(obj.topology)
         
         if button  == self.builder.get_object('button_test'):
             ##print('toolbutton_umbrella_sampling')

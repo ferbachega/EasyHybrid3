@@ -4088,8 +4088,6 @@ class ImportTrajectoryWindow:
             if len(logfiles):
                 fullpath = os.path.join(trajfolder, logfiles[0])
                 self.builder.get_object('file_chooser_btn_logfile').set_filename(fullpath)
-            #else:
-            #    pass
         
     def on_combobox_pdynamo_system (self, widget):
         """ Function doc """
@@ -4106,8 +4104,7 @@ class ImportTrajectoryWindow:
         self.combobox_starting_coordinates = self.builder.get_object('vobjects_combobox')
         self.combobox_starting_coordinates.set_model(self.main.vobject_liststore_dict[sys_id])
         self.folder_chooser_button.folder = self.main.p_session.psystem[sys_id].e_working_folder
-        
-        
+
     def on_combobox_coordinate_type (self, widget):
         """ Function doc """
         data_type = self.builder.get_object('combobox_coordinate_type').get_active() 
@@ -4167,7 +4164,6 @@ class ImportTrajectoryWindow:
             '''selecting the vismol object from the content that is in the combobox '''
             model = self.combobox_starting_coordinates.get_model()
             name, vobject_id = model[tree_iter][:2]
-            #print ('\nname: ', name, '\nmodel[tree_iter][:2]: ', model[tree_iter][:2])
 
     def on_name_combo_changed (self, widget):
         """ Function doc """
@@ -4228,18 +4224,13 @@ class ImportTrajectoryWindow:
         
         data_type = self.builder.get_object('combobox_coordinate_type').get_active()        
         parameters['data_type'] = self.data_type_dict[data_type]
-        #-----------------------------------------------------------------------------
-        #tree_iter = self.combobox_pdynamo_system.get_active_iter()
-        #if tree_iter is not None:
-        #    '''selecting the vismol object from the content that is in the combobox '''
-        #    model = self.combobox_pdynamo_system.get_model()
-        #    _name, system_id = model[tree_iter][:2]
-        #
-        #else:
-        #    print ('Error: Please select a pDynamo system before continuing. ')
-        #-----------------------------------------------------------------------------
         
-        #print(parameters)
+        try:
+            parameters['first']  = int(self.builder.get_object('entry_first').get_text()  )
+            parameters['last']   = int(self.builder.get_object('entry_last').get_text()   )
+            parameters['stride'] = int(self.builder.get_object('entry_stride').get_text() )
+        except:
+            pass
         
         #----------------------------------------------------------------------------------------------
         '''Here, we determine whether it is necessary to create a new object 

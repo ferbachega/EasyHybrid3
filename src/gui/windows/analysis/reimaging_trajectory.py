@@ -231,12 +231,20 @@ class ReimagingTrajectoryWindow:
             
             
             for frame_index, frame in enumerate(vismol_object.frames):
-                 
+                
+                abc = vismol_object.cell_coordinates[frame_index][-1]
+                center_a = abc[0]/2
+                center_b = abc[1]/2
+                center_c = abc[2]/2
+                
+                
+                #print('abc', abc)
+                
                 x = 0.0 
                 y = 0.0 
                 z = 0.0 
-                
                 n = 0
+                
                 for atom in selections.selected_atoms:
                     xyz = atom.coords( frame = frame_index)
                     x += xyz[0]
@@ -266,6 +274,13 @@ class ReimagingTrajectoryWindow:
         # Iterate over all frames
         for frame_index, frame in enumerate(vismol_object.frames):
             
+            #the cell is dynamic, so we have to calcule a, b and c for all frames
+            abc = vismol_object.cell_coordinates[frame_index][-1]
+            a = abc[0]
+            b = abc[1]
+            c = abc[2]
+
+
             #mol_idx = 0
             for mol_idx, molecule in enumerate(vismol_object.molecules.values()):
             #for molecule in vismol_object.molecules.values():

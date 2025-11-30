@@ -2735,7 +2735,7 @@ class UmbrellaSampling:
         RC1 = []                                                           
         distance = 0.0                                                     
         for rc in RC:                                                      
-            dist = system.coordinates3.Distance(int(rc[1]),  int(rc[3]))   
+            dist = parameters['system'].coordinates3.Distance(int(rc[1]),  int(rc[3]))   
             dist = dist*float(rc[4]) #weighted distance                    
             distance += dist                                                                                                                          
             RC1.append([ int(rc[1]),  int(rc[3]), float(rc[4]) ])          
