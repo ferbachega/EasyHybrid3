@@ -90,7 +90,7 @@ class EditFrameDialog():
         self.window.destroy()
         self.visible    =  False
         #print('self.visible',self.visible)
-    
+
     def apply (self, widget):
         """ Function doc """
         text = self.entry_delete_frames.get_text()
@@ -167,4 +167,74 @@ class EditFrameDialog():
         
         
         
+        self.close_window(None, None)
+
+
+    def apply_old (self, widget):
+        """ Function doc """
+        #text = self.entry_delete_frames.get_text()
+        print(text,  self.vobj_id )
+        vobject = self.main_session.vm_session.vm_objects_dic[self.vobj_id]
+        frames  = vobject.frames
+
+        
+        atom_qtty = len(vobject.atoms.items())
+        size = len(vobject.frames)
+        print(atom_qtty, size)
+        #coords
+        
+        
+        init_frame = frames[0]
+        
+        
+        new_traje  = np.empty([1, int(atom_qtty), 3], dtype=np.float32)
+        
+        for j, xyz in enumerate(init_frame):
+            new_traje[0][j][0] = init_frame[j][0]
+            new_traje[0][j][1] = init_frame[j][1]
+            new_traje[0][j][2] = init_frame[j][2]
+        
+        print('adding:', 0)
+        
+        for i in range(0, len(frames)-1):
+            frame1 = frames[i]
+            frame2 = frames[i+1]
+            
+            new_frame  = np.empty([2, int(atom_qtty), 3], dtype=np.float32)
+            t = 0.5
+            
+            C = (1 - t) * frame1 + t * frame2
+            
+            #'''
+            for j, xyz in enumerate(frame1):
+                dx  = (frame1[j][0] - frame2[j][0])/2
+                dy  = (frame1[j][1] - frame2[j][1])/2
+                dz  = (frame1[j][2] - frame2[j][2])/2
+
+                
+                new_frame[0][j][0] = C[j][0]  
+                new_frame[0][j][1] = C[j][1]  
+                new_frame[0][j][2] = C[j][2]  
+                
+                new_frame[1][j][0] = frame2[j][0] 
+                new_frame[1][j][1] = frame2[j][1] 
+                new_frame[1][j][2] = frame2[j][2] 
+            #'''
+
+            
+            new_traje = np.vstack((new_traje, new_frame))
+       
+        system = self.main_session.p_session.psystem[vobject.e_id]
+        vobject = self.main_session.p_session._add_vismol_object_to_easyhybrid_session (system, show_molecule=True, name = 'edited_coords')
+        vobject.frames = new_traje
+
+        # Apply fixed representation to the VisMol object
+        self.main_session.p_session._apply_fixed_representation_to_vobject(vismol_object =vobject)
+        
+        # Apply QC representation to the VisMol object
+        self.main_session.p_session._apply_QC_representation_to_vobject(vismol_object =vobject)
+        
+        # Refresh the widgets in the main window
+        self.main_session.main_treeview.refresh_number_of_frames()
+        #self.main_session.p_session.main.refresh_widgets()        
         self.close_window(None, None)

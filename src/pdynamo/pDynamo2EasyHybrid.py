@@ -2616,8 +2616,30 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             self.psystem[system_id].coordinates3[i][0] = xyz[0]
             self.psystem[system_id].coordinates3[i][1] = xyz[1]
             self.psystem[system_id].coordinates3[i][2] = xyz[2]
-
-    
+        
+        #self.psystem[system_id].Summary()
+        #print(vobject.cell_coordinates)
+        #print(vobject.cell_coordinates)
+        if self.psystem[system_id].symmetry:
+            a = vobject.cell_coordinates[frame][7][0]
+            b = vobject.cell_coordinates[frame][7][1]
+            c = vobject.cell_coordinates[frame][7][2]
+            
+            alpha = vobject.cell_parameters['alpha']
+            beta  = vobject.cell_parameters['beta']
+            gamma = vobject.cell_parameters['gamma']
+            
+            print('setting cell parameters vobj to psys:')
+            print('a = ', a)
+            print('b = ', b)
+            print('c = ', c)
+            print('alpha = ', alpha)
+            print('beta  = ', beta )
+            print('gamma = ', gamma)
+            
+            self.psystem[system_id].symmetryParameters.SetCrystalParameters(a,b,c, alpha ,beta, gamma)
+            
+        
     def get_fixed_atoms_from_system (self, system):
         """
         Get a list of fixed atoms from the given system object.

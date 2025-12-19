@@ -51,7 +51,10 @@ logger = logging.getLogger(__name__)
 
 from util.geometric_analysis            import get_distance 
 from util.geometric_analysis            import get_dihedral 
+from util.geometric_analysis            import get_simple_dihedral 
 from util.geometric_analysis            import get_angle 
+#from util.geometric_analysis            import find_subgroup 
+from util.geometric_analysis            import rotate_bond 
 
 class CommandLine:
     """ Class doc """
@@ -2018,3 +2021,119 @@ button position in the main treeview (active column).""".format(name,self.main.p
         if  "cell_lines" in  vismol_object.representations.keys():
             vismol_object.representations["cell_lines"].active = False
         self.vm_glcore.queue_draw()
+
+
+
+    def move_subgroup  (self,  vobject = None, 
+                               index1  = None, 
+                               index2  = None, 
+                               frame   = None,
+                               subgroup = None,
+                               direction = 1):
+        """ Function doc """
+        
+        if frame:
+            pass
+        else:
+            frame = self.get_frame()
+        
+        #topology = vobject.topology
+        #subgroup = find_subgroup (index1, index2, topology)
+        if len(subgroup) == 0:
+            subgroup = [index2]
+        
+        center = (vobject.frames[frame][index1][0],
+                  vobject.frames[frame][index1][1],
+                  vobject.frames[frame][index1][2])
+        
+        axis = (
+                vobject.frames[frame][index2][0],                            
+                vobject.frames[frame][index2][1],                            
+                vobject.frames[frame][index2][2]                             
+                )
+        
+        dx  = (center[0] - axis[0])/10 
+        dy  = (center[1] - axis[1])/10 
+        dz  = (center[2] - axis[2])/10 
+        
+        for index in subgroup:
+            vobject.frames[frame][index][0] = vobject.frames[frame][index][0] + dx*direction
+            vobject.frames[frame][index][1] = vobject.frames[frame][index][1] + dy*direction
+            vobject.frames[frame][index][2] = vobject.frames[frame][index][2] + dz*direction
+        
+        
+        
+        #rotate_bond(vobject, index1, index2, subgroup, theta = theta, frame = frame)
+        
+        for rep in vobject.representations.keys():
+            if vobject.representations[rep]:
+                vobject.representations[rep].was_rep_coord_modified = True
+        
+        self.set_frame(frame)
+
+    def rotate_dihedral (self,vobject = None, 
+                               index1 = None, 
+                               index2 = None, 
+                               frame  = None,
+                               subgroup = None,
+                               theta  = 1):
+        """ Function doc """
+        #index1   = atom2.index-1
+        #index2   = atom3.index-1
+        #vobject  = atom2.vm_object
+        if frame:
+            pass
+        else:
+            frame = self.get_frame()
+        
+        topology = vobject.topology
+        #subgroup = find_subgroup (index1, index2, topology)
+        
+        #print(topology)
+        #print(subgroup)
+        
+        rotate_bond(vobject, index1, index2, subgroup, theta = theta, frame = frame)
+        
+        for rep in vobject.representations.keys():
+            if vobject.representations[rep]:
+                vobject.representations[rep].was_rep_coord_modified = True
+        
+        self.set_frame(frame)
+
+
+    def get_dihedral (self, theta):
+        """ Function doc """
+        if self.picking_selection_mode:
+            frame = self.get_frame() 
+        
+         
+            atom1 = self.picking_selections.picking_selections_list[0]
+            atom2 = self.picking_selections.picking_selections_list[1]
+            atom3 = self.picking_selections.picking_selections_list[2]
+            atom4 = self.picking_selections.picking_selections_list[3]
+    
+            value = get_dihedral(atom1, atom2, atom3, atom4)
+
+            index1   = atom2.index-1
+            index2   = atom3.index-1
+            vobject  = atom2.vm_object
+            topology = vobject.topology
+            subgroup = find_subgroup (index1, index2, topology)
+            
+            #print(topology)
+            #print(subgroup)
+            
+            rotate_bond(vobject, index1, index2, subgroup, theta = theta, frame = frame)
+            
+            for rep in vobject.representations.keys():
+                if vobject.representations[rep]:
+                    vobject.representations[rep].was_rep_coord_modified = True
+            
+            self.set_frame(frame)
+            #self.picking_selections.update_pki_pkj_rep_coordinates()
+            #self.vm_widget.queue_draw()
+            print(value)
+    
+    def set_dihedral (self):
+        """ Function doc """
+        
