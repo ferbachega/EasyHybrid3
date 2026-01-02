@@ -2715,7 +2715,8 @@ class UmbrellaSampling:
         #    Setting some local vars to ease the notation in the pDynamo methods
         #----------------------------------------------------------------------------------------
         opt_parameters  = parameters['OPT_parm']
-        opt_parameters['trajectory_path_opt'] = parameters['trajectory_path_opt']
+        if opt_parameters:
+            opt_parameters['trajectory_path_opt'] = parameters['trajectory_path_opt']
         
         md_paramters    = parameters['MD_parm']
         #----------------------------------------------------------------------------------------
