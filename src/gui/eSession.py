@@ -2042,6 +2042,12 @@ button position in the main treeview (active column).""".format(name,self.main.p
         if len(subgroup) == 0:
             subgroup = [index2]
         
+        if index2 in subgroup:
+            pass
+        else:
+            subgroup.append(index2)
+        
+        
         center = (vobject.frames[frame][index1][0],
                   vobject.frames[frame][index1][1],
                   vobject.frames[frame][index1][2])
