@@ -43,6 +43,7 @@ from gi.repository import Gdk
 from gi.repository import GdkPixbuf
 from gui.widgets.custom_widgets import CoordinatesComboBox
 from gui.windows.setup.windows_and_dialogs import InfoWindow
+from gui.widgets.custom_widgets import FolderChooserButton
 
 from pprint import pprint
 import numpy as np
@@ -52,6 +53,7 @@ class PotentialEnergyAnalysisWindow:
     def __init__(self, main = None ):
         """ Class initialiser """
         self.main                = main
+        self.home                = main.home
         self.p_session           = self.main.p_session
         self.vm_session          = self.main.vm_session
         self.Visible             =  False  
@@ -105,7 +107,7 @@ class PotentialEnergyAnalysisWindow:
 
                           
                           'Optimize Pathway'        : self._menu_opt_pathway           ,
-                          'Export Incomplete Matrix': self._menu_export_incomplete_data,
+                          'Export Incomplete Matrix': self._menu_call_incomplete_matrix_window,
                           'Reduce Resolution'       : self._menu_change_data_resolution,
 
                           
@@ -116,8 +118,9 @@ class PotentialEnergyAnalysisWindow:
 
                           }
             
-        
-        
+        self.incomplete_matrix_window = False
+
+
     def open_window (self, vobject = None):
         """ Function doc """
         if self.Visible  ==  False:
@@ -243,7 +246,13 @@ class PotentialEnergyAnalysisWindow:
         """ Function doc """
         self.window.destroy()
         self.Visible    =  False
-
+        
+        if self.incomplete_matrix_window:
+            self.close_window_exp_matrix(None)
+            
+            
+        
+        
     def refresh_vobject_liststore (self):
         """ Function doc """       
         self.vobject_liststore.clear()
@@ -636,9 +645,6 @@ class PotentialEnergyAnalysisWindow:
         tree_view_menu.show_all()
         return tree_view_menu, menu_header
 
-
-
-
     def _show_info                   (self, widget):
         """ Function doc """
 
@@ -689,46 +695,152 @@ class PotentialEnergyAnalysisWindow:
         self.scale_traj_new_definitions()
         self.plot.queue_draw()
         self.plot2.queue_draw()
-        
-    def _menu_export_incomplete_data (self, widget):
+
+    
+    def call_export_incomplete_matrix_window (self):
         """ Function doc """
+        if self.incomplete_matrix_window ==  False:
+
+            self.builder2 = Gtk.Builder()
+            self.builder2.add_from_file(os.path.join(self.main.home,'src/gui/windows/analysis/export_incomplete_matrix.glade'))
+            self.builder2.connect_signals(self)
+
+
+            self.window_exp_matrix = self.builder2.get_object('window')
+            self.window_exp_matrix.set_title('Edit Matrix window')
+            #self.window_exp_matrix.set_keep_above(True)            
+            self.window_exp_matrix.set_default_size(350, 320)
+            
+            self.folder_chooser_button = FolderChooserButton(main = self.main, sel_type = 'folder', home =  self.home, parent = self.window_exp_matrix)
+            self.builder2.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
+ 
+            self.button_export = self.builder2.get_object('btn_export')
+            self.button_cancel = self.builder2.get_object('btn_cancel')
+            
+            self.button_export.connect('clicked', self.on_btn_export)
+            self.button_cancel.connect('clicked', self.close_window_exp_matrix)
+            
+            self.sbtn_disp_x = self.builder2.get_object('sbtn_disp_x')
+            self.sbtn_disp_y = self.builder2.get_object('sbtn_disp_y')
+            
+            self.entry_num_of_frames = self.builder2.get_object('entry_num_of_frames')
+            
+            self.refresh_addtional_frame_list()
+            
+            self.window_exp_matrix.show_all()
+            self.incomplete_matrix_window= True
+            
+            
+    def on_btn_export (self, widget, data  = None):
+        """ Function doc """
+        #x_disp = self.sbtn_disp_x.get_value_as_int()
+        #y_disp = self.sbtn_disp_y.get_value_as_int()
+        folder = self.folder_chooser_button.get_folder()
+        name  = self.builder2.get_object('entry_folder_name').get_text()
+        print(folder,name)
+        #self.refresh_addtional_frame_list(x_disp, y_disp)
+        #self.plot.queue_draw()
+        self._export_incomplete_data(folder = folder, name = name)
+    
+    def on_spin_btn_value_change (self, widget, data = None):
+        """ Function doc """
+        x_disp = self.sbtn_disp_x.get_value_as_int()
+        y_disp = self.sbtn_disp_y.get_value_as_int()
+        
+        #print(self.plot.points)
+        self.refresh_addtional_frame_list(x_disp, y_disp)
+        self.plot.queue_draw()
+    
+    def close_window_exp_matrix (self, widget, data  = None):
+        """ Function doc """
+        #print("eu")
+        self.window_exp_matrix.destroy()
+        self.incomplete_matrix_window    =  False
+        self.clean_extra_points()
+        self.plot.queue_draw()
+        
+    
         
         
+    def refresh_addtional_frame_list (self, x_disp = 2 , y_disp = 2):
+        """ Esta funcao atualiza os a lista de frames extras (points) 
+        que fazem parte da matriz incompleta, representados pelos pontos 
+        em cor roxa no ImagePlot"""
+        #x_disp   = 2
+        #y_disp   = 2
+        x_offset = 1
+        y_offset = 1
+        self.plot.extra_points = []
+        
+        for xy in self.plot.points:
+            for i in range(-x_disp, x_disp+1, x_offset):
+                for j in range(-y_disp, y_disp+1, y_offset):
+                    y = xy[1] + j
+                    x = xy[0] + i
+                    
+                    if [x,y] in self.plot.extra_points:
+                        pass
+                    else:
+                        if (y,x) in self.vobject.idx_2D_xy.keys():
+                            self.plot.extra_points.append([x,y])
+                        else:
+                            pass
+        self.entry_num_of_frames.set_text(str(len(self.plot.extra_points)))
+                    #try:
+                    #    #frame_number = self.vobject.idx_2D_xy[(y, x)]
+                    #    #self.main.p_session.set_psystem_coordinates_from_vobject(vobject   = self.vobject, 
+                    #                                                    system_id = self.vobject.e_id, 
+                    #                                                    frame     = frame_number)
+                    #    #filename = 'frame{}_{}.pkl'.format(y, x)
+                    #    #self.main.p_session.export_pdynamo_system_coordinates( folder, filename, system)
+                    #    #Pickle( os.path.join ( folder, filename), system.coordinates3 )
+                    #except:
+                    #    pass
+        
+    def clean_extra_points (self):
+        """ Function doc """
+        self.plot.extra_points = []
+
+    
+    def _menu_call_incomplete_matrix_window (self,widget):
+        """ Function doc """
+        self.call_export_incomplete_matrix_window()
+    
+    def _export_incomplete_data (self, folder = None, name = 'incomplete_matrix' ):
+    
+        """ Function doc """
+        #self.call_export_incomplete_matrix_window()
+        #'''
         #folder = '/home/fernando/test'
         system = self.main.p_session.psystem[self.vobject.e_id]
-        folder = system.e_working_folder
         
-        folder = os.path.join(folder, 'Incomplete_matrix.ptGeo')
+        if folder and name:
+            folder = os.path.join(folder, name+'.ptGeo')
+        else:
+            folder = system.e_working_folder
+            folder = os.path.join(folder, 'Incomplete_matrix.ptGeo')
         
         if os.path.isdir( folder):
             pass
         else:
             os.mkdir(folder)
-        
-        x_disp   = 2
-        y_disp   = 2
-        x_offset = 1
-        y_offset = 1
-        
-        for xy in self.plot.points:
-            for i in range(-x_disp, x_disp+1, x_offset):
-                for j in range(-y_disp, y_disp+1, y_offset):
-                    
-                    y = xy[1] + j
-                    x = xy[0] + i
-                    #frame_number = self.vobject.idx_2D_xy[(xy[1], xy[0])]
-                    
-                    try:
-                        frame_number = self.vobject.idx_2D_xy[(y, x)]
-                        self.main.p_session.set_psystem_coordinates_from_vobject(vobject   = self.vobject, 
-                                                                        system_id = self.vobject.e_id, 
-                                                                        frame     = frame_number)
-                        filename = 'frame{}_{}.pkl'.format(y, x)
-                        self.main.p_session.export_pdynamo_system_coordinates( folder, filename, system)
-                        #Pickle( os.path.join ( folder, filename), system.coordinates3 )
-                    except:
-                        pass
-                        
+
+        for xy in self.plot.extra_points:
+            y = xy[1]
+            x = xy[0]
+            
+            try:
+                frame_number = self.vobject.idx_2D_xy[(y, x)]
+                self.main.p_session.set_psystem_coordinates_from_vobject(vobject   = self.vobject, 
+                                                                system_id = self.vobject.e_id, 
+                                                                frame     = frame_number)
+                filename = 'frame{}_{}.pkl'.format(y, x)
+                self.main.p_session.export_pdynamo_system_coordinates( folder, filename, system)
+                #Pickle( os.path.join ( folder, filename), system.coordinates3 )
+            except:
+                pass
+        #'''
+    
     def _menu_change_data_resolution (self, widget):
         """ Function doc """
 

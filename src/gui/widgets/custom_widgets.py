@@ -399,11 +399,17 @@ class SaveTrajectoryBox:
 class FolderChooserButton:
     """ Class doc """
     
-    def __init__ (self, main = None, sel_type = 'folder', home  = None):
+    def __init__ (self, main = None, sel_type = 'folder', home  = None, parent = None):
         """ Class initialiser """
         self.main     =  main
         self.btn      =  Gtk.Button()
         self.sel_type =  sel_type # file/folder
+        
+        
+        if parent:
+            self.parent = parent
+        else:
+            self.parent =  self.main.window
         
         #self.sel_type = 'file' # file/folder
 
@@ -449,7 +455,7 @@ class FolderChooserButton:
             dialog = Gtk.FileChooserDialog(
                 
                 #title="Please choose a file", parent=window, action=Gtk.FileChooserAction.OPEN
-                title="Please choose a folder", parent= self.main.window, action=Gtk.FileChooserAction.SELECT_FOLDER
+                title="Please choose a folder", parent = self.parent, action=Gtk.FileChooserAction.SELECT_FOLDER
             )
             dialog.set_select_multiple(True)
             dialog.add_buttons(
@@ -463,7 +469,7 @@ class FolderChooserButton:
             dialog = Gtk.FileChooserDialog(
                 
                 #title="Please choose a file", parent=window, action=Gtk.FileChooserAction.OPEN
-                title="Please choose a file", parent= self.main.window, action=Gtk.FileChooserAction.OPEN
+                title="Please choose a file", parent= self.parent, action=Gtk.FileChooserAction.OPEN
             )
             dialog.add_buttons(
                 Gtk.STOCK_CANCEL,

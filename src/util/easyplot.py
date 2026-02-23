@@ -427,6 +427,7 @@ class ImagePlot(Canvas):
         self.bx = 50 
         self.by = 50 
         self.points = []
+        self.extra_points = []
         
         self.data = data
         self.dataRC1 = None
@@ -946,24 +947,33 @@ class ImagePlot(Canvas):
             cr.show_text(text)
             #--------------------------------------------------------------------------------------------
         
-    def draw_dots (self, cr, color = [0,0,0]):
+    def draw_dots (self, cr, points, color = [0,0,0], fill = True):
         """ Function doc """
+        cr.stroke ()
         cr.set_source_rgb( color[0], color[1], color[2])
         #print(self.points)
-        for x,y in self.points:
+        for x,y in points:
             #else:
             cr.set_source_rgb( color[0], color[1], color[2])
             cr.arc(((x+0.5)*self.factor_x)+ self.bx, ((y+0.5)*self.factor_y)+self.by , 5, 0, 2 * 3.14)
             #cr.stroke ()
-            cr.fill()
+            if fill:
+                cr.fill()
+            else:
+                pass
+                cr.stroke ()
         # draws the red dot at the energey matrix
-        if len(self.points) and self.selected_dot:
+        if len(points) and self.selected_dot:
             x = self.selected_dot[0]
             y = self.selected_dot[1]
             cr.set_source_rgb( self.sel_dot_rgb[0], self.sel_dot_rgb[1], self.sel_dot_rgb[2])
             cr.arc(((x+0.5)*self.factor_x)+ self.bx, ((y+0.5)*self.factor_y)+self.by , 5, 0, 2 * 3.14)
-            cr.fill()
-   
+            
+            if fill:
+                cr.fill()
+            else:
+                pass
+                cr.stroke ()
     
     def draw_lines (self, cr, line_width = 2, color = [0,0,0]):
         """ Function doc """
@@ -1031,8 +1041,11 @@ class ImagePlot(Canvas):
         self.draw_image_box (self.temp_cr, line_width = 1, color = [0,0,0])#(cr, line_width = 1, color = [0,0,0])
 
         self.draw_scale(self.temp_cr)#(cr)
-
-        self.draw_dots (self.temp_cr)#(cr)
+        
+        #this draws the black dots at the image matrix surface (red dot if it is selected)
+        self.draw_dots (self.temp_cr, self.points, [0,0,0], True)#(cr)
+        
+        self.draw_dots (self.temp_cr, self.extra_points, [0.75, 0, 0.5], False)
 
         self.draw_lines (self.temp_cr, line_width = 2, color = [0,0,0])#(cr, line_width = 2, color = [0,0,0])
     
