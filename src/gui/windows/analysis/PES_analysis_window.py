@@ -99,16 +99,16 @@ class PotentialEnergyAnalysisWindow:
                                                     
                           '_separator'              : ''                              ,
                                                     
-                          'Info'                    : self._show_info                  ,
+                          #'Info'                    : self._show_info                  ,
                                                     
-                          '_separator'              : ''                              ,
-                          'Settings'                : self._menu_settings             ,
-                          '_separator'              : ''                              ,
+                          #'_separator'              : ''                              ,
+                          #'Settings'                : self._menu_settings             ,
+                          #'_separator'              : ''                              ,
 
                           
                           'Optimize Pathway'        : self._menu_opt_pathway           ,
                           'Export Incomplete Matrix': self._menu_call_incomplete_matrix_window,
-                          'Reduce Resolution'       : self._menu_change_data_resolution,
+                          #'Reduce Resolution'       : self._menu_change_data_resolution,
 
                           
                           
@@ -616,7 +616,6 @@ class PotentialEnergyAnalysisWindow:
     def  update (self):
         """ Function doc """
         pass
-
     
     def build_tree_view_menu (self, menu_items = None):
         """ Function doc """

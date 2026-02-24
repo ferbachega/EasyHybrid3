@@ -105,7 +105,7 @@ def main():
         
         
         # do now show these itens:
-        #main_window.builder.get_object('toolbutton_monte_carlo').hide()
+        main_window.builder.get_object('toolbutton_monte_carlo').hide()
         
         #main_window.builder.get_object('button_test')           .hide()
         
