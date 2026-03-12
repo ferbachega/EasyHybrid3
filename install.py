@@ -204,20 +204,18 @@ located in:
 
         if ask_yes_no("Would you like the installer to check this for you?"):
 
-            pDyn_path = input(
+            pdynamo_path = input(
                 "\nEnter the path to the pDynamo installation (e.g. /home/user/pDynamo3): "
             ).strip()
 
-            shell_script = Path(pDyn_path) / "installation/shellScripts/environment_bash.com"
+            shell_script = Path(pdynamo_path) / "installation/shellScripts/environment_bash.com"
 
             if shell_script.exists():
-
                 print("Found environment script:", shell_script)
-
                 parse_bash_env_file(shell_script)
 
             else:
-
+                pdynamo_path = None
                 print("Environment script not found.")
 
     if pdynamo_path:
