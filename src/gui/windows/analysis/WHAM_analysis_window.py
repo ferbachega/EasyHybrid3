@@ -96,6 +96,26 @@ class WHAMWindow(Gtk.Window):
             
             
             
+            
+            '''------------------------------------FolderChooserButton-------------------------------'''     
+            if self.p_session.psystem[self.p_session.active_id]:
+                try:
+                    wfolder = self.p_session.psystem[self.p_session.active_id].e_working_folder
+                except:
+                    wfolder = None
+            else:
+                wfolder = None
+            self.folder_chooser_button = FolderChooserButton(main =  self.main, 
+                                                         sel_type = 'folder', 
+                                                             home = wfolder, 
+                                                           parent = self.window)
+            '''---------------------------------------------------------------------------------------'''     
+
+            
+            
+            
+            
+            
             # - - - - - - - systems combobox - - - - - - -
             '''--------------------------------------------------------------------------------------------'''
             self.box = self.builder.get_object('box_system')
@@ -104,6 +124,11 @@ class WHAMWindow(Gtk.Window):
             '''--------------------------------------------------------------------------------------------'''
             self.box.pack_start(self.combobox_systems, False, False, 0)
             '''--------------------------------------------------------------------------------------------'''
+            
+            if self.p_session.psystem[self.p_session.active_id]:
+                active_id = self.p_session.active_id
+                self.combobox_systems.set_active_system (e_id = active_id)
+            
             
             
             '''--------------------------------------------------------------------------------------------'''
@@ -128,11 +153,12 @@ class WHAMWindow(Gtk.Window):
             
             
             
-            '''--------------------------------------------------------------------------------------------'''     
-            self.folder_chooser_button = FolderChooserButton(main =  self.main, sel_type = 'folder', home =  self.home)
+
+            
+            
             self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
             
-            
+            #self.folder_chooser_button
             
             
             
@@ -289,8 +315,9 @@ class WHAMWindow(Gtk.Window):
     def update (self, parameters = None):
         """ Function doc """
         #self._starting_coordinates_model_update()
+        folder = self.p_session.psystem[self.p_session.active_id].e_working_folder
         if self.Visible:
-            self.update_working_folder_chooser()
+            self.update_working_folder_chooser(folder)
             
         
     def update_working_folder_chooser (self, folder = None):
@@ -298,25 +325,21 @@ class WHAMWindow(Gtk.Window):
         #folder = self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder
         if folder:
             #print('update_working_folder_chooser')
-            self.save_trajectory_box.set_folder(folder = folder)
+            self.folder_chooser_button.set_folder(folder = folder)
         else:
-            
-            folder = self.main.p_session.psystem[self.main.p_session.active_id].e_working_folder
+            folder = self.p_session.psystem[self.p_session.active_id].e_working_folder
             if folder:
-                self.save_trajectory_box.set_folder(folder = folder)
+                self.folder_chooser_button.set_folder(folder = folder)
             else:
                 pass
 
 #=====================================================================================
     def on_combobox_PMF_type(self, widget):
         _type     = self.methods_combo.get_active()
-        
         if _type ==1:
             self.builder.get_object('entry_bins_RC2').show()
             self.builder.get_object('label_bins_RC2').show()
-            
             #parameters['bins'] = [int(bins), int(bins)] 
-
         else:
             self.builder.get_object('entry_bins_RC2').hide()
             self.builder.get_object('label_bins_RC2').hide()
@@ -327,7 +350,7 @@ class WHAMWindow(Gtk.Window):
     def on_combobox_systemsbox_changed(self, widget):
         """ Function doc """
         system_id = self.combobox_systems.get_system_id()
-        
         working_folder = self.p_session.psystem[system_id].e_working_folder
+        #print(system_id, working_folder)
         self.folder_chooser_button.set_folder(working_folder)    
         #self.update_window ( selections = False, restraints = True)

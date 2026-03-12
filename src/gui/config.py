@@ -127,7 +127,6 @@ class VismolConfig                       :
     
     def _check_startup_path (self):
         """ Function doc """
-        #print('AQUIIIIIIIIIIIIIII')
         
         if 'startup_path' in self.gl_parameters:
             
@@ -180,10 +179,7 @@ class VismolConfig                       :
                                 pass
                             else:
                                 self.gl_parameters[key] = self.gl_parameters_default[keys]
-                
-                
-                
-                
+                                
                 except:
                     print("Failed to open EasyHybrid configuration file. Loading default settings.")
                     self.gl_parameters = self.gl_parameters_default

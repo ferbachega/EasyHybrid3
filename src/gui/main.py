@@ -1051,6 +1051,7 @@ class MainWindow:
         elif menuitem == self.builder.get_object('menuitem_RMSD_tool'):
             #self.rmsd_tool_window.open_window()
             self.rmsd_analysis_window.open_window()
+        
         elif menuitem == self.builder.get_object('test_histograms'):
             from util.easyplot import ImagePlot, XYPlot
             import random
@@ -1288,41 +1289,45 @@ class MainWindow:
 
     def open_gtk_load_files (self, button):
         '''Easyhybrid and pkl pdynamo file search '''
-        filters = []        
-        ''' - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
-        
-        #'''
-        filter = Gtk.FileFilter()  
-        filter.set_name("EasyHybrid3 session files - *.easy")
-        filter.add_mime_type("Easy files files")
-        filter.add_pattern("*.easy")
-        filters.append(filter)
-        #'''
-        
+        filters = []
 
-        filter = Gtk.FileFilter()  
-        filter.set_name("pDynamo3 system files - *.pkl")
-        filter.add_mime_type("PKL files")
-        filter.add_pattern("*.pkl")
-        filters.append(filter)
+        file_filter = Gtk.FileFilter()
+        file_filter.set_name("EasyHybrid / pDynamo files (*.easy, *.pkl, *.yaml)")
+        file_filter.add_pattern("*.easy")
+        file_filter.add_pattern("*.pkl")
+        file_filter.add_pattern("*.yaml")
+
+        filters.append(file_filter)
+
         
-        filter = Gtk.FileFilter()  
-        filter.set_name("pDynamo3 system files - *.yaml")
-        filter.add_mime_type("YAML files")
-        filter.add_pattern("*.yaml")
-        filters.append(filter)
-        
-        filter = Gtk.FileFilter()
-        filter.set_name("All files")
-        filter.add_pattern("*")
-        filters.append(filter)
-        ''' - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
-        
-        
-        ''' - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
-        filename = self.filechooser.open(filters = filters)
-        ''' - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
-        self.vm_session.load(filename)
+        # EasyHybrid session
+        file_filter = Gtk.FileFilter()
+        file_filter.set_name("EasyHybrid3 session files (*.easy)")
+        file_filter.add_pattern("*.easy")
+        filters.append(file_filter)
+
+        # pDynamo PKL
+        file_filter = Gtk.FileFilter()
+        file_filter.set_name("pDynamo3 system files (*.pkl)")
+        file_filter.add_pattern("*.pkl")
+        filters.append(file_filter)
+
+        # YAML
+        file_filter = Gtk.FileFilter()
+        file_filter.set_name("YAML files (*.yaml)")
+        file_filter.add_pattern("*.yaml")
+        filters.append(file_filter)
+
+        # All files
+        file_filter = Gtk.FileFilter()
+        file_filter.set_name("All files")
+        file_filter.add_pattern("*")
+        filters.append(file_filter)
+
+        filename = self.filechooser.open(filters=filters)
+
+        if filename:
+            self.vm_session.load(filename)
 
     def run_dialog_set_QC_atoms (self, _type = None, vismol_object = None):
         """ Function doc """

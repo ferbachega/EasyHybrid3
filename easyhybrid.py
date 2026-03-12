@@ -28,14 +28,92 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
-EASYHYBRID_VERSION = '3.0.1'
+EASYHYBRID_VERSION = '3.0.2'
 
-import os, sys, time
+import os, sys, time, re
+
+'''
+O módulo re é nativo do Python (faz parte da biblioteca padrão).  
+Você não precisa instalar nada.Ele implementa expressões regulares 
+(regular expressions) para busca e manipulação de texto.
+'''
+
+
+'''
+os.environ["PDYNAMO3_HOME"]         = "/home/fernando/programs/pDynamo3"
+os.environ["PDYNAMO3_PARAMETERS"]   = "/home/fernando/programs/pDynamo3/parameters"
+os.environ["PDYNAMO3_SCRATCH"]      = "/home/fernando/programs/pDynamo3/scratch"
+os.environ["PDYNAMO3_ORCACOMMAND"]  = "/home/fernando/programs/orca_6_1_0_linux_x86-64_shared_openmpi418/orca"
+os.environ["PDYNAMO3_XTBCOMMAND"]   = "/home/fernando/programs/xtb-6.6.1/bin/xtb"
+os.environ["PDYNAMO3_MOPACCOMMAND"] = "/home/fernando/programs/MOPAC2016A/bin/mopac"
+os.environ["PDYNAMO3_DFTBCOMMAND"]  = "/home/fernando/programs/dftbplus-24.1.x86_64-linux/bin/dftb+"
+sys.path.append("/home/fernando/programs/pDynamo3")
+#sys.path.append("/home/fernando/programs/amber24_src/lib/python3.12/site-packages")
+'''
+
+#filepath = '/home/fernando/programs/pDynamo3/installation/shellScripts/environment_bash.com'
+
+def parse_bash_env_file(filepath):
+    """
+    Parse a bash environment file and return a dictionary
+    with environment variables and values.
+    """
+    env_vars = {}
+    with open(filepath, "r") as f:
+        for line in f:
+            line = line.strip()
+
+            # Ignore empty lines and comments
+            if not line or line.startswith("#"):
+                continue
+
+            # Remove inline comments
+            line = line.split("#")[0].strip()
+
+            # Remove "; export VAR"
+            line = re.sub(r";\s*export\s+\w+", "", line)
+
+            if "=" in line:
+                var, value = line.split("=", 1)
+                var = var.strip()
+                value = value.strip()
+
+                env_vars[var] = value
+
+    # Expand variables
+    for var, value in env_vars.items():
+        # Expand variables like $HOME, $PDYNAMO3_HOME etc
+        value = os.path.expandvars(value)
+        # Expand ~
+        value = os.path.expanduser(value)
+        env_vars[var] = value
+        # Add to environment
+        os.environ[var] = value
+
+    # Add pDynamo to python path
+    if "PDYNAMO3_HOME" in env_vars:
+        sys.path.append(env_vars["PDYNAMO3_HOME"])
+
+    return env_vars
+
+
+try:
+    from paths import PDYNAMO_HOME
+    shell_scripts = os.path.join(PDYNAMO_HOME, 'installation/shellScripts/environment_bash.com')
+    parse_bash_env_file(shell_scripts)
+    print('importing evironment variables from:', shell_scripts)
+except:
+    print ('paths not found')
+
+
+
+
+
 import logging
 import gi 
 gi.require_version("Gtk", "3.0")
-#from gi.repository import Gtk, Gdk
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
+
 
 #               Installation is not necessary anymore.
 #.This retrieves the absolute path of the script file that is currently being executed.
@@ -48,11 +126,20 @@ EASYHYBRID_HOME = os.path.dirname(easy_main_file)
 sys.path.append(os.path.join(EASYHYBRID_HOME,"src/graphics_engine/src"))
 sys.path.append(os.path.join(EASYHYBRID_HOME,"src/"))
 
+
 from gui.main import MainWindow
 from gui.eSession import EasyHybridSession
 from gui.config   import VismolConfig
 import time
 import threading
+
+
+
+
+
+
+
+
 
 # Splash Screen
 class SplashScreen(Gtk.Window):
@@ -93,7 +180,8 @@ def main():
                             datefmt="%Y-%m-%d:%H:%M:%S", level=logging.DEBUG)
 
         vconfig = VismolConfig(home = EASYHYBRID_HOME)
-
+        
+        
         vm_session = EasyHybridSession(vm_config = vconfig)
         vm_session.vm_widget.insert_glmenu()
         main_window = MainWindow(vm_session = vm_session,

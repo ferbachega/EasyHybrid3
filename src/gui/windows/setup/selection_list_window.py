@@ -79,8 +79,6 @@ class SelectionListWindow(Gtk.Window):
                                                         str, # force constant
                                                         int,) # e_id) 
         #--------------------------------------------
-        
-        
     def open_window (self):
         """ Function doc /home/fernando/programs/VisMol/easyhybrid/gui/selection_list.glade"""
         if self.visible  ==  False:
@@ -100,7 +98,7 @@ class SelectionListWindow(Gtk.Window):
             self.combobox_systems.connect("changed", self.on_combobox_systemsbox_changed)
             '''--------------------------------------------------------------------------------------------'''
             self.box.pack_start(self.combobox_systems, False, False, 0)
-
+            
 
 
             # - - - - - - - coordinates combobox - - - - - - -
@@ -112,7 +110,8 @@ class SelectionListWindow(Gtk.Window):
 
 
             system  = self.main_session.p_session.get_system()
-            self.combobox_systems.set_active_iter(system.e_liststore_iter)
+            if system:
+                self.combobox_systems.set_active_iter(system.e_liststore_iter)
             
 
 
@@ -177,6 +176,13 @@ class SelectionListWindow(Gtk.Window):
             self.restraint_treeview_menu = RestraintTreeViewMenu(self)
             self.window.show_all()                                               
             #self.combobox_systems.set_active(0)
+            
+            #------------------------------------------------------------------------------------------------
+            if self.p_session.psystem[self.p_session.active_id]:
+                active_id = self.p_session.active_id
+                self.combobox_systems.set_active_system (e_id = active_id)
+            #------------------------------------------------------------------------------------------------
+            
             self.visible    =  True
             '''--------------------------------------------------------------------------------------------'''
             self.update_window()

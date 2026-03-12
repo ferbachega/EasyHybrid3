@@ -242,7 +242,6 @@ class GeometryOptimization(Gtk.Window):
         self.window.destroy()
         self.Visible = False
 
-    
     def _starting_coordinates_model_update (self, init = False):
         """ Function doc """
         #------------------------------------------------------------------------------------
@@ -266,7 +265,6 @@ class GeometryOptimization(Gtk.Window):
                 #------------------------------------------------------------------------------------
             else:
                 pass
-
     
     def on_name_combo_changed(self, widget):
         """ Function doc """
@@ -287,7 +285,6 @@ class GeometryOptimization(Gtk.Window):
         dialog.run()
         dialog.destroy()
 
-
     def update (self, parameters = None):
         """ Function doc """
         
@@ -301,7 +298,6 @@ class GeometryOptimization(Gtk.Window):
                 self.save_trajectory_box.set_filename (output_name )
             else:
                 pass
-
 
     def update_working_folder_chooser (self, folder = None):
         """ Function doc """
@@ -317,8 +313,7 @@ class GeometryOptimization(Gtk.Window):
             else:
                 pass
             #self.save_trajectory_box.set_folder(folder = folder)
-            #self.save_trajectory_box.set_folder(folder = self.main.p_session.systems[self.main.p_session.active_id]['working_folder'])
-    
+            #self.save_trajectory_box.set_folder(folder = self.main.p_session.systems[self.main.p_session.active_id]['working_folder'])    
     def restore_the_parameters_to_the_window(self, parameters):
         """
         Restore exported parameters into the GTK window.

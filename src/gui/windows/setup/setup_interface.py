@@ -360,9 +360,6 @@ class EasyHybridPreferencesWindow():
         
         return color
 
-    
-    
-    
     def set_interface_startup_shutdown_paramters (self):
         """ Function doc """
         a = self.vm_session.vm_config.gl_parameters['autosave']      
@@ -586,7 +583,6 @@ class EasyHybridPreferencesWindow():
         self.builder.get_object('entry_workspace_path').set_text(parameters['workspace_path'])
         self.builder.get_object('entry_startup_path').set_text(parameters['startup_path'])
 
-
     def set_paths_and_folders_in_parameters (self):
         """ Function doc """
         parameters = self.vm_session.vm_config.gl_parameters      
@@ -623,7 +619,6 @@ class EasyHybridPreferencesWindow():
         else:
             parameters['startup_path'] = self.home
 
-               
     def __apply_light_parameters (self):
         #---------------------------------------------------------------
         light_pos = self.entry_light_position.get_text()
@@ -907,9 +902,32 @@ class EasyHybridPreferencesWindow():
         self.vm_session.vm_config.gl_parameters['autosave']      = a
         self.vm_session.vm_config.gl_parameters['askSaveUnsave'] = b
         print(a,b)
+        
+        
+        '''
+        a = self.builder.get_object('checkbox_output_tag').get_active()
+        b = self.builder.get_object('checkbox_output_sys_name').get_active()
+        c = self.builder.get_object('checkbox_output_ff_model').get_active()        
+        d = self.builder.get_object('checkbox_output_qc_model').get_active()
+        e = self.builder.get_object('checkbox_output_qc_charge').get_active()
+        f = self.builder.get_object('checkbox_output_qc_multiplicity').get_active()
+        g = self.builder.get_object('checkbox_output_qc_size').get_active()
+        h = self.builder.get_object('checkbox_output_simtype').get_active()
+        
+        self.vm_session.vm_config.gl_parameters['fname_output_tag']             = a
+        self.vm_session.vm_config.gl_parameters['fname_output_sys_name']        = b
+        self.vm_session.vm_config.gl_parameters['fname_output_ff_model']        = c
+        self.vm_session.vm_config.gl_parameters['fname_output_qc_model']        = d
+        self.vm_session.vm_config.gl_parameters['fname_output_qc_charge']       = e
+        self.vm_session.vm_config.gl_parameters['fname_output_qc_multiplicity'] = f
+        self.vm_session.vm_config.gl_parameters['fname_output_qc_size']         = g
+        self.vm_session.vm_config.gl_parameters['fname_output_simtype']         = h
+        '''
+        
+        
+        
+        
         #self.vm_session.vm_config.gl_parameters['startup_path'] =
-        
-        
         #pprint(self.vm_session.vm_config.gl_parameters)
         #startup_path   = self.builder.get_object('entry_startup_path').get_text()
         #workspace_path = self.builder.get_object('entry_workspace_path').get_text()

@@ -215,8 +215,6 @@ class TerminalWindow():
         }
         """)
         #--------------------------------------------------------------
-
-        
         
     def run_cmd (self, cmd):
         """ Function doc """
@@ -228,8 +226,7 @@ class TerminalWindow():
         if log is not None:
             self.textbuffer.insert(end_iter, log)
         #print(self.cmd_history)
-    
-    
+       
     def write_output(self, text: str, color: str = "normal"):
         end_iter = self.textbuffer.get_end_iter()
         tag = self.tag_table.lookup(color)
@@ -359,6 +356,7 @@ class TerminalWindow():
                 self.tab_timer_id = GLib.timeout_add(200, self._simple_Tab)
             return True
         return False
+    
     
     def _simple_Tab(self):
         print("simple tab")
