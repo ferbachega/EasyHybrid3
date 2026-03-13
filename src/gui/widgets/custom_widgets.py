@@ -2269,8 +2269,10 @@ class ReactionCoordinateBox(Gtk.Box):
             parameters["sigma_pk1pk3"] = None
             parameters["sigma_pk3pk1"] = None
         
-        
-        parameters["nsteps"]         = int(self.builder.get_object('entry_nsteps1').get_text() )
+        try:
+            parameters["nsteps"]         = int(self.builder.get_object('entry_nsteps1').get_text() )
+        except:
+            parameters["nsteps"]         = None
         if _is_ts_mode:
             parameters["nsteps_back"]= int(self.builder.get_object('entry_nsteps2').get_text() )
         

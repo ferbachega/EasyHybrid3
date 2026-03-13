@@ -37,6 +37,7 @@ from gui.widgets.custom_widgets import FolderChooserButton
 #from gui.widgets.custom_widgets import SystemComboBox
 from gui.widgets.custom_widgets import CoordinatesComboBox
 from gui.widgets.custom_widgets import ReactionCoordinateBox
+from pprint import pprint
 
 class EnergyRefinementWindow():
 
@@ -66,7 +67,8 @@ class EnergyRefinementWindow():
                       # 9:'netcdf',
                       #10:'log_file'  
                            }
-
+        for key, input_type in self.input_types.items():
+                self.input_types_liststore.append([input_type])
 
     def open_window (self, vobject = None):
         """ Function doc """
@@ -88,8 +90,7 @@ class EnergyRefinementWindow():
             #                           INPUT TYPE COMBOBOX
             #---------------------------------------------------------------------------------
             self.comobobox_input_type = self.builder.get_object('comobobox_input_type')
-            for key, input_type in self.input_types.items():
-                self.input_types_liststore.append([input_type])
+            
             
             self.comobobox_input_type.set_model(self.input_types_liststore)
             self.comobobox_input_type.connect("changed", self.on_input_types_changed)
@@ -326,7 +327,7 @@ class EnergyRefinementWindow():
         
         #----------------------------------------------------------------------
         
-        #pprint (parameters)
+        pprint (parameters)
         self.p_session.run_simulation( parameters = parameters )
 
 

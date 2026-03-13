@@ -315,7 +315,7 @@ Categories=Science;Education;
 
         with open(desktop_file, "w") as f:
             f.write(desktop_entry)
-
+        os.chmod(desktop_file, 0o755)
         print("Desktop shortcut created.")
 
     if ask_yes_no("Create an application menu entry?"):
@@ -348,7 +348,7 @@ def main():
 
         print("\nPlease install the missing dependencies.")
 
-    # create_desktop_icon()
+    create_desktop_icon()
 
     print("\nInstallation check completed.\n")
 
