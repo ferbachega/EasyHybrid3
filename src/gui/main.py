@@ -549,8 +549,8 @@ class MainWindow:
         
         if button  == self.builder.get_object('toolbutton_monte_carlo'):
             ##print('toolbutton_umbrella_sampling')
-            
-            self.vm_session.get_dihedral()
+            self.vm_session.vm_widget.save_image("saida.png")
+            #self.vm_session.get_dihedral()
             #lista = list(self.vm_session.vobject_names.keys())
             #print(lista)
             #obj = self.vm_session.vobject_names[lista[0]]
@@ -1666,8 +1666,10 @@ class MainWindow:
                 print(dist1, dist2, dist3)
                 
     def run_test (self, widget):
+        self.vm_session.vm_glcore.save_image("saida.png")
+        
 
-        #'''
+        '''
         #print('aloowww')
         #print(self.vm_session.vm_glcore.glcamera)
         print('z_near:', self.vm_session.vm_glcore.glcamera.z_near          ) #= self.z_far
@@ -1687,7 +1689,7 @@ class MainWindow:
             print('trans_mat:')
             print(vobj.trans_mat)
 
-
+        '''
         # --------------------------
         # Exemplo de uso com seus dados
         #view_matrix = np.array([

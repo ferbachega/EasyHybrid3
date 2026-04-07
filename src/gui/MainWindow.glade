@@ -95,7 +95,7 @@
   <object class="GtkImage" id="image8">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="pixbuf">icons/icon_montecarlo_24x24.png</property>
+    <property name="pixbuf">icons/icon_save_image.png</property>
   </object>
   <object class="GtkImage" id="image9">
     <property name="visible">True</property>
