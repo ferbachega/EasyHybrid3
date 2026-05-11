@@ -1712,6 +1712,7 @@ class SetupXTBWindow:
             # Add items to the ComboBox
             self.gfn_cbox.append_text("GFN1-xTB")
             self.gfn_cbox.append_text("GFN2-xTB")
+            self.gfn_cbox.append_text("g-xTB")
             #self.gfn_cbox.append_text("Option 3")
             self.box_gfn.pack_start(self.gfn_cbox, False, False, 0)
             

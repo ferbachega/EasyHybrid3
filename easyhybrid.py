@@ -193,11 +193,14 @@ def main():
         
         
         # do now show these itens:
-        main_window.builder.get_object('toolbutton_monte_carlo').hide()
         
-        #main_window.builder.get_object('button_test')           .hide()
+        #main_window.builder.get_object('toolbutton_export_img').hide()
+        #main_window.builder.get_object('button_task_list')           .hide()
         
         main_window.builder.get_object('test_item')             .hide() # IR spectrum
+        
+        
+        
         
         #main_window.builder.get_object('toolbutton_terminal')   .hide()
         #main_window.builder.get_object('menuitem_reimaging')   .hide()

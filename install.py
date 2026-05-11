@@ -197,7 +197,7 @@ Run the following command:
 
 located in:
 
-    pDynamo3/installation/shellScripts/
+    ../pDynamo3/installation/shellScripts/
 """
 
         print(msg)
@@ -240,7 +240,7 @@ def check_external_libraries():
     modules = ["numpy", "OpenGL", "logging", "freetype", "cairo"]
 
     missing = []
-
+    failed = False
     print("\nChecking required Python libraries:\n")
 
     for module in modules:
@@ -255,19 +255,17 @@ def check_external_libraries():
 
             print(f"{module} : NOT FOUND")
             missing.append(module)
-
-    if missing:
-
+            failed = True
+    
+    if failed:
         print("\nMissing required libraries:\n")
-
         for m in missing:
             print(" -", m)
 
         return False
-
-    print("\nAll required Python libraries are installed.")
-
-    return True
+    else:
+        print("\nAll required Python libraries are installed.")
+        return True
 
 
 # ---------------------------------------------------------------------
@@ -347,9 +345,9 @@ def main():
     if not check_external_libraries():
 
         print("\nPlease install the missing dependencies.")
-
+        return False
+    
     create_desktop_icon()
-
     print("\nInstallation check completed.\n")
 
 

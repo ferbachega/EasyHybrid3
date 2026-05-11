@@ -1432,7 +1432,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkToolButton" id="toolbutton_monte_carlo">
+                  <object class="GtkToolButton" id="toolbutton_export_img">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="use-underline">True</property>
@@ -1446,7 +1446,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkToolButton" id="button_test">
+                  <object class="GtkToolButton" id="button_task_list">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes">__glade_unnamed_7</property>

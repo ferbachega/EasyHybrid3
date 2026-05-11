@@ -51,6 +51,7 @@ from gui.windows.setup.windows_and_dialogs import EasyHybridSelectionWindow
 from gui.windows.setup.windows_and_dialogs import ExportDataWindow
 from gui.windows.setup.windows_and_dialogs import EasyHybridDialogPrune
 from gui.windows.setup.windows_and_dialogs import MakeSolventBoxWindow
+from gui.windows.setup.edit_cell import EditCellWindow
 
 
 from gui.windows.setup.windows_and_dialogs import ImportTrajectoryWindow
@@ -397,6 +398,7 @@ class MainWindow:
         self.edit_frames_dialog = EditFrameDialog(main = self)
         self.merge_system_window = MergeSystemWindow(main = self)
         self.solvate_system_window = SolvateSystemWindow(main = self)
+        self.edit_cell_window = EditCellWindow(main = self)
         self.preferences_window = EasyHybridPreferencesWindow(main = self)
 
         self.make_solvent_box_window = MakeSolventBoxWindow(main = self)
@@ -547,7 +549,7 @@ class MainWindow:
             ##print('toolbutton_umbrella_sampling')
             self.chain_of_states_opt_window.open_window()
         
-        if button  == self.builder.get_object('toolbutton_monte_carlo'):
+        if button  == self.builder.get_object('toolbutton_export_img'):
             ##print('toolbutton_umbrella_sampling')
             self.vm_session.vm_widget.save_image("saida.png")
             #self.vm_session.get_dihedral()
@@ -556,7 +558,7 @@ class MainWindow:
             #obj = self.vm_session.vobject_names[lista[0]]
             #print(obj.topology)
         
-        if button  == self.builder.get_object('button_test'):
+        if button  == self.builder.get_object('button_task_list'):
             ##print('toolbutton_umbrella_sampling')
             self.process_manager_window.open_window()
 
@@ -819,6 +821,29 @@ class MainWindow:
             system = self.p_session.psystem[self.p_session.active_id]
             for key, vobject in self.vm_session.vm_objects_dic.items():
                 self.vm_session.hide_cell (vobject)
+            
+        elif menuitem == self.builder.get_object('menuitem_edit_cell'):
+            self.edit_cell_window.open_window()
+            
+            #system = self.p_session.psystem[self.p_session.active_id]
+            #
+            #if system.symmetry:
+            #
+            #    a = system.symmetryParameters.a
+            #    b = system.symmetryParameters.b
+            #    c = system.symmetryParameters.c
+            #    alpha = system.symmetryParameters.alpha
+            #    beta = system.symmetryParameters.beta
+            #    gamma = system.symmetryParameters.gamma
+            #    print(a, b, c, alpha, beta, gamma)
+                
+                
+            #print()
+            
+            #for key, vobject in self.vm_session.vm_objects_dic.items():
+            #    self.vm_session.hide_cell (vobject)
+            
+            
             #if self.builder.get_object('toogle_show_cell').get_active():
             #    print('toogle_show_cell - show', self.builder.get_object('toogle_show_cell').get_active())
             #else:
@@ -1666,6 +1691,7 @@ class MainWindow:
                 print(dist1, dist2, dist3)
                 
     def run_test (self, widget):
+        
         self.vm_session.vm_glcore.save_image("saida.png")
         
 

@@ -57,7 +57,7 @@ HOME        = os.environ.get('HOME')
 
 
 ##====================================================================================
-class UmbrellaSamplingWindow_new(Gtk.Window):
+class UmbrellaSamplingWindow(Gtk.Window):
     """ Class doc """
     
     def __init__(self, main = None ):
@@ -917,7 +917,7 @@ class UmbrellaSamplingWindow_new(Gtk.Window):
             self.spinbutton.set_value(parameters['NmaxThreads'])
 
 
-class UmbrellaSamplingWindow(Gtk.Window):
+class UmbrellaSamplingWindow_old(Gtk.Window):
     """ Class doc """
     
     def __init__(self, main = None ):
