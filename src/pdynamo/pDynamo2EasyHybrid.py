@@ -4401,12 +4401,13 @@ class Atom:
     
     def _init_electronegativity(self):
         """ Function doc """
-        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
-        try:
-            en_UFF = ATOM_TYPES[self.name][8]
-        except KeyError:
-            en_UFF = ATOM_TYPES[self.symbol][8]
-        return en_UFF
+        return False
+        #ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
+        #try:
+        #    en_UFF = ATOM_TYPES[self.name][8]
+        #except KeyError:
+        #    en_UFF = ATOM_TYPES[self.symbol][8]
+        #return en_UFF
     
     def _init_cov_rad(self):
         """ Function doc """
