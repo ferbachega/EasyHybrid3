@@ -1088,10 +1088,12 @@ class EasyHybridSession(VismolSession, GLMenu):
                     try:
                         dialog = SimpleDialog(self.main_session)
                         yes_or_no = dialog.question(msg)
-                    except Exception:
+                    except Exception as e:
                         # If the dialog fails for any reason, fallback to original file
                         dialog = SimpleDialog(self.main_session)
                         dialog.error("Failed to display question dialog. Loading original file.")
+                        mensagem = str(e)
+                        print("Erro:", mensagem)
                         yes_or_no = False
 
                     target_file = temp_file if yes_or_no else filename
@@ -1101,7 +1103,9 @@ class EasyHybridSession(VismolSession, GLMenu):
                         self.main_session.p_session.load_easyhybrid_serialization_file(
                             target_file, tmp=yes_or_no
                         )
-                    except Exception:
+                    except Exception as e:
+                        mensagem = str(e)
+                        print("Erro:", mensagem)
                         dialog = SimpleDialog(self.main_session)
                         dialog.error(f"Failed to load project file: {target_file}")
 
@@ -1109,7 +1113,9 @@ class EasyHybridSession(VismolSession, GLMenu):
                     # No temp file, load normally
                     try:
                         self.main_session.p_session.load_easyhybrid_serialization_file(filename)
-                    except Exception:
+                    except Exception as e:
+                        mensagem = str(e)
+                        print("Erro:", mensagem)
                         dialog = SimpleDialog(self.main_session)
                         dialog.error(f"Failed to load project file: {filename}")
 
@@ -1117,7 +1123,9 @@ class EasyHybridSession(VismolSession, GLMenu):
             elif filename.endswith(".easy~"):
                 try:
                     self.main_session.p_session.load_easyhybrid_serialization_file(filename)
-                except Exception:
+                except Exception as e:
+                    mensagem = str(e)
+                    print("Erro:", mensagem)
                     dialog = SimpleDialog(self.main_session)
                     dialog.error(f"Failed to load temporary project file: {filename}")
 
@@ -1127,12 +1135,16 @@ class EasyHybridSession(VismolSession, GLMenu):
                 systemtype = 3  # Hardcoded system type (could be parameterized later)
                 try:
                     self.main_session.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
-                except Exception:
+                except Exception as e:
+                    mensagem = str(e)
+                    print("Erro:", mensagem)
                     dialog = SimpleDialog(self.main_session)
                     dialog.error(f"Failed to load system file: {filename}")
 
-        except Exception:
+        except Exception as e:
             # Catch any unexpected error that was not handled above
+            mensagem = str(e)
+            print("Erro:", mensagem)
             dialog = SimpleDialog(self.main_session)
             dialog.error(f"An unexpected error occurred while loading: {filename}")
 
