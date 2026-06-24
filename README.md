@@ -3,8 +3,6 @@ EasyHybrid is a free and open source graphical environment for the pDynamo3 pack
 
 <img width="1589" height="908" alt="image" src="https://github.com/user-attachments/assets/fd399057-fd9d-47f4-b325-92f98f270b98" />
 
-![Screenshot from 2023-02-06 01-55-42](https://user-images.githubusercontent.com/8658227/216887855-fb1534cf-338d-4a41-8219-5cc47acca5af.png)
-
 The interface has been designed to make it easy to determine reaction pathways in biological systems, particularly when using hybrid quantum mechanics/molecular mechanics (QC/MM) methods. EasyHybrid allows users to access a variety of pDynamo capabilities within its graphical environment, including:
 
 Pure quantum chemistry (QC) simulations, both ab initio and semi-empirical
