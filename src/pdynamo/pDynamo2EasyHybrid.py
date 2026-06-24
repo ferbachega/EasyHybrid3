@@ -2972,16 +2972,40 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         # -------------------------------------------------------------------------
         is_mmState = getattr(system, 'mmState', None)
         index_bonds = None
-
+        bond_orders = None
         if is_mmState:
             # If system contains MM terms, extract harmonic bond terms
+            #'''
             for term in system.mmState.mmTerms:
                 if term.label == 'Harmonic Bond':
                     print('Bonds defined from pDynamo system topology.')
                     index_bonds = term.Get12Indices()
-
+            #'''
+            '''
+            for term in system.mmState.mmTerms:
+                if term.label == 'Harmonic Bond':
+                    index_bonds = []
+                    bond_orders = []
+                    for k, i_j_bond_indexes in enumerate(system.connectivity.bondIndices):
+                        #print(k, i_j_bond_indexes, i_j_bond_indexes[0], i_j_bond_indexes[1])
+                        
+                        #index_bonds.append(i_j_bond_indexes[0])
+                        #index_bonds.append(i_j_bond_indexes[1])
+                        pbonds= system.connectivity.bonds
+                        #print(pbonds)
+                        pbond = pbonds[k]
+                        
+                        i = pbond.node1.index
+                        j = pbond.node2.index
+                        index_bonds.append(i)
+                        index_bonds.append(j)
+                        #print(pbond.type.value[0])
+                        bond_orders.append(pbond.type.value[0])
+                    print(len(bond_orders), len(index_bonds))
+            #'''
+                
             if index_bonds:
-                vm_object.define_bonds_from_external(index_bonds=index_bonds)
+                vm_object.define_bonds_from_external(index_bonds=index_bonds, bond_orders = bond_orders)
             else:
                 vm_object.find_bonded_and_nonbonded_atoms()
                 print('Bonds defined from distance.')
