@@ -48,7 +48,7 @@ import subprocess
 import importlib
 from pathlib import Path
 
-EASYHYBRID_VERSION = "3.0.2"
+EASYHYBRID_VERSION = "3.0.3"
 
 # ---------------------------------------------------------------------
 # Paths
