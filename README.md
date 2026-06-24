@@ -23,24 +23,56 @@ Umbrella sampling
 
 Reaction path calculations
 
-# Cloning and Installing
-This repository contains the latest version of EasyHybrid, including the most recent implementations and features. However, it may be more prone to occasional bugs. If you require a more stable version, consider downloading one of the stable release packages available [here](https://sites.google.com/d/1HU8-kfSypoZHc40gBQ84IEeon36i04SL/p/13CjDL5t1ceVPQXPfDzitz4GhWqYD3PBY/edit).
+# Cloning and Installation
 
-The installation process is straightforward, but before proceeding, please ensure that [pDynamo3](https://www.pdynamo.org/home) is already installed. Begin by cloning the repository using the following command:  
-  `git clone --recurse-submodules https://github.com/ferbachega/EasyHybrid3`
+This repository contains the latest **stable release** of EasyHybrid3.
 
-Next, navigate to the ../EasyHybrid3/src/graphics_engine folder. Here, you'll find a script for compiling the graphics engine. Run the install.sh script from within this folder:
-  `cd src/graphics_engine`
-and 
-  `./install.sh`
+Clone it using:
 
-If the graphics_engine folder appears to be empty, you will need to clone it. To do so, execute the following command from within the src folder:
-  `git clone https://github.com/casebor/graphics_engine` 
-  
-Once you have successfully compiled the graphics engine, simply run the easyhybrid.py file located in the EasyHybrid base directory:  
-  `./easyhybrid.py` 
+```bash
+git clone --recurse-submodules https://github.com/ferbachega/EasyHybrid3.git
+```
 
-For more detailed information, please visit the [EasyHybrid documentation](https://sites.google.com/view/easyhybrid/user-guide?authuser=1).
+If you want the **development version**, which is updated almost weekly, you may clone the `dev` branch instead.  
+Be aware that this version may contain more bugs and experimental features.
+
+```bash
+git clone --recurse-submodules -b dev https://github.com/ferbachega/EasyHybrid3.git
+```
+
+## Verify Submodules
+
+Make sure the graphics engine was cloned correctly by checking whether the following directory exists:
+
+```bash
+../EasyHybrid3/src/graphics_engine
+```
+
+If this folder is missing, the submodules were not downloaded properly.
+
+## Installation
+
+Navigate to the main EasyHybrid directory:
+
+```bash
+cd ../EasyHybrid3/
+```
+
+There, you will find the installation script:
+
+```bash
+python3 ./install.py
+```
+
+> **Note:** Make sure all required dependencies are installed before running the installer.
+
+## Running EasyHybrid
+
+Once the graphics engine has been successfully compiled, you can launch EasyHybrid by running:
+
+```bash
+./easyhybrid.py
+```
 
 
 # References
@@ -53,11 +85,13 @@ pDynamo:
   pDynamo3 paper Martin J. Field Journal of Chemical Information and Modeling 2022 62 (23), 5849-5854 DOI: 10.1021/acs.jcim.2c01239 
 
 EasyHybrid:
-  The paper J. F. R. Bachega, L. F. S. M. Timmers, L. Assirati, L. B. Bachega, M. J. Field, T. Wymore. J. Comput. Chem. 2013, 34, 2190-2196. DOI: 10.1002/jcc.23346
-
+  Bachega, J. F. R., Hagen, G., Sequeiros-Borja, C., Nikklas, K., Chahine, J., Timmers, L. F. M., & Field, M. J. (2025). EasyHybrid: An interactive graphical environment for quantum, classical and hybrid simulations with pDynamo3. Journal of Chemical Information and Modeling.
 
 
 important links:
+
+https://sites.google.com/view/easyhybrid/home?authuser=0  (docs and tutorials)
+
 https://github.com/casebor/graphics_engines (engine based on OpenGL)
 
 https://www.pdynamo.org/home (pDynamo website)
