@@ -28,7 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
-EASYHYBRID_VERSION = '3.0.2'
+EASYHYBRID_VERSION = '3.0.3'
 
 import os, sys, time, re
 

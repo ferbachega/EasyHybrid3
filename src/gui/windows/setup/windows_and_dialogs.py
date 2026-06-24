@@ -1660,6 +1660,305 @@ class PDynamoSelectionWindow:
         pass
 
 
+
+class SetupSPARROWWindow:
+    """ Class initialiser """
+    
+    def __init__ (self, main, setup_QC_model_window):
+    
+        self.main_session     = main
+        self.vm_session       = main.vm_session
+        self.home             = main.home
+        self.Visible          = False        
+        self.vismol_object    = None 
+        self.window           = None
+        
+        self.hamiltonians = { 
+                        0:'AM1',
+                        1:'PM3',       # Use the MNDO-PM3 Hamiltonian
+                        2:'PM6',       # Use the PM6 Hamiltonian
+                       # 3:'PM6-D3',    # Use the PM6 Hamiltonian with Grimme's corrections for dispersion
+                       # 4:'PM6-DH+',   # Use the PM6 Hamiltonian with corrections for dispersion and hydrogen-bonding
+                       # 5:'PM6-DH2',   # Use the PM6 Hamiltonian with corrections for dispersion and hydrogen-bonding
+                       # 6:'PM6-DH2X',  # Use PM6 with corrections for dispersion and hydrogen and halogen bonding
+                       # 7:'PM6-D3H4',  # Use PM6 with Rezac and Hobza's D3H4 correction
+                       # 8:'PM6-D3H4X', # Use PM6 with Brahmkshatriya, et al.'s D3H4X correction
+                       # 9:'PM6-ORG',   # Use the PM6-ORG Hamiltonian
+                       #10:'PM7',       # Use the PM7 Hamiltonian
+                       #11:'PM7-TS',    # Use the PM7-TS Hamiltonian (only for barrier heights)
+                       #12:'MNDO',      # Use the MNDO hamiltonian
+                       #13:'MNDOD',     # Use the MNDO-d hamiltonian
+                       }
+        
+        self.parameters = {
+                          'method'          : 'PM6',
+                          #'gfn'          : 1  ,
+                          #'parallel'     : 1  ,
+                          #'acc'          : 1.0,
+                          #'iterations'   : 300,
+                          #'fermi_temp'   : 300.0,
+                          'add_keywords' : '',
+                          'scratch'      : None #os.path.join(scratch,'XTBScratch')
+                          }
+        
+        self.setup_QC_model_window = setup_QC_model_window
+
+    def open_window (self, vismol_object = None):
+        """ Function doc """
+        if self.Visible  ==  False:
+            self.builder = Gtk.Builder()
+            self.builder.add_from_file(os.path.join(self.home, 'src/gui/windows/setup/setup_qc_model_window.glade'))
+            
+            self.window = self.builder.get_object('window_setup_sparrow')
+            self.window.set_keep_above(True)
+            self.window.set_default_size(450, 200)
+            
+             
+            self.button_ok         = self.builder.get_object('btn_sparrow_ok') 
+            self.button_cancel     = self.builder.get_object('btn_sparrow_cancel') 
+            self.button_ok.connect("clicked", self.on_button_ok)
+            self.button_cancel.connect("clicked", self.close_window)
+            
+            self.box_sparrow = self.builder.get_object('box_sparrow_type')
+            
+            #-----------------------------------------------------------
+            self.sparrow_cbox = Gtk.ComboBoxText()
+            self.sparrow_cbox.set_entry_text_column(0)
+            #self.gfn_cbox.connect("changed", self.on_combobox_changed)
+
+            # Add items to the ComboBox
+            for key in self.hamiltonians.keys():
+                self.sparrow_cbox.append_text(self.hamiltonians[key])
+            self.box_sparrow.pack_start(self.sparrow_cbox, False, False, 0)
+
+            
+            ##.Interface Widgets
+
+            self.entry_keywords          = self.builder.get_object('entry_sparrow_keywords')
+            self.entry_scratch           = self.builder.get_object('entry_sparrow_scratch')
+            self.spinbtn_parallel        = self.builder.get_object('spinbtn_parallel1')
+            self.check_box_denout_oldens = self.builder.get_object('check_box_denout_oldens')
+            
+            self.check_box_NOGPU      = self.builder.get_object('check_box_NOGPU')
+            self.check_box_NOGPU.connect("toggled", self.check_box_nogpu_toggled)
+            
+            #.Interface Show All
+            self.window.connect("destroy", self.close_window)
+            self.window.show_all()
+            
+            
+            if self.parameters['scratch'] is not None:
+                pass
+            else:
+                if os.path.isdir(self.vm_session.vm_config.gl_parameters["tmp_path"]):
+                    self.parameters['scratch'] = self.vm_session.vm_config.gl_parameters["tmp_path"]
+                else:
+                    self.parameters['scratch'] = PDYNAMO3_SCRATCH
+
+            self.entry_scratch       .set_text(str(self.parameters['scratch']))
+            
+            self.sparrow_cbox.connect("changed", self.cbox_changed)
+            self.sparrow_cbox.set_active(0)
+            
+            self.spinbtn_parallel.connect("value-changed", self.spinbtn_change)
+            
+            #self.refresh_orca_parameters (None)
+            self.Visible  =  True
+    
+    def update_keywords (self):
+        """ Function doc """
+        self.parameters['method'] = self.sparrow_cbox.get_active()
+
+        method = self.hamiltonians[self.parameters['method']]
+        threads = int(self.spinbtn_parallel.get_value ())
+        
+        if self.check_box_NOGPU.get_active():
+            nogpu = 'NOGPU'
+        else:
+            nogpu = ''
+        text = '{} 1SCF GRADIENTS AUX THREADS={} {}'.format(method, threads, nogpu)
+        self.entry_keywords.set_text(text)
+
+    def spinbtn_change (self, widget, value = None):
+        """ Function doc """
+        self.update_keywords()
+
+    def check_box_nogpu_toggled (self, widget):
+        """ Function doc """
+        self.update_keywords()
+    
+    def cbox_changed (self, widget):
+        """ Function doc """
+        self.update_keywords()
+
+        
+    def on_button_ok (self, widget):
+        """ Function doc """
+        self.parameters['denout_oldens'] = self.check_box_denout_oldens.get_active()
+        self.parameters['method'] = self.entry_keywords.get_text()
+        self.parameters['keywords'] = self.entry_keywords.get_text()
+        self.parameters['scratch']  = self.entry_scratch .get_text()
+        
+        print(self.parameters)
+        self.close_window (widget,None)
+
+    def close_window (self, button, data  = None):
+        """ Function doc """
+        if self.window:
+            self.window.destroy()
+        self.Visible    =  False
+
+
+
+
+class SetupMOPACWindow:
+    """ Class initialiser """
+    
+    def __init__ (self, main, setup_QC_model_window):
+    
+        self.main_session     = main
+        self.vm_session       = main.vm_session
+        self.home             = main.home
+        self.Visible          = False        
+        self.vismol_object    = None 
+        self.window           = None
+        
+        self.hamiltonians = { 
+                        0:'AM1',
+                        1:'PM3',       # Use the MNDO-PM3 Hamiltonian
+                        2:'PM6',       # Use the PM6 Hamiltonian
+                        3:'PM6-D3',    # Use the PM6 Hamiltonian with Grimme's corrections for dispersion
+                        4:'PM6-DH+',   # Use the PM6 Hamiltonian with corrections for dispersion and hydrogen-bonding
+                        5:'PM6-DH2',   # Use the PM6 Hamiltonian with corrections for dispersion and hydrogen-bonding
+                        6:'PM6-DH2X',  # Use PM6 with corrections for dispersion and hydrogen and halogen bonding
+                        7:'PM6-D3H4',  # Use PM6 with Rezac and Hobza's D3H4 correction
+                        8:'PM6-D3H4X', # Use PM6 with Brahmkshatriya, et al.'s D3H4X correction
+                        9:'PM6-ORG',   # Use the PM6-ORG Hamiltonian
+                       10:'PM7',       # Use the PM7 Hamiltonian
+                       11:'PM7-TS',    # Use the PM7-TS Hamiltonian (only for barrier heights)
+                       12:'MNDO',      # Use the MNDO hamiltonian
+                       13:'MNDOD',     # Use the MNDO-d hamiltonian
+                       }
+
+        self.parameters = {
+                          'method'          : 'PM7',
+                          #'gfn'          : 1  ,
+                          #'parallel'     : 1  ,
+                          #'acc'          : 1.0,
+                          #'iterations'   : 300,
+                          #'fermi_temp'   : 300.0,
+                          'add_keywords' : '',
+                          'scratch'      : None #os.path.join(scratch,'XTBScratch')
+                          }
+        
+        self.setup_QC_model_window = setup_QC_model_window
+
+    def open_window (self, vismol_object = None):
+        """ Function doc """
+        if self.Visible  ==  False:
+            self.builder = Gtk.Builder()
+            self.builder.add_from_file(os.path.join(self.home, 'src/gui/windows/setup/setup_qc_model_window.glade'))
+            
+            self.window = self.builder.get_object('window_setup_mopac')
+            self.window.set_keep_above(True)
+            self.window.set_default_size(450, 200)
+            
+             
+            self.button_ok         = self.builder.get_object('btn_mopac_ok') 
+            self.button_cancel     = self.builder.get_object('btn_mopac_cancel') 
+            self.button_ok.connect("clicked", self.on_button_ok)
+            self.button_cancel.connect("clicked", self.close_window)
+            
+            self.box_mopac = self.builder.get_object('box_mopac_type')
+            
+            #-----------------------------------------------------------
+            self.mopac_cbox = Gtk.ComboBoxText()
+            self.mopac_cbox.set_entry_text_column(0)
+            #self.gfn_cbox.connect("changed", self.on_combobox_changed)
+
+            # Add items to the ComboBox
+            for key in self.hamiltonians.keys():
+                self.mopac_cbox.append_text(self.hamiltonians[key])
+            self.box_mopac.pack_start(self.mopac_cbox, False, False, 0)
+
+            
+            ##.Interface Widgets
+
+            self.entry_keywords          = self.builder.get_object('entry_mopac_keywords')
+            self.entry_scratch           = self.builder.get_object('entry_mopac_scratch')
+            self.spinbtn_parallel        = self.builder.get_object('spinbtn_parallel1')
+            self.check_box_denout_oldens = self.builder.get_object('check_box_denout_oldens')
+            
+            self.check_box_NOGPU      = self.builder.get_object('check_box_NOGPU')
+            self.check_box_NOGPU.connect("toggled", self.check_box_nogpu_toggled)
+            
+            #.Interface Show All
+            self.window.connect("destroy", self.close_window)
+            self.window.show_all()
+            
+            
+            if self.parameters['scratch'] is not None:
+                pass
+            else:
+                if os.path.isdir(self.vm_session.vm_config.gl_parameters["tmp_path"]):
+                    self.parameters['scratch'] = self.vm_session.vm_config.gl_parameters["tmp_path"]
+                else:
+                    self.parameters['scratch'] = PDYNAMO3_SCRATCH
+
+            self.entry_scratch       .set_text(str(self.parameters['scratch']))
+            
+            self.mopac_cbox.connect("changed", self.cbox_changed)
+            self.mopac_cbox.set_active(0)
+            
+            self.spinbtn_parallel.connect("value-changed", self.spinbtn_change)
+            
+            #self.refresh_orca_parameters (None)
+            self.Visible  =  True
+    
+    def update_keywords (self):
+        """ Function doc """
+        self.parameters['method'] = self.mopac_cbox.get_active()
+
+        method = self.hamiltonians[self.parameters['method']]
+        threads = int(self.spinbtn_parallel.get_value ())
+        
+        if self.check_box_NOGPU.get_active():
+            nogpu = 'NOGPU'
+        else:
+            nogpu = ''
+        text = '{} 1SCF GRADIENTS AUX THREADS={} {}'.format(method, threads, nogpu)
+        self.entry_keywords.set_text(text)
+
+    def spinbtn_change (self, widget, value = None):
+        """ Function doc """
+        self.update_keywords()
+
+    def check_box_nogpu_toggled (self, widget):
+        """ Function doc """
+        self.update_keywords()
+    
+    def cbox_changed (self, widget):
+        """ Function doc """
+        self.update_keywords()
+
+        
+    def on_button_ok (self, widget):
+        """ Function doc """
+        self.parameters['denout_oldens'] = self.check_box_denout_oldens.get_active()
+        self.parameters['method'] = self.entry_keywords.get_text()
+        self.parameters['keywords'] = self.entry_keywords.get_text()
+        self.parameters['scratch']  = self.entry_scratch .get_text()
+        
+        print(self.parameters)
+        self.close_window (widget,None)
+
+    def close_window (self, button, data  = None):
+        """ Function doc """
+        if self.window:
+            self.window.destroy()
+        self.Visible    =  False
+
+
 class SetupXTBWindow:
     """ Class doc """
     
@@ -2216,7 +2515,6 @@ class SetupORCAWindow:
         self.orca_basis_set_combo.set_model( self.orca_type_basis_dict[_id])
         self.orca_basis_set_combo.set_active( 0 )        
     
-    
     def on_combobox_orca_type_changed (self, widget):
         """ Function doc """
         _id = widget.get_active()
@@ -2260,12 +2558,10 @@ class SetupORCAWindow:
     def on_combobox_orca_method_changed (self, widget):
         """ Function doc """
         
-         
     def build_ORCA_widgets(self):
         """ Function doc """
         self.builder.get_object('combobox_orca_type')
                          
-
     def close_window (self, button, data  = None):
         """ Function doc """
         if self.window:
@@ -2381,6 +2677,16 @@ class EasyHybridSetupQCModelWindow:
                                            page_increment=1,
                                            page_size=0)
         
+        self.QC_engines = {
+                          0:'pDynamo',
+                          1:'ORCA'   ,
+                          2:'DFTB+'  ,
+                          3:'xTB'    ,  
+                          #4:'MOPAC'  ,
+                          #5:'sparrow',
+                          }
+        
+        
         self.methods_id_dictionary = {
                                       0 : 'am1'             ,
                                       1 : 'am1dphot'        ,
@@ -2388,15 +2694,17 @@ class EasyHybridSetupQCModelWindow:
                                       3 : 'pm6'             ,
                                       4 : 'rm1'             ,
                                       5 : 'mndo'            ,
-                                      6 : 'ab initio - ORCA',
-                                      7 : 'DFTB+'           ,
-                                      8 : 'xTB'             ,
-                                      
+                                      #6 : 'ab initio - ORCA',
+                                      #7 : 'DFTB+'           ,
+                                      #8 : 'xTB'             ,
+                                      #9 : 'MOPAC'           ,
                                       }
         
         self.setup_orca_window = SetupORCAWindow(self.main_session, self)
         self.setup_dftb_window = SetupDFTBplusWindow(self.main_session, self)
         self.setup_xtb_window  = SetupXTBWindow(self.main_session, self)
+        self.setup_mopac_window= SetupMOPACWindow(self.main_session, self)
+        
         self.orca_options = ''
         self.orca_scratch = ''
         self.orca_random_scratch = False
@@ -2434,19 +2742,28 @@ class EasyHybridSetupQCModelWindow:
             self.builder.get_object('system_sqr_image').set_from_pixbuf(pixbuf)
             
             
+            
+            
+            '''-----------------------------------------QC ENGINES------------------------------------------'''
+            self.qc_engine_store = Gtk.ListStore(str)
+            engines = self.QC_engines.values()          
+            for engine in engines:
+                self.qc_engine_store.append([engine])
+                #print (method_type)
+            
+            self.qc_engine_combobox = self.builder.get_object('QCEngine_combobox')
+            
+            self.qc_engine_combobox.connect("changed", self.on_qc_engine_combo_changed) #mudar
+            self.qc_engine_combobox.set_model(self.qc_engine_store)
+            renderer_text = Gtk.CellRendererText()
+            self.qc_engine_combobox.pack_start(renderer_text, True)
+            self.qc_engine_combobox.add_attribute(renderer_text, "text", 0)
+            self.qc_engine_combobox.set_active(0)
+            '''--------------------------------------------------------------------------------------------'''
+            
             '''--------------------------------------------------------------------------------------------'''
             self.methods_type_store = Gtk.ListStore(str)
-            methods_types = self.methods_id_dictionary.values()
-            #methods_types = [
-            #    "am1",
-            #    "am1dphot",
-            #    "pm3",
-            #    "pm6",
-            #    "mndo",
-            #    "ab initio - ORCA",
-            #    "DFT / DFTB",
-            #    ]
-            
+            methods_types = self.methods_id_dictionary.values()          
             for method_type in methods_types:
                 self.methods_type_store.append([method_type])
                 #print (method_type)
@@ -2457,6 +2774,7 @@ class EasyHybridSetupQCModelWindow:
             renderer_text = Gtk.CellRendererText()
             self.methods_combo.pack_start(renderer_text, True)
             self.methods_combo.add_attribute(renderer_text, "text", 0)
+            self.methods_combo.set_active(0)
             
             '''--------------------------------------------------------------------------------------------'''
 
@@ -2487,7 +2805,9 @@ class EasyHybridSetupQCModelWindow:
             self.button_orca_setup.connect("clicked", self.on_button_setup_orca)
             self.button_orca_setup = self.builder.get_object('button_setup_dftb') 
             self.button_orca_setup.connect("clicked", self.on_button_setup_dftb)
-
+            
+            self.builder.get_object('button_setup_orca').hide()
+            self.builder.get_object('button_setup_dftb').hide()
             
             
             ''' Updating the number of atoms '''
@@ -2557,18 +2877,71 @@ class EasyHybridSetupQCModelWindow:
         if self.setup_xtb_window.Visible:
             self.setup_dftb_window.close_window ( None,  None)
 
-            
     def on_spian_button_change (self, widget):
         """ Function doc """
         self.charge       = self.spinbutton_charge.get_value_as_int()
         self.multiplicity = self.spinbutton_multiplicity.get_value_as_int()
         
+    def on_qc_engine_combo_changed (self, combobox):
+        self.qc_engine_id = self.builder.get_object('QCEngine_combobox').get_active()
+        print(self.qc_engine_id)
+        
+        if self.qc_engine_id ==0:            
+            self.builder.get_object('button_setup_orca').hide()
+            self.builder.get_object('button_setup_dftb').hide()
+            self.builder.get_object('expander_DIISSCF_converger').show()
+            
+            self.builder.get_object('label_method').show()
+            self.builder.get_object('QCModel_methods_combobox').show()
+            
+        elif self.qc_engine_id == 1:
+            self.builder.get_object('button_setup_orca').show()
+            self.builder.get_object('button_setup_dftb').hide()
+            self.builder.get_object('expander_DIISSCF_converger').hide()
+
+            self.builder.get_object('label_method').hide()
+            self.builder.get_object('QCModel_methods_combobox').hide()
+
+            self.setup_orca_window.open_window()
+        
+        elif self.qc_engine_id == 2:
+            self.builder.get_object('button_setup_dftb').set_label('DFTB+ Setup')
+            self.builder.get_object('button_setup_dftb').show()
+            
+            self.builder.get_object('button_setup_orca').hide()
+            self.builder.get_object('expander_DIISSCF_converger').hide()
+            self.builder.get_object('label_method').hide()
+            self.builder.get_object('QCModel_methods_combobox').hide()
+            self.setup_dftb_window.open_window()
+        
+        elif self.qc_engine_id == 3:
+            self.builder.get_object('button_setup_dftb').set_label('xTB Setup')
+            self.builder.get_object('button_setup_dftb').show()
+            
+            self.builder.get_object('button_setup_orca').hide()
+            self.builder.get_object('expander_DIISSCF_converger').hide()
+            self.builder.get_object('label_method').hide()
+            self.builder.get_object('QCModel_methods_combobox').hide()
+            self.setup_xtb_window.open_window()
+
+        elif self.qc_engine_id == 4:
+            self.builder.get_object('button_setup_dftb').set_label('MOPAC Setup')
+            self.builder.get_object('button_setup_dftb').show()
+            
+            self.builder.get_object('button_setup_orca').hide()
+            self.builder.get_object('expander_DIISSCF_converger').hide()
+            self.builder.get_object('label_method').hide()
+            self.builder.get_object('QCModel_methods_combobox').hide()
+            self.setup_mopac_window.open_window()
+        else:
+            pass
+
     def on_name_combo_changed (self, combobox):
         """ Function doc """
         pass
         #
         self.method_id = self.builder.get_object('QCModel_methods_combobox').get_active()
-        
+        print(self.method_id)
         if self.method_id in [0,1,2,3,4,5]:            
             self.builder.get_object('button_setup_orca').hide()
             self.builder.get_object('button_setup_dftb').hide()
@@ -2593,6 +2966,14 @@ class EasyHybridSetupQCModelWindow:
             self.builder.get_object('button_setup_orca').hide()
             self.builder.get_object('expander_DIISSCF_converger').hide()
             self.setup_xtb_window.open_window()
+        
+        elif self.method_id == 9:
+            #self.builder.get_object('button_setup_dftb').set_label('xTB Setup')
+            #self.builder.get_object('button_setup_dftb').show()
+            #self.builder.get_object('button_setup_orca').hide()
+            #self.builder.get_object('expander_DIISSCF_converger').hide()
+            print('here')
+            self.setup_mopac_window.open_window()
         else:
             pass
 
@@ -2609,30 +2990,28 @@ class EasyHybridSetupQCModelWindow:
 
         
         parameters = {
+                    'qcengine'         : self.QC_engines[self.qc_engine_id]             ,
                     'qcmodel'          : 'mndo'           ,
                     'charge'           : self.spinbutton_charge.get_value_as_int()      ,
                     'multiplicity'     : self.spinbutton_multiplicity.get_value_as_int(),
+                    
                     'method'           : self.methods_id_dictionary[self.method_id]   ,
+                    
                     'isSpinRestricted' : self.restricted  ,
                      }
 
-        if self.method_id == 6:
-            parameters['orca_options'  ] = self.orca_options
-            parameters['orca_scratch'  ] = self.orca_scratch
-            parameters['random_scratch'  ]   = self.orca_random_scratch
-            #print('random_scratch QQQ', parameters['random_scratch'  ])
+        if self.qc_engine_id == 1: # ORCA
+            parameters['orca_options'  ]   = self.orca_options
+            parameters['orca_scratch'  ]   = self.orca_scratch
+            parameters['random_scratch'  ] = self.orca_random_scratch
         
-        elif self.method_id == 7:
-            #parameters['dftb+_scratch'  ] = os.environ.get('PDYNAMO3_SCRATCH')
-            #parameters['skf_path'  ]      = os.path.join(os.environ.get('PDYNAMO3_HOME'),'examples/dftbPlus/data/skf')
-        
+        elif self.qc_engine_id == 2: # DFTB+
             parameters["deleteJobFiles"      ] = self.setup_dftb_window.delete_job_files # True/False 
-            
             parameters["extendedInput"       ] = self.setup_dftb_window.text_extended_input #None
-            
+            parameters['method'              ] = 'DFTB+'
             parameters["fermiTemperature"    ] = self.setup_dftb_window.fermiTemperature
             parameters["gaussianBlurWidth"   ] = self.setup_dftb_window.gaussianBlurWidth
-            parameters["hamiltonian"         ] = "DFTB"
+            #parameters["hamiltonian"         ] = "DFTB"
             parameters["maximumSCCIterations"] = self.setup_dftb_window.maximumSCCIterations
             parameters["randomScratch"       ] = self.setup_dftb_window.random_scratch
             parameters["sccTolerance"        ] = self.setup_dftb_window.sccTolerance
@@ -2640,25 +3019,7 @@ class EasyHybridSetupQCModelWindow:
             parameters["skfPath"             ] = self.setup_dftb_window.skf_folder 
             parameters["useSCC"              ] = self.setup_dftb_window.use_scc
         
-            #print (parameters)
-        
-            #parameters['skf_path'  ]         = self.setup_dftb_window.skf_folder       #self.setup_dftb_window.skf_folder_chooser.get_filename()
-            #parameters['dftb+_scratch'  ]    = self.setup_dftb_window.scratch_folder   #self.setup_dftb_window.entry_dftb_scratch_folder.get_text()
-            #parameters['use_scc']            = self.setup_dftb_window.use_scc          #self.setup_dftb_window.checkbox_use_scc.get_active()         
-            #parameters['delete_job_files'  ] = self.setup_dftb_window.delete_job_files #self.setup_dftb_window.checkbox_delete_job_files.get_active()
-            #parameters['random_scratch'  ]   = self.setup_dftb_window.random_scratch   #self.setup_dftb_window.checkbox_random_scratch.get_active()  
-            #
-            #parameters['ThirdOrderFull' ] = self.setup_dftb_window.ThirdOrderFull
-            #parameters['zeta'           ] = self.setup_dftb_window.zeta
-            #parameters['HubbardDerivs'  ] = self.setup_dftb_window.HubbardDerivs
-            #
-            #
-            #parameters['fermiTemperature'     ] = self.setup_dftb_window.fermiTemperature  
-            #parameters['gaussianBlurWidth'    ] = self.setup_dftb_window.gaussianBlurWidth    
-            #parameters['maximumSCCIterations' ] = self.setup_dftb_window.maximumSCCIterations 
-            #parameters['sccTolerance'         ] = self.setup_dftb_window.sccTolerance        
-        
-        elif self.method_id == 8:
+        elif self.qc_engine_id == 3: # xTB
             parameters['gfn'       ] = self.setup_xtb_window.parameters['gfn']  
             parameters['parallel'  ] = self.setup_xtb_window.parameters['parallel'] 
             parameters['acc'       ] = self.setup_xtb_window.parameters['acc']
@@ -2666,16 +3027,23 @@ class EasyHybridSetupQCModelWindow:
             parameters['fermi_temp'] = self.setup_xtb_window.parameters['fermi_temp'  ] 
             parameters['keywords'  ] = self.setup_xtb_window.parameters['add_keywords'] 
             parameters['scratch'   ] = self.setup_xtb_window.parameters['scratch'] 
+        
+        elif self.qc_engine_id == 4:
+            parameters['method'    ]  = 'MOPAC'
+            parameters['hamiltonian'] = self.setup_mopac_window.parameters['method']  
+            parameters['keywords'  ]  = self.setup_mopac_window.parameters['add_keywords'] 
+            parameters['scratch'   ]  = self.setup_mopac_window.parameters['scratch'] 
 
-        
-        
+
         parameters['energyTolerance'  ] = float(self.builder.get_object('entry_energyTolerance').get_text())
         parameters['densityTolerance' ] = float(self.builder.get_object('entry_densityTolerance').get_text())
         parameters['maximumIterations'] = int(self.builder.get_object('entry_maximumIterations').get_text())
 
-        #print(parameters)
+        print(parameters)
         
-        self.main_session.p_session.define_a_new_QCModel(system = None,  parameters = parameters, vismol_object =  self.vismol_object)
+        self.main_session.p_session.define_a_new_QCModel(system        = None,  
+                                                         parameters    = parameters, 
+                                                         vismol_object = self.vismol_object)
         #self.main_session.update_gui_widgets ()
         self.window.destroy()
         self.Visible    =  False
@@ -2695,8 +3063,6 @@ class EasyHybridSetupQCModelWindow:
         
         else:
             pass
-        
-        
         
     def update (self):
         """ Function doc """

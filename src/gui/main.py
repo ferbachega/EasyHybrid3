@@ -51,7 +51,6 @@ from gui.windows.setup.windows_and_dialogs import EasyHybridSelectionWindow
 from gui.windows.setup.windows_and_dialogs import ExportDataWindow
 from gui.windows.setup.windows_and_dialogs import EasyHybridDialogPrune
 from gui.windows.setup.windows_and_dialogs import MakeSolventBoxWindow
-from gui.windows.setup.edit_cell import EditCellWindow
 
 
 from gui.windows.setup.windows_and_dialogs import ImportTrajectoryWindow
@@ -398,7 +397,6 @@ class MainWindow:
         self.edit_frames_dialog = EditFrameDialog(main = self)
         self.merge_system_window = MergeSystemWindow(main = self)
         self.solvate_system_window = SolvateSystemWindow(main = self)
-        self.edit_cell_window = EditCellWindow(main = self)
         self.preferences_window = EasyHybridPreferencesWindow(main = self)
 
         self.make_solvent_box_window = MakeSolventBoxWindow(main = self)
@@ -479,8 +477,8 @@ class MainWindow:
             self.gtk_save_as_file (button)
         
         if button  == self.builder.get_object('_show_cell'):
-            #print('aqui')
-            self.run_test(None)
+            print('Under construction!')
+            #self.run_test(None)
             
         if button == self.builder.get_object('toolbutton_terminal'):
             if button.get_active ():
@@ -549,19 +547,25 @@ class MainWindow:
             ##print('toolbutton_umbrella_sampling')
             self.chain_of_states_opt_window.open_window()
         
-        if button  == self.builder.get_object('toolbutton_export_img'):
+        if button  == self.builder.get_object('toolbutton_monte_carlo'):
             ##print('toolbutton_umbrella_sampling')
-            self.vm_session.vm_widget.save_image("saida.png")
-            #self.vm_session.get_dihedral()
+            
+            self.vm_session.get_dihedral()
             #lista = list(self.vm_session.vobject_names.keys())
             #print(lista)
             #obj = self.vm_session.vobject_names[lista[0]]
             #print(obj.topology)
         
-        if button  == self.builder.get_object('button_task_list'):
+        if button  == self.builder.get_object('button_test'):
             ##print('toolbutton_umbrella_sampling')
             self.process_manager_window.open_window()
 
+        if button  == self.builder.get_object('toolbutton_export_img'):
+            
+            ##print('toolbutton_umbrella_sampling')
+            self.save_glArea_image(None)
+            #self.vm_session.vm_widget.save_image("saida.png")
+    
     def on_main_menu_activate (self, menuitem):
         """ Function doc """
         ##print(menuitem)
@@ -821,29 +825,6 @@ class MainWindow:
             system = self.p_session.psystem[self.p_session.active_id]
             for key, vobject in self.vm_session.vm_objects_dic.items():
                 self.vm_session.hide_cell (vobject)
-            
-        elif menuitem == self.builder.get_object('menuitem_edit_cell'):
-            self.edit_cell_window.open_window()
-            
-            #system = self.p_session.psystem[self.p_session.active_id]
-            #
-            #if system.symmetry:
-            #
-            #    a = system.symmetryParameters.a
-            #    b = system.symmetryParameters.b
-            #    c = system.symmetryParameters.c
-            #    alpha = system.symmetryParameters.alpha
-            #    beta = system.symmetryParameters.beta
-            #    gamma = system.symmetryParameters.gamma
-            #    print(a, b, c, alpha, beta, gamma)
-                
-                
-            #print()
-            
-            #for key, vobject in self.vm_session.vm_objects_dic.items():
-            #    self.vm_session.hide_cell (vobject)
-            
-            
             #if self.builder.get_object('toogle_show_cell').get_active():
             #    print('toogle_show_cell - show', self.builder.get_object('toogle_show_cell').get_active())
             #else:
@@ -1691,283 +1672,20 @@ class MainWindow:
                 print(dist1, dist2, dist3)
                 
     def run_test (self, widget):
+        '''Test'''
+        pass
         
-        self.vm_session.vm_glcore.save_image("saida.png")
-        
-
-        '''
-        #print('aloowww')
-        #print(self.vm_session.vm_glcore.glcamera)
-        print('z_near:', self.vm_session.vm_glcore.glcamera.z_near          ) #= self.z_far
-        print('z_far:', self.vm_session.vm_glcore.glcamera.z_far        ) #= self.fog_end - self.min_zfar
-        print('\nview matrixes: \n', self.vm_session.vm_glcore.glcamera.view_matrix      ) #= self._get_view_matrix(pos)
-        print('\nprojection_matrix: \n',self.vm_session.vm_glcore.glcamera.projection_matrix) #= self._get_projection_matrix()
-        print('\ncamera position: \n', self.vm_session.vm_glcore.glcamera.get_position()) #= self._get_projection_matrix()
-        
-        camera = self.vm_session.vm_glcore.glcamera.get_position()
-        view_matrix       = self.vm_session.vm_glcore.glcamera.view_matrix
-        projection_matrix = self.vm_session.vm_glcore.glcamera.projection_matrix
-        camera_position   = self.vm_session.vm_glcore.glcamera.get_position()
-
-        for key, vobj in self.vm_session.vm_objects_dic.items():
-            print('model_mat:')
-            print(vobj.model_mat)
-            print('trans_mat:')
-            print(vobj.trans_mat)
-
-        '''
-        # --------------------------
-        # Exemplo de uso com seus dados
-        #view_matrix = np.array([
-        #    [1, 0, 0, 0],
-        #    [0, 1, 0, 0],
-        #    [0, 0, 1, 0],
-        #    [0, 0, -10, 1]
-        #], dtype=float)
-        #
-        #projection_matrix = np.array([
-        #    [2.2277896, 0, 0, 0],
-        #    [0, 5.671282, 0, 0],
-        #    [0, 0, -3.3333333, -1],
-        #    [0, 0, -30.333334, 0]
-        #], dtype=float)
-        #
-        #camera_position = [0, 0, 10]
-
-        pov_camera_block = self.opengl_to_povray_camera(view_matrix, projection_matrix, camera_position)
-        print(pov_camera_block)   
-        
-        return False
-        
-        for key, vobj in self.vm_session.vm_objects_dic.items():
-            print(vobj.model_mat)
-            print(vobj.trans_mat)
-
-        
-        
-        #inv_mat = mop.get_inverse_matrix(self.vm_session.vm_glcore.glcamera.view_matrix )
-        #print ('inverse of nview', inv_mat)
-        #
-        #print ('inverse of nview', inv_mat[3])
-        
-        
-        view_matrix = self.vm_session.vm_glcore.glcamera.view_matrix
-        forward = view_matrix[2]
-        
-        
-        #print(vobj.colors[1][0])
-        pov_file  = open('temp.pov', 'w')
-
-        text = '// Generated by EasyHybrid \n'
-
-        text+= '#include "colors.inc"\n'
-        text+= '#include "textures.inc"\n'
-        text+= '#include "shapes.inc"\n'
-        text+= '#include "stones1.inc"\n'
-
-        text+= '// Rotation matrix\n'
-        text+= '#declare myTransforms = transform {\n'
-        text+= '    matrix <{}, {} ,{}, {}, {}, {}, {}, {}, {}, 0.000000, 0.000000 ,0.000000>\n'.format(vobj.model_mat[0][0],  vobj.model_mat[0][1], vobj.model_mat[0][2],
-                                                                                                        vobj.model_mat[1][0],  vobj.model_mat[1][1], vobj.model_mat[1][2],
-                                                                                                        vobj.model_mat[2][0],  vobj.model_mat[2][1], vobj.model_mat[2][2],
-                                                                                                        )
-        text+= '}\n'
-
-
-
-        text+= '// CAMERA                                                          \n'
-        text+= 'camera                                                             \n'
-        text+= '{	//orthographic                                                 \n'
-        #text+= '    right     1.26887871853547 *x                                  \n'
-        #text+= '    up        y                                                    \n'
-        text+= '    direction -z                                                   \n'
-        text+= '    location  < {}, {},  {} >                                      \n'.format(camera[0], camera[1], camera[2])
-        text+= '    angle   {}                                      \n'.format(self.vm_session.vm_glcore.glcamera.field_of_view*3)
-        text+= '    look_at   < {}, {},  {} >                                      \n'.format(forward[0],forward[1],forward[2]) #(vobj.model_mat[3][0],  vobj.model_mat[3][1], vobj.model_mat[3][2])
-        #text+= '     scale     20.91588996061168                                   \n'
-        text+= '    translate < {} , {} , {} >                                     \n'.format(-vobj.model_mat[3][0], -vobj.model_mat[3][1], -vobj.model_mat[3][2] ) 
-        text+= '}                                                                  \n'
-        text+= '                                                                   \n'
-        text+= '  // LIGHT 1                                                       \n'
-        text+= 'light_source                                                       \n'
-        text+= '{                                                                  \n'
-        text+= '    <  0.000000,  0.000000,4000>                             \n'
-        text+= '    color 0.8*White                                                \n'
-        text+= '}                                                                  \n'
-        text+= '// BACKGROUND                                                      \n'
-        text+= 'background                                                         \n'
-        text+= '{                                                                  \n'
-        text+= '    color rgb < 1.000000, 1.000000, 1.000000 >                     \n'
-        text+= '}                                                                  \n'
-        text+= '                                                                   \n'
-        text+= '# declare molecule = union {                                       \n'
-        text+= '// ATOMS                                                           \n'
-        
-                                                                
-        
-        for key, vobj in self.vm_session.vm_objects_dic.items():
-            for i, atom in vobj.atoms.items():
-                #print(i, atom)
-                xyz = atom.coords(frame = 0)
-
-                text+= 'sphere                                                             \n'
-                text+= '{                                                                  \n'
-                text+= '    <      {},    {},     {}>       {}  \n'.format(xyz[0], xyz[1], xyz[2], atom.vdw_rad*0.2)
-                text+= '    texture { finish { Dull } }                                    \n'
-                text+= '    pigment { '+'rgb<     {},      {},      {}'.format(vobj.colors[i][0], vobj.colors[i][1],vobj.colors[i][2])+'> }  \n'
-                text+= '}                                                                  \n'
-
-            for bond in vobj.bonds:
-                xyz_i = bond.atom_i.coords(frame = 0)
-                xyz_j = bond.atom_j.coords(frame = 0)
-                
-                text+= 'cylinder                                                          \n'
-                text+= '{                                                                 \n'
-                text+= '    <      {},      {},     {}>,               \n'.format(xyz_i[0], xyz_i[1], xyz_i[2])
-                text+= '    <      {},      {},     {}>                \n'.format(xyz_j[0], xyz_j[1], xyz_j[2])
-                text+= '          0.15                                                \n'
-                text+= '    texture { finish { Dull } }                                   \n'
-                text+= '    pigment { rgb<      1,      1,      1> } \n'
-                text+= '}                                                                 \n'
-
-
-        text+='transform { myTransforms }                                              \n'
-        text+='}                                                                       \n'
-        text+='                                                                        \n'
-        #text+='object {molecule}                                                       \n'
- 
-        text+='intersection{                                              \n'                          
-        text+='    object {molecule}                                      \n'                    
-        text+='    plane{z, %s pigment{rgbf<1,1,1,0>}}                    \n'% str(-self.vm_session.vm_glcore.glcamera.z_near)
-        text+='}                                                          \n'
-        #text+= 'plane                                                              \n'
-        #text+= '{                                                                  \n'
-        #text+= '	z, {}                                                          \n'.format( -self.vm_session.vm_glcore.glcamera.z_far )
-        #text+= '    pigment { rgb <   1.000000, 1.000000, 1.000000 > }                  \n'#.format(0.0, 0.0 , self.vm_session.vm_glcore.glcamera.fog_end )
-        #text+= '} \n' 
-
-        pov_file.write(text)
-        #print(text)
-        #os.system('povray +A0.3 -UV +W1000 +H1000 +Itemp.pov +Otemp2.png')
-        #print('povray +A0.3 -UV +W1000 +H1000 +Itemp.pov +Otemp2.png')
-        
-        
-        print(self.vm_session.vm_glcore.glcamera.z_near, self.vm_session.vm_glcore.glcamera.z_far)
-        #print(self.vm_session.vm_glcore.glcamera._get_view_matrix([0,0,10]))
-        print(self.vm_session.vm_glcore.glcamera.fog_end  )
-        print(self.vm_session.vm_glcore.glcamera.fog_start)
-        print(self.vm_session.vm_glcore.zero_reference_point)
-        #'''
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        '''
-        print('model matrix:',      self.vm_session.vm_glcore.model_mat                 , type(self.vm_session.vm_glcore.model_mat                 )  )
-        print('projection matrix:', self.vm_session.vm_glcore.glcamera.projection_matrix, type(self.vm_session.vm_glcore.glcamera.projection_matrix)  )
-        print('view matrix:',       self.vm_session.vm_glcore.glcamera.view_matrix      , type(self.vm_session.vm_glcore.glcamera.view_matrix      )  )
-        
-        proj_mat = self.vm_session.vm_glcore.glcamera.projection_matrix
-        view_mat = self.vm_session.vm_glcore.glcamera.view_matrix
-        #model_mat= self.vm_session.vm_glcore.model_mat
-        # Multiplica as matrizes na ordem correta
-
-        
-
-        pov_file  = open('temp.pov', 'w')
-        
-        text = '// Generated by EasyHybrid \n'
-        
-        text+= '#include "colors.inc"\n'
-        text+= '#include "textures.inc"\n'
-        text+= '#include "shapes.inc"\n'
-        text+= '#include "stones1.inc"\n'
-        
-        text+= '\n'
-        text+= 'camera {\n'
-        text+= '    location <0,0,-100>\n'
-        #text+= '    location <{},{},{}>\n'.format(camera_position_povray[0],camera_position_povray[1],camera_position_povray[2])
-        text+= '    look_at  <0,0,0>\n'
-        #text+= '    look_at  <{},{},{}>\n'.format(look_at_point_povray[0],look_at_point_povray[1],look_at_point_povray[2])
-        text+= '    angle 45\n'
-        text+= '}\n'
-
-        text+= '                                                                   \n'
-        text+= '  // LIGHT 1                                                       \n'
-        text+= 'light_source                                                       \n'
-        text+= '{                                                                  \n'
-        text+= '    <  0.000000,  0.000000,-109.953541>                             \n'
-        text+= '    color 0.8*White                                                \n'
-        text+= '}                                                                  \n'
-        text+= '// BACKGROUND                                                      \n'
-        text+= 'background                                                         \n'
-        text+= '{                                                                  \n'
-        text+= '    color rgb < 1.000000, 1.000000, 1.000000 >                     \n'
-        text+= '}                                                                  \n'
-        text+= '                                                                   \n'
-        text+= '# declare molecule = union {                                       \n'
-        text+= '// ATOMS                                                           \n'
-        
-
-        for key, vobj in self.vm_session.vm_objects_dic.items():
-            if vobj.active:
-                model_mat = vobj.model_mat
-                result = np.matmul(proj_mat, view_mat)
-                result = np.matmul(result, model_mat)
-                
-                for i, atom in vobj.atoms.items():
-                    #print(i, atom)
-                    xyz = atom.coords(frame = 0)
-                    #result = np.matmul(result, vert_coord)
-                    xyz = np.append(xyz, 1.0)
-                    xyz = np.matmul(result, xyz)
-                    text+= 'sphere                                                             \n'
-                    text+= '{                                                                  \n'
-                    text+= '    <      {},    {},     {}>       {}  \n'.format(xyz[0], xyz[1], xyz[2], atom.vdw_rad*0.3)
-                    text+= '    texture { finish { Dull } }                                    \n'
-                    text+= '    pigment { '+'rgb<     {},      {},      {}'.format(vobj.colors[i][0], vobj.colors[i][1],vobj.colors[i][2])+'> }  \n'
-                    text+= '}                                                                  \n'
-        
-                for bond in vobj.bonds:
-                    xyz_i = bond.atom_i.coords(frame = 0)
-                    xyz_j = bond.atom_j.coords(frame = 0)
-                    
-                    text+= 'cylinder                                                          \n'
-                    text+= '{                                                                 \n'
-                    text+= '    <      {},      {},     {}>,               \n'.format(xyz_i[0], xyz_i[1], xyz_i[2])
-                    text+= '    <      {},      {},     {}>                \n'.format(xyz_j[0], xyz_j[1], xyz_j[2])
-                    text+= '          0.20                                                \n'
-                    text+= '    texture { finish { Dull } }                                   \n'
-                    text+= '    pigment { rgb<      0.193545,      0.193545,      0.193545> } \n'
-                    text+= '}                                                                 \n'
-        text+= '}                                                                 \n'
-        text+='object {molecule}'
-        pov_file.write(text)
-        
-        width  = self.vm_session.vm_glcore.width 
-        height = self.vm_session.vm_glcore.height
-        
-        os.system('povray +A0.1 -UV +W{} +H{} +Itemp.pov +Otemp2.png'.format(width, height))
-        print('povray +A0.1 -UV +W{} +H{} +Itemp.pov +Otemp2.png'.format(width, height))
-        #'''
- 
+    def save_glArea_image (self, widget):
+        """ Opens the Preview/Export window: a live (screen-resolution)
+            preview of the current OpenGL view where the user can toggle
+            and tweak the cartoon filter, save/load named style presets,
+            and export the final PNG at a chosen resolution multiplier.
+            The export re-captures the scene at full quality through
+            VismolGLCore.render_to_image() rather than upscaling the
+            preview image - see VismolGTKWidget.open_export_preview().
+        """
+        glwidget = self.vm_session.vm_glcore.parent_widget
+        glwidget.open_export_preview()
 
     def opengl_to_povray_camera(self,  view_matrix, projection_matrix, camera_position, use_clipping=True):
         """

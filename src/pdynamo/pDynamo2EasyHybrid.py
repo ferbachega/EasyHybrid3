@@ -152,6 +152,26 @@ class LoadAndSaveData:
         self.main.bottom_notebook.get_active_system_text_from_textbuffer()
         easyhybrid_session_data['systems'] = [ ]
         
+        '''- - - - - - - - - - camera/view orientation - - - - - - - - - - '''
+        # Captures the state that fully determines how the scene is framed:
+        # model_mat (world rotation/pan - every VismolObject inherits this
+        # at creation time via set_model_matrix), the camera's view_matrix
+        # (zoom/position), its near/far clipping planes (change with zoom
+        # too), and zero_reference_point/dist_cam_zrp (used for pan, fog
+        # and line width calculations). Restoring just these on load is
+        # enough: objects loaded afterwards pick up vm_glcore.model_mat
+        # automatically, they don't need their own per-object copy saved.
+        glcamera = self.vm_session.vm_glcore.glcamera
+        easyhybrid_session_data['camera'] = {
+            'model_mat'           : np.copy(self.vm_session.vm_glcore.model_mat),
+            'zero_reference_point': np.copy(self.vm_session.vm_glcore.zero_reference_point),
+            'dist_cam_zrp'        : float(self.vm_session.vm_glcore.dist_cam_zrp),
+            'view_matrix'         : np.copy(glcamera.view_matrix),
+            'projection_matrix'   : np.copy(glcamera.projection_matrix),
+            'z_near'              : float(glcamera.z_near),
+            'z_far'               : float(glcamera.z_far),
+        }
+        
         for e_id, system in self.psystem.items():
             
             if system == None:
@@ -273,6 +293,23 @@ class LoadAndSaveData:
             easyhybrid_session_data = pickle.load(f)
         #print(easyhybrid_session_data)
         
+        '''- - - - - - - - - - camera/view orientation - - - - - - - - - - '''
+        # Older .easy files won't have this key - skip restoring and keep
+        # whatever default view vm_glcore already has in that case.
+        camera_data = easyhybrid_session_data.get('camera')
+        if camera_data is not None:
+            vm_glcore = self.vm_session.vm_glcore
+            glcamera = vm_glcore.glcamera
+            vm_glcore.model_mat            = np.copy(camera_data['model_mat'])
+            vm_glcore.zero_reference_point = np.copy(camera_data['zero_reference_point'])
+            vm_glcore.dist_cam_zrp         = camera_data['dist_cam_zrp']
+            glcamera.set_view_matrix(np.copy(camera_data['view_matrix']))
+            glcamera.set_projection_matrix(np.copy(camera_data['projection_matrix']))
+            glcamera.z_near = camera_data['z_near']
+            glcamera.z_far  = camera_data['z_far']
+            glcamera.update_fog()
+            vm_glcore.queue_draw()
+        
         for data  in easyhybrid_session_data['systems']:
             system = data['system']
             
@@ -317,7 +354,8 @@ class LoadAndSaveData:
                             vm_object.key6 = vobj['key6']
                          
                         
-                        self.vm_session._add_vismol_object(vm_object, show_molecule = True)
+                        self.vm_session._add_vismol_object(vm_object, show_molecule = True,
+                                                            autocenter = (camera_data is None))
                         
                         self.main.main_treeview.add_vismol_object_to_treeview(vm_object)
                         
@@ -3372,7 +3410,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                                 extendedInput =        parameters["extendedInput"       ],
                                                 fermiTemperature =     parameters["fermiTemperature"    ],
                                                 gaussianBlurWidth =    parameters["gaussianBlurWidth"   ],
-                                                hamiltonian =          parameters["hamiltonian"         ],
+                                                #hamiltonian =          parameters["hamiltonian"         ],
                                                 maximumSCCIterations = parameters["maximumSCCIterations"],
                                                 randomScratch =        parameters["randomScratch"       ],
                                                 sccTolerance =         parameters["sccTolerance"        ],
@@ -4166,7 +4204,6 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         return vismol_object
 
 
-
 class Atom:
     """ Class doc """
     
@@ -4214,13 +4251,13 @@ class Atom:
             self.ball_rad = self._init_ball_rad()
         else:
             self.ball_rad = ball_rad
-        
+
         #Bachega April/05/2026
         if electronegativity is None:
             self.electronegativity = self._init_electronegativity()
         else:
             self.electronegativity = electronegativity           
-        
+
         self.color_id = None
         self.occupancy = occupancy
         self.bfactor = bfactor
@@ -4324,6 +4361,15 @@ class Atom:
                     symbol = "Si"
                 elif name[1] == "e":
                     symbol = "Se"
+                
+                elif name[1] == "O":
+                    try:
+                        if name[2] == "D":
+                            symbol = "Na"
+                        else:
+                            pass
+                    except:
+                        symbol = "S"
                 else:
                     symbol = "S"
             
@@ -4399,28 +4445,13 @@ class Atom:
             vdw = ATOM_TYPES[self.symbol][6]
         return vdw
     
-    def _init_electronegativity(self):
-        """ Function doc """
-        #return False
-        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
-        try:
-            en_UFF = ATOM_TYPES[self.name][8]
-        except KeyError:
-            try:
-                en_UFF = ATOM_TYPES[self.symbol][8]
-            except:
-                en_UFF = 1.0
-        return en_UFF
-    
     def _init_cov_rad(self):
         """ Function doc """
         ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
         try:
             cov = ATOM_TYPES[self.name][5]
-            #cov = ATOM_TYPES[self.name][7]
         except KeyError:
             cov = ATOM_TYPES[self.symbol][5]
-            #cov = ATOM_TYPES[self.symbol][7]
         return cov
     
     def _init_ball_rad(self):
@@ -4499,7 +4530,21 @@ class Atom:
                 
         color = [int(color[0]*250), int(color[1]*250), int(color[2]*250)]
         return color
-    
+
+
+    def _init_electronegativity(self):
+        """ Function doc """
+        #return False
+        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
+        try:
+            en_UFF = ATOM_TYPES[self.name][8]
+        except KeyError:
+            try:
+                en_UFF = ATOM_TYPES[self.symbol][8]
+            except:
+                en_UFF = 1.0
+        return en_UFF
+
     def init_radius(self, name):
         """
         """
@@ -4521,354 +4566,6 @@ class Atom:
                 rad = 0.30
         return rad
 
-
-
-
-#
-#class Atom:
-#    """ Class doc """
-#    
-#    def __init__(self, vismol_object, name="Xx", index=None, residue=None,
-#                 chain=None, pos=None, symbol=None, atom_id=None, color=None,
-#                 vdw_rad=None, cov_rad=None, ball_rad=None,
-#                 occupancy=0.0, bfactor=0.0, charge=0.0, bonds_indexes=None):
-#        """ Class initializer """
-#        self.vm_object   = vismol_object
-#        self.vm_session  = vismol_object.vm_session
-#        
-#        
-#        self.name     = name
-#        self.index    = index   # - Remember that the "index" attribute refers to the numbering of atoms (it is not a zero base, it starts at 1 for the first atom)
-#        self.residue  = residue
-#        self.chain    = chain
-#        self.molecule = None
-#
-#        self.pos = pos     # - coordinates of the first frame
-#        self.unique_id = None
-#        
-#        # self.symbol = self._get_symbol(self.name) if (symbol is None) else symbol
-#        if symbol is None:
-#            self.symbol = self._get_symbol()
-#        else:
-#            self.symbol = symbol
-#        self.atom_id = atom_id
-#        
-#        if color is None:
-#            self.color = self._init_color()
-#        else:
-#            self.color = color
-#        
-#        if vdw_rad is None:
-#            self.vdw_rad = self._init_vdw_rad()
-#        else:
-#            self.vdw_rad = vdw_rad
-#        
-#        if cov_rad is None:
-#            self.cov_rad = self._init_cov_rad()
-#        else:
-#            self.cov_rad = cov_rad
-#        
-#        if ball_rad is None:
-#            self.ball_rad = self._init_ball_rad()
-#        else:
-#            self.ball_rad = ball_rad
-#        
-#        self.color_id = None
-#        self.occupancy = occupancy
-#        self.bfactor = bfactor
-#        self.charge = charge
-#        if bonds_indexes is None:
-#            self.bonds_indexes = []
-#        else:
-#            self.bonds_indexes = bonds_indexes
-#        
-#        self.selected       = False
-#        self.lines          = True
-#        self.dots           = False
-#        self.nonbonded      = False
-#        self.impostor       = False
-#        self.ribbons        = False
-#        self.ribbon_sphere  = False
-#        self.dynamic        = False
-#        self.ball_and_stick = False
-#        self.sticks         = False
-#        self.stick_spheres  = False
-#        self.spheres        = False
-#        self.vdw_spheres    = False
-#        self.dash           = False
-#        self.surface        = False
-#        self.bonds          = []
-#        self.isfree         = True
-#        self.labels         = False
-#        self.label_text     = None
-#        
-#    def _get_symbol(self):
-#        """ Function doc """
-#        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
-#        
-#        name = self.name.strip()
-#        if name == "":
-#            return ""
-#        
-#        _n = name
-#        for char in name:
-#            if char.isnumeric():
-#                _n = _n.replace(char, "")
-#        name = _n
-#        
-#        if len(name) >= 3:
-#            name = name[:2]
-#        
-#        # This can't happen since before all numbers have been converted to strings
-#        # if len(name) == 2:
-#        #     if name[1].isnumeric():
-#        #         symbol = name[0]
-#        
-#        # The capitalization of hte name can solve all the next ifs
-#        # name = name.lower().capitalize()
-#        if name in ATOM_TYPES.keys():
-#            return name
-#        else:
-#            if name[0] == "H":
-#                if name[1] == "g":
-#                    symbol =  "Hg"
-#                elif name[1] =="e":
-#                    symbol = "He"
-#                else:
-#                    symbol =  "H"
-#            
-#            elif name[0] == "C":
-#                if name[1] == "a":
-#                    symbol = "Ca"
-#                elif name[1] =="l":
-#                    symbol = "Cl"
-#                elif name[1] =="L":
-#                    symbol = "Cl"
-#                elif name[1] =="d":
-#                    symbol = "Cd"
-#                elif name[1] =="u":
-#                    symbol = "Cu"
-#                elif name[1] =="U":
-#                    symbol = "Cu"
-#                else:
-#                    symbol = "C"
-#            
-#            elif name[0] == "N":
-#                if name[1] == "i" or name[1] == "I":
-#                    symbol = "Ni"
-#                elif name[1] == "a":
-#                    symbol = "Na"
-#                elif name[1] == "e":
-#                    symbol = "Ne"
-#                elif name[1] == "b":
-#                    symbol = "Nb"
-#                else:
-#                    symbol = "N"
-#            
-#            elif name[0] == "O":
-#                if name[1] == "s":
-#                    symbol = "Os"
-#                else:
-#                    symbol = "O"
-#            
-#            elif name[0] == "S":
-#                if name[1] == "I":
-#                    symbol = "Si"
-#                elif name[1] == "e":
-#                    symbol = "Se"
-#                
-#                elif name[1] == "O":
-#                    try:
-#                        if name[2] == "D":
-#                            symbol = "Na"
-#                        else:
-#                            pass
-#                    except:
-#                        symbol = "S"
-#                else:
-#                    symbol = "S"
-#            
-#            elif name[0] == "P":
-#                if name[1] == "d":
-#                    symbol = "Pd"
-#                elif  name[1] == "b":
-#                    symbol = "Pb"
-#                elif  name[1] == "o":
-#                    symbol = "Po"
-#                else:
-#                    symbol = "P" 
-#            
-#            elif name[0] == "Z":
-#                if name[1] == "r":
-#                    symbol = "Zr"
-#                elif  name[1] == "N":
-#                    symbol = "Zn"
-#                else:
-#                    symbol = "Zn" 
-#            
-#            elif name[0] == "F":
-#                if name[1] == "E":
-#                    symbol = "Fe"
-#                elif  name[1] == "e":
-#                    symbol = "Fe"
-#                else:
-#                    symbol = "F" 
-#            
-#            elif name[0] == "M":
-#                if name[1] == "n":
-#                    symbol = "Mn"
-#                elif name[1] == "N":
-#                    symbol = "Mn"
-#                elif name[1] == "o":
-#                    symbol = "Mo"
-#                elif name[1] == "G":
-#                    symbol = "Mg"
-#                else:
-#                    symbol = "X"
-#            else:
-#                symbol = "X"
-#        return symbol
-#    
-#    def _init_color(self):
-#        """ Return the color of an atom in RGB. Note that the returned
-#            value is in scale of 0 to 1, but you can change this in the
-#            index. If the atomname does not match any of the names
-#            given, it returns the default dummy value of atom X.
-#        """
-#        try:
-#            color = self.vm_object.color_palette[self.name]
-#        except KeyError:
-#            # #print(self.symbol, "Atom")
-#            color = self.vm_object.color_palette[self.symbol]
-#        return np.array(color, dtype=np.float32)
-#    
-#    def _generate_atom_unique_color_id(self):
-#        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
-#        """ Function doc """
-#        r = (self.unique_id & 0x000000FF) >> 0
-#        g = (self.unique_id & 0x0000FF00) >> 8
-#        b = (self.unique_id & 0x00FF0000) >> 16
-#        # pickedID = r + g * 256 + b * 256*256
-#        self.color_id = np.array([r/255.0, g/255.0, b/255.0], dtype=np.float32)
-#    
-#    def _init_vdw_rad(self):
-#        """ Function doc """
-#        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
-#        try:
-#            vdw = ATOM_TYPES[self.name][6]
-#        except KeyError:
-#            vdw = ATOM_TYPES[self.symbol][6]
-#        return vdw
-#    
-#    def _init_cov_rad(self):
-#        """ Function doc """
-#        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
-#        try:
-#            #cov = ATOM_TYPES[self.name][5]
-#            cov = ATOM_TYPES[self.name][7]
-#        except KeyError:
-#            #cov = ATOM_TYPES[self.symbol][5]
-#            cov = ATOM_TYPES[self.symbol][7]
-#        return cov
-#    
-#    def _init_ball_rad(self):
-#        """ Function doc """
-#        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
-#        try:
-#            ball = ATOM_TYPES[self.name][6]
-#        except KeyError:
-#            ball = ATOM_TYPES[self.symbol][6]
-#        return ball
-#    
-#    def coords(self, frame=None):
-#        """ 
-#        frame = int
-#        
-#        Returns the coordinates of an atom according to the specified frame. 
-#        If no frame is specified, the frame set by easyhybrid (probably by the 
-#        scale bar of the trajectory manipulation window) is used. If the object 
-#        (vobject) has a smaller number of frames than the one set by the 
-#        interface, the last frame of the object is used.
-#        
-#        return  xyz 
-#        """
-#        if frame is None:
-#            frame  = self.vm_object.vm_session.frame
-#            #print (frame, len(self.vm_object.frames))
-#            if len(self.vm_object.frames)-1 <= frame:
-#                frame = len(self.vm_object.frames)-1
-#            else:
-#                pass
-#        return self.vm_object.frames[frame, self.atom_id]
-#    
-#    def get_grid_position(self, gridsize=3, frame=None):
-#        """ Function doc """
-#        coords = self.coords(frame)
-#        gridpos = (int(coords[0]/gridsize), int(coords[1]/gridsize), int(coords[2]/gridsize))
-#        return gridpos
-#    
-#    def get_cov_rad(self):
-#        """ Function doc """
-#        return self.cov_rad
-#    
-#    def init_color_rgb(self, name):
-#        """ Return the color of an atom in RGB. Note that the returned
-#            value is in scale of 0 to 1, but you can change this in the
-#            index. If the atomname does not match any of the names
-#            given, it returns the default dummy value of atom X.
-#        """
-#        
-#        try:
-#            color = color =self.vm_object.color_palette[name]
-#            #color = ATOM_TYPES[name][1]
-#        except KeyError:
-#            if name[0] == "H":# or name in self.hydrogen:
-#                #color = ATOM_TYPES["H"][1]
-#                color = self.vm_object.color_palette["H"]
-#            
-#            elif name[0] == "C":
-#                #color = ATOM_TYPES["C"][1]
-#                color = self.vm_object.color_palette["C"]
-#            
-#            elif name[0] == "O":
-#                #color = ATOM_TYPES["O"][1]
-#                color = self.vm_object.color_palette["O"]
-#            
-#            elif name[0] == "N":
-#                #color = ATOM_TYPES["N"][1]
-#                color = self.vm_object.color_palette["N"]
-#                
-#            elif name[0] == "S":
-#                #color = ATOM_TYPES["S"][1]
-#                color = self.vm_object.color_palette["S"]
-#            else:
-#                #color = ATOM_TYPES["X"][1]
-#                color = self.vm_object.color_palette["X"]
-#                
-#        color = [int(color[0]*250), int(color[1]*250), int(color[2]*250)]
-#        return color
-#    
-#    def init_radius(self, name):
-#        """
-#        """
-#        ATOM_TYPES = self.vm_session.periodic_table.elements_by_symbol
-#        try:
-#            rad = ATOM_TYPES[name][6]/5.0
-#        except KeyError:
-#            if name[0] == "H" or name in self.hydrogen:
-#                rad = ATOM_TYPES["H"][6]/5.0
-#            elif name[0] == "C":
-#                rad = ATOM_TYPES["C"][6]/5.0
-#            elif name[0] == "O":
-#                rad = ATOM_TYPES["O"][6]/5.0
-#            elif name[0] == "N":
-#                rad = ATOM_TYPES["N"][6]/5.0
-#            elif name[0] == "S":
-#                rad = ATOM_TYPES["S"][6]/5.0
-#            else:
-#                rad = 0.30
-#        return rad
-#
 
 def generate_random_code(length):
     # Define the character set: uppercase letters, lowercase letters, and digits
