@@ -2275,7 +2275,72 @@ class TreeViewMenu:
         self.main.edit_frames_dialog.open_window (vm_object_index)
     
     def call_interpolate (self, widget):
-        """ Function doc """
+        """
+        Interpolate trajectory frames by inserting midpoint frames between
+        each pair of consecutive frames in the selected VisMol object.
+
+        This method retrieves the currently selected molecular object from the
+        trajectory tree view, accesses its coordinate frames, and generates a
+        new trajectory with interpolated frames. For every pair of consecutive
+        frames, a new intermediate frame is computed using linear interpolation
+        (t = 0.5), effectively doubling the temporal resolution of the trajectory.
+
+        The resulting interpolated trajectory is then stored in a newly created
+        VisMol object, which is added to the current EasyHybrid session using
+        the name ``'edited_coords'``.
+
+        After the new object is created, the method applies fixed-atom and
+        quantum chemistry (QC) visual representations, then refreshes the main
+        GUI widgets to reflect the updated number of frames.
+
+        Parameters
+        ----------
+        widget : Gtk.Widget
+            GTK widget that triggered the callback (typically a button).
+
+        Returns
+        -------
+        None
+            This method does not return any value. It modifies the application
+            state by creating a new interpolated trajectory object.
+
+        Notes
+        -----
+        - Interpolation is performed using simple linear interpolation:
+
+          ``C = (1 - t) * frame1 + t * frame2``
+
+          where ``t = 0.5`` (midpoint interpolation).
+
+        - The first frame is copied unchanged into the new trajectory.
+
+        - If the original trajectory contains `N` frames, the resulting
+          trajectory will contain:
+
+          ``2 * N - 1`` frames
+
+          since one interpolated frame is inserted between every pair of
+          consecutive frames.
+
+        Side Effects
+        ------------
+        - Creates a new VisMol object in the current session.
+        - Updates molecular representations.
+        - Refreshes GUI components.
+        - Prints progress information to stdout.
+
+        Examples
+        --------
+        When a trajectory contains 3 frames:
+
+            Frame0 ---- Frame1 ---- Frame2
+
+        The interpolated trajectory becomes:
+
+            Frame0 -- Mid01 -- Frame1 -- Mid12 -- Frame2
+
+        Resulting in 5 total frames.
+        """
         
         selection        = self.treeview.get_selection()
         (model, iter)    = selection.get_selected()
@@ -2356,18 +2421,96 @@ class TreeViewMenu:
         #self.main_session.p_session.main.refresh_widgets()        
         #self.close_window(None, None)
 
-    def call_delete_current_frame (self, widget):
-        """ Function doc """
-        print('delete_current_frame / Under construction')
-    
+    def call_delete_current_frame(self, widget):
+        """
+        Delete the currently selected molecular frame from the trajectory
+        of the selected VisMol object.
+
+        The function removes the active frame (or the last frame if the current
+        index is out of bounds) from the object's trajectory and updates the UI
+        and OpenGL view.
+        """
+
+        selection = self.treeview.get_selection()
+        model, iter_ = selection.get_selected()
+
+        vm_object_index = int(model.get_value(iter_, 1))
+        vobject = self.main.vm_session.vm_objects_dic[vm_object_index]
+
+        frames = vobject.frames
+        frame_state = self.main.vm_session.get_frame()
+
+        size = len(frames)
+
+        # Debug (optional)
+        atom_qtty = len(vobject.atoms)
+        #print(atom_qtty, size, type(frames))
+
+        # Safe frame index
+        frame_index = min(frame_state, size - 1)
+
+        # NumPy deletion (clean + explicit copy)
+        vobject.frames = np.delete(frames, frame_index, axis=0)
+
+        # UI updates
+        self.treeview.refresh_number_of_frames()
+        self.treeview.refresh_trajectory_scalebar()
+
+        # OpenGL refresh
+        self.main.vm_session.vm_glcore.queue_draw()
+
     def call_extract_current_frame (self, widget):
         """ Function doc """
         print('extrac_current_frame / Under construction')
-    
-    def call_copy_current_frame (self, widget):
-        """ Function doc """
-        print('copy_current_frame / Under construction')
-    
+        
+        self.call_copy_current_frame(None)
+        self.call_delete_current_frame(None)
+
+    def call_copy_current_frame(self, widget):
+        """
+        Copy the currently selected molecular frame and create a new VisMol object
+        containing only that frame.
+        """
+
+        selection = self.treeview.get_selection()
+        model, iter_ = selection.get_selected()
+
+        vm_object_index = int(model.get_value(iter_, 1))
+        vobject = self.main.vm_session.vm_objects_dic[vm_object_index]
+
+        frames = vobject.frames
+        frame_state = self.main.vm_session.get_frame()
+
+        atom_qtty = len(vobject.atoms)
+
+        # Clamp frame index safely
+        frame_index = min(frame_state, len(frames) - 1)
+        init_frame = frames[frame_index]
+
+        # FAST: vectorized copy instead of Python loop
+        new_traje = np.empty((1, atom_qtty, 3), dtype=np.float32)
+        new_traje[0] = np.asarray(init_frame, dtype=np.float32)
+
+        system = self.main.p_session.psystem[vobject.e_id]
+
+        new_vobject = self.main.p_session._add_vismol_object_to_easyhybrid_session(
+            system,
+            show_molecule=True,
+            name='edited_coords'
+        )
+
+        new_vobject.frames = new_traje
+
+        # Apply representations
+        self.main.p_session._apply_fixed_representation_to_vobject(
+            vismol_object=new_vobject
+        )
+
+        self.main.p_session._apply_QC_representation_to_vobject(
+            vismol_object=new_vobject
+        )
+
+        self.main.main_treeview.refresh_number_of_frames()
     
     def _show_info (self, widget):
         """ Function doc """
@@ -2674,8 +2817,6 @@ class TreeViewMenu:
         def _save_backup_file (self):
             """ Function doc """
             self.main.p_session.save_easyhybrid_session( filename = self.main.session_filename, tmp = True)
-            
-       
 
     def open_menu (self, system_e_id = None , vobject_index = None):
         """ Function doc """
@@ -2701,7 +2842,73 @@ class TreeViewMenu:
         """ Function doc """
         self.main.p_session.save_easyhybrid_session( filename = self.main.session_filename, tmp = True)
         
-      
+    def call_copy_current_frame_old_not_used (self, widget):
+        """ Function doc """
+        selection        = self.treeview.get_selection()
+        (model, iter)    = selection.get_selected()
+        e_id             = int(model.get_value(iter, 0))
+        vm_object_index  = int(model.get_value(iter, 1))
+        vobject = self.main.vm_session.vm_objects_dic[vm_object_index]
+        
+        frames  = vobject.frames
+        frame_state = self.main.vm_session.get_frame()
+        #print(vobject, frames ,frame_state)
+        
+        atom_qtty = len(vobject.atoms.items())
+        size = len(vobject.frames)
+        print(atom_qtty, size)
+        
+        if frame_state > size-1:
+            init_frame = frames[-1]
+        else:
+            init_frame = frames[frame_state]
+
+
+        new_traje  = np.empty([1, int(atom_qtty), 3], dtype=np.float32)
+        for j, xyz in enumerate(init_frame):
+            new_traje[0][j][0] = init_frame[j][0]
+            new_traje[0][j][1] = init_frame[j][1]
+            new_traje[0][j][2] = init_frame[j][2]
+
+        #system = self.main_session.p_session.psystem[vobject.e_id]
+        system = self.main.p_session.psystem[vobject.e_id]
+        vobject = self.main.p_session._add_vismol_object_to_easyhybrid_session (system, show_molecule=True, name = 'edited_coords')
+        vobject.frames = new_traje
+
+        # Apply fixed representation to the VisMol object
+        self.main.p_session._apply_fixed_representation_to_vobject(vismol_object =vobject)
+        
+        # Apply QC representation to the VisMol object
+        self.main.p_session._apply_QC_representation_to_vobject(vismol_object =vobject)
+        
+        # Refresh the widgets in the main window
+        self.main.main_treeview.refresh_number_of_frames()
+
+    def call_delete_current_frame_old_not_used (self, widget):
+        """ Function doc """
+        print('delete_current_frame / Under construction')
+        selection        = self.treeview.get_selection()
+        (model, iter)    = selection.get_selected()
+        e_id             = int(model.get_value(iter, 0))
+        vm_object_index  = int(model.get_value(iter, 1))
+
+        vobject = self.main.vm_session.vm_objects_dic[vm_object_index]
+        frames  = vobject.frames
+        
+        frame_state = self.main.vm_session.get_frame()
+        atom_qtty = len(vobject.atoms.items())
+        size = len(vobject.frames)
+        print(atom_qtty, size, type(frames))
+        
+        if frame_state > size-1:
+            vobject.frames = np.delete(frames,-1, axis=0)
+        else:
+            vobject.frames = np.delete(frames, frame_state, axis=0)
+        
+        self.treeview.refresh_number_of_frames()
+        self.treeview.refresh_trajectory_scalebar()
+        self.main.vm_session.vm_glcore.queue_draw()
+    
 
 
 class TreeViewMenu_new:

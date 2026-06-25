@@ -1917,12 +1917,16 @@ button position in the main treeview (active column).""".format(name,self.main.p
             #print('vobject.c_alpha_bonds', vobject.c_alpha_bonds )
             #print('vobject.c_alpha_atoms', vobject.c_alpha_atoms )
     
-            
+            #<class 'set'> <class 'set'> <class 'numpy.ndarray'> <class 'float'>
+            #selected_indexes   = <class 'set'> 
+            #selectable_indexes = <class 'set'>
+            #coordinates        = <class 'numpy.ndarray'>
+            #radius             = <class 'float'>
             try:
                 coordinates = vobject.frames[self.frame]
             except:
                 coordinates = vobject.frames[-1]
-            
+            print(type(selected_indexes),type(selectable_indexes),type(coordinates),type(radius))
             new_selected_indexes, selectable_indexes = selectors.selection_spherical_expansion( 
                                                                                             selected_indexes, 
                                                                                             selectable_indexes, 
