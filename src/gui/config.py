@@ -69,7 +69,7 @@ class VismolConfig                       :
                                       #"sticks_radius"             : 2.5,
                                       
                                       "sticks_radius"              : 0.16, # not being used (defined in the shader)
-                                      
+                                      "multiple_bonds"             : False,
                                       "sticks_color"               : 0,
                                       "sticks_type"                : 0,
                                       "antialias"                  : True,

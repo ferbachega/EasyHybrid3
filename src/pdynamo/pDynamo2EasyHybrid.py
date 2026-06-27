@@ -993,9 +993,6 @@ class EasyHybridImportTrajectory:
             )
 
 
-
-
-
 class pSimulations:
     """Class responsible for managing and running molecular simulations 
     using multiprocessing and GUI integration with EasyHybrid.
@@ -3405,7 +3402,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         
         
-        if parameters['method'] == 'ab initio - ORCA':
+        if parameters['qcengine'] == 'ORCA':
             #print(parameters)
             qcModel = QCModelORCA.WithOptions ( keywords       = [parameters['orca_options']], 
                                                 deleteJobFiles = False,
@@ -3413,7 +3410,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                                  )
             qcModel.randomScratch = parameters['random_scratch']
         
-        elif parameters['method'] == 'xTB':
+        elif parameters['qcengine'] == 'xTB':
             #print(parameters)
             qcModel = QCModelXTB.WithOptions ( #gfn = 2, keywords = None, vfukui = True,  randomJob = False, parallel = 10)
                                               gfn        = parameters['gfn'       ] ,
@@ -3427,8 +3424,16 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                               #json     = parameters['json'    ] ,
                                               #vfukui   = parameters['vfukui'  ] ,
                                               )
-            
-        elif parameters['method'] == 'DFTB+':
+        
+        elif parameters['qcengine'] == 'MOPAC':
+            #print(parameters)
+            qcModel = QCModelMOPAC.WithOptions ( 
+                                              method   = parameters['hamiltonian'],
+                                              keywords =  parameters['keywords'  ],
+                                              scratch  = parameters['scratch'    ],
+                                              )
+        
+        elif parameters['qcengine'] == 'DFTB+':
             #print(parameters)
             qcModel = QCModelDFTB.WithOptions ( deleteJobFiles =       parameters["deleteJobFiles"      ],
                                                 extendedInput =        parameters["extendedInput"       ],
@@ -3483,13 +3488,16 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 call_message_dialog(text1 = 'MMModelError', text2 = 'Total active MM charge is neither integral nor zero', transient_for =  None)
                 return None
             if system.mmModel:
-                if parameters['method'] == 'ab initio - ORCA':
+                if parameters['qcengine'] == 'ORCA':
                     system.DefineNBModel (NBModelORCA.WithDefaults ( ))
                 
-                elif parameters['method'] == 'xTB':
-                    system.DefineNBModel (NBModelORCA.WithDefaults ( ))
+                elif parameters['qcengine'] == 'xTB':
+                    system.DefineNBModel (NBModelORCA.WithDefaults ( )) # this is correct, it's the same
                 
-                elif parameters['method'] == 'DFTB+':
+                elif parameters['qcengine'] == 'MOPAC':
+                    system.DefineNBModel (NBModelMOPAC.WithDefaults ( )) # this is temporary
+                
+                elif parameters['qcengine'] == 'DFTB+':
                     system.DefineNBModel (NBModelDFTB.WithDefaults ( ))
                 else:
                     system.DefineNBModel ( NBModelCutOff.WithDefaults ( ) )
@@ -4477,6 +4485,11 @@ class Atom:
         except KeyError:
             cov = ATOM_TYPES[self.symbol][5]
         return cov
+        #try:
+        #    cov = ATOM_TYPES[self.name][7]
+        #except KeyError:
+        #    cov = ATOM_TYPES[self.symbol][7]
+        #return cov
     
     def _init_ball_rad(self):
         """ Function doc """
@@ -4599,13 +4612,6 @@ def generate_random_code(length):
     return random_code
 
 
-
-
-
-
-
-
-
 def export_special_PDB (vobject = None, frame = -1, output = 'temp.pdb'):
     """ Function doc """
     
@@ -4665,311 +4671,3 @@ def export_special_PDB (vobject = None, frame = -1, output = 'temp.pdb'):
     data.write(text)
 
 
-
-#class pSimulations:
-#    """ Class doc """
-#    
-#    def __init__ (self):
-#        """ Class initialiser """
-#
-#    def _apply_restraints (self, parameters):
-#        """ Function doc 
-#        
-#        parameters['system'].e_restraints_dict[rest_name] = [True, 
-#                                                     rest_name ,
-#                                                     'distance', 
-#                                                     [parameters['atom1'],parameters['atom2']], 
-#                                                     parameters['distance'],  
-#                                                     parameters['force_constant']] 
-#
-#        """
-#        #--------------------------------------------------------------------------
-#        parameters['system'].DefineRestraintModel(None)
-#        restraints = RestraintModel()
-#        parameters['system'].DefineRestraintModel( restraints )
-#        for name, restraint_list in parameters['system'].e_restraints_dict.items():
-#
-#            if restraint_list[0]:
-#                
-#                if restraint_list[2] == 'distance':
-#                    rmodel    = RestraintEnergyModel.Harmonic(restraint_list[4],restraint_list[5])
-#                    restraint = RestraintDistance.WithOptions(energyModel = rmodel, 
-#                                                                   point1 = restraint_list[3][0] , 
-#                                                                   point2 = restraint_list[3][1] )
-#                    restraints[name] = restraint
-#        #--------------------------------------------------------------------------
-#        return parameters
-#    
-#    
-#    def _check_queue(self):
-#        """
-#        Check all process queues for messages.
-#        This function is periodically called by GLib.timeout_add 
-#        to handle inter-process communication asynchronously 
-#        without blocking the GTK main loop.
-#        """
-#        for e_id, (queue, process, result, path, treeiter ) in list(self.process_pool.items()):
-#            try:
-#                # Read all messages currently available in the queue
-#                while not queue.empty():
-#                    msg = queue.get_nowait()
-#
-#                    # Message contains results data
-#                    if isinstance(msg, tuple) and msg[0] == "RESULT":
-#                        self._handle_result(msg[1])
-#
-#                    # Process has finished execution
-#                    elif msg == "DONE":
-#                        self._handle_done(e_id, process, path, treeiter)
-#                    
-#                    elif msg == "Running":
-#                        self.main.process_manager_window.set_status(treeiter, "Running...")
-#
-#            except Exception as e:
-#                # Any exception during queue handling is caught here.
-#                # This prevents the GUI loop from breaking.
-#                print(f"Error checking the queue of process {e_id}: {e}")
-#
-#        # Keep the GLib timeout active
-#        return True
-#
-#
-#    def _handle_result(self, results):
-#        """
-#        Process 'RESULT' messages received from a worker process.
-#        Updates molecular coordinates and optionally adds a new
-#        visual object to the EasyHybrid session.
-#        """
-#        
-#        if results.get('new_vobject'):
-#            system = self.psystem[results['e_id']]
-#            system.coordinates3 = results['coords']
-#
-#            # Generate a unique name for the new visual object
-#            name = f"{results['simulation_type']}_{system.e_step_counter}"
-#
-#            # Add the new object into the visualization environment
-#            vobject = self._add_vismol_object_to_easyhybrid_session(system=system, name=name)
-#            vobject.results = results
-#            
-#            system.e_job_history[system.e_step_counter] = results
-#
-#        else:
-#            system = self.psystem[results['e_id']]
-#            system.e_job_history[system.e_step_counter] = results
-#            
-#            
-#            #log  = LogFile(system)
-#            #    path = log.path
-#            #    with open(path, "r") as f:
-#            #        header = f.read()
-#            #else:
-#            #    header = '' 
-#            #
-#            #text = header+text
-#            #textwindow = TextWindow(text)
-#
-#    def _handle_done(self, e_id, process, path, treeiter):
-#        """
-#        Process 'DONE' messages from a worker process.
-#        Updates the GUI to reflect the finished process and 
-#        increments the step counter of the corresponding system.
-#        """
-#        self.main.process_manager_window.set_status (treeiter,"Finished")
-#        self.main.process_manager_window.set_time(treeiter, False, True)
-#        self.main.process_manager_window.set_step_counter(treeiter, self.psystem[e_id].e_step_counter)
-#        
-#        # Mark process as completed in the pool
-#        self.process_pool[e_id][2] = "Finished"
-#        
-#        # Update bottom_notebook GUI (replace "Running..." with "Done!")
-#        iter_ = self.main.bottom_notebook.status_liststore.get_iter(path)
-#        value = self.main.bottom_notebook.status_liststore.get_value(iter_, 1)
-#        self.main.bottom_notebook.status_liststore.set_value(iter_, 1, value.replace('Running...', 'Finished!'))
-#        # Ensure process resources are released
-#        process.join()
-#
-#        # Increment step counter for the system
-#        self.psystem[e_id].e_step_counter += 1
-#
-#        # Mark the project/session as changed
-#        self.changed = True
-#
-#
-#    def _target_process(self, parameters):
-#        """
-#        Target function executed inside a separate process.
-#        Runs the appropriate type of simulation and communicates
-#        results back to the parent process via a multiprocessing.Queue.
-#        """
-#        #queue = self.process_pool[parameters['system'].e_id][0]   
-#        queue = parameters['queue']
-#        queue.put("Running")  # Notify parent that the job has started
-#
-#        # Mapping between simulation types and corresponding classes
-#        simulation_classes = {
-#            'Energy_Single_Point': EnergyCalculation,
-#            'Energy_Refinement': EnergyRefinement,
-#            'Geometry_Optimization': GeometryOptimization,
-#            'Molecular_Dynamics': MolecularDynamics,
-#            'Relaxed_Surface_Scan': RelaxedSurfaceScan,
-#            'Umbrella_Sampling': UmbrellaSampling,
-#            'Nudged_Elastic_Band': ChainOfStatesOptimizePath,
-#            'Normal_Modes': NormalModes,
-#        }
-#
-#        sim_type = parameters['simulation_type']
-#        cls = simulation_classes.get(sim_type)
-#
-#        if cls:
-#            # Instantiate the simulation class
-#            self.target_process = cls()
-#
-#            # Special flags for specific simulations
-#            if sim_type == 'Energy_Single_Point':
-#                parameters['energy'] = True
-#                parameters['new_vobject'] = False
-#            elif sim_type == 'Energy_Refinement':
-#                parameters['new_vobject'] = False
-#        else:
-#            # Unknown simulation type → exit silently
-#            return
-#        parameters['queue'] =  None
-#        # Run the actual simulation
-#        self.target_process.run(parameters)
-#
-#        # Collect results
-#        results = {
-#            'new_vobject'    : parameters.get('new_vobject', True),
-#            'energy'         : parameters.get('energy', False),
-#            'coords'         : parameters['system'].coordinates3,
-#            'e_id'           : parameters['system'].e_id,
-#            'simulation_type': sim_type,
-#            'logfile'        : parameters['logfile']
-#        }
-#
-#        # Send results and completion message to parent process
-#        queue.put(("RESULT", results))
-#        queue.put("DONE")
-#
-#
-#    def run_simulation(self, parameters):
-#        """
-#        Starts a new subprocess for running a molecular simulation.
-#        Ensures that only one process per system (e_id) runs at a time.
-#        """
-#        # Assign system and apply restraints before running
-#        system = self.psystem[self.active_id]
-#        parameters['system'] = system
-#        parameters = self._apply_restraints(parameters)
-#        self.main.process_manager_window.open_window()
-#        
-#        
-#        
-#        
-#        if 'logfile' in parameters.keys():
-#            pass
-#        else:
-#            if 'filename' in parameters.keys():
-#            
-#                full_path_trajectory = os.path.join(parameters['folder'], 
-#                                                    parameters['filename'])
-#                parameters['logfile'] = full_path_trajectory+'.log'
-#            
-#            else:
-#                if 'trajectory_name'in parameters.keys(): 
-#                    if parameters['trajectory_name']:
-#                        full_path_trajectory  = os.path.join(parameters['folder'], parameters['trajectory_name'],'output.log' )
-#                    else:
-#                        full_path_trajectory  = os.path.join(parameters['folder'], 'output.log')
-#                else:
-#                    full_path_trajectory  = os.path.join(parameters['folder'], 'output.log')
-#                
-#                parameters['logfile'] =  full_path_trajectory 
-#        
-#        pprint(parameters)
-#        
-#         
-#
-#
-#        e_id = system.e_id
-#        name = system.label
-#        # If a process is already running for this system, abort
-#        if e_id in self.process_pool and self.process_pool[e_id][1].is_alive():
-#            self.main.simple_dialog.error(
-#                msg=f"There is already a process underway for the system:\n {e_id} - {name}"
-#            )
-#            return False
-#
-#        # Create new queue for inter-process communication
-#        queue = multiprocessing.Queue()
-#        parameters['new_vobject'] = True
-#        parameters['queue']       = queue
-#        
-#        
-#        # Create and start subprocess
-#        process = multiprocessing.Process(
-#            target=self._target_process,
-#            args=(parameters,)
-#        )
-#        process.start()
-#
-#        # Add new entry in bottom_notebook to track progress
-#        message = f"{parameters['simulation_type']} {system.e_step_counter} - Running..."
-#        hamiltonian = getattr(system.qcModel, 'hamiltonian', 'unk')
-#        
-#        treeiter = self.main.process_manager_window.add_new_process(system    = system,
-#                                                                    _type     = parameters['simulation_type'],
-#                                                                    potential = hamiltonian,
-#                                                                    status    = 'Queued')
-#          
-#          
-#        
-#        
-#        path = self.main.bottom_notebook.status_teeview_add_new_item(
-#            message=message,
-#            system=system
-#        )
-#
-#        # Store process info in process_pool:
-#        # [queue, process, result_status, GUI_path]
-#        self.process_pool[e_id] = [queue, process, None, path, treeiter]
-#
-#        # Schedule periodic queue checks
-#        GLib.timeout_add(200, self._check_queue)
-#        #system.e_treeview_iter   = backup[0]
-#        #system.e_liststore_iter  = backup[1]
-#        return False
-#    
-#    
-#    def cancel_process(self, e_id):
-#        """
-#        Cancel (terminate) a running process for the given system ID (e_id).
-#        Updates the GUI and cleans up the process pool.
-#        """
-#        if e_id not in self.process_pool:
-#            print(f"No active process found for system {e_id}.")
-#            return False
-#
-#        queue, process, result, path = self.process_pool[e_id]
-#
-#        if process.is_alive():
-#            # Forcefully terminate the process
-#            process.terminate()
-#            process.join()
-#
-#            # Update GUI status to reflect cancellation
-#            iter_ = self.main.bottom_notebook.status_liststore.get_iter(path)
-#            value = self.main.bottom_notebook.status_liststore.get_value(iter_, 1)
-#            self.main.bottom_notebook.status_liststore.set_value(iter_, 1, value.replace('Running...', 'Canceled!'))
-#
-#            # Mark the process as canceled
-#            self.process_pool[e_id][2] = "Canceled"
-#            print(f"Process for system {e_id} was canceled.")
-#
-#            return True
-#        else:
-#            print(f"Process for system {e_id} is not running.")
-#            return False
-#
-#

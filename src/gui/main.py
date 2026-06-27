@@ -1734,9 +1734,6 @@ class MainWindow:
         
         return "\n".join(pov_lines)
 
-
-      
- 
     def on_delete_event(self, widget, event):
         if self.p_session.changed:
             if self.session_filename == None:
@@ -2910,7 +2907,6 @@ class TreeViewMenu:
         self.main.vm_session.vm_glcore.queue_draw()
     
 
-
 class TreeViewMenu_new:
     """ Class doc """
     
@@ -3523,7 +3519,6 @@ class BottomNoteBook:
         new_text = self.main.p_session.psystem[after].e_annotations
         self.annotations_textbuffer.set_text(new_text, -1)
         #label.set_text("Extracted Text: " + extracted_text)
-
 
 class PreferencesWindow:
     """ Class doc """

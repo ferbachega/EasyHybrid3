@@ -3008,7 +3008,7 @@ class EasyHybridSetupQCModelWindow:
         elif self.qc_engine_id == 2: # DFTB+
             parameters["deleteJobFiles"      ] = self.setup_dftb_window.delete_job_files # True/False 
             parameters["extendedInput"       ] = self.setup_dftb_window.text_extended_input #None
-            parameters['method'              ] = 'DFTB+'
+            #parameters['method'              ] = 'DFTB+'
             parameters["fermiTemperature"    ] = self.setup_dftb_window.fermiTemperature
             parameters["gaussianBlurWidth"   ] = self.setup_dftb_window.gaussianBlurWidth
             #parameters["hamiltonian"         ] = "DFTB"
@@ -3029,7 +3029,7 @@ class EasyHybridSetupQCModelWindow:
             parameters['scratch'   ] = self.setup_xtb_window.parameters['scratch'] 
         
         elif self.qc_engine_id == 4:
-            parameters['method'    ]  = 'MOPAC'
+            #parameters['method'    ]  = 'MOPAC'
             parameters['hamiltonian'] = self.setup_mopac_window.parameters['method']  
             parameters['keywords'  ]  = self.setup_mopac_window.parameters['add_keywords'] 
             parameters['scratch'   ]  = self.setup_mopac_window.parameters['scratch'] 

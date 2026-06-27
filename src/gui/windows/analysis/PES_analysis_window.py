@@ -512,7 +512,12 @@ class PotentialEnergyAnalysisWindow:
                 self.builder.get_object('label_energy').set_text(text)
 
                 #frame = self.vobject.idx_2D_xy[( xy[0],xy[1])]
-                frame = self.vobject.idx_2D_xy[( xy[1],xy[0])]
+                if getattr(self.vobject, 'idx_2D_xy', False):
+                    frame = self.vobject.idx_2D_xy[( xy[1],xy[0])]
+                else:
+                    # vobject nao veio de uma varredura 2D (sem grade x,y):
+                    # cai no indice linear do ponto selecionado.
+                    frame = int(value)
             else:
                 pass
         else:
@@ -554,7 +559,7 @@ class PotentialEnergyAnalysisWindow:
         self.ax2.plot(range(0, len(self.zdata)), self.zdata, '-ob')
         self.ax3.plot( [int(value)], [self.zdata[int(value)]], '-or')
         
-        if self.vobject:
+        if getattr(self.vobject, 'idx_2D_xy', False):
             frame = self.vobject.idx_2D_xy[(xy[0], xy[1])]
             self.main.vm_session.frame = int(frame)
             #self.main.vm_session.set_frame(int(frame)) 
@@ -570,6 +575,12 @@ class PotentialEnergyAnalysisWindow:
             RC1 and RC2 refer to the coordinates of reactions 1 and 2, respectively, defined to obtain the PES. In the case of a simple reaction coordinate, the RC is simply the value of the distance between atoms 1 and 2 defined. In the case of the multiple distance based reaction coordinate defined by three (3) atoms, the RC is defined as the distance between atoms 1 and 2 minus the distance between atoms 2 and 3.
         
         """
+        # Esta exportacao depende da grade 2D (idx_2D_xy), que so existe para
+        # objetos vindos de uma varredura PES 2D. Sem ela, aborta com aviso em
+        # vez de estourar AttributeError no loop abaixo.
+        if not getattr(self.vobject, 'idx_2D_xy', False):
+            print("[PES] export de trajetoria indisponivel: objeto sem grade 2D (idx_2D_xy).")
+            return
 
         active_id = self.main.p_session.active_id
         
@@ -780,7 +791,7 @@ class PotentialEnergyAnalysisWindow:
                     if [x,y] in self.plot.extra_points:
                         pass
                     else:
-                        if (y,x) in self.vobject.idx_2D_xy.keys():
+                        if (y,x) in (getattr(self.vobject, 'idx_2D_xy', None) or {}).keys():
                             self.plot.extra_points.append([x,y])
                         else:
                             pass
