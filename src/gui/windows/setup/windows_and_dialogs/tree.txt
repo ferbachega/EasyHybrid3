@@ -1,0 +1,26 @@
+src/gui/windows/setup/
+└── windows_and_dialogs/          ← pacote; __init__.py é a fachada
+    ├── __init__.py               re-exporta tudo (imports antigos seguem funcionando)
+    ├── dialogs/
+    │   ├── simple_dialog.py       SimpleDialog, call_message_dialog
+    │   ├── text_info_windows.py   TextWindow, InfoWindow
+    │   ├── export_dialogs.py      ExportScriptDialog, ExportDataWindow
+    │   └── restraint_dialog.py    AddHarmonicRestraintDialog
+    ├── qc_setup/
+    │   ├── setup_sparrow.py       SetupSPARROWWindow
+    │   ├── setup_mopac.py         SetupMOPACWindow
+    │   ├── setup_xtb.py           SetupXTBWindow
+    │   ├── setup_dftbplus.py      SetupDFTBplusWindow
+    │   ├── setup_orca.py          SetupORCAWindow
+    │   └── qcmodel_window.py      EasyHybridSetupQCModelWindow
+    ├── system_windows/
+    │   ├── import_system.py       ImportANewSystemWindow
+    │   ├── import_trajectory.py   ImportTrajectoryWindow
+    │   ├── merge_system.py        MergeSystemWindow
+    │   ├── solvate_system.py      SolvateSystemWindow, MakeSolventBoxWindow
+    │   └── trajectory_player.py   TrajectoryPlayerWindow
+    └── selection_windows/
+        ├── selection.py          EasyHybridSelectionWindow, PDynamoSelectionWindow
+        ├── go_to_atom.py         EasyHybridGoToAtomWindow
+        ├── set_qc_atoms.py       EasyHybridDialogSetQCAtoms
+        └── prune.py              EasyHybridDialogPrune

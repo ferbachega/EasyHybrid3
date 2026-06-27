@@ -1,0 +1,11 @@
+src/gui/widgets/
+└── custom_widgets/             (pacote; __init__.py é a fachada)
+    ├── pixmap_helpers.py        getColouredPixmap, get_colorful_square_pixel_buffer
+    ├── file_choosers.py         FolderChooserButton, FileChooser
+    ├── save_trajectory_box.py   SaveTrajectoryBox
+    ├── selection_box.py         VismolSelectionTypeBox
+    ├── trajectory_frame.py      VismolTrajectoryFrame
+    ├── comboboxes.py            SystemComboBox, CoordinatesComboBox
+    ├── reaction_coordinate.py   ReactionCoordinateBox, AdvancedReactionCoordinateBox,
+    │                            compute_sigma_a1_a3
+    └── sequence_viewer_box.py   SequenceViewerBox
