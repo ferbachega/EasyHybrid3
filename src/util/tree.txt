@@ -1,0 +1,7 @@
+src/util/
+└── easyplot/                  (pacote; __init__.py é a fachada)
+    ├── color_utils.py          interpolate_color, get_color, bilinear_interpolation,
+    │                           expand_array_size, ColorSquareBilinearInterpolation
+    ├── canvas.py               Canvas (base, Gtk.DrawingArea)
+    ├── image_plot.py           ImagePlot(Canvas)
+    └── xy_plots.py             XYPlot, XYScatterPlot

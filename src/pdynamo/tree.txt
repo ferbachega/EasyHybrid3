@@ -1,0 +1,25 @@
+src/pdynamo/
+└── p_methods/                  (pacote; __init__.py é a fachada)
+    ├── _common.py               backup_orca_files, get_hamiltonian, write_header,
+    │                            plot_data, func   (utilitários transversais)
+    ├── energy.py                LogFile, EnergyCalculation, EnergyRefinement
+    ├── geometry_optimization.py GeometryOptimization
+    ├── molecular_dynamics.py    MolecularDynamics
+    ├── surface_scan.py          RelaxedSurfaceScan, AdvancedRelaxedSurfaceScan
+    │                            + helpers de scan/coordenada (paralelo)
+    ├── umbrella_sampling.py     UmbrellaSampling
+    │                            + funções _run_*_parallel_* (pickl  áveis p/ mp)
+    │                            + helpers _us_*
+    ├── wham.py                  WHAMAnalysis
+    ├── chain_of_states.py       ChainOfStatesOptimizePath
+    └── normal_modes.py          NormalModes
+
+└── pDynamo2EasyHybrid/         (pacote; __init__.py é a fachada)
+    ├── session.py              pDynamoSession  (junta os 6 mixins via herança)
+    ├── simulations_mixin.py    pSimulations
+    ├── analysis_mixin.py       pAnalysis
+    ├── representation.py       ModifyRepInVismol
+    ├── io_data.py              LoadAndSaveData
+    ├── import_trajectory.py    EasyHybridImportTrajectory
+    ├── restraints.py           Restraints
+    └── helpers.py              Atom, generate_random_code, export_special_PDB
