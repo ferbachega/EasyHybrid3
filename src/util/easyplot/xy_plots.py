@@ -44,7 +44,40 @@ from pprint import pprint
 
 class XYPlot(Gtk.DrawingArea):
     """ Class doc """
-    
+
+    def _nice_x_ticks(self, lo, hi, n=5):
+        """Gera valores de tick "redondos" (0, 5, 10...) para o intervalo [lo, hi].
+
+        Retorna a lista de valores de tick que caem dentro de [lo, hi]. Resolve o
+        problema de rotulos como 3.8 -> '4', 7.6 -> '8' (que pareciam desalinhados
+        por causa do arredondamento): aqui os ticks ja caem em numeros limpos."""
+        import math
+        if hi == lo:
+            return [lo]
+
+        def _nice_num(x, do_round):
+            if x <= 0:
+                return 1.0
+            exp = math.floor(math.log10(x))
+            f = x / 10 ** exp
+            if do_round:
+                nf = 1 if f < 1.5 else 2 if f < 3 else 5 if f < 7 else 10
+            else:
+                nf = 1 if f <= 1 else 2 if f <= 2 else 5 if f <= 5 else 10
+            return nf * 10 ** exp
+
+        rng = _nice_num(hi - lo, False)
+        step = _nice_num(rng / max(n - 1, 1), True)
+        start = math.ceil(lo / step) * step
+        ticks = []
+        v = start
+        # +0.5*step de folga p/ incluir o ultimo tick por seguranca numerica
+        while v <= hi + 0.5 * step:
+            if lo - 1e-9 <= v <= hi + 1e-9:
+                ticks.append(round(v, 10))
+            v += step
+        return ticks if ticks else [lo, hi]
+
     def __init__ (self, bg_color = [1,1,1], 
                         pl_color = [0,0,0], 
                         sel_color = [1,0,0], 
@@ -61,7 +94,7 @@ class XYPlot(Gtk.DrawingArea):
 
         
         self.x_minor_ticks = 6
-        self.x_major_ticks = 5
+        self.x_major_ticks = 10#5 default
         
         self.y_minor_ticks = 5
         self.y_major_ticks = 10
@@ -238,41 +271,43 @@ class XYPlot(Gtk.DrawingArea):
         """ Function doc """
         
         #---------------------------------------------------------------------------------------------------
-        x_major_factor = (self.x_box_size) / float(self.x_major_ticks)
-        x_minor_factor = x_major_factor / float(self.x_minor_ticks)
-        counter = 1
-        for i in range(0, self.x_major_ticks+1):
-            # marcacoes em x
-            cr.move_to (self.bx+ i*x_major_factor, self.y_box_size+self.by )
-            cr.line_to (self.bx+ i*x_major_factor, self.y_box_size+self.by + 15 ) 
-            if i == self.x_major_ticks:
-                pass
-            else:
-                for j in range(0, self.x_minor_ticks ):
-                    cr.move_to (self.bx+ i*x_major_factor+j*x_minor_factor, self.y_box_size+self.by )
-                    cr.line_to (self.bx+ i*x_major_factor+j*x_minor_factor, self.y_box_size+self.by + 10 )
-            counter +=1
+        # tick marks maiores em X: nos mesmos nice ticks dos rotulos
+        x_ticks = self._nice_x_ticks(self.Xmin, self.Xmax, self.x_major_ticks + 1)
+        for v in x_ticks:
+            px = self.bx + (v - self.Xmin) / self.deltaX * self.x_box_size
+            cr.move_to (px, self.y_box_size + self.by )
+            cr.line_to (px, self.y_box_size + self.by + 15 )
+        # minor ticks: subdivisoes uniformes entre os major ticks
+        if len(x_ticks) >= 2:
+            x_step_px = (self.bx + (x_ticks[1]-self.Xmin)/self.deltaX*self.x_box_size) \
+                      - (self.bx + (x_ticks[0]-self.Xmin)/self.deltaX*self.x_box_size)
+            x_minor_factor = x_step_px / float(self.x_minor_ticks)
+            for k in range(len(x_ticks)-1):
+                base_px = self.bx + (x_ticks[k]-self.Xmin)/self.deltaX*self.x_box_size
+                for j in range(1, self.x_minor_ticks):
+                    mpx = base_px + j*x_minor_factor
+                    cr.move_to (mpx, self.y_box_size+self.by )
+                    cr.line_to (mpx, self.y_box_size+self.by + 10 )
         #---------------------------------------------------------------------------------------------------
-            #--------------------------------------------------------------------------------------------
-            # texto em X
-            
-            cr.set_font_size(font_size)
-            #text = '{:^6.2f}'.format((i/self.x_major_ticks)*self.deltaX + self.Xmin)
-            text = '{:^6.'+str(self.decimal)+'f}'
-            text = text.format((i/self.x_major_ticks)*self.deltaX + self.Xmin)
-            
-            if len(text) >7:
-                num = (i/self.x_major_ticks)*self.deltaX -self.Xmax 
-                text = (f"{num:.2e}")
-            
+        #--------------------------------------------------------------------------------------------
+        # texto em X  --  rotulos em valores "redondos", posicionados pela posicao
+        # real de cada valor (bx + (v-Xmin)/deltaX * x_box_size), igual aos pontos.
+        cr.set_font_size(font_size)
+        for v in self._nice_x_ticks(self.Xmin, self.Xmax, self.x_major_ticks + 1):
+            # rotulo: inteiro quando o valor e inteiro, senao usa self.decimal casas
+            if abs(v - round(v)) < 1e-9:
+                text = '{:d}'.format(int(round(v)))
+            else:
+                text = ('{:.' + str(self.decimal) + 'f}').format(v)
+            if len(text) > 7:
+                text = '{:.2e}'.format(v)
+
+            px = self.bx + (v - self.Xmin) / self.deltaX * self.x_box_size
             x_bearing, y_bearing, width, height, x_advance, y_advance = cr.text_extents(text)
-            
-            cr.move_to(  
-                        self.bx + i*x_major_factor - x_advance/2, 
-                        self.by+self.y_box_size + height + 20)
+            cr.move_to(px - x_advance / 2,
+                       self.by + self.y_box_size + height + 20)
             cr.show_text(text)
-            #--------------------------------------------------------------------------------------------
-            counter +=1
+        #--------------------------------------------------------------------------------------------
 
 
             #cr.set_font_size(font_size)
@@ -354,13 +389,11 @@ class XYPlot(Gtk.DrawingArea):
                            self.bglines_color[1],
                            self.bglines_color[2])
         #---------------------------------------------------------------------------------------------------
-        x_major_factor = (self.x_box_size) / float(self.x_major_ticks)
-        x_minor_factor = x_major_factor / float(self.x_minor_ticks)
-        counter = 1
-        for i in range(0, self.x_major_ticks+1):
-            # marcacoes em x
-            cr.move_to (self.bx+ i*x_major_factor, self.y_box_size+self.by )
-            cr.line_to (self.bx+ i*x_major_factor,  self.by  ) 
+        # grid vertical em X: usa os MESMOS nice ticks dos rotulos (posicao real do valor)
+        for v in self._nice_x_ticks(self.Xmin, self.Xmax, self.x_major_ticks + 1):
+            px = self.bx + (v - self.Xmin) / self.deltaX * self.x_box_size
+            cr.move_to (px, self.y_box_size + self.by)
+            cr.line_to (px, self.by)
         #---------------------------------------------------------------------------------------------------
         
         
