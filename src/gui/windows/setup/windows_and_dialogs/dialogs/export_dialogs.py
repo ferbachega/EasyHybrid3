@@ -137,7 +137,7 @@ class ExportScriptDialog:
         """
         
         # Path to internal pDynamo methods
-        pmethod_path = os.path.join(self.main.home, 'src/pdynamo')
+        pmethod_path = os.path.join(self.main.home, 'src/')
         
         # Get filename and folder from user input
         filename     = self.builder.get_object('entry_filename').get_text()
@@ -187,10 +187,14 @@ from pSimulation               import*
 #---------------------------------------
 import sys
 
-# This section should be edited
-#.Enter the path to the folder ../EasyHybid/pDynamo here
+
+#--------------------------------------------------------------------------
+# If you are running in a different machine. this section should be edited:
+#.Enter the path to the src folder, somewhere: ../EasyHybid/pDynamo/src
 sys.path.insert(1, '{}')
-import p_methods  as pMethods
+#--------------------------------------------------------------------------
+
+from pdynamo import p_methods as pMethods
 
 # Importing system
 system = ImportSystem ('{}')
