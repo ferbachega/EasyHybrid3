@@ -145,6 +145,7 @@ class BottomNoteBook:
         self.seqview.connect("motion-notify-event" , self.seqview.on_motion)
         self.seqview.connect("button_press_event"  , self.seqview.button_press)
         self.seqview.connect("button-release-event", self.seqview.button_release)
+        self.seqview.set_font_size(17)
         ##-----------------------------------------------------------------------
 
         self.main.vm_session.vm_widget.connect_after("button-release-event", self.meu_evento_personalizado)

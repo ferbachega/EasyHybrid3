@@ -151,6 +151,14 @@ class TextDrawingArea(Gtk.DrawingArea):
         
         self.char_width  = None
         self.char_height = None
+
+        # Largura de uma coluna de caractere, derivada do tamanho da fonte.
+        # Para a fonte monoespacada usada, ~0.6*font_size aproxima bem a largura
+        # do glifo. Com font_size=20 => ~12, que era o valor antes hardcoded.
+        # Use este valor (em vez de "12" fixo) para posicionar marcadores,
+        # caixas de selecao e largura do canvas, para que tudo escale junto
+        # quando o tamanho da fonte mudar.
+        self.col_width = self.font_size * 0.6
         
         self.gap_width  = 0
         self.gap_height = 6
@@ -188,6 +196,9 @@ class TextDrawingArea(Gtk.DrawingArea):
         
         self.char_width  = width
         self.char_height = height
+        # mantem a largura de coluna sincronizada com o glifo realmente medido,
+        # usando x_advance (avanco horizontal real da fonte monoespacada)
+        self.col_width = x_advance if x_advance else (self.font_size * 0.6)
         
     def on_draw(self, widget, cr):
         #print (self.bg_color, self.marker_color)
@@ -226,7 +237,7 @@ class TextDrawingArea(Gtk.DrawingArea):
                 k = 0
                 for marker in range(10, len(sequence), 10):
                     
-                    k =   12*marker -12
+                    k =   self.col_width*marker - self.col_width
                     
                     cr.set_source_rgb(self.marker_color[0],
                                       self.marker_color[1],
@@ -271,11 +282,17 @@ class TextDrawingArea(Gtk.DrawingArea):
                             #- - - - - - selection box - - - - - - - -
                             cr.set_source_rgb(0, 0, 1)
                             cr.set_source_rgb(residue.rtype_color[0],residue.rtype_color[1],residue.rtype_color[2] )
+                            # Caixa de selecao proporcional ao tamanho da fonte.
+                            # Calibrada para reproduzir o visual original em
+                            # font_size=20 (onde char_height~14.4 dava topo=y-16,
+                            # altura=18) e escalar junto ao mudar a fonte.
+                            box_top    = y - self.char_height * 1.11
+                            box_height = self.char_height * 1.25
                             cr.rectangle(
                                         x,
-                                        y-16 ,
-                                        12 ,
-                                        18 )
+                                        box_top ,
+                                        self.col_width ,
+                                        box_height )
                             
                             #cr.rectangle(
                             #             k,
@@ -325,7 +342,7 @@ class TextDrawingArea(Gtk.DrawingArea):
                         cr.show_text(text)
                     
                     #---------------------------------------------------
-                    k = k+self.char_width 
+                    k = k+self.col_width 
                     if y > ymax:
                         ymax = y
                     if x > xmax:
@@ -341,7 +358,7 @@ class TextDrawingArea(Gtk.DrawingArea):
                 k = 0
                 for marker in range(10, len(sequence), 10):
                     
-                    k =   (12*marker -12)*4 
+                    k =   (self.col_width*marker - self.col_width)*4 
                     
                     cr.set_source_rgb(1, 1, 1)
                     text =  str(marker)
@@ -371,7 +388,7 @@ class TextDrawingArea(Gtk.DrawingArea):
                         cr.move_to(x, y)
                         cr.show_text(text)
                         #print (x, y, text)
-                    k = k+self.char_width*4 
+                    k = k+self.col_width*4 
             
             #----------------------------------------------------------    
             # It is necessary to change the canvas size 
@@ -420,9 +437,9 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
         self.sequence3 ='---MISYLASIFLLTTTTT-VPSGRVEVVFPSVETSRSGVK--TVKFTA-------TVKFTA------------' 
         
         if self.mode ==1:
-            self.set_canvas_width_and_height( width = (len(self.sequence)*12*4)+12  , height = 800)
+            self.set_canvas_width_and_height( width = int(len(self.sequence)*self.text_drawing_area.col_width*4 + self.text_drawing_area.col_width)  , height = 800)
         elif self.mode ==0:
-            self.set_canvas_width_and_height( width = (len(self.sequence)*12)+12  , height = 800)
+            self.set_canvas_width_and_height( width = int(len(self.sequence)*self.text_drawing_area.col_width + self.text_drawing_area.col_width)  , height = 800)
 
 
 
@@ -658,8 +675,25 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
                 pass
         
     def set_font_size (self, size = 20):
-        """ Function doc """
-        self.text_drawing_area.font_size = size
+        """Altera o tamanho dos caracteres da sequencia.
+
+        Atualiza o tamanho da fonte, recalcula a largura de coluna (col_width)
+        e forca o redesenho. Como marcadores, caixas de selecao e largura do
+        canvas agora derivam de col_width, tudo escala junto e permanece
+        alinhado em qualquer tamanho de fonte."""
+        tda = self.text_drawing_area
+        tda.font_size = size
+        # estimativa imediata (sera refinada no proximo on_draw via get_char_size)
+        tda.col_width = size * 0.6
+        # redimensiona o canvas para o novo tamanho, se ja ha uma sequencia
+        try:
+            if getattr(self, 'sequence', None):
+                factor = 4 if self.mode == 1 else 1
+                width = int(len(self.sequence) * tda.col_width * factor + tda.col_width)
+                self.set_canvas_width_and_height(width=width, height=800)
+        except Exception:
+            pass
+        tda.queue_draw()
     
     def set_font_type (self, font_type = None):
         """ Function doc """
@@ -671,7 +705,11 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
 
     def get_canvas_xy(self, event):
         """ Function doc """
-        char_width  = self.text_drawing_area.char_width
+        # IMPORTANTE: usar col_width (a MESMA unidade do desenho). Antes usava
+        # char_width (largura do glifo) enquanto o desenho avanca por col_width
+        # (x_advance); a diferenca acumulava e deslocava a selecao cada vez mais
+        # longe da origem.
+        char_width  = self.text_drawing_area.col_width
         char_height = self.text_drawing_area.char_height
         gap_height  = self.text_drawing_area.gap_height 
         
