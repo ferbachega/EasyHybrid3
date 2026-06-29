@@ -38,7 +38,7 @@ import pickle
 import threading
 from util.file_parser import read_MOL2  
 from util.file_parser import read_SIMPLE_txt  
-from util.file_parser import read_MOPAC_aux  
+from util.file_parser import chrg_file_parser  
 
 from datetime import date
 import time
@@ -110,6 +110,9 @@ from pdynamo.p_methods import WHAMAnalysis
 from pdynamo.LogFileWriter import LogFileReader
 
 from gui.windows.setup.windows_and_dialogs import call_message_dialog
+#from gui.windows.setup.windows_and_dialogs import ChargeTypeSelectionDialog
+from gui.windows.setup.windows_and_dialogs.dialogs.import_charges_dialog import ChargeTypeSelectionDialog
+
 
 class EasyHybridImportTrajectory:
     """Handles loading coordinates (PKL-based) into EasyHybrid Vismol objects."""
@@ -559,11 +562,25 @@ class EasyHybridImportTrajectory:
             self._import_dcd_file (parameters)
         
         elif parameters['data_type'] == 'charges':
-            charges = self.chrg_file_parser (parameters['data_path'])
-
-            for index, chg in enumerate(charges):
-                self.psystem[self.active_id].mmState.charges[index] = float(chg)
+            #print(parameters['data_path'])
+            charges = chrg_file_parser(parameters['data_path'])
+            #print(charges, type(charges))
             
+            if type(charges) == dict:
+                items = charges.keys()
+                dialog = ChargeTypeSelectionDialog(None, items)#self.main.window, items)
+                response = dialog.run()
+
+                if response == Gtk.ResponseType.OK:
+                    selected = dialog.get_selected_item()
+                    print("selected:", selected)
+
+                dialog.destroy()
+                charges = charges[selected]
+                
+                for index, chg in enumerate(charges):
+                    self.psystem[self.active_id].mmState.charges[index] = float(chg)
+                
             #if len(charges) and len(self.psystem[self.system_id]):
             #    pass
             
@@ -629,7 +646,7 @@ class EasyHybridImportTrajectory:
         self.main.main_treeview.refresh_number_of_frames()
         self.main.main_treeview.refresh_trajectory_scalebar()
 
-    def chrg_file_parser (self,_file = None, _type = None):
+    def chrg_file_parser_old_not_used (self,_file = None, _type = None):
         """ Function doc 
         
         for index, chg in enumerate(input_files['charges']):
@@ -647,6 +664,11 @@ class EasyHybridImportTrajectory:
         if _type == 'MOL2' or _type == 'mol2':
             atoms, bonds = read_MOL2(_file)
             charges = atoms['charges']
+        
+        if _type =='out' or _type == 'log':
+            #what time of .out fife?
+            out_file_type = get_out_file_type(_file)
+        
         
         elif _type == 'txt' or _type == 'unk':
             charges = read_SIMPLE_txt (_file)
@@ -717,3 +739,11 @@ class EasyHybridImportTrajectory:
             vismol_obj.cell_coordinates = np.vstack(
                 (vismol_obj.cell_coordinates, cell_frame)
             )
+    
+    def get_out_file_type (self, _file):
+        """ Function doc """
+        
+        
+        
+        
+        

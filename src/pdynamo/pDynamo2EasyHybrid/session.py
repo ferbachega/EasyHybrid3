@@ -309,7 +309,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             
             system         = ImportSystem ( input_files['coordinates'])
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format(input_files['coordinates']), system = None)
-            
+            #system.BondsFromCoordinates3 ( )
             system.DefineMMModel ( mmModel )
             
             self.define_NBModel(_type = 1, system = system)          

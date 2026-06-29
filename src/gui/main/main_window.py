@@ -34,6 +34,7 @@ import signal
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, Pango
 from gi.repository import GdkPixbuf
+from gi.repository import GLib
 
 
 from gui.widgets.custom_widgets  import VismolSelectionTypeBox
@@ -176,6 +177,23 @@ class MainWindow:
         self.window = self.builder.get_object('window1')
         self.window.set_default_size(1200, 600)                          
         self.window.set_title('EasyHybrid {}'.format(self.EASYHYBRID_VERSION))                          
+        
+        
+        # Drag and drop files
+        #-------------------------------------------------------------------
+        target = Gtk.TargetEntry.new(
+                                         "text/uri-list",
+                                         0,
+                                         0
+                                     )
+        self.window.drag_dest_set(
+                                     Gtk.DestDefaults.ALL,
+                                     [target],
+                                     Gdk.DragAction.COPY
+                                 )
+        self.window.connect("drag-data-received", self.on_drag_data_received)
+        #-------------------------------------------------------------------
+        
         
         # Set application icon
         self.pixbuf = GdkPixbuf.Pixbuf.new_from_file(os.path.join(self.home,"src/gui/icons/icon_2.png"))
@@ -409,6 +427,15 @@ class MainWindow:
         self.window.connect("delete-event", self.on_delete_event)
         self.window.connect("check-resize", self.window_resize)       
         self.window.show_all()
+
+
+    def on_drag_data_received(self, widget, drag_context,
+                              x, y, data, info, time):
+
+        for uri in data.get_uris():
+            path, _ = GLib.filename_from_uri(uri)
+            print(path)
+            self.vm_session.load(path)
 
     def restart (self):
         """ Function doc """

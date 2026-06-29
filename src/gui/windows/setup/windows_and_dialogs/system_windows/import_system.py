@@ -385,7 +385,7 @@ class ImportANewSystemWindow(Gtk.Window):
         
         
         
-        elif filetype in ['pdb', 'PDB','mol','MOL','mol2','MOL2', 'xyz', 'XYZ', 'crd', 'inpcrd', 'chm']:
+        elif filetype in ['pdb', 'PDB','mol','MOL','mol2','MOL2', 'xyz', 'XYZ', 'crd', 'inpcrd', 'chm', 'arc']:
             #if systemtype == 1:
             self.files['coordinates'] = filein
             if filetype == 'mol2':
