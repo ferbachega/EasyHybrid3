@@ -284,8 +284,13 @@ class SelectionListWindow(Gtk.Window):
             name  = restraint[1]
             _type = restraint[2]
             if _type == 'distance':
-                atons = '{} / {}'.format(restraint[3][0],restraint[3][1]) 
-            dist_or_angle = '{:.4f}'.format(restraint[4])
+                atons = '{} / {}'.format(restraint[3][0],restraint[3][1])
+                dist_or_angle = '{:.4f}'.format(restraint[4])
+            
+            elif _type == 'position':
+                atons = '{}'.format(len(restraint[3]))
+                dist_or_angle = '{}'.format('dynamic')
+            
             force_const   = str(restraint[5])
             e_id          =  restraint[6] 
                                            #(bool,  str,   str,   str,          str,       str    , int    )

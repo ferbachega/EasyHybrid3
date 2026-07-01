@@ -89,6 +89,72 @@ HOME             = os.environ.get('HOME')
 PDYNAMO3_SCRATCH = os.environ.get('PDYNAMO3_SCRATCH')
 
 
+class AddPositionHarmonicRestraintDialog:
+    """ 
+    A GTK-based dialog for adding or editing a harmonic restraint between two atoms.  
+    The dialog allows the user to specify atom indices, names, target distance, 
+    and force constant for the restraint. 
+    """
+    
+    def __init__(self, main=None, 
+                       atom1=None, 
+                       atom2=None, 
+                       distance=0.0, 
+                       force=4000,
+                       system_id=None,
+                       edit=False):
+        """ 
+        Initialize the dialog. 
+        
+        Parameters:
+        - main: reference to the main application object. 
+        - atom1, atom2: atom objects or indices defining the restraint. 
+        - distance: target distance for the harmonic restraint (default 0.0). 
+        - force: force constant for the restraint (default 4000). 
+        - system_id: (optional) ID of the system in use. 
+        - edit: if True, load the dialog with pre-filled values for editing. 
+        """
+        self.main = main
+        self.home = main.home
+        
+        # Load GUI layout from Glade file
+        self.builder = Gtk.Builder()
+        self.builder.add_from_file(
+            os.path.join(self.home, 'src/gui/windows/setup/add_harmonic_restraint_dialog.glade')
+        )
+        self.builder.connect_signals(self)
+        self.builder.get_object('dialog').connect('destroy', self.close_window)
+        
+        # If editing an existing restraint, populate fields with provided values
+        if edit:
+            self.builder.get_object('button_add').set_label('Ok')  # Change button label
+            self.builder.get_object('entry_atom1_index_coord1').set_text(str(atom1))
+            self.builder.get_object('entry_atom2_index_coord1').set_text(str(atom2))
+            # Optional: could also use atom names if available
+            self.builder.get_object('entry_dmin_coord1').set_text(str(distance))
+            self.builder.get_object('entry_FORCE_coord1').set_text(str(force))
+        else:
+            # If adding a new restraint, populate with default atom data
+            self.builder.get_object('entry_atom1_index_coord1').set_text(str(atom1.index-1))
+            self.builder.get_object('entry_atom2_index_coord1').set_text(str(atom2.index-1))
+            self.builder.get_object('entry_atom1_name_coord1').set_text(atom1.name)
+            self.builder.get_object('entry_atom2_name_coord1').set_text(atom2.name)
+            self.builder.get_object('entry_dmin_coord1').set_text(str(distance))
+            self.builder.get_object('entry_FORCE_coord1').set_text(str(force))
+
+        # Connect buttons to their callbacks
+        self.builder.get_object('button_cancel').connect('clicked', self.close_window)
+        self.builder.get_object('button_add').connect('clicked', self.on_button_ok_clicked)
+
+        # Variables to store the dialog results
+        self.dist  = None
+        self.force = None
+        self.ok    = False   # Will be set True if user confirms the dialog
+        
+        # Run the dialog (blocks until user interacts)
+        self.builder.get_object('dialog').run()
+
+
 class AddHarmonicRestraintDialog:
     """ 
     A GTK-based dialog for adding or editing a harmonic restraint between two atoms.  

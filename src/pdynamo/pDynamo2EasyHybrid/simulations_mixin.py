@@ -169,6 +169,31 @@ class pSimulations:
                         point2=restraint_list[3][1]
                     )
                     restraints[name] = restraint
+                
+                
+                if restraint_list[2] == 'position':
+                    '''
+                    e_restraints_dict[rest_name] = [
+                       0 True,                         # active by default
+                       1 rest_name,                    # name
+                       2 'position',                   # type
+                       3 parameters['atomlist']      , # atom list
+                       4 parameters['reference']     , # target reference: ( system.coordinates3 ) Dynamic?
+                       5 parameters['force_constant'], # force constant
+                       6 parameters['system'].e_id     # system id
+                       ]    
+                        
+                    '''
+                    #Selection.FromIterable (freeAtoms)
+                    print("restraint_list[3]",restraint_list[3])
+                    selection          = Selection.FromIterable (restraint_list[3])
+                    reference          = Clone (parameters['system'].coordinates3 )
+                    tetherEnergyModel  = RestraintEnergyModel.Harmonic ( 0.0, float(restraint_list[5]) )
+                    restraint          = RestraintMultipleTether.WithOptions ( energyModel = tetherEnergyModel ,
+                                                                               reference   = reference         , 
+                                                                               selection   = selection        )
+
+                    restraints[name] = restraint
 
         return parameters
 

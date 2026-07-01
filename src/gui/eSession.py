@@ -295,9 +295,7 @@ class GLMenu:
             def menu_hide_label (_):
                 """Hide all labels for the selected atoms."""
                 selection = self.show_or_hide( rep_type = 'labels', show = False)
-            
-            
-            
+
             def menu_show_dynamic_bonds (_):
                 """Show dynamic bond representations."""
                 #print('dynamic_test')
@@ -313,7 +311,6 @@ class GLMenu:
                 self.show_or_hide( rep_type = 'ribbons', show = True)
                 self.show_or_hide( rep_type = 'ribbon_sphere', show = True)
                 #print('ribbon_sphere')
-            
             def menu_hide_ribbons (_):
                 """Hide ribbon and ribbon-sphere representations."""
                 self.show_or_hide( rep_type = 'ribbons', show = False)
@@ -654,6 +651,33 @@ class GLMenu:
                                 self.vm_glcore.queue_draw()
            
             
+            
+            def add_position_restraint (_):
+                """ Function doc """
+                
+                pdmsys_active = self.main.p_session.active_id
+                system = self.main.p_session.psystem[pdmsys_active]
+                
+                sel_list, sel_resi_table = self.build_index_list_from_atom_selection()
+                
+                #add_harmonic_restraint_dialog =  AddPositionHarmonicRestraintDialog(self.main, sel_list )
+                
+                parameters = {}
+          
+                #if add_harmonic_restraint_dialog.ok:
+                #    #print(add_harmonic_restraint_dialog.dist)
+                #    #parameters['distance']       = float(add_harmonic_restraint_dialog.dist )
+                #    parameters['force_constant'] = float(add_harmonic_restraint_dialog.force)
+                parameters['atomlist']       = sel_list
+                parameters['reference']      = None
+                parameters['force_constant'] = 1000.0
+                parameters['system']         = system
+                
+                #print(parameters)
+                #if atom2 and atom1:
+                self.main.p_session.add_new_harmonic_restraint (parameters, _type = 'position')
+                self.main.selection_list_window.update_window (selections = False, restraints = True)
+            
             def add_selection_to_sel_list (_):
                 """Add the currently selected atoms to the selection list of the active system."""
                 sel_list, sel_resi_table = self.build_index_list_from_atom_selection()
@@ -786,10 +810,16 @@ class GLMenu:
                         'Set as Free Atoms': ['MenuItem', set_as_free_atoms],
 
                         'separator5': ['separator', None],
+                        'Set as Free Atoms': ['MenuItem', set_as_free_atoms],
 
-                        'Prune to Selection': ['MenuItem', prune_atoms],
-
+                        
                         'separator6': ['separator', None],
+                        'Add Restraint': ['MenuItem', add_position_restraint],
+
+                        
+                        'separator7': ['separator', None],
+                        'Prune to Selection': ['MenuItem', prune_atoms],
+                    
                     }
       
         
