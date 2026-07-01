@@ -28,9 +28,47 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+#import gc
+#gc.disable()          # teste de diagnostico: desliga o coletor de lixo automatico
+#gc.set_threshold(0)   # garante que nao ha coleta automatica por contagem
+
 EASYHYBRID_VERSION = '3.0.3'
 
 import os, sys, time, re
+
+# --- Fix: engasgo de rotacao em GPUs integradas Intel (driver Mesa/GLX) ---
+# Em GPUs integradas Intel com driver Mesa, um frame que atrasa levemente
+# (jitter normal do loop do GTK/Python) perde a janela de vblank e o
+# driver trava o frame seguinte ate o PROXIMO vblank, dobrando a latencia
+# daquele frame. Isso aparece como engasgo aleatorio durante rotacao/pan/
+# zoom do mouse, mesmo com o custo de render() baixo e estavel (medido e
+# confirmado em testes). Desligar o vsync (vblank_mode=0) resolve, mas so
+# fazemos isso quando detectamos uma GPU Intel: em GPUs NVIDIA o problema
+# nao ocorre, entao nao vale a pena aceitar o tearing la sem necessidade.
+# CRITICO: essa variavel de ambiente so tem efeito se for definida ANTES
+# do contexto GL ser criado pelo Mesa - por isso essa deteccao roda aqui,
+# no topo do arquivo, antes de qualquer import do GTK/OpenGL.
+def _maybe_disable_vsync_for_intel_igpu():
+    if "vblank_mode" in os.environ:
+        return  # usuario ou launcher ja definiu explicitamente; respeita
+    if sys.platform != "linux":
+        return
+    try:
+        import glob
+        card_pattern = re.compile(r"^card\d+$")
+        for vendor_path in glob.glob("/sys/class/drm/card*/device/vendor"):
+            card_name = vendor_path.split("/")[-3]
+            if not card_pattern.match(card_name):
+                continue
+            with open(vendor_path) as f:
+                vendor_id = f.read().strip()
+            if vendor_id == "0x8086":  # Intel
+                os.environ["vblank_mode"] = "0"
+                return
+    except OSError:
+        pass  # falha na deteccao nao deve impedir o programa de iniciar
+
+_maybe_disable_vsync_for_intel_igpu()
 
 '''
 O módulo re é nativo do Python (faz parte da biblioteca padrão).  
