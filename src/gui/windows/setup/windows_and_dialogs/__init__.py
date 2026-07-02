@@ -65,6 +65,7 @@ from gui.windows.setup.windows_and_dialogs.dialogs.simple_dialog import call_mes
 from gui.windows.setup.windows_and_dialogs.dialogs.text_info_windows import TextWindow, InfoWindow
 from gui.windows.setup.windows_and_dialogs.dialogs.export_dialogs import ExportScriptDialog, ExportDataWindow
 from gui.windows.setup.windows_and_dialogs.dialogs.restraint_dialog import AddHarmonicRestraintDialog
+from gui.windows.setup.windows_and_dialogs.dialogs.restraint_dialog import AddPositionHarmonicRestraintDialog
 from gui.windows.setup.windows_and_dialogs.qc_setup.setup_sparrow import SetupSPARROWWindow
 from gui.windows.setup.windows_and_dialogs.qc_setup.setup_mopac import SetupMOPACWindow
 from gui.windows.setup.windows_and_dialogs.qc_setup.setup_xtb import SetupXTBWindow

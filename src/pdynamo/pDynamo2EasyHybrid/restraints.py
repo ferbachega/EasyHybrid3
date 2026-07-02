@@ -316,8 +316,13 @@ class Restraints:
             # Use the system's counter as a unique name for this restraint.
             rest_name = str(parameters['system'].e_restraint_counter)
 
+            # Cor dos "dots" desta restricao especifica (R,G,B). Opcional:
+            # se nao for passada em parameters['color'], cai no magenta
+            # (1, 0, 1) que era o valor fixo usado antes desta mudanca.
+            color = parameters.get('color', (1, 0, 1))
+
             # Entry layout (same order read in update_restaint_representation):
-            #   [ active?, name, type, [atomlist], reference, k, e_id ]
+            #   [ active?, name, type, [atomlist], reference, k, e_id, color ]
             parameters['system'].e_restraints_dict[rest_name] = [
                 True,                                            # active by default
                 rest_name,                                       # name
@@ -325,7 +330,8 @@ class Restraints:
                 parameters['atomlist']      ,                    # atom list
                 parameters['reference']     ,                    # target reference: ( system.coordinates3 ) Dynamic?
                 parameters['force_constant'],                    # force constant
-                parameters['system'].e_id]                       # system id
+                parameters['system'].e_id   ,                    # system id
+                color]                                            # cor dos dots (R,G,B), por restricao
 
             # Bump the counter so the next restraint gets a unique name.
             parameters['system'].e_restraint_counter += 1
@@ -414,8 +420,8 @@ class Restraints:
         if not e_id:
             e_id = self.active_id
 
-        indexes = []       # pares de átomos das restrições de distância ativas
-        pos_indexes = []   # átomos das restrições de posição ativas
+        indexes = []          # pares de átomos das restrições de distância ativas
+        position_groups = {}  # nome_da_restrição -> (indices_de_átomos, cor)
 
         for name, restraint in self.psystem[e_id].e_restraints_dict.items():
             _bool = restraint[0]
@@ -428,7 +434,12 @@ class Restraints:
 
             elif _type == 'position':
                 if _bool:
-                    pos_indexes.extend(restraint[3])
+                    # restraint[7] = cor (R,G,B) definida por
+                    # add_new_harmonic_restraint. Restrições antigas (criadas
+                    # antes desse campo existir) têm só 7 elementos: cai no
+                    # magenta (1,0,1), que era o valor fixo anterior.
+                    color = restraint[7] if len(restraint) > 7 else (1, 0, 1)
+                    position_groups[restraint[1]] = (restraint[3], color)
 
         for vobject in self.main.vm_session.vm_objects_dic.values():
             if vobject.e_id != e_id:
@@ -442,13 +453,27 @@ class Restraints:
             else:
                 vobject.representations["restraints"] = None
 
-            # --- representação das restrições de posição ---
-            if pos_indexes:
-                vobject.representations["position"] = OneColorDotsRepresentation(
+            # --- representações das restrições de posição ---
+            # OneColorDotsRepresentation só desenha UMA cor por instância, então
+            # cada restrição de posição ganha sua própria representação (chave
+            # "position_<nome>"), ao invés de uma única "position" compartilhada.
+            active_keys = set()
+            for rest_name, (atom_indexes, color) in position_groups.items():
+                key = "position_{}".format(rest_name)
+                active_keys.add(key)
+                vobject.representations[key] = OneColorDotsRepresentation(
                     vobject, self.vm_session.vm_glcore,
-                    active=True, indexes=pos_indexes, rgb=(1, 0, 1))
-            else:
-                vobject.representations["position"] = None
+                    active=True, indexes=atom_indexes, rgb=color)
+
+            # Limpa representações de restrições de posição que foram
+            # desativadas/removidas desde a última atualização, pra não deixar
+            # "dots" órfãos desenhados na tela.
+            stale_keys = [
+                key for key in vobject.representations.keys()
+                if key.startswith("position_") and key not in active_keys
+            ]
+            for key in stale_keys:
+                vobject.representations[key] = None
 
         self.main.vm_session.vm_glcore.queue_draw()
 

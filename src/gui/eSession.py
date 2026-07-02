@@ -42,6 +42,7 @@ import string
 
 from gui.windows.setup.windows_and_dialogs import EasyHybridDialogPrune
 from gui.windows.setup.windows_and_dialogs import AddHarmonicRestraintDialog
+from gui.windows.setup.windows_and_dialogs import AddPositionHarmonicRestraintDialog
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
 
 from vismol.core.vismol_selections import VismolViewingSelection as VMSele
@@ -660,17 +661,21 @@ class GLMenu:
                 
                 sel_list, sel_resi_table = self.build_index_list_from_atom_selection()
                 
-                #add_harmonic_restraint_dialog =  AddPositionHarmonicRestraintDialog(self.main, sel_list )
-                
+                if not sel_list:
+                    return None
+
+                add_position_restraint_dialog = AddPositionHarmonicRestraintDialog(
+                    self.main, atomlist=sel_list)
+
+                if not add_position_restraint_dialog.ok:
+                    return None
+
                 parameters = {}
-          
-                #if add_harmonic_restraint_dialog.ok:
-                #    #print(add_harmonic_restraint_dialog.dist)
-                #    #parameters['distance']       = float(add_harmonic_restraint_dialog.dist )
-                #    parameters['force_constant'] = float(add_harmonic_restraint_dialog.force)
+
                 parameters['atomlist']       = sel_list
                 parameters['reference']      = None
-                parameters['force_constant'] = 1000.0
+                parameters['force_constant'] = float(add_position_restraint_dialog.force)
+                parameters['color']          = add_position_restraint_dialog.color
                 parameters['system']         = system
                 
                 #print(parameters)
