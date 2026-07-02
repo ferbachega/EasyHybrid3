@@ -1638,6 +1638,12 @@ button position in the main treeview (active column).""".format(name,self.main.p
             pass
         for rep  in vobject.representations.keys():
             if vobject.representations[rep]:
+                # Representacoes com cor FIXA (ex: OneColorDotsRepresentation
+                # das restricoes de posicao) nao devem seguir a cor por-atomo
+                # do objeto -- pular, ou a cor escolhida pelo usuario e
+                # sobrescrita pela cor padrao do atomo.
+                if getattr(vobject.representations[rep], 'uses_uniform_color', False):
+                    continue
                 #try:
                 try:
                     vobject.representations[rep]._load_color_vbo(vobject.colors)
