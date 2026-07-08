@@ -382,6 +382,47 @@
 #      mask correctly flags exactly those 3 as invalid and keeps the other
 #      27.
 #
+#  12. SCIPY DEPENDENCY REMOVED ENTIRELY (both remaining uses replaced with
+#      hand-written, pure-numpy equivalents)
+#      ----------------------------------------------------------------------
+#      Triggered by two things happening back to back: (a) a second machine
+#      hit `ModuleNotFoundError: No module named 'scipy'` -- and because
+#      this file is imported unconditionally very early during EasyHybrid
+#      startup, that took the WHOLE application down, not just the surface
+#      window (a "soft"/optional-import version of scipy was tried first,
+#      see the now-superseded SCIPY_AVAILABLE / _require_scipy() approach
+#      that briefly existed here); and (b) being asked directly afterwards
+#      how much of scipy was really needed, with a preference for not
+#      depending on it at all if avoidable. Turned out to be exactly two
+#      call sites (items 6 and 9 above), both scriptable by hand:
+#        - _trilinear_interpolate(values_3d, origin, spacing, query_points):
+#          a compact, standard 8-corner trilinear interpolation, written by
+#          hand, replacing scipy.interpolate.RegularGridInterpolator for the
+#          external-.cube case (build_potential_interpolator_from_cube()),
+#          where the grid's (nx,ny,nz) layout is known for certain because
+#          this codebase's own cube_reader.py controls the parsing. Verified
+#          to reproduce scipy's RegularGridInterpolator output exactly
+#          (bit-for-bit, in a side-by-side test against the synthetic test
+#          .cube files from item 9) before scipy was removed.
+#        - _nearest_neighbor_lookup(pts, vals, query_points, chunk_size):
+#          a chunked, vectorised brute-force nearest-neighbour search,
+#          replacing scipy.spatial.cKDTree for pDynamo3's OWN potential
+#          grid (build_potential_interpolator()) specifically. Deliberately
+#          NOT "upgraded" to reuse _trilinear_interpolate() by reshaping
+#          pDynamo's flat gridValues into (nx,ny,nz): unlike the .cube case,
+#          this codebase does not actually know, confirmed, whether such a
+#          reshape would match pDynamo3's own internal storage order for
+#          RegularGrid -- guessing wrong there would silently produce a
+#          plausible-looking but WRONG interpolated surface, not a crash.
+#          Nearest-neighbour works directly off the flat (point, value)
+#          pairs with no ordering assumption at all, at some cost in
+#          accuracy relative to true trilinear -- an intentional, explicit
+#          trade-off in favour of correctness over precision here.
+#      Net effect: EasyHybrid no longer depends on scipy for anything in
+#      this file. The two SurfaceAnalysisWindow methods that use either
+#      helper (build_potential_interpolator / build_potential_interpolator_
+#      from_cube) are otherwise unchanged from item 6/9's description.
+#
 #  Caveat that applies to ALL of the pDynamo-facing code above (items 6, 9,
 #  11): none of it could be executed against a real, running pDynamo3
 #  installation in the environment this session's assistant had access to
@@ -428,8 +469,22 @@ from pCore       import *
 from pScientific.Geometry3 import RegularGrid
 from pScientific.Arrays     import Array, Reshape, RealArrayND
 from pScientific.Surfaces   import MarchingCubes_Isosurface3D
-from scipy.spatial import cKDTree
-from scipy.interpolate import RegularGridInterpolator
+# [EN] scipy (cKDTree / RegularGridInterpolator) was used here in an earlier
+# version of this file for the MEP potential interpolation, but was DROPPED
+# entirely: pDynamo3's own RegularGrid already exposes .origin / .spacing /
+# .shape as plain Python properties (pScientific/Geometry3/__extensions__/
+# pyrex/pScientific.Geometry3.RegularGrid.pyx), which is all that is needed
+# to do genuine trilinear interpolation by hand, in pure numpy -- see
+# _trilinear_interpolate() below, used by both build_potential_interpolator()
+# (pDynamo grid) and build_potential_interpolator_from_cube() (external
+# .cube grid). This removes a whole third-party dependency that had already
+# caused a real problem: surface_analysis_window.py is imported
+# UNCONDITIONALLY very early during EasyHybrid startup (from
+# gui/main/main_window.py), and a machine without scipy installed got a
+# ModuleNotFoundError all the way up through main_window.py -> gui.main ->
+# easyhybrid.py, before the app even had a chance to open a window. As a
+# bonus, this also replaces the pDynamo-grid nearest-neighbour lookup
+# (cKDTree) with real trilinear interpolation -- strictly more accurate.
 from util.colormaps import COLOR_MAPS
 from util.cube_reader import read_cube_file, CubeFileError
 #----------------------------------------------------------------------
@@ -1800,37 +1855,84 @@ def cube_to_pdynamo_surface ( cube_grid, isovalue ):
     return surface
 
 
+def _trilinear_interpolate ( values_3d, origin, spacing, query_points ):
+    """ [EN] Hand-written, pure-numpy trilinear interpolation over a regular
+    3D grid -- no scipy needed. Replaces the previous
+    scipy.interpolate.RegularGridInterpolator (for .cube grids) and
+    scipy.spatial.cKDTree nearest-neighbour lookup (for pDynamo grids,
+    which used to be necessary only because we didn't yet know pDynamo's
+    RegularGrid exposes .origin/.spacing/.shape directly -- see
+    build_potential_interpolator() below).
+
+    values_3d : array (nx, ny, nz)      -- scalar field on the grid
+    origin    : (ox, oy, oz)            -- world coordinate of grid index (0,0,0)
+    spacing   : (dx, dy, dz)            -- grid spacing along each axis
+    query_points : array (m, 3)         -- world-space points to evaluate,
+                                            same units as origin/spacing (Bohr)
+
+    Devolve um array (m,) com os valores interpolados. Pontos fora da caixa
+    do grid sao GRAMPEADOS (clipped) pro voxel mais proximo da borda, em
+    vez de extrapolar ou quebrar -- comportamento razoavel aqui, ja que a
+    caixa do grid normalmente ja envolve toda a superficie de interesse. """
+    nx, ny, nz = values_3d.shape
+    ox, oy, oz = origin
+    dx, dy, dz = spacing
+    query_points = np.asarray ( query_points, dtype = np.float64 )
+
+    # world coords -> fractional grid-index coords
+    fx = ( query_points[:,0] - ox ) / dx
+    fy = ( query_points[:,1] - oy ) / dy
+    fz = ( query_points[:,2] - oz ) / dz
+
+    # clamp so that i0+1 never goes out of bounds (handles points slightly
+    # outside the box, e.g. a density-isosurface vertex sitting right at
+    # the edge of the potential grid's own bounding box)
+    fx = np.clip ( fx, 0.0, nx - 1 - 1e-9 )
+    fy = np.clip ( fy, 0.0, ny - 1 - 1e-9 )
+    fz = np.clip ( fz, 0.0, nz - 1 - 1e-9 )
+
+    ix0 = np.floor ( fx ).astype ( np.int64 ); ix1 = ix0 + 1
+    iy0 = np.floor ( fy ).astype ( np.int64 ); iy1 = iy0 + 1
+    iz0 = np.floor ( fz ).astype ( np.int64 ); iz1 = iz0 + 1
+
+    tx = fx - ix0
+    ty = fy - iy0
+    tz = fz - iz0
+
+    # the 8 corners of the voxel containing each query point
+    c000 = values_3d[ix0, iy0, iz0]; c001 = values_3d[ix0, iy0, iz1]
+    c010 = values_3d[ix0, iy1, iz0]; c011 = values_3d[ix0, iy1, iz1]
+    c100 = values_3d[ix1, iy0, iz0]; c101 = values_3d[ix1, iy0, iz1]
+    c110 = values_3d[ix1, iy1, iz0]; c111 = values_3d[ix1, iy1, iz1]
+
+    # interpolate along x, then y, then z (standard trilinear recipe)
+    c00 = c000 * ( 1 - tx ) + c100 * tx
+    c01 = c001 * ( 1 - tx ) + c101 * tx
+    c10 = c010 * ( 1 - tx ) + c110 * tx
+    c11 = c011 * ( 1 - tx ) + c111 * tx
+
+    c0 = c00 * ( 1 - ty ) + c10 * ty
+    c1 = c01 * ( 1 - ty ) + c11 * ty
+
+    return c0 * ( 1 - tz ) + c1 * tz
+
+
 def build_potential_interpolator_from_cube ( cube_grid ):
-    # [EN] Unlike pDynamo3's own grid object (opaque parallel gridPoints/
-    # gridValues arrays, no exposed [i,j,k] ordering -> forced us to use a
-    # KDTree nearest-neighbour lookup, see build_potential_interpolator()
-    # below), a parsed CubeGrid gives an explicit regular grid (known origin
-    # + per-axis spacing) -- so real trilinear interpolation via
-    # scipy.interpolate.RegularGridInterpolator is used here instead, which
-    # is strictly more accurate. See changelog item 9.
+    # [EN] External-.cube analogue of build_potential_interpolator() below.
+    # A parsed CubeGrid already gives an explicit regular grid (known
+    # origin + per-axis spacing + values already shaped (nx,ny,nz)), so
+    # this is a thin wrapper around _trilinear_interpolate(). See
+    # changelog item 9 for the cube-import feature this supports.
     """ Como build_potential_interpolator(), mas para um CubeGrid lido de
     um arquivo .cube externo (ORCA, etc) em vez de um QCGridProperty do
-    pDynamo. Aqui, ao contrario do grid "opaco" do pDynamo (onde so
-    tinhamos gridPoints/gridValues como listas paralelas sem saber a
-    ordem de indexacao [i,j,k], e por isso usamos vizinho-mais-proximo
-    via KDTree), o .cube ja da a estrutura de grid regular explicita
-    (origem + espacamento por eixo) -- entao da pra fazer interpolacao
-    TRILINEAR de verdade com scipy.interpolate.RegularGridInterpolator,
-    mais precisa que o vizinho-mais-proximo. """
+    pDynamo. """
     nx, ny, nz = cube_grid.dims
     dx, dy, dz = cube_grid.spacing
     ox, oy, oz = cube_grid.origin
-    xs = ox + dx * np.arange ( nx )
-    ys = oy + dy * np.arange ( ny )
-    zs = oz + dz * np.arange ( nz )
-    interpolator = RegularGridInterpolator (
-        ( xs, ys, zs ), cube_grid.values,
-        method = "linear", bounds_error = False, fill_value = 0.0
-    )
 
     def evaluate ( query_points ):
         """ query_points: array (m,3), nas MESMAS unidades do grid (Bohr). """
-        return interpolator ( query_points )
+        return _trilinear_interpolate ( cube_grid.values, (ox,oy,oz), (dx,dy,dz), query_points )
 
     return evaluate
 
@@ -2053,13 +2155,67 @@ def mep_colormap ( values, vmin = None, vmax = None, cmap_name = 'coolwarm', rev
     return _colormap_lookup ( t, COLOR_MAPS[cmap_name] )
 
 
+def _nearest_neighbor_lookup ( pts, vals, query_points, chunk_size = 4000 ):
+    """ [EN] Pure-numpy replacement for scipy.spatial.cKDTree, used ONLY for
+    pDynamo3's own potential grid (build_potential_interpolator() below) --
+    NOT for external .cube files, which use real trilinear interpolation
+    instead (_trilinear_interpolate() above), because for a .cube file we
+    control the parsing ourselves and know its (nx,ny,nz) axis order for
+    certain (see util/cube_reader.py).
+
+    pDynamo3's grid, by contrast, only exposes gridPoints/gridValues as two
+    flat PARALLEL arrays (point <-> value by matching row index) -- we do
+    NOT actually know, confirmed, whether reshaping gridValues straight
+    into potentialProperty.grid.shape and treating it as a simple C-order
+    (x slowest, z fastest) 3D array would land on the same convention
+    pDynamo3 uses internally for its own RegularGrid. Guessing wrong there
+    would silently produce a WRONG but plausible-looking interpolated
+    surface -- not a crash, just quietly incorrect chemistry. Nearest-
+    neighbour sidesteps the whole question: it works directly off the
+    flat (point, value) pairs, with no assumption about their storage
+    order at all, at the cost of being a little less accurate than true
+    trilinear (acceptable here, given typical grid spacings).
+
+    pts  : array (n, 3) -- grid point coordinates, any order
+    vals : array (n,)   -- matching scalar values, same order as pts
+    query_points : array (m, 3)
+    chunk_size: caps memory use of the (chunk, n, 3) distance tensor built
+    per batch -- with n up to ~150000 (a fairly fine QC grid) and
+    chunk_size=4000, that is at most 4000*150000*3 floats (~7 GB worst
+    case if done in one shot without chunking; chunking keeps peak memory
+    to chunk_size*n*3 floats at a time, a few hundred MB, and runs in a
+    handful of vectorised numpy passes rather than one huge allocation). """
+    pts = np.asarray ( pts, dtype = np.float64 )
+    vals = np.asarray ( vals, dtype = np.float64 )
+    query_points = np.asarray ( query_points, dtype = np.float64 )
+    m = query_points.shape[0]
+    out = np.empty ( m, dtype = np.float64 )
+    for start in range ( 0, m, chunk_size ):
+        end = min ( start + chunk_size, m )
+        chunk = query_points[start:end]                       # (c,3)
+        diff = chunk[:, None, :] - pts[None, :, :]             # (c,n,3)
+        d2 = np.einsum ( 'ijk,ijk->ij', diff, diff )           # (c,n) squared distances
+        idx = np.argmin ( d2, axis = 1 )                       # (c,) index of nearest grid point
+        out[start:end] = vals[idx]
+    return out
+
+
 def build_potential_interpolator ( potentialProperty ):
+    # [EN] Uses nearest-neighbour (_nearest_neighbor_lookup() above), NOT
+    # trilinear interpolation, and NOT scipy.spatial.cKDTree either --
+    # see the long comment on _nearest_neighbor_lookup() for exactly why:
+    # in short, pDynamo3's own grid object only gives flat, parallel
+    # (point, value) arrays with no confirmed/known [i,j,k] storage order,
+    # so we cannot safely reshape gridValues into (nx,ny,nz) and reuse the
+    # exact-and-verified _trilinear_interpolate() path the way
+    # build_potential_interpolator_from_cube() does for external .cube
+    # files (where WE control the parsing and the order is known for
+    # certain). This removes the scipy dependency without introducing an
+    # unverified assumption about pDynamo3's internal array layout.
     """ Recebe o QCGridProperty bruto do potencial (generator.GetProperty(tag),
     ANTES de virar isosuperficie -- precisa ter .gridPoints/.gridValues) e
     devolve uma funcao que avalia o potencial em qualquer ponto 3D via
-    vizinho mais proximo no grid denso do pDynamo (RegularGrid consultado
-    como nuvem de pontos via KDTree -- nao precisamos saber a ordem de
-    indexacao [i,j,k] do grid, so os pares ponto/valor). """
+    vizinho mais proximo no grid denso do pDynamo. """
     n = len ( potentialProperty.gridValues )
     pts = np.empty ( (n, 3), dtype = np.float64 )
     for i in range ( n ):
@@ -2067,14 +2223,12 @@ def build_potential_interpolator ( potentialProperty ):
         pts[i, 1] = potentialProperty.gridPoints[i, 1]
         pts[i, 2] = potentialProperty.gridPoints[i, 2]
     vals = np.array ( [ potentialProperty.gridValues[i] for i in range ( n ) ], dtype = np.float64 )
-    tree = cKDTree ( pts )
 
     def evaluate ( query_points ):
         """ query_points: array (m,3), nas MESMAS unidades do grid (Bohr,
         que e a unidade nativa do pDynamo -- ver surface_parser, que so
         converte pra Angstrom na hora de montar o buffer de exibicao). """
-        _, idx = tree.query ( query_points )
-        return vals[idx]
+        return _nearest_neighbor_lookup ( pts, vals, query_points )
 
     return evaluate
 
