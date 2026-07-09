@@ -92,6 +92,8 @@ from util.geometric_analysis import get_simple_distance
 from util.sequence_plot import GtkSequenceViewer
 from util.rama_plot import RamachandranWindow
 
+#from gui.windows.builder.builder_main import BuilderMainWindow
+
 
 from pdynamo.pDynamo2EasyHybrid import pDynamoSession
 import numpy as np
@@ -505,6 +507,10 @@ class MainWindow:
         
         if button  == self.builder.get_object('_show_cell'):
             print('Under construction!')
+            #self.builder_window = BuilderMainWindow(self)
+            #self.builder_window.open_window()
+            
+            
             #self.run_test(None)
             
         if button == self.builder.get_object('toolbutton_terminal'):

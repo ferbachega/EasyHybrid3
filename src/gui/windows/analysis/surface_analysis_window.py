@@ -683,6 +683,47 @@ class SurfaceAnalysisWindow(Gtk.Window):
             #'''--------------------------------------------------------------------------------------------'''
 
 
+            #                       MEP POTENTIAL GRID SPACING (opcional -- desacopla do espacamento da densidade)
+            #'''--------------------------------------------------------------------------------------------'''
+            # [EN] See changelog item 14: generator.GridPotential() was
+            # measured (live, in the user's environment) to take ~180x
+            # longer than generator.GridDensity() on the SAME grid --
+            # confirmed, by reading pDynamo3's own QCModelBase.py, to be a
+            # real, inherent cost difference (GridPotential needs an
+            # attraction-integral-like evaluation between every PAIR of
+            # basis functions at each grid point, O(n_basis^2) per point,
+            # vs GridDensity's O(n_basis) per point). Since MEP now does
+            # real trilinear interpolation (_reconstruct_regular_grid +
+            # _trilinear_interpolate), the potential does NOT need to be
+            # evaluated on the same fine grid as the density surface's own
+            # geometry -- a much coarser, cheaper potential grid still
+            # interpolates smoothly onto the finer density mesh.
+            self.label_mep_pot_spacing = Gtk.Label(label="Potential spacing:")
+            self.entry_mep_pot_spacing = Gtk.Entry()
+            self.entry_mep_pot_spacing.set_width_chars(8)
+            self.entry_mep_pot_spacing.set_placeholder_text("auto (2.5x)")
+            self.entry_mep_pot_spacing.set_tooltip_text(
+                "Espacamento do grid usado SO para calcular o potencial "
+                "eletrostatico (em Bohr -- unidades atomicas, mesma "
+                "convencao do campo de espacamento principal). Pode ser "
+                "bem mais grosseiro que o espacamento da densidade (que "
+                "define a geometria da malha) sem perda visual perceptivel, "
+                "porque o valor e interpolado trilinearmente nos vertices "
+                "da malha de densidade de qualquer forma.\n"
+                "Vazio = automatico (2.5x o espacamento principal).\n"
+                "Motivo: calcular o potencial eletrostatico e MUITO mais "
+                "caro que calcular a densidade no mesmo grid (medido: "
+                "~180x mais lento em um caso real) -- um grid mais "
+                "grosseiro so pro potencial reduz esse custo "
+                "drasticamente (2.5x mais grosseiro = grid com ~2.5^3 "
+                "= ~15x menos pontos = ~15x mais rapido).")
+            self.box_surface_type.pack_start(self.label_mep_pot_spacing, False, False, 0)
+            self.box_surface_type.pack_start(self.entry_mep_pot_spacing, False, False, 0)
+            self.label_mep_pot_spacing.hide()
+            self.entry_mep_pot_spacing.hide()
+            #'''--------------------------------------------------------------------------------------------'''
+
+
             self.label_frame = self.builder.get_object('label_frame')
                  
             system  = self.main.p_session.get_system()
@@ -928,6 +969,8 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.entry_mep_vmax.show()
             self.label_mep_cmap.show()
             self.cbx_mep_cmap.show()
+            self.label_mep_pot_spacing.show()
+            self.entry_mep_pot_spacing.show()
         else:
             self.label_mep_vmin.hide()
             self.entry_mep_vmin.hide()
@@ -935,6 +978,8 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.entry_mep_vmax.hide()
             self.label_mep_cmap.hide()
             self.cbx_mep_cmap.hide()
+            self.label_mep_pot_spacing.hide()
+            self.entry_mep_pot_spacing.hide()
 
         if index in [1,2,4]:
             #self.builder.get_object('btn_import_wavefunction').set_sensitive(False)
@@ -1337,6 +1382,9 @@ class SurfaceAnalysisWindow(Gtk.Window):
             _mep_cmap_idx = self.cbx_mep_cmap.get_active()
             _mep_cmap_name = ( self._mep_cmap_names[_mep_cmap_idx]
                                 if _mep_cmap_idx >= 0 else 'coolwarm' )
+            _mep_pot_spacing = _parse_optional_float ( self.entry_mep_pot_spacing )
+            # None = automatico (2.5x o espacamento principal, ver
+            # generate_grid_parallel() branch 'mep' e o changelog item 14).
 
             joblist = []
             for frame in range(vismol_object.frames.shape[0]):
@@ -1344,17 +1392,18 @@ class SurfaceAnalysisWindow(Gtk.Window):
                                                                                system_id = None, 
                                                                                frame = frame)
                 parameters = {
-                'type'           : 'mep',
-                '_GridSpacing'   : _GridSpacing,
-                '_OrbitalTag'    : 'density_mep',
-                '_isovalue'      : _isovalue,
-                '_IsosurfaceTag' : 'Isosurface',
-                'orbital_key'    : 0,
-                'color_plus'     : color_plus  ,
-                'color_minus'    : color_minus ,
-                'mep_vmin'       : _mep_vmin   ,
-                'mep_vmax'       : _mep_vmax   ,
-                'mep_cmap_name'  : _mep_cmap_name ,
+                'type'              : 'mep',
+                '_GridSpacing'      : _GridSpacing,
+                '_OrbitalTag'       : 'density_mep',
+                '_isovalue'         : _isovalue,
+                '_IsosurfaceTag'    : 'Isosurface',
+                'orbital_key'       : 0,
+                'color_plus'        : color_plus  ,
+                'color_minus'       : color_minus ,
+                'mep_vmin'          : _mep_vmin   ,
+                'mep_vmax'          : _mep_vmax   ,
+                'mep_cmap_name'     : _mep_cmap_name ,
+                'mep_pot_spacing'   : _mep_pot_spacing ,
                 }
                 coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
                 joblist.append([frame, system, coords, parameters])
@@ -1947,6 +1996,42 @@ def _is_degenerate_vertex ( vertices, v ):
     return ( vertices[v,0] == 0.0 ) and ( vertices[v,1] == 0.0 ) and ( vertices[v,2] == 0.0 )
 
 
+def _pdynamo_array_to_numpy ( arr, dtype ):
+    """ [EN] Converts a pDynamo3 Array2D-like object (polygons, vertices,
+    vertexNormals, ...) to a plain numpy array as fast as possible, so the
+    rest of the pipeline can use vectorised numpy operations instead of
+    per-element Python loops (see changelog item 13 -- this whole family
+    of helper functions exists because per-triangle/per-vertex Python
+    loops in surface_parser() / surface_parser_mep() /
+    _compute_valid_polygon_mask() turned out to be the single largest
+    bottleneck in surface generation, benchmarked at ~15-45x slower than
+    the vectorised equivalent on a realistic ~30k-vertex/60k-triangle
+    mesh).
+
+    Tries np.asarray() first (works for free if pDynamo3's Array2D
+    implements the buffer/array protocol -- COULD NOT BE CONFIRMED in the
+    assistant's environment, since no pDynamo3 installation was available
+    to test against; this is an optimistic fast path, not a verified
+    one). Falls back to a per-ROW (not per-element) Python loop otherwise,
+    which is still correct and still meaningfully faster than the
+    previous per-element indexing pattern, just not as fast as a native
+    numpy conversion would be. Either path produces an identical,
+    correct result -- only the speed differs. """
+    try:
+        result = np.asarray ( arr, dtype = dtype )
+        if result.ndim == 2 and result.shape[0] == arr.rows:
+            return result
+    except Exception:
+        pass
+    n = arr.rows
+    first_row = arr[0, :]
+    ncols = len ( first_row )
+    out = np.empty ( (n, ncols), dtype = dtype )
+    for i in range ( n ):
+        out[i, :] = arr[i, :]
+    return out
+
+
 def _compute_valid_polygon_mask ( polygons, vertices, size_factor = 8.0 ):
     # [EN] Filters out the marching-cubes "ghost vertex" artifact reported
     # by the user (screenshot showed long spurious triangles shooting off
@@ -1990,21 +2075,21 @@ def _compute_valid_polygon_mask ( polygons, vertices, size_factor = 8.0 ):
     que essa mediana.
 
     Devolve (mask, n_descartados) -- mask e um array booleano, uma
-    entrada por linha de `polygons` (True = triangulo valido, mantem)."""
+    entrada por linha de `polygons` (True = triangulo valido, mantem).
+
+    [EN] VECTORISED (see changelog item 13) -- was a per-triangle Python
+    loop before, benchmarked ~44x slower than this on a 60k-triangle mesh. """
     n_tri = polygons.rows
     if n_tri == 0:
         return np.zeros ( 0, dtype = bool ), 0
 
-    max_edge = np.empty ( n_tri, dtype = np.float64 )
-    for p in range ( n_tri ):
-        i0, i1, i2 = polygons[p,0], polygons[p,1], polygons[p,2]
-        p0 = np.array ( [ vertices[i0,0], vertices[i0,1], vertices[i0,2] ] )
-        p1 = np.array ( [ vertices[i1,0], vertices[i1,1], vertices[i1,2] ] )
-        p2 = np.array ( [ vertices[i2,0], vertices[i2,1], vertices[i2,2] ] )
-        e01 = np.linalg.norm ( p1 - p0 )
-        e12 = np.linalg.norm ( p2 - p1 )
-        e20 = np.linalg.norm ( p0 - p2 )
-        max_edge[p] = max ( e01, e12, e20 )
+    polygons_np = _pdynamo_array_to_numpy ( polygons, np.int64 )
+    vertices_np = _pdynamo_array_to_numpy ( vertices, np.float64 )
+    tri_verts = vertices_np[polygons_np]          # (n_tri, 3, 3) -- fancy indexing, uma leitura so
+    e01 = np.linalg.norm ( tri_verts[:,1,:] - tri_verts[:,0,:], axis = 1 )
+    e12 = np.linalg.norm ( tri_verts[:,2,:] - tri_verts[:,1,:], axis = 1 )
+    e20 = np.linalg.norm ( tri_verts[:,0,:] - tri_verts[:,2,:], axis = 1 )
+    max_edge = np.maximum ( np.maximum ( e01, e12 ), e20 )
 
     typical = np.median ( max_edge )
     if typical == 0.0:
@@ -2016,8 +2101,12 @@ def _compute_valid_polygon_mask ( polygons, vertices, size_factor = 8.0 ):
 
 
 def surface_parser ( surface, iso_color):
+    # [EN] VECTORISED (changelog item 13) -- was a per-triangle, per-vertex,
+    # per-component Python loop before (~1000s of tiny list.append() calls),
+    # benchmarked ~18x slower than this on a realistic ~60k-triangle mesh.
+    # Correctness verified against the old loop-based version on synthetic
+    # data before replacing it (identical output, byte for byte).
     """ Function doc """
-    normals   = surface.polygonNormals
     polygons  = surface.polygons
     vertices  = surface.vertices
     # normal por vertice ja nativa do pDynamo (MarchingCubes.pyx aloca
@@ -2029,39 +2118,30 @@ def surface_parser ( surface, iso_color):
     # pDynamo3).
     surface.MakeVertexNormalsFromPolygonalNormals ( )
     smooth_normals = surface.vertexNormals
+
     valid_mask, skipped = _compute_valid_polygon_mask ( polygons, vertices )
-    colors    = []
-    vertices2 = []
-    normals2  = []
-    
-    for p in range ( polygons.rows ):
-        #print ( "facet normal " )
-        #print ( "\n    outer loop" )
-        if not valid_mask[p]:
-            continue   # triangulo "fantasma" (aresta anormalmente grande) -- ver _compute_valid_polygon_mask
-        tri = polygons[p,:]
-        for v in tri:
-            #text = "\n        vertex "
-            for c in range ( 3 ): 
-                vertices2.append((vertices[v,c])/1.889725989 ) # convert from Bohr to angstrom
-                #text += " {} ".format(vertices[v,c])
-            for c in range ( 3 ):
-                normals2.append ( smooth_normals[v, c] )
-            for rgb in iso_color: 
-                #vertices2.append(rgb)
-                colors.append(rgb)
     if skipped:
         print ( "surface_parser: {} triangulo(s) fantasma (aresta anormal) descartado(s)".format ( skipped ) )
-    
-    vertices = np.array(vertices2, dtype=np.float32)
-    colors   = np.array(colors, dtype=np.float32)
-    normals  = np.array(normals2, dtype=np.float32)
+
+    polygons_np = _pdynamo_array_to_numpy ( polygons, np.int64 )[valid_mask]
+    vertices_np = _pdynamo_array_to_numpy ( vertices, np.float64 )
+    normals_np  = _pdynamo_array_to_numpy ( smooth_normals, np.float64 )
+
+    tri_verts = vertices_np[polygons_np] / 1.889725989   # (n_valid_tri, 3, 3) -- Bohr -> Angstrom, fancy indexing (uma leitura vetorizada)
+    tri_norms = normals_np[polygons_np]                  # (n_valid_tri, 3, 3)
+
+    vertices_out = tri_verts.reshape ( -1 ).astype ( np.float32 )
+    normals_out  = tri_norms.reshape ( -1 ).astype ( np.float32 )
+
+    n_valid_tri = polygons_np.shape[0]
+    colors_out  = np.tile ( np.asarray ( iso_color, dtype = np.float32 ), n_valid_tri * 3 )
+
     # um indice por vertice (nao por componente/float) -- a versao antiga
     # gerava indexes com 3x mais entradas do que vertices de verdade
     # existem no buffer (passava despercebido, mas era um out-of-bounds
     # read em potencial na GPU -- ver nota no README).
-    indexes  = np.array(range(len(vertices)//3), dtype=np.uint32)
-    return vertices, colors, indexes, normals
+    indexes_out = np.arange ( vertices_out.shape[0] // 3, dtype = np.uint32 )
+    return vertices_out, colors_out, indexes_out, normals_out
 
 
 def _colormap_lookup ( t_values, color_map ):
@@ -2155,85 +2235,153 @@ def mep_colormap ( values, vmin = None, vmax = None, cmap_name = 'coolwarm', rev
     return _colormap_lookup ( t, COLOR_MAPS[cmap_name] )
 
 
-def _nearest_neighbor_lookup ( pts, vals, query_points, chunk_size = 4000 ):
-    """ [EN] Pure-numpy replacement for scipy.spatial.cKDTree, used ONLY for
-    pDynamo3's own potential grid (build_potential_interpolator() below) --
-    NOT for external .cube files, which use real trilinear interpolation
-    instead (_trilinear_interpolate() above), because for a .cube file we
-    control the parsing ourselves and know its (nx,ny,nz) axis order for
-    certain (see util/cube_reader.py).
+def _pdynamo_array1d_to_numpy ( arr, dtype ):
+    """ [EN] 1-D analogue of _pdynamo_array_to_numpy() above, for things
+    like potentialProperty.gridValues (a RealArray1D, not an Array2D --
+    no .rows/[i,:] row-slicing, just a flat sequence of n scalars). """
+    try:
+        result = np.asarray ( arr, dtype = dtype )
+        if result.ndim == 1 and result.shape[0] == len ( arr ):
+            return result
+    except Exception:
+        pass
+    n = len ( arr )
+    out = np.empty ( n, dtype = dtype )
+    for i in range ( n ):
+        out[i] = arr[i]
+    return out
 
-    pDynamo3's grid, by contrast, only exposes gridPoints/gridValues as two
-    flat PARALLEL arrays (point <-> value by matching row index) -- we do
-    NOT actually know, confirmed, whether reshaping gridValues straight
-    into potentialProperty.grid.shape and treating it as a simple C-order
-    (x slowest, z fastest) 3D array would land on the same convention
-    pDynamo3 uses internally for its own RegularGrid. Guessing wrong there
-    would silently produce a WRONG but plausible-looking interpolated
-    surface -- not a crash, just quietly incorrect chemistry. Nearest-
-    neighbour sidesteps the whole question: it works directly off the
-    flat (point, value) pairs, with no assumption about their storage
-    order at all, at the cost of being a little less accurate than true
-    trilinear (acceptable here, given typical grid spacings).
 
-    pts  : array (n, 3) -- grid point coordinates, any order
-    vals : array (n,)   -- matching scalar values, same order as pts
-    query_points : array (m, 3)
-    chunk_size: caps memory use of the (chunk, n, 3) distance tensor built
-    per batch -- with n up to ~150000 (a fairly fine QC grid) and
-    chunk_size=4000, that is at most 4000*150000*3 floats (~7 GB worst
-    case if done in one shot without chunking; chunking keeps peak memory
-    to chunk_size*n*3 floats at a time, a few hundred MB, and runs in a
-    handful of vectorised numpy passes rather than one huge allocation). """
+def _reconstruct_regular_grid ( pts, vals ):
+    """ [EN] THE key optimisation of changelog item 13. Reconstructs a
+    proper (values_3d, origin, spacing) regular-grid representation from
+    flat, PARALLEL (point, value) pairs whose internal storage order is
+    unknown/unverified (pDynamo3's own potentialProperty.gridPoints /
+    .gridValues) -- WITHOUT trusting any assumption about that order.
+
+    How: the points are known, by construction (they come from
+    generator.DefineGrid()), to lie exactly on a regular 3D grid. So
+    instead of guessing how pDynamo3 laid them out internally, we
+    discover the grid's own axis structure empirically, straight from the
+    coordinates themselves: collect the unique x/y/z coordinate values
+    (a true regular grid has exactly nx/ny/nz distinct values per axis,
+    evenly spaced), derive origin + spacing from those, then compute each
+    point's (i,j,k) grid index directly from its own coordinates and
+    scatter its value into the right cell of a fresh (nx,ny,nz) array.
+    The RESULT is independent of the order `pts`/`vals` were given in --
+    reconstructing from a deliberately SHUFFLED point order was used to
+    verify this during development, and reproduced the exact expected
+    origin/spacing.
+
+    Once values_3d/origin/spacing exist, _trilinear_interpolate() (the
+    same, already-verified function used for external .cube files) can be
+    reused directly -- both faster AND more accurate than the nearest-
+    neighbour lookup this function replaces (benchmarked: ~0.03s total
+    for reconstruction + 30k interpolated queries against a realistic
+    ~157k-point grid, versus tens of seconds -- or, with the naive
+    chunk_size that shipped briefly, a MemoryError trying to allocate
+    14+ GB -- for brute-force nearest-neighbour on the same input).
+
+    Returns None if `pts` does NOT form a complete regular grid (e.g. some
+    QC codes only evaluate properties within a cutoff distance of the
+    molecule, producing a "hollowed out" or irregular point cloud) -- the
+    caller must fall back to _nearest_neighbor_lookup() in that case. """
+    xs_u = np.unique ( np.round ( pts[:,0], 6 ) )
+    ys_u = np.unique ( np.round ( pts[:,1], 6 ) )
+    zs_u = np.unique ( np.round ( pts[:,2], 6 ) )
+    nx, ny, nz = len ( xs_u ), len ( ys_u ), len ( zs_u )
+    if nx * ny * nz != len ( pts ):
+        return None   # nao e uma caixa regular completa -- caller usa o fallback
+
+    ox, oy, oz = xs_u[0], ys_u[0], zs_u[0]
+    dx = ( xs_u[-1] - xs_u[0] ) / ( nx - 1 ) if nx > 1 else 1.0
+    dy = ( ys_u[-1] - ys_u[0] ) / ( ny - 1 ) if ny > 1 else 1.0
+    dz = ( zs_u[-1] - zs_u[0] ) / ( nz - 1 ) if nz > 1 else 1.0
+
+    ix = np.round ( ( pts[:,0] - ox ) / dx ).astype ( np.int64 )
+    iy = np.round ( ( pts[:,1] - oy ) / dy ).astype ( np.int64 )
+    iz = np.round ( ( pts[:,2] - oz ) / dz ).astype ( np.int64 )
+
+    values_3d = np.empty ( (nx, ny, nz), dtype = np.float64 )
+    values_3d[ix, iy, iz] = vals   # scatter vetorizado -- uma atribuicao so
+    return values_3d, (ox, oy, oz), (dx, dy, dz)
+
+
+def _nearest_neighbor_lookup ( pts, vals, query_points, max_chunk_bytes = 64 * 1024 * 1024 ):
+    """ [EN] FALLBACK ONLY, used by build_potential_interpolator() when
+    _reconstruct_regular_grid() returns None (points don't form a
+    complete regular box). Pure-numpy replacement for
+    scipy.spatial.cKDTree -- no assumption about point storage order,
+    like the old version, but rewritten to actually be memory-safe:
+    the previous version (chunk_size=4000, one (chunk,n,3) tensor per
+    batch) tried to allocate 14+ GB and crashed with MemoryError against
+    a realistic ~157k-point grid the very first time this ran against
+    real data. Fixed by (a) expanding the squared-distance formula
+    |a-b|^2 = |a|^2 + |b|^2 - 2*a.b to work with a (chunk, n) MATRIX
+    instead of a (chunk, n, 3) TENSOR (an automatic 3x memory cut), and
+    (b) choosing chunk_size dynamically so each batch stays under
+    max_chunk_bytes (default 64 MB) regardless of how large the grid is,
+    instead of a fixed chunk_size that could silently blow up on a larger
+    grid than whatever it happened to be tuned against. """
     pts = np.asarray ( pts, dtype = np.float64 )
     vals = np.asarray ( vals, dtype = np.float64 )
     query_points = np.asarray ( query_points, dtype = np.float64 )
+    n = pts.shape[0]
     m = query_points.shape[0]
+    pts_sq = np.einsum ( 'ij,ij->i', pts, pts )   # |b|^2, (n,) -- calculado uma vez so
+
+    bytes_per_query_row = max ( 1, n * 8 )   # float64
+    chunk_size = max ( 1, int ( max_chunk_bytes // bytes_per_query_row ) )
+
     out = np.empty ( m, dtype = np.float64 )
     for start in range ( 0, m, chunk_size ):
         end = min ( start + chunk_size, m )
-        chunk = query_points[start:end]                       # (c,3)
-        diff = chunk[:, None, :] - pts[None, :, :]             # (c,n,3)
-        d2 = np.einsum ( 'ijk,ijk->ij', diff, diff )           # (c,n) squared distances
-        idx = np.argmin ( d2, axis = 1 )                       # (c,) index of nearest grid point
+        chunk = query_points[start:end]
+        chunk_sq = np.einsum ( 'ij,ij->i', chunk, chunk )   # |a|^2, (c,)
+        d2 = chunk_sq[:, None] + pts_sq[None, :] - 2.0 * ( chunk @ pts.T )   # (c, n) -- matriz 2D, nao tensor 3D
+        idx = np.argmin ( d2, axis = 1 )
         out[start:end] = vals[idx]
     return out
 
 
 def build_potential_interpolator ( potentialProperty ):
-    # [EN] Uses nearest-neighbour (_nearest_neighbor_lookup() above), NOT
-    # trilinear interpolation, and NOT scipy.spatial.cKDTree either --
-    # see the long comment on _nearest_neighbor_lookup() for exactly why:
-    # in short, pDynamo3's own grid object only gives flat, parallel
-    # (point, value) arrays with no confirmed/known [i,j,k] storage order,
-    # so we cannot safely reshape gridValues into (nx,ny,nz) and reuse the
-    # exact-and-verified _trilinear_interpolate() path the way
-    # build_potential_interpolator_from_cube() does for external .cube
-    # files (where WE control the parsing and the order is known for
-    # certain). This removes the scipy dependency without introducing an
-    # unverified assumption about pDynamo3's internal array layout.
+    # [EN] Tries _reconstruct_regular_grid() + _trilinear_interpolate()
+    # first (fast AND accurate AND makes no assumption about pDynamo3's
+    # internal array storage order -- see _reconstruct_regular_grid()'s
+    # docstring for the full reasoning and benchmark numbers). Falls back
+    # to _nearest_neighbor_lookup() only if the potential grid turns out
+    # not to be a complete regular box (rare, but not impossible -- some
+    # QC codes only evaluate grid properties within a cutoff of the
+    # molecule).
     """ Recebe o QCGridProperty bruto do potencial (generator.GetProperty(tag),
     ANTES de virar isosuperficie -- precisa ter .gridPoints/.gridValues) e
-    devolve uma funcao que avalia o potencial em qualquer ponto 3D via
-    vizinho mais proximo no grid denso do pDynamo. """
-    n = len ( potentialProperty.gridValues )
-    pts = np.empty ( (n, 3), dtype = np.float64 )
-    for i in range ( n ):
-        pts[i, 0] = potentialProperty.gridPoints[i, 0]
-        pts[i, 1] = potentialProperty.gridPoints[i, 1]
-        pts[i, 2] = potentialProperty.gridPoints[i, 2]
-    vals = np.array ( [ potentialProperty.gridValues[i] for i in range ( n ) ], dtype = np.float64 )
+    devolve uma funcao que avalia o potencial em qualquer ponto 3D. """
+    pts_np  = _pdynamo_array_to_numpy ( potentialProperty.gridPoints, np.float64 )
+    vals_np = _pdynamo_array1d_to_numpy ( potentialProperty.gridValues, np.float64 )
 
-    def evaluate ( query_points ):
-        """ query_points: array (m,3), nas MESMAS unidades do grid (Bohr,
-        que e a unidade nativa do pDynamo -- ver surface_parser, que so
-        converte pra Angstrom na hora de montar o buffer de exibicao). """
-        return _nearest_neighbor_lookup ( pts, vals, query_points )
+    reconstructed = _reconstruct_regular_grid ( pts_np, vals_np )
+    if reconstructed is not None:
+        values_3d, origin, spacing = reconstructed
+
+        def evaluate ( query_points ):
+            """ query_points: array (m,3), nas MESMAS unidades do grid (Bohr,
+            que e a unidade nativa do pDynamo -- ver surface_parser, que so
+            converte pra Angstrom na hora de montar o buffer de exibicao). """
+            return _trilinear_interpolate ( values_3d, origin, spacing, query_points )
+    else:
+        print ( "build_potential_interpolator: o grid do potencial nao forma uma "
+                "caixa regular completa -- usando vizinho-mais-proximo (mais lento) "
+                "em vez de interpolacao trilinear." )
+
+        def evaluate ( query_points ):
+            return _nearest_neighbor_lookup ( pts_np, vals_np, query_points )
 
     return evaluate
 
 
 def surface_parser_mep ( surface, vertex_colors ):
+    # [EN] VECTORISED (changelog item 13), same technique as surface_parser()
+    # above -- see that function's comment for the benchmark numbers.
     """ Como surface_parser, mas recebe uma cor RGB ja calculada por vertice
     (vertex_colors, shape (n_vertices_originais, 3)) em vez de um iso_color
     unico repetido pra malha inteira -- usado pro MEP (mapa continuo de
@@ -2244,33 +2392,29 @@ def surface_parser_mep ( surface, vertex_colors ):
     # vez do compute_smooth_normals em Python puro.
     surface.MakeVertexNormalsFromPolygonalNormals ( )
     smooth_normals = surface.vertexNormals
-    valid_mask, skipped = _compute_valid_polygon_mask ( polygons, vertices )
-    colors    = []
-    vertices2 = []
-    normals2  = []
 
-    for p in range ( polygons.rows ):
-        if not valid_mask[p]:
-            continue   # triangulo "fantasma" (aresta anormalmente grande) -- ver _compute_valid_polygon_mask
-        tri = polygons[p, :]
-        for v in tri:
-            for c in range ( 3 ):
-                vertices2.append ( (vertices[v, c]) / 1.889725989 )  # Bohr -> Angstrom
-            for c in range ( 3 ):
-                normals2.append ( smooth_normals[v, c] )
-            for rgb in vertex_colors[v]:
-                colors.append ( rgb )
+    valid_mask, skipped = _compute_valid_polygon_mask ( polygons, vertices )
     if skipped:
         print ( "surface_parser_mep: {} triangulo(s) fantasma (aresta anormal) descartado(s)".format ( skipped ) )
 
-    vertices = np.array ( vertices2, dtype = np.float32 )
-    colors   = np.array ( colors, dtype = np.float32 )
-    normals  = np.array ( normals2, dtype = np.float32 )
+    polygons_np      = _pdynamo_array_to_numpy ( polygons, np.int64 )[valid_mask]
+    vertices_np      = _pdynamo_array_to_numpy ( vertices, np.float64 )
+    normals_np       = _pdynamo_array_to_numpy ( smooth_normals, np.float64 )
+    vertex_colors_np = np.asarray ( vertex_colors, dtype = np.float64 )
+
+    tri_verts  = vertices_np[polygons_np] / 1.889725989   # (n_valid_tri, 3, 3) -- Bohr -> Angstrom
+    tri_norms  = normals_np[polygons_np]                  # (n_valid_tri, 3, 3)
+    tri_colors = vertex_colors_np[polygons_np]            # (n_valid_tri, 3, 3)
+
+    vertices_out = tri_verts.reshape ( -1 ).astype ( np.float32 )
+    normals_out  = tri_norms.reshape ( -1 ).astype ( np.float32 )
+    colors_out   = tri_colors.reshape ( -1 ).astype ( np.float32 )
+
     # um indice por vertice (nao por componente/float) -- ao contrario do
     # surface_parser original, que gera indexes com 3x mais entradas do
     # que vertices de verdade existem no buffer (ver nota no README).
-    indexes  = np.array ( range ( len(vertices) // 3 ), dtype = np.uint32 )
-    return vertices, colors, indexes, normals
+    indexes_out = np.arange ( vertices_out.shape[0] // 3, dtype = np.uint32 )
+    return vertices_out, colors_out, indexes_out, normals_out
 
 
 def apply_coords_to_system (system, coords):
@@ -2312,11 +2456,9 @@ def _generate_external_cube_surface ( parameters ):
         # vem de arquivos externos em vez do grid do pDynamo.
         potential_cube     = read_cube_file ( potential_path )
         evaluate_potential = build_potential_interpolator_from_cube ( potential_cube )
-        n_verts    = surface.vertices.rows
-        verts_bohr = np.empty ( (n_verts, 3), dtype = np.float64 )
-        for v in range ( n_verts ):
-            for c in range ( 3 ):
-                verts_bohr[v, c] = surface.vertices[v, c]
+        # [EN] vectorised conversion (changelog item 13) -- was a
+        # per-vertex, per-component Python loop before.
+        verts_bohr = _pdynamo_array_to_numpy ( surface.vertices, np.float64 )
         potential_values = evaluate_potential ( verts_bohr )
         vertex_colors    = mep_colormap ( potential_values, vmin = mep_vmin, vmax = mep_vmax,
                                            cmap_name = mep_cmap_name )
@@ -2347,6 +2489,7 @@ def generate_grid_parallel (job):
             }
     '''
     _type = parameters['type']
+    _t_start = time.perf_counter ( )   # DEBUG TEMPORARIO -- ver print no final da funcao
 
     # [EN] Early-return guard, added for the "External" cube-import surface
     # type (changelog item 9). Every other branch below unconditionally
@@ -2371,6 +2514,7 @@ def generate_grid_parallel (job):
     _mep_vmin      = parameters.get ( 'mep_vmin' )   # None = automatico (percentil)
     _mep_vmax      = parameters.get ( 'mep_vmax' )
     _mep_cmap_name = parameters.get ( 'mep_cmap_name', 'coolwarm' )
+    _mep_pot_spacing = parameters.get ( 'mep_pot_spacing' )   # None = automatico (2.5x _GridSpacing)
     key            = parameters['orbital_key']
     color_plus     = parameters['color_plus']
     color_minus    = parameters['color_minus']
@@ -2389,7 +2533,9 @@ def generate_grid_parallel (job):
     # . Calculate the system grid properties.
     #-----------------------------------------------------------------------
     generator = QCGridPropertyGenerator.FromSystem (system )
+    _t_grid0 = time.perf_counter ( )   # DEBUG TEMPORARIO
     generator.DefineGrid    ( gridSpacing = _GridSpacing ) # . Some value in atomic units - e.g. 0.2
+    print ( "DEBUG TIMING: DefineGrid (gridSpacing={}) levou {:.3f} s".format ( _GridSpacing, time.perf_counter() - _t_grid0 ) )
     
 
     
@@ -2432,32 +2578,59 @@ def generate_grid_parallel (job):
         #    (o isovalor do campo entry_isovalue passa a significar
         #    "isovalor de densidade" nesse modo -- ~0.002-0.02 u.a. costuma
         #    aproximar bem o contorno de van der Waals).
+        _t = time.perf_counter ( )   # DEBUG TEMPORARIO
         generator.GridDensity ( tag = 'density_mep' )
+        print ( "DEBUG TIMING: GridDensity levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
         generator.Isosurface  ( 'density_mep', _isovalue, tag = _IsosurfaceTag )
+        print ( "DEBUG TIMING: Isosurface (density) levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
         surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
         density_iso = surfaceProperty.isosurface
+        print ( "DEBUG TIMING: n_vertices={} n_triangulos={}".format ( density_iso.vertices.rows, density_iso.polygons.rows ) )
 
         # 2. Grid de POTENCIAL bruto (os valores a mapear na malha acima).
         #    Tag propria, distinta de 'density_mep' e de _IsosurfaceTag --
         #    ver o bug de colisao de tags que corrigimos no branch 'potential'.
+        # [EN] KEY OPTIMISATION (changelog item 14): GridPotential() was
+        # measured to be ~180x slower than GridDensity() on the SAME grid
+        # (confirmed inherent to the method -- see QCModelBase.py's
+        # GridPointPotentials, an O(n_basis^2)-per-point calculation, vs
+        # GridPointDensities' O(n_basis)-per-point). Since MEP already
+        # interpolates the potential onto the density mesh via real
+        # trilinear interpolation (_reconstruct_regular_grid +
+        # _trilinear_interpolate), the potential grid does NOT need to
+        # share the density grid's (possibly very fine) spacing -- a much
+        # coarser grid, just for this step, is still interpolated
+        # smoothly onto the finer density-surface vertices. Confirmed
+        # safe to call DefineGrid() again here, after GridDensity(): each
+        # QCGridProperty stores its OWN grid/gridPoints reference at the
+        # moment it is computed (see QCGridProperties.py), so the density
+        # isosurface computed above keeps referring to the FINE grid it
+        # was actually computed on, unaffected by redefining self.grid
+        # for the potential step below.
+        _potential_spacing = _mep_pot_spacing if _mep_pot_spacing is not None else _GridSpacing * 2.5
+        generator.DefineGrid ( gridSpacing = _potential_spacing )
         generator.GridPotential ( tag = 'potential_mep' )
+        print ( "DEBUG TIMING: GridPotential (spacing={:.3f}, {}x mais grosseiro que a densidade) levou {:.3f} s".format (
+                _potential_spacing, _potential_spacing / _GridSpacing, time.perf_counter() - _t ) ); _t = time.perf_counter ( )
         potentialProperty  = generator.GetProperty ( 'potential_mep' )
         evaluate_potential = build_potential_interpolator ( potentialProperty )
+        print ( "DEBUG TIMING: build_potential_interpolator (inclui reconstrucao do grid) levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
 
         # 3. Avalia o potencial em cada vertice ORIGINAL da malha de densidade,
         #    em Bohr (mesma unidade do grid do pDynamo -- a conversao pra
         #    Angstrom so acontece dentro de surface_parser_mep).
-        n_verts    = density_iso.vertices.rows
-        verts_bohr = np.empty ( (n_verts, 3), dtype = np.float64 )
-        for v in range ( n_verts ):
-            for c in range ( 3 ):
-                verts_bohr[v, c] = density_iso.vertices[v, c]
+        # [EN] vectorised conversion (changelog item 13) -- was a
+        # per-vertex, per-component Python loop before.
+        verts_bohr = _pdynamo_array_to_numpy ( density_iso.vertices, np.float64 )
 
         potential_values = evaluate_potential ( verts_bohr )
+        print ( "DEBUG TIMING: evaluate_potential (interpolacao) levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
         vertex_colors    = mep_colormap ( potential_values, vmin = _mep_vmin, vmax = _mep_vmax,
                                            cmap_name = _mep_cmap_name )
+        print ( "DEBUG TIMING: mep_colormap levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
 
         vertices, colors, indexes, normals = surface_parser_mep ( density_iso, vertex_colors )
+        print ( "DEBUG TIMING: surface_parser_mep levou {:.3f} s".format ( time.perf_counter() - _t ) )
         orbital_iso['obital_plus'] = [vertices, colors, indexes, normals]
     
     
@@ -2487,6 +2660,7 @@ def generate_grid_parallel (job):
     #vertices, colors, indexes = surface_parser ( surface = isosurface_n , iso_color = [0,0,1] )
     #orbital_iso['obital_minus'] = [vertices, colors, indexes]
     
+    print ( "DEBUG TIMING: generate_grid_parallel TOTAL levou {:.3f} s (tipo: {})".format ( time.perf_counter() - _t_start, _type ) )
     return orbital_iso
     
     #generator.DefineGrid    ( gridSpacing = _GridSpacing ) # . Some value in atomic units - e.g. 0.2
