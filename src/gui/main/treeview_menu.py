@@ -138,6 +138,14 @@ class TreeViewMenu:
         
         
         
+        surf_menu_items = {
+                            'header'                : None    ,
+                            '_separator'            : ''      ,
+                            'Rename'                : self._menu_rename ,
+                            '_separator'            : ''      ,
+                            'Setup'                 : self._surf_setup ,
+                            }
+        
         vobject_menu_items = {
                                 'header'                : None    ,
 
@@ -203,6 +211,7 @@ class TreeViewMenu:
                     
                     
                     
+        self.tree_view_surf_menu  , self.tree_header_surf_menu    = self.build_tree_view_menu(surf_menu_items)
         self.tree_view_vobj_menu  , self.tree_header_vobj_menu    = self.build_tree_view_menu(vobject_menu_items)
         self.tree_view_sys_menu   , self.tree_header_sys_menu     = self.build_tree_view_menu(system_menu_items)
 
@@ -598,6 +607,9 @@ class TreeViewMenu:
             model.append(data)
         self.treeview.vm_session.glwidget.queue_draw()
 
+    def _surf_setup (self, menu_item = None ):
+        print('surface setup')
+    
     def _menu_rename (self, menu_item = None ):
         """  
         menu_item = Gtk.MenuItem object at 0x7fbdcc035700 (GtkMenuItem at 0x37cf6c0)
@@ -759,7 +771,7 @@ class TreeViewMenu:
             """ Function doc """
             self.system_e_id     = system_e_id    
             self.vobject_index = vobject_index
-            ##print(system_e_id, vobject_index)
+            #print(system_e_id, vobject_index)
             
             system = self.treeview.main.p_session.psystem[self.system_e_id] 
             self.tree_header_sys_menu.set_label(system.label)
@@ -783,7 +795,7 @@ class TreeViewMenu:
         """ Function doc """
         self.system_e_id     = system_e_id    
         self.vobject_index = vobject_index
-        ##print(system_e_id, vobject_index)
+        print(system_e_id, vobject_index)
         
         system = self.treeview.main.p_session.psystem[self.system_e_id] 
         self.tree_header_sys_menu.set_label(system.label)
@@ -792,12 +804,19 @@ class TreeViewMenu:
             
             self.tree_view_sys_menu.popup(None, None, None, None, 0, 0)
 
+        
         if vobject_index != None and vobject_index != -1:
             
             vismol_object = self.treeview.main.vm_session.vm_objects_dic[vobject_index]
             self.tree_header_vobj_menu.set_label(vismol_object.name)
-            
-            self.tree_view_vobj_menu.popup(None, None, None, None, 0, 0)
+            is_surface  =  getattr(vismol_object, 'is_surface', None)
+            #vismol object mgiht be a surface or a struture 
+            if is_surface:
+                print('is_surface:', vismol_object.is_surface)
+                self.tree_header_surf_menu.set_label(vismol_object.name)
+                self.tree_view_surf_menu.popup(None, None, None, None, 0, 0)
+            else:
+                self.tree_view_vobj_menu.popup(None, None, None, None, 0, 0)
                 
     def _save_backup_file (self):
         """ Function doc """

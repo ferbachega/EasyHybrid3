@@ -197,8 +197,42 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         Add a vismol object (e.g., trajectory, surface, etc.) to the TreeView.
         """
         e_id = vismol_object.e_id
-        system = self.main.p_session.psystem[e_id]
-        sqr_color = get_colorful_square_pixel_buffer(system)
+
+        # [EN] Builder objects (see gui/windows/builder/empty_object.py)
+        # are NOT backed by a pDynamo system -- e_id is None, by design
+        # (a deliberate choice made earlier in the Builder's development:
+        # keep it a pure visual sketchpad for now, promoting a drawn
+        # molecule into a real pDynamo system is a separate, later step).
+        # This method used to assume EVERY vismol_object has a real
+        # system behind it (system = self.main.p_session.psystem[e_id],
+        # unconditionally) -- harmless as long as no Builder object ever
+        # reached this method, but refresh() (below in this same file)
+        # already iterates and calls this on EVERY vm_objects_dic entry
+        # unconditionally, meaning the very first refresh() after
+        # creating a Builder object would have raised
+        # "KeyError: None" here. Found by tracing through refresh()
+        # while answering "why doesn't my Builder object show up in the
+        # treeview", not by a live crash report -- fixed before it could
+        # cause one.
+        if e_id is None:
+            system = None
+            sqr_color = None
+            # -1 (not None): treestore column 0 is declared as a strict
+            # `int` Gtk.TreeStore column (see its constructor further up
+            # this file) -- storing None there would be a GTK type
+            # error, not a graceful no-op. -1 as a "no real system"
+            # sentinel also matches the convention this same treestore
+            # already uses for "no real vobject" (system header rows
+            # store vobject.index == -1 in column 1) -- see the matching
+            # guard added to on_treeview_mouse_button_release_event()
+            # below, which skips opening the right-click context menu
+            # for this sentinel (treeview_menu.open_menu() does its own
+            # unguarded psystem[system_e_id] lookup, which would raise
+            # the same way otherwise).
+            e_id = -1
+        else:
+            system = self.main.p_session.psystem[e_id]
+            sqr_color = get_colorful_square_pixel_buffer(system)
 
         print(system, vismol_object, e_id)
 
@@ -207,6 +241,11 @@ class EasyHybridMainTreeView(Gtk.TreeView):
             vismol_object.is_surface = True
             parent = vobj_parent
             sqr_color = None
+        elif system is None:
+            # Builder object: no system node to nest under -- attach at
+            # ROOT level instead, as its own top-level row (a sibling of
+            # the system rows, not nested inside any of them).
+            parent = None
         else:
             # Otherwise attach to the system node
             parent = self.main.system_treeview_iters[e_id]
@@ -402,7 +441,22 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         
         # Right-click → open context menu
         if event.button == 3:
-            self.treeview_menu.open_menu(self.system_e_id, self.vm_object_index)
+            # [EN] system_e_id == -1 is the sentinel used for Builder
+            # objects (see add_vismol_object_to_treeview() above -- they
+            # have no real pDynamo system behind them). treeview_menu.
+            # open_menu() does its own unguarded
+            # self.main.p_session.psystem[system_e_id] lookup with no
+            # try/except -- calling it with -1 would raise KeyError,
+            # visibly, right as the context menu tries to open. Guarded
+            # here instead of inside open_menu() itself, to keep this
+            # fix contained to the one call site that actually needs to
+            # know about Builder objects at all. Right-click on a
+            # Builder row does nothing (silently) for now -- a proper
+            # Builder-specific context menu (rename, delete object,
+            # promote to a real pDynamo system, ...) is a possible later
+            # step, not attempted here.
+            if self.system_e_id != -1:
+                self.treeview_menu.open_menu(self.system_e_id, self.vm_object_index)
 
         # Middle-click → center visualization on the selected vobject
         if event.button == 2:

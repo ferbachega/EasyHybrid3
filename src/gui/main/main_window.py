@@ -538,7 +538,17 @@ class MainWindow:
             self.single_point_window.open_window()
             
         if button  == self.builder.get_object('toolbutton_setup_QCModel'):
-            self.setup_QCModel_window.open_window()
+            # [EN] BUG FIX: this used to call open_window() with no
+            # argument at all -- qcmodel_window.py's open_window()
+            # defaults vismol_object to None in that case, and
+            # on_button_ok() (clicking "OK" in that window) later crashes
+            # with "AttributeError: 'NoneType' object has no attribute
+            # 'chains'" inside check_charge_fragmentation(), unrelated to
+            # the Builder or anything else -- ANY use of this exact
+            # toolbar button hit this. Fixed by passing the active
+            # vismol_object, same pattern already used two lines below by
+            # 'toolbutton_system_check' in this same handler.
+            self.setup_QCModel_window.open_window(self.p_session.systems[self.p_session.active_id]['vobject'])
         
         if button  == self.builder.get_object('toolbutton_system_check'): 
             self.p_session.systems[self.p_session.active_id]['vobject'].get_backbone_indexes ()
@@ -846,7 +856,9 @@ class MainWindow:
         
         
         elif menuitem == self.builder.get_object('menuitem_qc_setup'):
-            self.setup_QCModel_window.open_window()
+            # [EN] Same bug/fix as 'toolbutton_setup_QCModel' above --
+            # see that comment for the full traceback/reasoning.
+            self.setup_QCModel_window.open_window(self.p_session.systems[self.p_session.active_id]['vobject'])
             
         elif menuitem == self.builder.get_object('menuitem_show_cell'):
             system = self.p_session.psystem[self.p_session.active_id]

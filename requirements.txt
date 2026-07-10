@@ -1,0 +1,31 @@
+# EasyHybrid3 -- Python dependencies
+#
+# Install with:
+#     pip install -r requirements.txt --user
+#
+# NOTE: this covers Python packages only. Two things below are NOT
+# covered by pip and need to be installed separately:
+#
+#   1. pDynamo3 itself -- see install.py / check_pdynamo(), which walks
+#      you through pointing the installer at an existing pDynamo3
+#      installation (or its own environment_bash.com script).
+#
+#   2. The GTK 3.0 "typelib" (gir1.2-gtk-3.0 on Debian/Ubuntu) -- this is
+#      an OPERATING SYSTEM package, not a Python package. PyGObject (the
+#      "gi" package below) only provides the Python *bindings*; without
+#      the system typelib installed too, "import gi" succeeds but
+#      "gi.require_version('Gtk', '3.0')" fails with
+#      "ValueError: Namespace Gtk not available". On Debian/Ubuntu:
+#          sudo apt-get install gir1.2-gtk-3.0
+#      (the exact package name may differ on other distributions).
+#
+# install.py's check_external_libraries() checks all of the above
+# (Python packages AND the GTK3 typelib) and reports exactly what, if
+# anything, is missing.
+
+numpy>=1.20.0
+PyOpenGL>=3.1.0
+Cython>=0.29.12
+freetype-py>=2.3.0
+pycairo>=1.20.0
+PyGObject>=3.40.0
