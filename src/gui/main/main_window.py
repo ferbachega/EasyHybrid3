@@ -489,6 +489,45 @@ class MainWindow:
                                                                                     sqr_color]
                                                                                     )
 
+    def get_active_vobject (self, e_id = None):
+        """ [EN] BUG FIX: replaces a made-up lookup
+        (self.p_session.systems[e_id]['vobject']) that was used at three
+        call sites in this file (two added by a fix earlier in this same
+        project, one pre-existing at 'toolbutton_system_check') -- all
+        three crashed with "AttributeError: 'pDynamoSession' object has
+        no attribute 'systems'". self.p_session.systems never actually
+        exists anywhere in pDynamoSession (confirmed by grepping the
+        whole class); the earlier fix mistakenly copied this exact
+        pattern from the pre-existing, apparently equally untested
+        'toolbutton_system_check' handler, assuming it was a proven,
+        working pattern.
+
+        The only thing that IS real is self.p_session.psystem[e_id],
+        which gives the pDynamo "system" wrapper object itself -- but
+        that object has no back-reference to its own VismolObject either
+        (confirmed: no "system.vobject" assignment exists anywhere in
+        session.py). The correct way to get "the" VismolObject for a
+        given system is the other direction: every VismolObject already
+        stores its OWN system's e_id (vismol_object.e_id, set when the
+        object was created/added -- see eSession._add_vismol_object() and
+        main_treeview.add_vismol_object_to_treeview(), both of which
+        already rely on exactly this attribute), so this searches
+        vm_session.vm_objects_dic for the (normally unique) object
+        belonging to that system, deliberately excluding is_surface
+        objects (a system can have surface VismolObjects attached too,
+        sharing the same e_id -- see the Surface Analysis Window work --
+        which are not "the" molecule object callers here actually want).
+
+        e_id defaults to the currently active system
+        (self.p_session.active_id) if not given explicitly. Returns None
+        if nothing matches (e.g. no system loaded yet). """
+        if e_id is None:
+            e_id = self.p_session.active_id
+        for vobject in self.vm_session.vm_objects_dic.values ( ):
+            if getattr ( vobject, "e_id", None ) == e_id and not getattr ( vobject, "is_surface", False ):
+                return vobject
+        return None
+
     def on_main_toolbar_clicked (self, button):
         """ Function doc """
         if button  == self.builder.get_object('toolbutton_new_system'):
@@ -548,10 +587,10 @@ class MainWindow:
             # toolbar button hit this. Fixed by passing the active
             # vismol_object, same pattern already used two lines below by
             # 'toolbutton_system_check' in this same handler.
-            self.setup_QCModel_window.open_window(self.p_session.systems[self.p_session.active_id]['vobject'])
+            self.setup_QCModel_window.open_window(self.get_active_vobject())
         
         if button  == self.builder.get_object('toolbutton_system_check'): 
-            self.p_session.systems[self.p_session.active_id]['vobject'].get_backbone_indexes ()
+            self.get_active_vobject().get_backbone_indexes ()
 
         if button  == self.builder.get_object('toolbutton_geometry_optimization'):
             self.geometry_optimization_window.open_window()
@@ -858,7 +897,7 @@ class MainWindow:
         elif menuitem == self.builder.get_object('menuitem_qc_setup'):
             # [EN] Same bug/fix as 'toolbutton_setup_QCModel' above --
             # see that comment for the full traceback/reasoning.
-            self.setup_QCModel_window.open_window(self.p_session.systems[self.p_session.active_id]['vobject'])
+            self.setup_QCModel_window.open_window(self.get_active_vobject())
             
         elif menuitem == self.builder.get_object('menuitem_show_cell'):
             system = self.p_session.psystem[self.p_session.active_id]
