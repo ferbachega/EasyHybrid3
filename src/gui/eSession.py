@@ -1128,7 +1128,7 @@ class EasyHybridSession(VismolSession, GLMenu):
                         dialog = SimpleDialog(self.main_session)
                         dialog.error("Failed to display question dialog. Loading original file.")
                         mensagem = str(e)
-                        print("Erro:", mensagem)
+                        print("Error:", mensagem)
                         yes_or_no = False
 
                     target_file = temp_file if yes_or_no else filename
@@ -1140,7 +1140,7 @@ class EasyHybridSession(VismolSession, GLMenu):
                         )
                     except Exception as e:
                         mensagem = str(e)
-                        print("Erro:", mensagem)
+                        print("Error:", mensagem)
                         dialog = SimpleDialog(self.main_session)
                         dialog.error(f"Failed to load project file: {target_file}")
 
@@ -1150,7 +1150,7 @@ class EasyHybridSession(VismolSession, GLMenu):
                         self.main_session.p_session.load_easyhybrid_serialization_file(filename)
                     except Exception as e:
                         mensagem = str(e)
-                        print("Erro:", mensagem)
+                        print("Error:", mensagem)
                         dialog = SimpleDialog(self.main_session)
                         dialog.error(f"Failed to load project file: {filename}")
 
@@ -1160,7 +1160,7 @@ class EasyHybridSession(VismolSession, GLMenu):
                     self.main_session.p_session.load_easyhybrid_serialization_file(filename)
                 except Exception as e:
                     mensagem = str(e)
-                    print("Erro:", mensagem)
+                    print("Error:", mensagem)
                     dialog = SimpleDialog(self.main_session)
                     dialog.error(f"Failed to load temporary project file: {filename}")
 
@@ -1172,14 +1172,14 @@ class EasyHybridSession(VismolSession, GLMenu):
                     self.main_session.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
                 except Exception as e:
                     mensagem = str(e)
-                    print("Erro:", mensagem)
+                    print("Error:", mensagem)
                     dialog = SimpleDialog(self.main_session)
                     dialog.error(f"Failed to load system file: {filename}")
 
         except Exception as e:
             # Catch any unexpected error that was not handled above
             mensagem = str(e)
-            print("Erro:", mensagem)
+            print("Error:", mensagem)
             dialog = SimpleDialog(self.main_session)
             dialog.error(f"An unexpected error occurred while loading: {filename}")
 

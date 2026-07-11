@@ -241,7 +241,7 @@ def remove_atom ( vismol_object, atom_id ):
     isn't guaranteed to survive add_atom() either -- see add_bond()'s
     docstring. """
     if atom_id not in vismol_object.atoms:
-        raise ValueError ( "remove_atom: atom_id {} nao existe neste objeto.".format ( atom_id ) )
+        raise ValueError ( "remove_atom: atom_id {} does not exist in this object.".format ( atom_id ) )
 
     vm_session = vismol_object.vm_session
     removed_atom = vismol_object.atoms[atom_id]
@@ -347,9 +347,9 @@ def add_bond ( vismol_object, atom_id_a, atom_id_b, bond_order = 1 ):
     as a follow-up rather than attempted in this pass, to keep this
     step's scope contained. """
     if atom_id_a == atom_id_b:
-        raise ValueError ( "add_bond: nao da pra ligar um atomo a ele mesmo." )
+        raise ValueError ( "add_bond: cannot bond an atom to itself." )
     if atom_id_a not in vismol_object.atoms or atom_id_b not in vismol_object.atoms:
-        raise ValueError ( "add_bond: atom_id_a={} ou atom_id_b={} nao existe neste objeto.".format (
+        raise ValueError ( "add_bond: atom_id_a={} or atom_id_b={} does not exist in this object.".format (
                             atom_id_a, atom_id_b ) )
 
     pair = ( min ( atom_id_a, atom_id_b ), max ( atom_id_a, atom_id_b ) )

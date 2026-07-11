@@ -137,11 +137,11 @@ def handle_bond_shortcut ( vm_session ):
     selected = list ( sel.selected_atoms )
 
     if len ( selected ) != 2:
-        return "Selecione exatamente 2 atomos antes de apertar 'b' (selecionados agora: {}).".format ( len ( selected ) )
+        return "Select exactly 2 atoms before pressing 'b' (currently selected: {}).".format ( len ( selected ) )
 
     atom_a, atom_b = selected
     if atom_a.vm_object is not atom_b.vm_object:
-        return "Os 2 atomos selecionados precisam pertencer ao mesmo objeto."
+        return "The 2 selected atoms must belong to the same object."
 
     from gui.windows.builder.atom_ops import add_bond
     created = add_bond ( atom_a.vm_object, atom_a.atom_id, atom_b.atom_id )
@@ -149,9 +149,9 @@ def handle_bond_shortcut ( vm_session ):
     sel.selection_function_viewing_set ( None )   # limpa a selecao pro proximo par
 
     if created:
-        return "Ligacao criada entre atomo {} e atomo {}.".format ( atom_a.atom_id, atom_b.atom_id )
+        return "Bond created between atom {} and atom {}.".format ( atom_a.atom_id, atom_b.atom_id )
     else:
-        return "Ja existia uma ligacao entre esses 2 atomos."
+        return "A bond between these 2 atoms already existed."
 
 
 def handle_click_to_delete_atom ( vm_glcore ):
@@ -219,7 +219,7 @@ def _read_depth_at_pixel ( vm_glcore, mouse_x, mouse_y ):
     pickedID = color_data[0] + color_data[1] * 256 + color_data[2] * 256 * 256
 
     if pickedID == BACKGROUND_ID:
-        print ( "DEBUG click_mode: depth buffer no pixel clicado = fundo (nada renderizado ali)" )
+        print ( "DEBUG click_mode: depth buffer at clicked pixel = background (nothing rendered there)" )
         return None
 
     depth_raw = GL.glReadPixels ( x, y, 1, 1, GL.GL_DEPTH_COMPONENT, GL.GL_FLOAT )
@@ -230,7 +230,7 @@ def _read_depth_at_pixel ( vm_glcore, mouse_x, mouse_y ):
     ndc_z = 2.0 * depth_buffer_value - 1.0
     distance = p32 / ( ndc_z + p22 )
 
-    print ( "DEBUG click_mode: depth buffer no pixel clicado = {:.5f}  ->  distancia da camera = {:.3f}".format (
+    print ( "DEBUG click_mode: depth buffer at clicked pixel = {:.5f}  ->  distance from camera = {:.3f}".format (
             depth_buffer_value, distance ) )
     return float ( distance )
 
@@ -298,9 +298,9 @@ def world_pos_from_mouse ( vm_glcore, mouse_x, mouse_y, depth = None ):
 
     print ( "DEBUG click_mode: mouse=({:.1f}, {:.1f})  viewport=({:.0f}x{:.0f})  ndc=({:.3f}, {:.3f})".format (
             mouse_x, mouse_y, width, height, ndc_x, ndc_y ) )
-    print ( "DEBUG click_mode: fovy={:.2f} aspect={:.3f} depth_usado={:.3f}".format ( fovy, aspect, depth ) )
+    print ( "DEBUG click_mode: fovy={:.2f} aspect={:.3f} depth_used={:.3f}".format ( fovy, aspect, depth ) )
     print ( "DEBUG click_mode: view_point=({:.3f}, {:.3f}, {:.3f})".format ( view_x, view_y, view_z ) )
-    print ( "DEBUG click_mode: world_point=({:.3f}, {:.3f}, {:.3f})  <- posicao do novo atomo".format (
+    print ( "DEBUG click_mode: world_point=({:.3f}, {:.3f}, {:.3f})  <- new atom position".format (
             world_point[0], world_point[1], world_point[2] ) )
 
     return float ( world_point[0] ), float ( world_point[1] ), float ( world_point[2] )
@@ -353,7 +353,7 @@ def handle_click_to_place_atom ( vm_glcore, mouse_x, mouse_y ):
     local_point = world_point @ inv_model
     x, y, z = float ( local_point[0] ), float ( local_point[1] ), float ( local_point[2] )
 
-    print ( "DEBUG click_mode: world_point=({:.3f}, {:.3f}, {:.3f})  -> local_point (apos inv(model_mat))=({:.3f}, {:.3f}, {:.3f})".format (
+    print ( "DEBUG click_mode: world_point=({:.3f}, {:.3f}, {:.3f})  -> local_point (after inv(model_mat))=({:.3f}, {:.3f}, {:.3f})".format (
             wx, wy, wz, x, y, z ) )
 
     from gui.windows.builder.atom_ops import add_atom

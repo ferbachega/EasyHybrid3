@@ -78,6 +78,15 @@ from gui.windows.simulation.normal_modes_window          import NormalModesWindo
 from gui.windows.analysis.WHAM_analysis_window                    import WHAMWindow 
 from gui.windows.analysis.normal_modes_analysis_window            import NormalModesAnalysisWindow 
 from gui.windows.analysis.surface_analysis_window                 import SurfaceAnalysisWindow 
+# [EN] Used by _surf_setup() below (the per-Vobject surface setup
+# dialog): recolor_surface_lobe/recolor_mep_surface do the cheap,
+# recompute-free recolouring described in their own docstrings in
+# surface_analysis_window.py; COLOR_MAPS is the same colormap dictionary
+# already used to populate the MEP colormap combobox in the main
+# surface-generation window, reused here for consistency (same names,
+# same actual gradients).
+from gui.windows.analysis.surface_analysis_window                 import recolor_surface_lobe, recolor_mep_surface
+from util.colormaps                                                import COLOR_MAPS
 #from gui.windows.analysis.surface_list_window                     import SurfaceListWindow 
 from gui.windows.analysis.energy_refinement_window                import EnergyRefinementWindow
 from gui.windows.analysis.PES_analysis_window                     import PotentialEnergyAnalysisWindow
@@ -608,7 +617,212 @@ class TreeViewMenu:
         self.treeview.vm_session.glwidget.queue_draw()
 
     def _surf_setup (self, menu_item = None ):
-        print('surface setup')
+        """ [EN] Opens a small setup dialog scoped to the ONE surface
+        object that was right-clicked (self.vobject_index, set by
+        open_menu() just above) -- addresses the user's report directly
+        ("quando optamos entre lines ou triangulos... altera a
+        representacao de TODAS as superficies"): every control here acts
+        on this single vismol_object only, never on
+        vm_session.vm_objects_dic as a whole.
+
+        Detects vismol_object.surface_type (set when the surface was
+        first generated -- see on_render_button() in
+        surface_analysis_window.py) and only shows the controls that
+        actually apply to that type:
+          - always: Wireframe/Solid, Opacity, Smooth shading (these three
+            are plain rendering flags on SurfaceRepresentation -- see
+            representations.py -- so applying them needs no recompute at
+            all, for any surface type).
+          - orbital / density / potential (the types with a flat colour
+            per lobe): Color (+) / Color (-) buttons, applied via
+            recolor_surface_lobe() (cheap -- no recompute).
+          - mep: Colormap / vmin / vmax, applied via recolor_mep_surface()
+            (also cheap -- reuses the cached, pre-colormap potential
+            values instead of re-running GridDensity/Isosurface/
+            GridPotential/build_potential_interpolator; see that
+            function's own docstring in surface_analysis_window.py, and
+            the user's original request: "quero mexer no vmin e vmax do
+            MEP... todo o calculo tem que ser refeito, isso nao e bom"). """
+        vismol_object = self.treeview.main.vm_session.vm_objects_dic[self.vobject_index]
+        vm_glcore     = self.treeview.main.vm_session.vm_glcore
+        surface_type  = getattr ( vismol_object, "surface_type", None )
+
+        def get_surface_reps ( ):
+            """ Every representation of THIS object that actually supports
+            the render-mode/alpha/shading setters (i.e. every
+            SurfaceRepresentation it has -- normally exactly one, or two
+            for a plus/minus pair, since both lobes are separate
+            representation instances sharing the same vismol_object). """
+            return [ r for r in vismol_object.representations.values ( )
+                     if hasattr ( r, "set_render_mode" ) ]
+
+        reps = get_surface_reps ( )
+        # Estado atual (pra a janela abrir refletindo o que ja esta na
+        # tela, nao sempre nos valores padrao) -- lido da primeira
+        # representacao encontrada; todas as representacoes do mesmo
+        # objeto devem estar em sincronia, ja que so podem ter sido
+        # mudadas por esta mesma janela (uma instancia por objeto).
+        current_render_mode    = reps[0].render_mode       if reps else "surface"
+        current_alpha          = reps[0].alpha             if reps else 1.0
+        current_smooth_shading = reps[0].smooth_shading    if reps else False
+
+        window = Gtk.Window ( title = "Surface Setup -- {}".format ( vismol_object.name ) )
+        window.set_border_width ( 10 )
+        window.set_default_size ( 260, -1 )
+        window.set_keep_above ( True )
+        self._surf_setup_window = window   # mantem referencia viva (padrao ja usado por self.preferences etc. neste arquivo)
+
+        vbox = Gtk.Box ( orientation = Gtk.Orientation.VERTICAL, spacing = 8 )
+        window.add ( vbox )
+
+        label_type = Gtk.Label ( label = "Type: {}".format ( surface_type or "unknown" ) )
+        label_type.set_xalign ( 0 )
+        vbox.pack_start ( label_type, False, False, 0 )
+        vbox.pack_start ( Gtk.Separator ( orientation = Gtk.Orientation.HORIZONTAL ), False, False, 4 )
+
+        # --- controles comuns a QUALQUER tipo de superficie ---
+        chk_wireframe = Gtk.CheckButton ( label = "Wireframe" )
+        chk_wireframe.set_active ( current_render_mode == "lines" )
+        def on_wireframe_toggled ( w ):
+            mode = "lines" if w.get_active ( ) else "surface"
+            for rep in get_surface_reps ( ):
+                rep.set_render_mode ( mode )
+            vm_glcore.queue_draw ( )
+        chk_wireframe.connect ( "toggled", on_wireframe_toggled )
+        vbox.pack_start ( chk_wireframe, False, False, 0 )
+
+        label_opacity = Gtk.Label ( label = "Opacity:" )
+        label_opacity.set_xalign ( 0 )
+        scale_opacity = Gtk.Scale.new_with_range ( Gtk.Orientation.HORIZONTAL, 0, 100, 1 )
+        scale_opacity.set_value ( current_alpha * 100.0 )
+        scale_opacity.set_value_pos ( Gtk.PositionType.RIGHT )
+        def on_opacity_changed ( w ):
+            alpha = w.get_value ( ) / 100.0
+            for rep in get_surface_reps ( ):
+                rep.set_alpha ( alpha )
+            vm_glcore.queue_draw ( )
+        scale_opacity.connect ( "value-changed", on_opacity_changed )
+        vbox.pack_start ( label_opacity, False, False, 0 )
+        vbox.pack_start ( scale_opacity, False, False, 0 )
+
+        chk_smooth = Gtk.CheckButton ( label = "Smooth shading" )
+        chk_smooth.set_active ( current_smooth_shading )
+        def on_smooth_toggled ( w ):
+            mode = "smooth" if w.get_active ( ) else "flat"
+            for rep in get_surface_reps ( ):
+                rep.set_shading_mode ( mode )
+            vm_glcore.queue_draw ( )
+        chk_smooth.connect ( "toggled", on_smooth_toggled )
+        vbox.pack_start ( chk_smooth, False, False, 0 )
+
+        # --- controles especificos do tipo ---
+        if surface_type in ( "orbital", "density", "potential" ):
+            vbox.pack_start ( Gtk.Separator ( orientation = Gtk.Orientation.HORIZONTAL ), False, False, 4 )
+
+            def _current_lobe_rgba ( surf_name, fallback ):
+                """ Le a cor ATUAL desse lobulo direto do cache (primeiro
+                frame), pra pre-preencher o ColorButton -- fallback se o
+                lobulo nao existir (ex: alguns tipos podem nao ter
+                'obital_minus'). """
+                try:
+                    frame0 = vismol_object.surface_trajectory[0]
+                    colors = frame0[surf_name][1]
+                    return float ( colors[0] ), float ( colors[1] ), float ( colors[2] )
+                except Exception:
+                    return fallback
+
+            hbox_colors = Gtk.Box ( orientation = Gtk.Orientation.HORIZONTAL, spacing = 10 )
+
+            label_plus = Gtk.Label ( label = "Color (+):" )
+            btn_color_plus = Gtk.ColorButton ( )
+            r, g, b = _current_lobe_rgba ( "obital_plus", (1.0, 0.0, 0.0) )
+            btn_color_plus.set_rgba ( Gdk.RGBA ( r, g, b, 1.0 ) )
+            def on_color_plus_set ( w ):
+                rgba = w.get_rgba ( )
+                recolor_surface_lobe ( vismol_object, "obital_plus", (rgba.red, rgba.green, rgba.blue) )
+                vm_glcore.queue_draw ( )
+            btn_color_plus.connect ( "color-set", on_color_plus_set )
+
+            label_minus = Gtk.Label ( label = "Color (-):" )
+            btn_color_minus = Gtk.ColorButton ( )
+            r, g, b = _current_lobe_rgba ( "obital_minus", (0.0, 0.0, 1.0) )
+            btn_color_minus.set_rgba ( Gdk.RGBA ( r, g, b, 1.0 ) )
+            def on_color_minus_set ( w ):
+                rgba = w.get_rgba ( )
+                recolor_surface_lobe ( vismol_object, "obital_minus", (rgba.red, rgba.green, rgba.blue) )
+                vm_glcore.queue_draw ( )
+            btn_color_minus.connect ( "color-set", on_color_minus_set )
+
+            hbox_colors.pack_start ( label_plus, False, False, 0 )
+            hbox_colors.pack_start ( btn_color_plus, False, False, 0 )
+            hbox_colors.pack_start ( label_minus, False, False, 0 )
+            hbox_colors.pack_start ( btn_color_minus, False, False, 0 )
+            vbox.pack_start ( hbox_colors, False, False, 0 )
+
+        elif surface_type == "mep":
+            vbox.pack_start ( Gtk.Separator ( orientation = Gtk.Orientation.HORIZONTAL ), False, False, 4 )
+
+            cmap_names = sorted ( COLOR_MAPS.keys ( ) )
+            current_cmap = getattr ( vismol_object, "mep_cmap_name", "coolwarm" )
+            current_vmin = getattr ( vismol_object, "mep_vmin", None )
+            current_vmax = getattr ( vismol_object, "mep_vmax", None )
+
+            label_cmap = Gtk.Label ( label = "Colormap:" )
+            label_cmap.set_xalign ( 0 )
+            cbx_cmap = Gtk.ComboBoxText ( )
+            for cname in cmap_names:
+                cbx_cmap.append ( cname, cname )
+            cbx_cmap.set_active_id ( current_cmap if current_cmap in cmap_names else ( cmap_names[0] if cmap_names else None ) )
+
+            label_vmin = Gtk.Label ( label = "vmin:" )
+            label_vmin.set_xalign ( 0 )
+            entry_vmin = Gtk.Entry ( )
+            entry_vmin.set_placeholder_text ( "auto" )
+            if current_vmin is not None:
+                entry_vmin.set_text ( str ( current_vmin ) )
+
+            label_vmax = Gtk.Label ( label = "vmax:" )
+            label_vmax.set_xalign ( 0 )
+            entry_vmax = Gtk.Entry ( )
+            entry_vmax.set_placeholder_text ( "auto" )
+            if current_vmax is not None:
+                entry_vmax.set_text ( str ( current_vmax ) )
+
+            label_status = Gtk.Label ( label = "" )
+            label_status.set_xalign ( 0 )
+
+            def _parse_optional_float ( entry ):
+                text = entry.get_text ( ).strip ( )
+                if text == "":
+                    return None
+                try:
+                    return float ( text )
+                except ValueError:
+                    return None   # texto invalido -- cai no automatico (percentil)
+
+            btn_apply = Gtk.Button ( label = "Apply" )
+            def on_apply_clicked ( w ):
+                vmin      = _parse_optional_float ( entry_vmin )
+                vmax      = _parse_optional_float ( entry_vmax )
+                cmap_name = cbx_cmap.get_active_id ( ) or "coolwarm"
+                try:
+                    recolor_mep_surface ( vismol_object, vmin = vmin, vmax = vmax, cmap_name = cmap_name )
+                    vm_glcore.queue_draw ( )
+                    label_status.set_text ( "Updated." )
+                except ValueError as e:
+                    label_status.set_text ( str ( e ) )
+            btn_apply.connect ( "clicked", on_apply_clicked )
+
+            vbox.pack_start ( label_cmap, False, False, 0 )
+            vbox.pack_start ( cbx_cmap, False, False, 0 )
+            vbox.pack_start ( label_vmin, False, False, 0 )
+            vbox.pack_start ( entry_vmin, False, False, 0 )
+            vbox.pack_start ( label_vmax, False, False, 0 )
+            vbox.pack_start ( entry_vmax, False, False, 0 )
+            vbox.pack_start ( btn_apply, False, False, 0 )
+            vbox.pack_start ( label_status, False, False, 0 )
+
+        window.show_all ( )
     
     def _menu_rename (self, menu_item = None ):
         """  

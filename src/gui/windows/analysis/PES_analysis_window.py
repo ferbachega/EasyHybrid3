@@ -579,7 +579,7 @@ class PotentialEnergyAnalysisWindow:
         # objetos vindos de uma varredura PES 2D. Sem ela, aborta com aviso em
         # vez de estourar AttributeError no loop abaixo.
         if not getattr(self.vobject, 'idx_2D_xy', False):
-            print("[PES] export de trajetoria indisponivel: objeto sem grade 2D (idx_2D_xy).")
+            print("[PES] trajectory export unavailable: object has no 2D grid (idx_2D_xy).")
             return
 
         active_id = self.main.p_session.active_id

@@ -231,7 +231,7 @@ class SelectionListWindow(Gtk.Window):
         iterador = modelo.get_iter(path)
         nome = modelo.get_value(iterador, 0)
         id_valor = modelo.get_value(iterador, 1)
-        print(f"Duplo clique na linha: {nome} (ID={id_valor})")
+        print(f"Double click on row: {nome} (ID={id_valor})")
 
     def _on_cell_visible_toggled (self, widget, path):
         """ 

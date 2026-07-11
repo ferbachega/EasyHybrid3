@@ -203,9 +203,9 @@ class Command:
         except TypeError as te:
             # typically a wrong argument: show the signature to help
             sig = inspect.signature(method)
-            return "Uso: {} {}\n  ({})".format(name, self._sig_hint(sig), te)
+            return "Usage: {} {}\n  ({})".format(name, self._sig_hint(sig), te)
         except Exception as exc:
-            return "Erro em '{}': {}".format(name, exc)
+            return "Error in '{}': {}".format(name, exc)
 
     @staticmethod
     def _sig_hint(sig):
@@ -382,12 +382,12 @@ class Command:
         if cmd is not None:
             method = getattr(self, "cmd_" + cmd, None)
             if method is None:
-                return ("Comando '{}' nao existe. Comandos disponiveis: {}"
+                return ("Command '{}' does not exist. Available commands: {}"
                         .format(cmd, ", ".join(self.command_names())))
-            doc = inspect.getdoc(method) or "(sem descricao)"
+            doc = inspect.getdoc(method) or "(no description)"
             return "{}\n{}\n{}".format(cmd, "-" * len(cmd), doc)
 
-        lines = ["Available commands (use 'help cmd=<nome>' para detalhes e exemplos):"]
+        lines = ["Available commands (use 'help cmd=<name>' for details and examples):"]
         for name in self.command_names():
             method = getattr(self, "cmd_" + name)
             doc = (method.__doc__ or "").strip().split("\n")[0]
@@ -934,17 +934,17 @@ class Command:
         from gui.windows.builder.click_mode import enable_atom_placement_mode, disable_atom_placement_mode
         if not on or (isinstance(on, str) and on.lower() in ("false", "off", "0")):
             disable_atom_placement_mode(self.vm_session)
-            return "Modo de colocar atomo DESLIGADO."
+            return "Place-atom mode OFF."
         if obj is None:
-            return "Uso: placemode on=true obj=<indice> symbol=C"
+            return "Usage: placemode on=true obj=<index> symbol=C"
         try:
             vobj = self.vm_session.vm_objects_dic[int(obj)]
         except (KeyError, ValueError):
-            return "Objeto '{}' nao encontrado. Use 'list' pra ver os indices.".format(obj)
+            return "Object '{}' not found. Use 'list' to see the indices.".format(obj)
         enable_atom_placement_mode(self.vm_session, vobj, symbol=symbol)
-        return ("Modo de colocar atomo LIGADO -- objeto '{}', elemento {}. "
-                "Clique com o botao ESQUERDO na tela 3D (sem arrastar) pra "
-                "adicionar atomos. Use 'placemode on=false' pra desligar.").format(vobj.name, symbol)
+        return ("Place-atom mode ON -- object '{}', element {}. "
+                "LEFT-click on the 3D view (no dragging) to "
+                "add atoms. Use 'placemode on=false' to turn it off.").format(vobj.name, symbol)
 
     def cmd_tool(self, name="add", **_):
         """ Switches which action a plain click performs while
@@ -961,13 +961,13 @@ class Command:
         if self.vm_session is None:
             return "Session unavailable."
         if not getattr(self.vm_session, "builder_atom_mode", False):
-            return "Builder nao esta ligado -- use 'placemode' primeiro."
+            return "Builder is not on -- use 'placemode' first."
         from gui.windows.builder.click_mode import set_tool
         try:
             set_tool(self.vm_session, name)
         except ValueError as e:
             return str(e)
-        return "Ferramenta do Builder = '{}'.".format(name)
+        return "Builder tool = '{}'.".format(name)
 
     def cmd_bond(self, obj=None, atom1=None, atom2=None, **_):
         """ Adds a bond. Two ways to use:
@@ -987,14 +987,14 @@ class Command:
             try:
                 vobj = self.vm_session.vm_objects_dic[int(obj)]
             except (KeyError, ValueError):
-                return "Objeto '{}' nao encontrado. Use 'list' pra ver os indices.".format(obj)
+                return "Object '{}' not found. Use 'list' to see the indices.".format(obj)
             from gui.windows.builder.atom_ops import add_bond
             try:
                 created = add_bond(vobj, int(atom1), int(atom2))
             except ValueError as e:
                 return str(e)
-            return ("Ligacao criada entre atomo {} e atomo {}.".format(atom1, atom2) if created
-                    else "Ja existia uma ligacao entre esses 2 atomos.")
+            return ("Bond created between atom {} and atom {}.".format(atom1, atom2) if created
+                    else "A bond between these 2 atoms already existed.")
         from gui.windows.builder.click_mode import handle_bond_shortcut
         return handle_bond_shortcut(self.vm_session)
 
@@ -1015,14 +1015,14 @@ class Command:
         if self.vm_session is None:
             return "Session unavailable."
         if obj is None:
-            return "Uso: add obj=<indice> symbol=C x=0.0 y=0.0 z=0.0"
+            return "Usage: add obj=<index> symbol=C x=0.0 y=0.0 z=0.0"
         try:
             vobj = self.vm_session.vm_objects_dic[int(obj)]
         except (KeyError, ValueError):
-            return "Objeto '{}' nao encontrado. Use 'list' pra ver os indices.".format(obj)
+            return "Object '{}' not found. Use 'list' to see the indices.".format(obj)
         from gui.windows.builder.atom_ops import add_atom
         atom = add_atom(vobj, symbol=symbol, x=float(x), y=float(y), z=float(z))
-        return "Atomo adicionado: {} #{} em ({}, {}, {}) -- objeto agora tem {} atomo(s)".format(
+        return "Atom added: {} #{} at ({}, {}, {}) -- object now has {} atom(s)".format(
             atom.symbol, atom.atom_id, x, y, z, len(vobj.atoms))
 
     def cmd_delete(self, obj=None, atom=None, **_):
@@ -1041,17 +1041,17 @@ class Command:
         if self.vm_session is None:
             return "Session unavailable."
         if obj is None or atom is None:
-            return "Uso: delete obj=<indice> atom=<atom_id>"
+            return "Usage: delete obj=<index> atom=<atom_id>"
         try:
             vobj = self.vm_session.vm_objects_dic[int(obj)]
         except (KeyError, ValueError):
-            return "Objeto '{}' nao encontrado. Use 'list' pra ver os indices.".format(obj)
+            return "Object '{}' not found. Use 'list' to see the indices.".format(obj)
         from gui.windows.builder.atom_ops import remove_atom
         try:
             remove_atom(vobj, int(atom))
         except ValueError as e:
             return str(e)
-        return "Atomo {} removido -- objeto agora tem {} atomo(s).".format(atom, len(vobj.atoms))
+        return "Atom {} removed -- object now has {} atom(s).".format(atom, len(vobj.atoms))
 
     def cmd_load(self, file=None, **_):
         """ Loads a molecule from a file on disk (PDB, XYZ, and any

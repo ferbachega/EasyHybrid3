@@ -581,6 +581,29 @@ class SurfaceAnalysisWindow(Gtk.Window):
             #'''--------------------------------------------------------------------------------------------'''
 
 
+            #                       TARGET SURFACE OBJECT SELECTOR
+            #'''--------------------------------------------------------------------------------------------'''
+            # [EN] Added so that the wireframe/opacity/smooth-shading (and,
+            # from now on, MEP colour-scale) controls below apply to ONE
+            # specific surface VismolObject, chosen here -- instead of every
+            # surface object in the session at once, which is what all
+            # three handlers used to do (walking every vm_objects_dic entry
+            # with is_surface == True). Repopulated by
+            # _refresh_surface_target_combo() every time this window opens
+            # and every time a new surface finishes generating (auto-
+            # selecting the one just created, so the common "generate then
+            # immediately tweak it" flow needs no extra clicking).
+            self.label_surface_target = Gtk.Label(label="Target surface:")
+            self.cbx_surface_target = Gtk.ComboBoxText()
+            self.cbx_surface_target.set_tooltip_text(
+                "Which already-generated surface the controls below (Wireframe, "
+                "Opacity, Smooth shading, and the MEP color scale) affect. "
+                "Only this one, not every surface in the session.")
+            self.box_surface_type.pack_start(self.label_surface_target, False, False, 0)
+            self.box_surface_type.pack_start(self.cbx_surface_target, False, False, 0)
+            #'''--------------------------------------------------------------------------------------------'''
+
+
             #                       RENDER MODE (superficie preenchida vs wireframe)
             #'''--------------------------------------------------------------------------------------------'''
             self.chk_surface_wireframe = Gtk.CheckButton(label="Wireframe")
@@ -599,9 +622,9 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.scale_surface_opacity.set_value_pos ( Gtk.PositionType.RIGHT )
             self.scale_surface_opacity.connect ( "value-changed", self.on_surface_opacity_changed )
             self.scale_surface_opacity.set_tooltip_text (
-                "Opacidade das superficies (100% = opaco, 0% = totalmente "
-                "transparente). Aplica em todas as superficies ja criadas "
-                "nesta sessao (orbitais, potencial, densidade, MEP...).")
+                "Opacity of the surfaces (100% = opaque, 0% = fully "
+                "transparent). Applies to every surface already created "
+                "in this session (orbitals, potential, density, MEP...).")
 
             self.box_surface_type.pack_start(self.label_surface_opacity, False, False, 0)
             self.box_surface_type.pack_start(self.scale_surface_opacity, True, True, 0)
@@ -613,12 +636,12 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.chk_surface_smooth = Gtk.CheckButton(label="Smooth shading")
             self.chk_surface_smooth.connect("toggled", self.on_surface_smooth_toggled)
             self.chk_surface_smooth.set_tooltip_text(
-                "Desligado (padrao): normal constante por face (flat "
-                "shading) -- mostra as facetas da triangulacao do marching "
-                "cubes.\n"
-                "Ligado: normal interpolada por vertice, media das faces "
-                "adjacentes (smooth shading) -- superficie com aparencia "
-                "mais lisa, sem facetas aparentes.")
+                "Off (default): constant normal per face (flat "
+                "shading) -- shows the marching-cubes triangulation's "
+                "facets.\n"
+                "On: normal interpolated per vertex, averaged from "
+                "adjacent faces (smooth shading) -- surface has a "
+                "smoother appearance, with no visible facets.")
             self.box_surface_type.pack_start(self.chk_surface_smooth, False, False, 0)
             #'''--------------------------------------------------------------------------------------------'''
 
@@ -630,18 +653,18 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.entry_mep_vmin.set_width_chars(8)
             self.entry_mep_vmin.set_placeholder_text("auto")
             self.entry_mep_vmin.set_tooltip_text(
-                "Valor minimo do potencial eletrostatico (em unidades "
-                "atomicas, hartree/e) usado na escala de cor do MEP.\n"
-                "Vazio = automatico (percentil 2% dos valores calculados).")
+                "Minimum electrostatic potential value (in atomic "
+                "units, hartree/e) used for the MEP color scale.\n"
+                "Empty = automatic (2nd percentile of the computed values).")
 
             self.label_mep_vmax = Gtk.Label(label="vmax:")
             self.entry_mep_vmax = Gtk.Entry()
             self.entry_mep_vmax.set_width_chars(8)
             self.entry_mep_vmax.set_placeholder_text("auto")
             self.entry_mep_vmax.set_tooltip_text(
-                "Valor maximo do potencial eletrostatico (em unidades "
-                "atomicas, hartree/e) usado na escala de cor do MEP.\n"
-                "Vazio = automatico (percentil 98% dos valores calculados).")
+                "Maximum electrostatic potential value (in atomic "
+                "units, hartree/e) used for the MEP color scale.\n"
+                "Empty = automatic (98th percentile of the computed values).")
 
             self.box_surface_type.pack_start(self.label_mep_vmin, False, False, 0)
             self.box_surface_type.pack_start(self.entry_mep_vmin, False, False, 0)
@@ -661,11 +684,11 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.label_mep_cmap = Gtk.Label(label="Colormap:")
             self.cbx_mep_cmap   = Gtk.ComboBoxText()
             self.cbx_mep_cmap.set_tooltip_text(
-                "Colormap usado pra mapear o potencial eletrostatico em cor "
-                "(ver COLOR_MAPS em util/colormaps.py). Mapas divergentes "
-                "(coolwarm, vik, berlin, bam) tem convencao vermelho="
-                "negativo/azul=positivo; mapas sequenciais (jet, rainbow, "
-                "gnuplot, magma, viridis...) nao tem centro definido.")
+                "Colormap used to map the electrostatic potential to color "
+                "(see COLOR_MAPS in util/colormaps.py). Diverging maps "
+                "(coolwarm, vik, berlin, bam) follow the red="
+                "negative/blue=positive convention; sequential maps (jet, "
+                "rainbow, gnuplot, magma, viridis...) have no defined center.")
 
             self._mep_cmap_names = list ( COLOR_MAPS.keys() )
             for i, name in enumerate ( self._mep_cmap_names ):
@@ -703,20 +726,20 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.entry_mep_pot_spacing.set_width_chars(8)
             self.entry_mep_pot_spacing.set_placeholder_text("auto (2.5x)")
             self.entry_mep_pot_spacing.set_tooltip_text(
-                "Espacamento do grid usado SO para calcular o potencial "
-                "eletrostatico (em Bohr -- unidades atomicas, mesma "
-                "convencao do campo de espacamento principal). Pode ser "
-                "bem mais grosseiro que o espacamento da densidade (que "
-                "define a geometria da malha) sem perda visual perceptivel, "
-                "porque o valor e interpolado trilinearmente nos vertices "
-                "da malha de densidade de qualquer forma.\n"
-                "Vazio = automatico (2.5x o espacamento principal).\n"
-                "Motivo: calcular o potencial eletrostatico e MUITO mais "
-                "caro que calcular a densidade no mesmo grid (medido: "
-                "~180x mais lento em um caso real) -- um grid mais "
-                "grosseiro so pro potencial reduz esse custo "
-                "drasticamente (2.5x mais grosseiro = grid com ~2.5^3 "
-                "= ~15x menos pontos = ~15x mais rapido).")
+                "Grid spacing used ONLY to calculate the electrostatic "
+                "potential (in Bohr -- atomic units, same convention "
+                "as the main spacing field). Can be considerably "
+                "coarser than the density spacing (which defines the "
+                "mesh geometry) with no perceptible visual loss, "
+                "because the value is trilinearly interpolated at the "
+                "density mesh vertices anyway.\n"
+                "Empty = automatic (2.5x the main spacing).\n"
+                "Reason: computing the electrostatic potential is MUCH "
+                "more expensive than computing the density on the same "
+                "grid (measured: ~180x slower in a real case) -- a "
+                "coarser grid just for the potential drastically "
+                "reduces this cost (2.5x coarser = grid with ~2.5^3 "
+                "= ~15x fewer points = ~15x faster).")
             self.box_surface_type.pack_start(self.label_mep_pot_spacing, False, False, 0)
             self.box_surface_type.pack_start(self.entry_mep_pot_spacing, False, False, 0)
             self.label_mep_pot_spacing.hide()
@@ -758,6 +781,39 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 column = Gtk.TreeViewColumn(column_title, renderer, text=i)
                 self.treeview.append_column(column)
             
+            # [EN] "Export orbital energies..." button -- user request:
+            # print/export the orbital energies (already computed in
+            # generate_wavefunction_parallel() below, via
+            # system.scratch.orbitalsP.energies) as a plain tab-separated
+            # text table, pasteable directly into a spreadsheet program.
+            # Added programmatically (no .glade edit) -- same pattern
+            # already used throughout this window for the MEP fields,
+            # the "Target surface" combobox, etc. selection_treeview (the
+            # widget just built above) sits inside an UNNAMED
+            # GtkScrolledWindow in the .glade file, itself a sibling of
+            # the box holding box_surface_type/btn_external_file/etc --
+            # navigated to here via get_parent() twice rather than adding
+            # a new named container to the .glade file.
+            self.btn_export_orbitals = Gtk.Button ( label = "Export orbital energies..." )
+            self.btn_export_orbitals.set_tooltip_text (
+                "Saves a table (TAB-separated text, pastes directly into a "
+                "spreadsheet) with index, label (HOMO/LUMO), occupancy "
+                "and energy (Hartree and eV) for each orbital, for every "
+                "frame already computed (every frame with an imported "
+                "wavefunction, not just the current frame)." )
+            self.btn_export_orbitals.connect ( "clicked", self.on_button_export_orbitals )
+            _scrolled_parent = self.treeview.get_parent ( )
+            if _scrolled_parent is not None:
+                _outer_box = _scrolled_parent.get_parent ( )
+                if _outer_box is not None and hasattr ( _outer_box, "pack_start" ):
+                    _outer_box.pack_start ( self.btn_export_orbitals, False, False, 4 )
+                    self.btn_export_orbitals.show ( )
+            # [EN] User request: "ao clicar em um orbital da treeview, ele
+            # printe os dados da LCAO no terminal, por hora." --
+            # "cursor-changed" fires on a plain single click/selection
+            # change (unlike "row-activated", which normally needs a
+            # double-click or Enter) -- matches "ao clicar" literally.
+            self.treeview.connect ( "cursor-changed", self.on_orbital_row_selected )
             #-----------------------------------------------------------
             self.btn_render = self.builder.get_object('btn_render')
             self.btn_render.connect('clicked', self.on_render_button)
@@ -796,23 +852,23 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.btn_external_file = self.builder.get_object('btn_external_file')
             self.btn_external_file.connect("file-set", self.on_external_density_file_set)
             self.btn_external_file.set_tooltip_text(
-                "Arquivo .cube de densidade ou orbital (ex: gerado pelo orca_plot "
-                "do ORCA). A malha da superficie vem daqui.")
+                "Density or orbital .cube file (e.g. generated by ORCA's "
+                "orca_plot). The surface mesh comes from here.")
 
-            self.label_external_potential = Gtk.Label(label="Potential .cube (opcional p/ MEP):")
+            self.label_external_potential = Gtk.Label(label="Potential .cube (optional, for MEP):")
             self.btn_external_potential_file = Gtk.FileChooserButton(
-                title  = "Selecione o arquivo .cube de potencial (opcional)",
+                title  = "Select the potential .cube file (optional)",
                 action = Gtk.FileChooserAction.OPEN,
             )
             _cube_filter = Gtk.FileFilter()
-            _cube_filter.set_name("Arquivos Cube (*.cube)")
+            _cube_filter.set_name("Cube files (*.cube)")
             _cube_filter.add_pattern("*.cube")
             self.btn_external_potential_file.add_filter(_cube_filter)
             self.btn_external_potential_file.connect("file-set", self.on_external_potential_file_set)
             self.btn_external_potential_file.set_tooltip_text(
-                "Opcional. Se fornecido, colore a malha de densidade/orbital "
-                "acima por potencial eletrostatico interpolado desse cubo "
-                "(mapa continuo de cor, igual ao MEP -- ver mep_colormap).")
+                "Optional. If given, colors the density/orbital mesh "
+                "above by electrostatic potential interpolated from this "
+                "cube (a continuous color map, same as MEP -- see mep_colormap).")
             self.box_surface_type.pack_start(self.label_external_potential, False, False, 0)
             self.box_surface_type.pack_start(self.btn_external_potential_file, False, False, 0)
             self.label_external_potential.hide()
@@ -889,48 +945,86 @@ class SurfaceAnalysisWindow(Gtk.Window):
     # the mesh -- they only flip a rendering-time flag/uniform that was
     # added to SurfaceRepresentation (representations.py) during this
     # session. See changelog items 2, 3 and 4 at the top of this file.
+    #
+    # [EN] UPDATED: these three handlers used to act on EVERY surface
+    # object in the session at once -- the user reported this directly
+    # ("quando optamos entre lines ou triangulos... altera a representacao
+    # de TODAS as superficies"). They now act on exactly ONE object: the
+    # one currently chosen in self.cbx_surface_target (see that combobox's
+    # own comment, and _refresh_surface_target_combo() /
+    # _get_target_surface_object() right below).
+    def _refresh_surface_target_combo (self, select_index = None):
+        """ Repopulates self.cbx_surface_target from every vismol object in
+        the session currently flagged is_surface == True. Call this: (a)
+        once when the window opens, so surfaces from an earlier session
+        already show up; (b) right after a new surface finishes
+        generating, passing select_index=<the new object's own .index>,
+        so it becomes the active target immediately (the common
+        "generate then tweak it" flow needs no extra clicking to select
+        what was just made). """
+        self.cbx_surface_target.remove_all ( )
+        surfaces = [ v for v in self.vm_session.vm_objects_dic.values ( )
+                     if getattr ( v, "is_surface", False ) ]
+        active_row = 0
+        for row, vobject in enumerate ( surfaces ):
+            self.cbx_surface_target.append ( str ( vobject.index ), vobject.name )
+            if select_index is not None and vobject.index == select_index:
+                active_row = row
+        if surfaces:
+            self.cbx_surface_target.set_active ( active_row )
+
+    def _get_target_surface_object (self):
+        """ Returns the VismolObject currently chosen in
+        self.cbx_surface_target, or None if there isn't one (combobox
+        empty -- no surface generated yet in this session). """
+        active_id = self.cbx_surface_target.get_active_id ( )
+        if active_id is None:
+            return None
+        return self.vm_session.vm_objects_dic.get ( int ( active_id ) )
+
     def on_surface_wireframe_toggled (self, widget):
         """ Alterna entre superficie preenchida (GL_FILL) e wireframe (GL_LINE)
-        para todas as representacoes de superficie ja criadas nesta sessao.
-        Nao recalcula malha nem recompila shader -- so muda o render_mode
-        de cada SurfaceRepresentation encontrada (ver representations.py). """
+        para a superficie escolhida em self.cbx_surface_target (so essa --
+        ver o comentario acima e o da propria combobox). Nao recalcula
+        malha nem recompila shader -- so muda o render_mode de cada
+        representacao encontrada nesse UM objeto (ver representations.py). """
         mode = "lines" if widget.get_active() else "surface"
-        for vobject in self.vm_session.vm_objects_dic.values():
-            if not getattr(vobject, "is_surface", False):
-                continue
-            for rep in vobject.representations.values():
-                if hasattr(rep, "set_render_mode"):
-                    rep.set_render_mode(mode)
+        vobject = self._get_target_surface_object ( )
+        if vobject is None:
+            return
+        for rep in vobject.representations.values():
+            if hasattr(rep, "set_render_mode"):
+                rep.set_render_mode(mode)
         self.vm_session.vm_glcore.queue_draw()
 
     def on_surface_opacity_changed (self, widget):
-        """ Ajusta a opacidade (alpha) de todas as representacoes de
-        superficie ja criadas nesta sessao. widget.get_value() vai de 0
+        """ Ajusta a opacidade (alpha) da superficie escolhida em
+        self.cbx_surface_target (so essa). widget.get_value() vai de 0
         a 100 (%); SurfaceRepresentation.set_alpha() espera 0.0-1.0. """
         alpha = widget.get_value() / 100.0
-        for vobject in self.vm_session.vm_objects_dic.values():
-            if not getattr(vobject, "is_surface", False):
-                continue
-            for rep in vobject.representations.values():
-                if hasattr(rep, "set_alpha"):
-                    rep.set_alpha(alpha)
+        vobject = self._get_target_surface_object ( )
+        if vobject is None:
+            return
+        for rep in vobject.representations.values():
+            if hasattr(rep, "set_alpha"):
+                rep.set_alpha(alpha)
         self.vm_session.vm_glcore.queue_draw()
 
     def on_surface_smooth_toggled (self, widget):
         """ Alterna entre flat shading (normal por face) e smooth shading
-        (normal por vertice, media das faces adjacentes) em todas as
-        representacoes de superficie ja criadas nesta sessao. Nao
-        recalcula a malha -- as normais suaves ja foram calculadas na
-        geracao (surface.MakeVertexNormalsFromPolygonalNormals(), nativo
-        do pDynamo3) e enviadas pro VAO; aqui so muda qual delas o
-        shader usa (ver geometry_shader_surface). """
+        (normal por vertice, media das faces adjacentes) na superficie
+        escolhida em self.cbx_surface_target (so essa). Nao recalcula a
+        malha -- as normais suaves ja foram calculadas na geracao
+        (surface.MakeVertexNormalsFromPolygonalNormals(), nativo do
+        pDynamo3) e enviadas pro VAO; aqui so muda qual delas o shader
+        usa (ver geometry_shader_surface). """
         mode = "smooth" if widget.get_active() else "flat"
-        for vobject in self.vm_session.vm_objects_dic.values():
-            if not getattr(vobject, "is_surface", False):
-                continue
-            for rep in vobject.representations.values():
-                if hasattr(rep, "set_shading_mode"):
-                    rep.set_shading_mode(mode)
+        vobject = self._get_target_surface_object ( )
+        if vobject is None:
+            return
+        for rep in vobject.representations.values():
+            if hasattr(rep, "set_shading_mode"):
+                rep.set_shading_mode(mode)
         self.vm_session.vm_glcore.queue_draw()
 
     # [EN] btn_external_file is a GtkFileChooserButton defined in the .glade
@@ -1156,6 +1250,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
         vobject_tmp.frames = vismol_object.frames
         vobject_tmp.active = True
         vobject_tmp.is_surface = True
+        vobject_tmp.surface_type = "orbital"   # usado por _surf_setup() no menu de contexto da arvore
         vobject_tmp.e_id = system.e_id
         self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
         
@@ -1349,6 +1444,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             vobject_tmp.frames = vismol_object.frames
             vobject_tmp.active = False
             vobject_tmp.is_surface = True
+            vobject_tmp.surface_type = "density"   # usado por _surf_setup() no menu de contexto da arvore
             vobject_tmp.e_id = system.e_id
             self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
             
@@ -1445,6 +1541,22 @@ class SurfaceAnalysisWindow(Gtk.Window):
             vobject_tmp.frames = vismol_object.frames
             vobject_tmp.active = False
             vobject_tmp.is_surface = True
+            vobject_tmp.surface_type = "mep"   # usado por _surf_setup() no menu de contexto da arvore
+            # [EN] Caches, per frame, exactly what's needed to redo the
+            # colour scale (vmin/vmax/colormap) cheaply later -- see the
+            # matching comment where these two keys are added to the
+            # returned dict inside generate_grid_parallel()'s 'mep'
+            # branch. Kept as one list per frame (mirroring
+            # surface_trajectory's own per-frame structure) rather than
+            # just the first frame, so a future per-frame MEP recolor
+            # (not implemented yet -- current _surf_setup only recolors
+            # whichever frame is currently displayed) has what it needs
+            # without another full recompute.
+            vobject_tmp.mep_potential_values = [ r.get ( 'mep_raw_potential_values' ) for r in results ]
+            vobject_tmp.mep_polygons         = [ r.get ( 'mep_raw_polygons' )         for r in results ]
+            vobject_tmp.mep_vmin      = _mep_vmin
+            vobject_tmp.mep_vmax      = _mep_vmax
+            vobject_tmp.mep_cmap_name = _mep_cmap_name
             vobject_tmp.e_id = system.e_id
             self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
             
@@ -1456,8 +1568,8 @@ class SurfaceAnalysisWindow(Gtk.Window):
 
         elif index == 3:
             if not self.external_density_path:
-                print("Nenhum arquivo .cube de densidade/orbital selecionado -- "
-                      "clique em 'Escolher arquivo...' antes de renderizar.")
+                print("No density/orbital .cube file selected -- "
+                      "click 'Choose file...' before rendering.")
                 return False
 
             _mep_cmap_idx = self.cbx_mep_cmap.get_active() if hasattr(self, "_mep_cmap_names") else -1
@@ -1484,7 +1596,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             try:
                 single_result = generate_grid_parallel ( [ 0, None, None, parameters ] )
             except CubeFileError as error:
-                print ( "Erro lendo arquivo .cube: {}".format ( error ) )
+                print ( "Error reading .cube file: {}".format ( error ) )
                 return False
 
             # replica o mesmo resultado pra todos os "frames" do objeto
@@ -1522,6 +1634,23 @@ class SurfaceAnalysisWindow(Gtk.Window):
             vobject_tmp.frames = vismol_object.frames
             vobject_tmp.active = False
             vobject_tmp.is_surface = True
+            # [EN] External cube surfaces are only MEP-coloured when a
+            # potential .cube was ALSO given (self.external_potential_path);
+            # otherwise it is a flat-colour surface like density/orbital.
+            # _generate_external_cube_surface() only includes
+            # mep_raw_potential_values/mep_raw_polygons in its returned dict
+            # for the MEP case (see that function), so results[0].get(...) is
+            # None in the non-MEP case and the cache attributes below are
+            # simply left unset (getattr(..., None) elsewhere handles that).
+            if self.external_potential_path:
+                vobject_tmp.surface_type = "mep"   # usado por _surf_setup() no menu de contexto da arvore
+                vobject_tmp.mep_potential_values = [ r.get ( 'mep_raw_potential_values' ) for r in results ]
+                vobject_tmp.mep_polygons         = [ r.get ( 'mep_raw_polygons' )         for r in results ]
+                vobject_tmp.mep_vmin      = parameters.get ( 'mep_vmin' )   # sempre None por enquanto (ver comentario na montagem de parameters, acima)
+                vobject_tmp.mep_vmax      = parameters.get ( 'mep_vmax' )
+                vobject_tmp.mep_cmap_name = parameters.get ( 'mep_cmap_name', 'coolwarm' )
+            else:
+                vobject_tmp.surface_type = "external"   # usado por _surf_setup() no menu de contexto da arvore
             vobject_tmp.e_id = system.e_id
             self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
             
@@ -1597,6 +1726,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             vobject_tmp.frames = vismol_object.frames
             vobject_tmp.active = False
             vobject_tmp.is_surface = True
+            vobject_tmp.surface_type = "potential"   # usado por _surf_setup() no menu de contexto da arvore
             vobject_tmp.e_id = system.e_id
             self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
             
@@ -1707,6 +1837,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             vobject_tmp.frames = vismol_object.frames
             vobject_tmp.active = False
             vobject_tmp.is_surface = True
+            vobject_tmp.surface_type = "orbital"   # usado por _surf_setup() no menu de contexto da arvore
             vobject_tmp.e_id = system.e_id
             self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
             
@@ -1801,6 +1932,220 @@ class SurfaceAnalysisWindow(Gtk.Window):
         print()
         self.treeview.set_model(self.orbital_liststore_dict[vobject_id][self.frame])
 
+    def on_orbital_row_selected (self, treeview):
+        """ [EN] User request: capture and print the LCAO (linear
+        combination of atomic orbitals) coefficients for whichever
+        orbital was just clicked in the orbital list -- "por hora"
+        (for now) just prints to the console/terminal; a proper GUI
+        display is a possible later step.
+
+        Reads orbitals_matrix (the (nBasis, nOrbitals) coefficient
+        matrix -- see generate_wavefunction_parallel()'s own comment for
+        exactly what this is and how it was captured), center_function_
+        pointers (basis-function index boundaries per QC atom), and
+        atom_symbols, all cached per-frame in self.wave_function_dict
+        alongside the orbital energies themselves.
+
+        Groups the raw coefficients by QC ATOM (not down to individual
+        shells/angular-momentum components -- that finer level is
+        available in principle, see the comment in
+        generate_wavefunction_parallel(), but not implemented here to
+        keep this first pass simple) and also prints a rough per-atom
+        "weight" (sum of squared coefficients for that atom's basis
+        functions) -- explicitly NOT a real Mulliken population (that
+        needs the overlap matrix too, to account for the atomic-orbital
+        basis not being orthonormal), just a quick, everyday indicator
+        of which atoms contribute the most to this particular orbital. """
+        selection = treeview.get_selection ( )
+        model, treeiter = selection.get_selected ( )
+        if treeiter is None:
+            return
+
+        orbital_index = model[treeiter][0]   # coluna 0 do liststore = indice do orbital (ver generate_wavefunction_parallel)
+        orbital_label  = model[treeiter][1]
+        orbital_energy = model[treeiter][3]
+
+        vobject_id = self.coordinates_combobox.get_vobject_id ( )
+        wave_data  = self.wave_function_dict.get ( vobject_id )
+        if not wave_data:
+            print ( "No orbital computed yet -- click 'Import Wavefunction' first." )
+            return
+
+        frame = self.frame if self.frame < len ( wave_data ) else 0
+        frame_data = wave_data[frame]
+        if len ( frame_data ) < 6:
+            print ( "LCAO data not available (computed with an older version, before this capture existed)." )
+            return
+
+        orbitals_matrix, center_function_pointers, atom_symbols = frame_data[3], frame_data[4], frame_data[5]
+        if orbitals_matrix is None or center_function_pointers is None or atom_symbols is None:
+            print ( "LCAO data not available for this frame (see the error message from the wavefunction import)." )
+            return
+
+        coeffs = orbitals_matrix[:, orbital_index]
+
+        print ( )
+        print ( "=== LCAO do orbital {} ({}, frame {}, energia = {:.6f} Hartree) ===".format (
+                 orbital_index, orbital_label, frame, orbital_energy ) )
+        for atom_idx, symbol in enumerate ( atom_symbols ):
+            start = int ( center_function_pointers[atom_idx] )
+            end   = int ( center_function_pointers[atom_idx + 1] )
+            atom_coeffs = coeffs[start:end]
+            rough_weight = float ( np.sum ( atom_coeffs ** 2 ) )
+            coeffs_str = ", ".join ( "{:+.4f}".format ( c ) for c in atom_coeffs )
+            print ( "  Atom {:3d} ({:>2s})  weight~{:6.2%}  coefficients = [{}]".format (
+                     atom_idx, symbol, rough_weight, coeffs_str ) )
+        print ( "  (weight = sum of squared coefficients per atom -- this is NOT a real "
+                 "Mulliken population, which would also need the overlap matrix; "
+                 "it is just a quick indicator of which atoms contribute the most.)" )
+
+    def on_button_export_orbitals (self, widget):
+        """ [EN] Writes self.wave_function_dict[vobject_id] (the orbital
+        energies already computed by on_button_import_wavefunction() /
+        generate_wavefunction_parallel() above -- system.scratch.
+        orbitalsP.energies, one list of [index, label, occupancy, energy,
+        False] per frame) out as a plain TAB-separated text table, for
+        EVERY frame that has been computed (not just the one currently
+        shown in self.treeview) -- pastes directly into a spreadsheet
+        program (Excel, LibreOffice Calc, Google Sheets: TAB-separated
+        text pastes as separate columns in all of them, no import wizard
+        needed).
+
+        Energy is given in both Hartree (pDynamo's native unit -- see
+        orbitalsP.energies itself, never converted anywhere else in this
+        file) and eV (the unit HOMO/LUMO gaps are conventionally
+        discussed in), so the exported table is directly usable without
+        the user needing to convert by hand.
+
+        Layout: each frame gets its OWN block of 5 columns (Index,
+        Label, Occupancy, Energy Hartree, Energy eV), placed SIDE BY
+        SIDE with the other frames' blocks (not stacked one below the
+        other) -- makes it easy to compare the same orbital across
+        frames just by reading across a row in the spreadsheet, rather
+        than scrolling down through one long list per frame. Rows
+        within each block are in natural (ascending) orbital-index
+        order -- NOT the reversed order self.treeview displays on
+        screen (highest index first). """
+        vobject_id = self.coordinates_combobox.get_vobject_id ( )
+        wave_data  = self.wave_function_dict.get ( vobject_id )
+        if not wave_data:
+            print ( "No orbital computed yet for this object -- "
+                     "click 'Import Wavefunction' first." )
+            return
+
+        HARTREE_TO_EV = 27.211386245988   # constante fisica padrao (CODATA)
+
+        # [EN] Layout changed at the user's request: was one row per
+        # (frame, orbital) pair, stacking every frame's block UNDERNEATH
+        # the previous one (long, hard to compare frames side by side).
+        # Now each frame gets its own group of 5 columns (Index, Label,
+        # Occupancy, Energy Hartree, Energy eV), placed NEXT TO the
+        # previous frame's block instead -- one "Frame N" header row
+        # above each group, then a shared sub-header row, then one data
+        # row per orbital index. Assumes every frame has the same number
+        # of orbitals in the same order (true for the same QC system/
+        # basis set across frames of one trajectory) -- uses the
+        # SMALLEST orbital count found, defensively, in case that's ever
+        # not the case, rather than raising an index error.
+        n_frames   = len ( wave_data )
+        n_orbitals = min ( len ( data[0] ) for data in wave_data ) if wave_data else 0
+
+        header_frame_row = []
+        header_column_row = []
+        for frame in range ( n_frames ):
+            header_frame_row.append ( "Frame {}".format ( frame ) )
+            header_frame_row.extend ( [ "" ] * 4 )   # preenche o resto do bloco de 5 colunas, so pro rotulo "Frame N" ficar alinhado com a primeira coluna do bloco
+            header_column_row.extend ( [ "Index", "Label", "Occupancy", "Energy (Hartree)", "Energy (eV)" ] )
+
+        lines = [ "\t".join ( header_frame_row ), "\t".join ( header_column_row ) ]
+
+        for i in range ( n_orbitals ):
+            row_parts = []
+            for frame in range ( n_frames ):
+                orbitals = wave_data[frame][0]
+                idx, label, occupancy, energy, _flag = orbitals[i]
+                energy_ev = energy * HARTREE_TO_EV
+                row_parts.extend ( [ str ( idx ), str ( label ), str ( occupancy ),
+                                      "{:.8f}".format ( energy ), "{:.6f}".format ( energy_ev ) ] )
+            lines.append ( "\t".join ( row_parts ) )
+
+        # [EN] User request: "armazene essa informacao nos dados dos
+        # orbitais (pode ficar no txt gerado tambem)" -- adds a SECOND
+        # table below the energy one, one row per orbital, giving each QC
+        # atom's rough LCAO weight (sum of squared coefficients for that
+        # atom's basis functions -- see on_orbital_row_selected()'s own
+        # comment for why this is a quick indicator and NOT a true
+        # Mulliken population). One column per atom (not per individual
+        # basis function/coefficient -- that would make the table
+        # impractically wide for anything but the smallest molecules) --
+        # kept to the FIRST frame that actually has LCAO data captured
+        # (atom count/order is the same across every frame of one
+        # trajectory anyway, so repeating it per frame would just be
+        # redundant column groups).
+        lcao_frame = None
+        for frame_data in wave_data:
+            if len ( frame_data ) >= 6 and frame_data[3] is not None:
+                lcao_frame = frame_data
+                break
+
+        if lcao_frame is not None:
+            orbitals_matrix, center_function_pointers, atom_symbols = lcao_frame[3], lcao_frame[4], lcao_frame[5]
+            lines.append ( "" )   # linha em branco separando as duas tabelas
+            lines.append ( "LCAO atom weights (sum of squared coefficients per atom -- "
+                            "NOT a real Mulliken population, see on_orbital_row_selected)" )
+            atom_header = [ "Index", "Label" ] + [ "Atom{} ({})".format ( a, s ) for a, s in enumerate ( atom_symbols ) ]
+            lines.append ( "\t".join ( atom_header ) )
+            for i in range ( n_orbitals ):
+                idx, label = wave_data[0][0][i][0], wave_data[0][0][i][1]
+                coeffs = orbitals_matrix[:, i]
+                row_parts = [ str ( idx ), str ( label ) ]
+                for atom_idx in range ( len ( atom_symbols ) ):
+                    start = int ( center_function_pointers[atom_idx] )
+                    end   = int ( center_function_pointers[atom_idx + 1] )
+                    weight = float ( np.sum ( coeffs[start:end] ** 2 ) )
+                    row_parts.append ( "{:.6f}".format ( weight ) )
+                lines.append ( "\t".join ( row_parts ) )
+
+        text_content = "\n".join ( lines )
+
+        dialog = Gtk.FileChooserDialog (
+            title  = "Export orbital energies",
+            parent = self.window,
+            action = Gtk.FileChooserAction.SAVE,
+        )
+        dialog.add_buttons (
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_SAVE,   Gtk.ResponseType.OK,
+        )
+        dialog.set_do_overwrite_confirmation ( True )
+        dialog.set_current_name ( "orbital_energies.txt" )
+        response = dialog.run ( )
+        if response == Gtk.ResponseType.OK:
+            filepath = dialog.get_filename ( )
+            if not filepath.lower ( ).endswith ( ".txt" ):
+                filepath += ".txt"
+            with open ( filepath, "w" ) as f:
+                f.write ( text_content )
+            print ( "Orbital energies exported to:", filepath )
+            dialog.destroy ( )
+            # [EN] BUG FIX (user asked "onde ele salvou o
+            # orbital_energies.txt?" -- the only confirmation was the
+            # print() above, invisible if EasyHybrid was launched from a
+            # desktop/menu shortcut instead of a terminal). Shows the
+            # exact saved path in an actual dialog too, so it's visible
+            # regardless of how the app was launched.
+            confirm = Gtk.MessageDialog (
+                transient_for = self.window,
+                flags         = 0,
+                message_type  = Gtk.MessageType.INFO,
+                buttons       = Gtk.ButtonsType.OK,
+                text          = "Orbital energies exported.",
+            )
+            confirm.format_secondary_text ( filepath )
+            confirm.run ( )
+            confirm.destroy ( )
+        else:
+            dialog.destroy ( )
 
     def on_treeview_Objects_button_release_event(self, tree, event):
         '''
@@ -1876,10 +2221,10 @@ def cube_to_pdynamo_surface ( cube_grid, isovalue ):
     no codigo-fonte do pDynamo3 (github.com/pdynamo/pDynamo3). """
     if not cube_grid.is_orthogonal:
         raise ValueError (
-            "RegularGrid do pDynamo so aceita grids com eixos alinhados "
-            "(vetores de voxel diagonais, sem rotacao/cisalhamento). Este "
-            ".cube tem eixos nao-ortogonais -- incomum, mas alguns programas "
-            "podem gerar isso; nao suportado por este importador."
+            "pDynamo's RegularGrid only accepts axis-aligned grids "
+            "(diagonal voxel vectors, no rotation/shear). This "
+            ".cube has non-orthogonal axes -- uncommon, but some programs "
+            "can generate this; not supported by this importer."
         )
     nx, ny, nz = cube_grid.dims
     dx, dy, dz = cube_grid.spacing
@@ -2235,6 +2580,113 @@ def mep_colormap ( values, vmin = None, vmax = None, cmap_name = 'coolwarm', rev
     return _colormap_lookup ( t, COLOR_MAPS[cmap_name] )
 
 
+# ============================================================================
+#  Cheap recolouring, WITHOUT touching pDynamo/marching cubes/multiprocessing
+# ============================================================================
+# [EN] Both functions below exist to answer the user's original question
+# directly ("quais informacoes podemos salvar no vobject para nao precisar
+# fazer todos o calculo de superficies novamente?"): the mesh geometry
+# (vertices/indexes/normals) for a given surface never needs to change
+# just because its DISPLAY colour does. VismolObject.surface_trajectory
+# (already existing, populated when the surface was first generated --
+# see on_render_button() above) stores, per frame, per named lobe
+# ("obital_plus"/"obital_minus"), the exact 4-tuple (vertices, colors,
+# indexes, normals) that SurfaceRepresentation.draw_representation()
+# re-reads on EVERY single frame (unconditionally -- see representations.py).
+# That means replacing just the "colors" entry of that cached tuple and
+# calling queue_draw() is enough to change what's on screen -- no need to
+# touch surfacetrajectory's vertices/indexes/normals, no need to recreate
+# the representation, and (for MEP specifically) no need to re-run
+# GridDensity/Isosurface/GridPotential/build_potential_interpolator or any
+# of the other genuinely expensive steps in generate_grid_parallel()'s
+# 'mep' branch (measured there: GridPotential alone can be ~180x the cost
+# of GridDensity on the same grid -- see changelog item 14).
+#
+# Used by _surf_setup() in gui/main/treeview_menu.py.
+
+def recolor_surface_lobe ( vobject, surf_name, new_rgb ):
+    """ Cheap recolour for a single-colour-per-lobe surface (orbital,
+    density, or potential -- the ones with a "color_plus"/"color_minus"
+    pair, one flat colour repeated across every vertex of that lobe).
+    Just re-tiles new_rgb across however many vertices that lobe's
+    CACHED mesh already has -- doesn't need the vertex count from
+    anywhere else, doesn't touch pDynamo, doesn't re-run marching cubes.
+
+    vobject   : the surface VismolObject (vobject.surface_type in
+                ("orbital", "density", "potential"), though this function
+                itself doesn't check that -- it only needs
+                vobject.surface_trajectory[frame][surf_name] to exist).
+    surf_name : "obital_plus" or "obital_minus" (matches the key used
+                when the surface was first generated -- see
+                SurfaceRepresentation(..., surface_name=...) calls in
+                on_render_button()).
+    new_rgb   : an (r, g, b) sequence, each 0.0-1.0.
+
+    Updates every frame, not just the currently-displayed one (a static,
+    single-frame surface is by far the common case, but this stays
+    correct even for a multi-frame one). """
+    new_rgb = np.asarray ( new_rgb, dtype = np.float32 )
+    for frame_data in vobject.surface_trajectory:
+        if frame_data is None or surf_name not in frame_data:
+            continue
+        vertices, colors, indexes, normals = frame_data[surf_name]
+        n_vertices = vertices.shape[0] // 3   # vertices e um array 1-D achatado (x,y,z,x,y,z,...)
+        new_colors = np.tile ( new_rgb, n_vertices ).astype ( np.float32 )
+        frame_data[surf_name] = [ vertices, new_colors, indexes, normals ]
+
+
+def recolor_mep_surface ( vobject, vmin = None, vmax = None, cmap_name = None ):
+    """ Cheap recolour for an MEP surface: redoes ONLY mep_colormap() (the
+    scalar-potential -> RGB mapping) plus the per-vertex -> per-triangle-
+    corner colour expansion (vertex_colors[polygons]) -- using the RAW,
+    pre-colormap potential values and the mask-filtered polygon index
+    array, both cached on the vobject the first time it was generated
+    (see the 'mep' branch of generate_grid_parallel(), and the External-
+    cube-with-MEP branch of _generate_external_cube_surface(), both in
+    this same file). Does NOT touch the mesh geometry, does NOT
+    re-evaluate the potential at any vertex, does NOT re-run marching
+    cubes or any pDynamo QC step.
+
+    vmin, vmax, cmap_name: same meaning as mep_colormap()'s own
+    parameters -- pass None to keep vobject's CURRENT value for that one
+    (so a dialog can change just vmin while leaving vmax/cmap_name alone,
+    for instance). Whatever values end up being used are written back to
+    vobject.mep_vmin/mep_vmax/mep_cmap_name, so the setup dialog can show
+    the actual current state next time it's opened.
+
+    Raises ValueError if vobject has no cached mep_potential_values/
+    mep_polygons (e.g. it's a plain, non-MEP surface, or was generated
+    before this caching existed). """
+    potential_values_per_frame = getattr ( vobject, "mep_potential_values", None )
+    polygons_per_frame         = getattr ( vobject, "mep_polygons", None )
+    if not potential_values_per_frame or not polygons_per_frame:
+        raise ValueError ( "recolor_mep_surface: this object has no cached MEP data "
+                            "(mep_potential_values/mep_polygons) -- this only works for surfaces "
+                            "generated as MEP." )
+
+    vmin      = vmin      if vmin      is not None else getattr ( vobject, "mep_vmin", None )
+    vmax      = vmax      if vmax      is not None else getattr ( vobject, "mep_vmax", None )
+    cmap_name = cmap_name if cmap_name is not None else getattr ( vobject, "mep_cmap_name", "coolwarm" )
+
+    for frame, frame_data in enumerate ( vobject.surface_trajectory ):
+        if frame_data is None or "obital_plus" not in frame_data:
+            continue
+        potential_values = potential_values_per_frame[frame] if frame < len ( potential_values_per_frame ) else None
+        polygons_np       = polygons_per_frame[frame]         if frame < len ( polygons_per_frame )         else None
+        if potential_values is None or polygons_np is None:
+            continue
+
+        vertex_colors = mep_colormap ( potential_values, vmin = vmin, vmax = vmax, cmap_name = cmap_name )
+        tri_colors    = vertex_colors[polygons_np].reshape ( -1 ).astype ( np.float32 )
+
+        vertices, _old_colors, indexes, normals = frame_data["obital_plus"]
+        frame_data["obital_plus"] = [ vertices, tri_colors, indexes, normals ]
+
+    vobject.mep_vmin      = vmin
+    vobject.mep_vmax      = vmax
+    vobject.mep_cmap_name = cmap_name
+
+
 def _pdynamo_array1d_to_numpy ( arr, dtype ):
     """ [EN] 1-D analogue of _pdynamo_array_to_numpy() above, for things
     like potentialProperty.gridValues (a RealArray1D, not an Array2D --
@@ -2369,9 +2821,9 @@ def build_potential_interpolator ( potentialProperty ):
             converte pra Angstrom na hora de montar o buffer de exibicao). """
             return _trilinear_interpolate ( values_3d, origin, spacing, query_points )
     else:
-        print ( "build_potential_interpolator: o grid do potencial nao forma uma "
-                "caixa regular completa -- usando vizinho-mais-proximo (mais lento) "
-                "em vez de interpolacao trilinear." )
+        print ( "build_potential_interpolator: the potential grid does not form a "
+                "complete regular box -- using nearest-neighbor (slower) "
+                "instead of trilinear interpolation." )
 
         def evaluate ( query_points ):
             return _nearest_neighbor_lookup ( pts_np, vals_np, query_points )
@@ -2414,7 +2866,16 @@ def surface_parser_mep ( surface, vertex_colors ):
     # surface_parser original, que gera indexes com 3x mais entradas do
     # que vertices de verdade existem no buffer (ver nota no README).
     indexes_out = np.arange ( vertices_out.shape[0] // 3, dtype = np.uint32 )
-    return vertices_out, colors_out, indexes_out, normals_out
+    # [EN] Also returns polygons_np (the mask-filtered triangle index
+    # array used just above, tri_colors = vertex_colors_np[polygons_np])
+    # -- needed by the caller to cache it alongside the raw, pre-colormap
+    # potential_values, so a LATER change to vmin/vmax/colormap (see
+    # _surf_setup in treeview_menu.py) can redo just this cheap
+    # expansion step (mep_colormap() + vertex_colors_np[polygons_np]) --
+    # without re-running MakeVertexNormalsFromPolygonalNormals(),
+    # _compute_valid_polygon_mask(), or anything that touches pDynamo at
+    # all. Was a 4-tuple return before; every call site needed updating.
+    return vertices_out, colors_out, indexes_out, normals_out, polygons_np
 
 
 def apply_coords_to_system (system, coords):
@@ -2462,7 +2923,15 @@ def _generate_external_cube_surface ( parameters ):
         potential_values = evaluate_potential ( verts_bohr )
         vertex_colors    = mep_colormap ( potential_values, vmin = mep_vmin, vmax = mep_vmax,
                                            cmap_name = mep_cmap_name )
-        vertices, colors, indexes, normals = surface_parser_mep ( surface, vertex_colors )
+        vertices, colors, indexes, normals, polygons_np = surface_parser_mep ( surface, vertex_colors )
+        # [EN] cached alongside the mesh so vmin/vmax/colormap can be
+        # changed later (see _surf_setup in treeview_menu.py) without
+        # re-reading the .cube files or re-running marching cubes --
+        # see the matching cache entries in the 'mep' branch of
+        # generate_grid_parallel() below for the full reasoning.
+        return { 'obital_plus'              : [ vertices, colors, indexes, normals ],
+                 'mep_raw_potential_values'  : potential_values,
+                 'mep_raw_polygons'          : polygons_np }
     else:
         # sem cubo de potencial -- cor uniforme, igual density/orbital.
         vertices, colors, indexes, normals = surface_parser ( surface, iso_color = color_plus )
@@ -2610,7 +3079,7 @@ def generate_grid_parallel (job):
         _potential_spacing = _mep_pot_spacing if _mep_pot_spacing is not None else _GridSpacing * 2.5
         generator.DefineGrid ( gridSpacing = _potential_spacing )
         generator.GridPotential ( tag = 'potential_mep' )
-        print ( "DEBUG TIMING: GridPotential (spacing={:.3f}, {}x mais grosseiro que a densidade) levou {:.3f} s".format (
+        print ( "DEBUG TIMING: GridPotential (spacing={:.3f}, {}x coarser than density) took {:.3f} s".format (
                 _potential_spacing, _potential_spacing / _GridSpacing, time.perf_counter() - _t ) ); _t = time.perf_counter ( )
         potentialProperty  = generator.GetProperty ( 'potential_mep' )
         evaluate_potential = build_potential_interpolator ( potentialProperty )
@@ -2629,9 +3098,30 @@ def generate_grid_parallel (job):
                                            cmap_name = _mep_cmap_name )
         print ( "DEBUG TIMING: mep_colormap levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
 
-        vertices, colors, indexes, normals = surface_parser_mep ( density_iso, vertex_colors )
+        vertices, colors, indexes, normals, polygons_np = surface_parser_mep ( density_iso, vertex_colors )
         print ( "DEBUG TIMING: surface_parser_mep levou {:.3f} s".format ( time.perf_counter() - _t ) )
         orbital_iso['obital_plus'] = [vertices, colors, indexes, normals]
+        # [EN] Cached here (alongside the mesh itself) so a LATER change
+        # to the MEP colour scale (vmin/vmax/colormap -- see _surf_setup
+        # in treeview_menu.py, and the user's original request: "quero
+        # mexer no vmin e vmax do MEP... todo o calculo tem que ser
+        # refeito, isso nao e bom") only needs to redo the cheap part:
+        # mep_colormap(potential_values, ...) + vertex_colors[polygons_np]
+        # -- NOT GridDensity(), Isosurface(), GridPotential(),
+        # build_potential_interpolator(), or MakeVertexNormalsFromPolygonalNormals(),
+        # all of which are the genuinely expensive steps above (see the
+        # DEBUG TIMING prints throughout this branch -- GridPotential
+        # alone was measured at ~180x the cost of GridDensity on the
+        # same grid). potential_values is per ORIGINAL density-surface
+        # vertex (pre-colormap, pre-triangle-expansion); polygons_np is
+        # the mask-filtered triangle index array surface_parser_mep()
+        # used to expand per-vertex colours into per-triangle-corner
+        # colours (vertex_colors_np[polygons_np]) -- both are exactly
+        # what's needed to redo just that expansion with a new colour
+        # scale, cheaply, in the main process, without touching pDynamo
+        # or the multiprocessing pool at all.
+        orbital_iso['mep_raw_potential_values'] = potential_values
+        orbital_iso['mep_raw_polygons']         = polygons_np
     
     
     
@@ -2726,8 +3216,44 @@ def generate_wavefunction_parallel(job):
             else:
                 label = 'HOMO '+str(i-HOMO)
         orbitals.append([i, label, orbitalsP.occupancies[i], energy, False ])
-        
-    return orbitals, system, generator
+
+    # [EN] Captures the LCAO (linear combination of atomic orbitals)
+    # coefficient matrix for this frame -- user's request: "verifique se
+    # o pDynamo permite capturar qual a combinacao linear que gerou o
+    # orbital molecular" (confirmed: yes -- orbitalsP.orbitals is exactly
+    # this, a (numberBasisFunctions, numberOrbitals) matrix; see
+    # pMolecule/QCModel/QCOrbitals.py in pDynamo3's own source, where
+    # MakeFromFock() fills it in directly from EigenPairs() on the Fock
+    # matrix -- each COLUMN j is orbital j's coefficient vector over the
+    # atomic-orbital basis). Converted to numpy immediately, in THIS
+    # worker process, rather than relying on the returned `system` object
+    # still having a fully-usable orbitalsP.orbitals after being pickled
+    # back across the multiprocessing boundary.
+    #
+    # Also captures, so individual coefficients can be attributed back to
+    # a specific QC atom later: system.qcState.orbitalBases.
+    # centerFunctionPointers (basis-function index boundaries per QC
+    # atom -- the same array pDynamo3's own Mulliken population-analysis
+    # code uses for exactly this purpose, see
+    # MullikenMultipoleEvaluator.pyx) and system.qcState.atomicNumbers
+    # (converted to element symbols via pScientific.PeriodicTable, in the
+    # SAME order as centerFunctionPointers).
+    try:
+        orbitals_matrix = _pdynamo_array_to_numpy ( orbitalsP.orbitals, np.float64 )
+        center_function_pointers = _pdynamo_array1d_to_numpy (
+            system.qcState.orbitalBases.centerFunctionPointers, np.int64 )
+        atomic_numbers = _pdynamo_array1d_to_numpy ( system.qcState.atomicNumbers, np.int64 )
+        from pScientific import PeriodicTable
+        atom_symbols = [ PeriodicTable.Symbol ( int ( z ) ) for z in atomic_numbers ]
+    except Exception as e:
+        # Nao deixa a falta/erro da parte de LCAO quebrar o calculo de
+        # energias/orbitais em si, que ja funcionava antes disso existir.
+        print ( "generate_wavefunction_parallel: could not capture LCAO data ({}).".format ( e ) )
+        orbitals_matrix = None
+        center_function_pointers = None
+        atom_symbols = None
+
+    return orbitals, system, generator, orbitals_matrix, center_function_pointers, atom_symbols
     
     
     

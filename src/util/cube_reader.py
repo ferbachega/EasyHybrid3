@@ -90,7 +90,7 @@ def read_cube_file ( path ):
         lines = f.readlines ( )
 
     if len ( lines ) < 6:
-        raise CubeFileError ( "Arquivo .cube muito curto (menos de 6 linhas de cabecalho): {}".format ( path ) )
+        raise CubeFileError ( "The .cube file is too short (fewer than 6 header lines): {}".format ( path ) )
 
     title   = lines[0].rstrip ( "\n" )
     comment = lines[1].rstrip ( "\n" )
@@ -100,14 +100,14 @@ def read_cube_file ( path ):
         natoms_raw = int ( line3[0] )
         origin     = np.array ( [ float ( line3[1] ), float ( line3[2] ), float ( line3[3] ) ], dtype = np.float64 )
     except ( IndexError, ValueError ) as error:
-        raise CubeFileError ( "Nao consegui interpretar a linha 3 (NATOMS/origem) de {}: {}".format ( path, error ) )
+        raise CubeFileError ( "Could not parse line 3 (NATOMS/origin) of {}: {}".format ( path, error ) )
 
     if natoms_raw < 0:
         raise CubeFileError (
-            "NATOMS negativo (linha 3) indica um cubo com multiplos valores por "
-            "ponto de grid (ex: varios orbitais no mesmo arquivo) -- formato nao "
-            "suportado por este leitor. Gere um cubo por orbital/densidade/"
-            "potencial de cada vez (e o que orca_plot faz por padrao)."
+            "A negative NATOMS (line 3) indicates a cube with multiple values per "
+            "grid point (e.g. several orbitals in the same file) -- a format not "
+            "supported by this reader. Generate one cube per orbital/density/"
+            "potential at a time instead (which is what orca_plot does by default)."
         )
     natoms = natoms_raw
 
@@ -119,12 +119,12 @@ def read_cube_file ( path ):
             n     = int ( parts[0] )
             vec   = [ float ( parts[1] ), float ( parts[2] ), float ( parts[3] ) ]
         except ( IndexError, ValueError ) as error:
-            raise CubeFileError ( "Nao consegui interpretar a linha {} (dimensao do eixo {}) de {}: {}".format ( 4+axis, axis, path, error ) )
+            raise CubeFileError ( "Could not parse line {} (axis {} dimension) of {}: {}".format ( 4+axis, axis, path, error ) )
         if n <= 0:
             raise CubeFileError (
-                "Numero de voxels negativo ou zero no eixo {} -- este leitor so "
-                "suporta a convencao padrao (unidades sempre em Bohr, contagem "
-                "de voxels sempre positiva). Arquivo: {}".format ( axis, path )
+                "Negative or zero voxel count on axis {} -- this reader only "
+                "supports the standard convention (units always in Bohr, voxel "
+                "count always positive). File: {}".format ( axis, path )
             )
         dims.append ( n )
         voxel_vectors[axis, :] = vec
@@ -139,7 +139,7 @@ def read_cube_file ( path ):
             charge        = float ( parts[1] )
             x, y, z       = float ( parts[2] ), float ( parts[3] ), float ( parts[4] )
         except ( IndexError, ValueError ) as error:
-            raise CubeFileError ( "Nao consegui interpretar a linha de atomo {} de {}: {}".format ( i, path, error ) )
+            raise CubeFileError ( "Could not parse atom line {} of {}: {}".format ( i, path, error ) )
         atoms.append ( ( atomic_number, charge, x, y, z ) )
 
     data_start = atom_start + natoms
@@ -153,8 +153,8 @@ def read_cube_file ( path ):
     expected = nx * ny * nz
     if len ( flat_values ) != expected:
         raise CubeFileError (
-            "Numero de valores lidos ({}) nao bate com nx*ny*nz esperado ({}) "
-            "em {} -- arquivo truncado ou corrompido?".format ( len ( flat_values ), expected, path )
+            "The number of values read ({}) does not match the expected nx*ny*nz ({}) "
+            "in {} -- is the file truncated or corrupted?".format ( len ( flat_values ), expected, path )
         )
 
     values = np.array ( flat_values, dtype = np.float64 ).reshape ( ( nx, ny, nz ) )  # Z mais rapido (C order)
@@ -165,7 +165,7 @@ def read_cube_file ( path ):
 if __name__ == "__main__":
     import sys
     if len ( sys.argv ) < 2:
-        print ( "uso: python3 cube_reader.py arquivo.cube" )
+        print ( "usage: python3 cube_reader.py file.cube" )
         sys.exit ( 1 )
     grid = read_cube_file ( sys.argv[1] )
     print ( "title   :", grid.title )

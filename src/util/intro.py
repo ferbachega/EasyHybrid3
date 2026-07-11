@@ -43,7 +43,7 @@ def load_modules():
 
 class LoaderWindow(Gtk.Window):
     def __init__(self):
-        Gtk.Window.__init__(self, title="Carregando Módulos")
+        Gtk.Window.__init__(self, title="Loading Modules")
         self.set_default_size(400, 300)
 
         # Logo

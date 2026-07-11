@@ -250,21 +250,21 @@ class AdvancedPotentialEnergyScanWindow:
 
     def on_row_inserted(self, model, path, iter):
         if model is  self.rc_liststore1:
-            print("Linha inserida em:", path)  
+            print("Row inserted at:", path)  
             self.RC_box1.refresh_dmininum()
         else:
             self.RC_box2.refresh_dmininum()
 
     def on_row_deleted(self, model, path):
-        print("Linha removida em:", path)
+        print("Row removed at:", path)
         if model is  self.rc_liststore1:
-            print("Linha inserida em:", path)  
+            print("Row inserted at:", path)  
             self.RC_box1.refresh_dmininum()
         else:
             self.RC_box2.refresh_dmininum()
     
     def on_row_changed(self, model, path, iter):
-        print("Linha alterada em:", path)
+        print("Row changed at:", path)
         
     def on_cell_edited1 (self, widget, path, new_text, column_index):
         """

@@ -337,7 +337,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.RC_box2.refresh_dmininum()
 
     def on_row_deleted(self, model, path):
-        print("Linha removida em:", path)
+        print("Row removed at:", path)
         if model is  self.rc_liststore1:
             #print("Linha inserida em:", path)  
             self.RC_box1.refresh_dmininum()
