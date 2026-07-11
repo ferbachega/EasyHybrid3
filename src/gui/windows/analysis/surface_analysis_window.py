@@ -593,6 +593,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             # and every time a new surface finishes generating (auto-
             # selecting the one just created, so the common "generate then
             # immediately tweak it" flow needs no extra clicking).
+            '''
             self.label_surface_target = Gtk.Label(label="Target surface:")
             self.cbx_surface_target = Gtk.ComboBoxText()
             self.cbx_surface_target.set_tooltip_text(
@@ -601,6 +602,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 "Only this one, not every surface in the session.")
             self.box_surface_type.pack_start(self.label_surface_target, False, False, 0)
             self.box_surface_type.pack_start(self.cbx_surface_target, False, False, 0)
+            '''
             #'''--------------------------------------------------------------------------------------------'''
 
 
@@ -608,7 +610,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             #'''--------------------------------------------------------------------------------------------'''
             self.chk_surface_wireframe = Gtk.CheckButton(label="Wireframe")
             self.chk_surface_wireframe.connect("toggled", self.on_surface_wireframe_toggled)
-            self.box_surface_type.pack_start(self.chk_surface_wireframe, False, False, 0)
+            #self.box_surface_type.pack_start(self.chk_surface_wireframe, False, False, 0)
             #'''--------------------------------------------------------------------------------------------'''
 
 
@@ -626,8 +628,8 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 "transparent). Applies to every surface already created "
                 "in this session (orbitals, potential, density, MEP...).")
 
-            self.box_surface_type.pack_start(self.label_surface_opacity, False, False, 0)
-            self.box_surface_type.pack_start(self.scale_surface_opacity, True, True, 0)
+            #self.box_surface_type.pack_start(self.label_surface_opacity, False, False, 0)
+            #self.box_surface_type.pack_start(self.scale_surface_opacity, True, True, 0)
             #'''--------------------------------------------------------------------------------------------'''
 
 
@@ -642,7 +644,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 "On: normal interpolated per vertex, averaged from "
                 "adjacent faces (smooth shading) -- surface has a "
                 "smoother appearance, with no visible facets.")
-            self.box_surface_type.pack_start(self.chk_surface_smooth, False, False, 0)
+            #self.box_surface_type.pack_start(self.chk_surface_smooth, False, False, 0)
             #'''--------------------------------------------------------------------------------------------'''
 
 
@@ -694,7 +696,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             for i, name in enumerate ( self._mep_cmap_names ):
                 self.cbx_mep_cmap.insert ( i, str(i), name )
             try:
-                default_idx = self._mep_cmap_names.index ( 'coolwarm' )
+                default_idx = self._mep_cmap_names.index ( 'jet' )
             except ValueError:
                 default_idx = 0
             self.cbx_mep_cmap.set_active ( default_idx )
@@ -822,6 +824,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             
             self.btn_color_plus  = self.builder.get_object('btn_color_plus')
             self.btn_color_minus = self.builder.get_object('btn_color_minus')
+            #self.btn_color_density = self.builder.get_object('btn_color_density')
             # Definindo uma cor específica (por exemplo, vermelho)
             rgba = Gdk.RGBA()
             
@@ -856,23 +859,28 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 "orca_plot). The surface mesh comes from here.")
 
             self.label_external_potential = Gtk.Label(label="Potential .cube (optional, for MEP):")
-            self.btn_external_potential_file = Gtk.FileChooserButton(
-                title  = "Select the potential .cube file (optional)",
-                action = Gtk.FileChooserAction.OPEN,
-            )
+            #self.btn_external_potential_file = Gtk.FileChooserButton(
+            #    title  = "Select the potential .cube file (optional)",
+            #    action = Gtk.FileChooserAction.OPEN,
+            #)
             _cube_filter = Gtk.FileFilter()
             _cube_filter.set_name("Cube files (*.cube)")
             _cube_filter.add_pattern("*.cube")
-            self.btn_external_potential_file.add_filter(_cube_filter)
-            self.btn_external_potential_file.connect("file-set", self.on_external_potential_file_set)
-            self.btn_external_potential_file.set_tooltip_text(
-                "Optional. If given, colors the density/orbital mesh "
-                "above by electrostatic potential interpolated from this "
-                "cube (a continuous color map, same as MEP -- see mep_colormap).")
+            #self.btn_external_potential_file.add_filter(_cube_filter)
+            #self.btn_external_potential_file.connect("file-set", self.on_external_potential_file_set)
+            #self.btn_external_potential_file.set_tooltip_text(
+            #    "Optional. If given, colors the density/orbital mesh "
+            #    "above by electrostatic potential interpolated from this "
+            #    "cube (a continuous color map, same as MEP -- see mep_colormap).")
             self.box_surface_type.pack_start(self.label_external_potential, False, False, 0)
-            self.box_surface_type.pack_start(self.btn_external_potential_file, False, False, 0)
+            #self.box_surface_type.pack_start(self.btn_external_potential_file, False, False, 0)
             self.label_external_potential.hide()
-            self.btn_external_potential_file.hide()
+            #self.btn_external_potential_file.hide()
+
+
+
+            self.builder.get_object('orbital_scrolled_window').set_size_request(-1, 300)
+
             #'''--------------------------------------------------------------------------------------------'''
 
             # so agora, com TODOS os widgets acima ja criados, e que ativamos o
@@ -1075,35 +1083,101 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.label_mep_pot_spacing.hide()
             self.entry_mep_pot_spacing.hide()
 
-        if index in [1,2,4]:
+        if index == 1:
             #self.builder.get_object('btn_import_wavefunction').set_sensitive(False)
             #self.builder.get_object('selection_treeview')     .set_sensitive(False)
             self.builder.get_object('btn_import_wavefunction').hide()
             self.builder.get_object('selection_treeview')     .hide()
+            self.builder.get_object('orbital_scrolled_window')     .hide()
             self.builder.get_object('label_external_file').hide()
             self.builder.get_object('btn_external_file')  .hide()
             self.label_external_potential.hide()
-            self.btn_external_potential_file.hide()
-        
+            
+            self.builder.get_object('btn_color_minus').show()
+            self.builder.get_object('btn_color_plus' ).show()
+            self.builder.get_object('label_color_minus' ).show()
+            self.builder.get_object('label_color_plus' ).show()
+            self.btn_export_orbitals.hide()
+            #self.btn_external_potential_file.hide()
+            self.window.queue_resize()
+            self.window.resize(1,1)
+            
+        elif index == 2:
+            #self.builder.get_object('btn_import_wavefunction').set_sensitive(False)
+            #self.builder.get_object('selection_treeview')     .set_sensitive(False)
+            self.builder.get_object('btn_import_wavefunction').hide()
+            self.builder.get_object('selection_treeview')     .hide()
+            self.builder.get_object('orbital_scrolled_window')     .hide()
+            self.builder.get_object('label_external_file').hide()
+            self.builder.get_object('btn_external_file')  .hide()
+            self.label_external_potential.hide()
+            
+            self.builder.get_object('btn_color_minus').hide()
+            self.builder.get_object('btn_color_plus' ).show()
+            self.builder.get_object('label_color_minus' ).hide()
+            self.builder.get_object('label_color_plus' ).show()
+            self.btn_export_orbitals.hide()
+            self.window.queue_resize()
+            self.window.resize(1,1)            
         elif index == 3:
             self.builder.get_object('label_external_file').show()
             self.builder.get_object('btn_external_file').show()
             self.label_external_potential.show()
-            self.btn_external_potential_file.show()
-            self.builder.get_object('btn_import_wavefunction').set_sensitive(False)
-            self.builder.get_object('selection_treeview'     ).set_sensitive(False)
+            #self.btn_external_potential_file.show()
+            
+            #self.builder.get_object('btn_import_wavefunction').set_sensitive(False)
+            #self.builder.get_object('orbital_scrolled_window'     ).set_sensitive(False)
+            #self.builder.get_object('selection_treeview'     ).set_sensitive(False)
+            
             self.builder.get_object('btn_import_wavefunction').hide()
             self.builder.get_object('selection_treeview'     ).hide()
-        
+            
+            self.builder.get_object('btn_color_minus').show()
+            self.builder.get_object('btn_color_plus' ).show()
+            self.builder.get_object('label_color_minus' ).show()
+            self.builder.get_object('label_color_plus' ).show()
+            self.builder.get_object('btn_import_wavefunction').hide()
+            self.builder.get_object('selection_treeview')     .hide()
+            
+            self.btn_export_orbitals.hide()
+            self.window.queue_resize()
+            self.window.resize(1,1)            
+        elif index == 4:
+            #self.builder.get_object('btn_import_wavefunction').set_sensitive(False)
+            #self.builder.get_object('selection_treeview')     .set_sensitive(False)
+            self.builder.get_object('btn_import_wavefunction').hide()
+            self.builder.get_object('selection_treeview')     .hide()
+            self.builder.get_object('orbital_scrolled_window')     .hide()
+            self.builder.get_object('label_external_file').hide()
+            self.builder.get_object('btn_external_file')  .hide()
+            self.label_external_potential.hide()
+            
+            self.builder.get_object('btn_color_minus').hide()
+            self.builder.get_object('btn_color_plus' ).hide()
+            self.builder.get_object('label_color_minus' ).hide()
+            self.builder.get_object('label_color_plus' ).hide()
+            
+            self.btn_export_orbitals.hide()
+            self.window.queue_resize()
+            self.window.resize(1,1)
         else:
             self.builder.get_object('btn_import_wavefunction').set_sensitive(True)
             self.builder.get_object('selection_treeview')     .set_sensitive(True)
             self.builder.get_object('btn_import_wavefunction').show()
+            self.builder.get_object('orbital_scrolled_window')     .show()
             self.builder.get_object('selection_treeview')     .show()
             self.builder.get_object('label_external_file').hide()
             self.builder.get_object('btn_external_file')  .hide()
             self.label_external_potential.hide()
-            self.btn_external_potential_file.hide()
+
+            self.builder.get_object('btn_color_minus').show()
+            self.builder.get_object('btn_color_plus' ).show()
+            self.builder.get_object('label_color_minus' ).show()
+            self.builder.get_object('label_color_plus' ).show()
+            
+            self.btn_export_orbitals.show()
+            self.window.queue_resize()
+            self.window.resize(1,1) 
 
     def on_coordinates_combobox_changed(self, widget):
         """ Function doc """
@@ -1343,11 +1417,15 @@ class SurfaceAnalysisWindow(Gtk.Window):
  
         rgba_plus = self.btn_color_minus.get_rgba()
         rgba_minus = self.btn_color_plus.get_rgba()
+        #rgba_density = self.btn_color_density.get_rgba()
+        rgba_density = self.btn_color_plus.get_rgba()
+        
+        color_density =  [rgba_density.red , rgba_density.green,  rgba_density.blue ] 
         color_plus  = [rgba_plus.red , rgba_plus.green,  rgba_plus.blue ]
         color_minus = [rgba_minus.red, rgba_minus.green, rgba_minus.blue]
         
         index = self.cbx_surface_type.get_active()
-        print(index, color_minus, color_plus)
+        #print(index, color_minus, color_plus)
 
         system_id = self.system_names_combo.get_system_id()
         system    = self.main.p_session.psystem[system_id]
@@ -1383,8 +1461,8 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 '_isovalue'      : _isovalue,
                 '_IsosurfaceTag' : 'density',
                 'orbital_key'    : 0,
-                'color_plus'     : color_plus  ,
-                'color_minus'    : color_minus ,
+                'color_plus'     : color_density ,
+                'color_minus'    : color_density ,
                 
                 }
                 coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
@@ -1421,7 +1499,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
                                                                                 active        = True                      ,
                                                                                 indexes       = []                        ,
                                                                                 is_dynamic    = False                     ,
-                                                                                iso_color     = color_plus                   ,
+                                                                                iso_color     = color_density             ,
                                                                                 surface_name  = 'obital_plus'                )
                                                             
         
@@ -1858,10 +1936,6 @@ class SurfaceAnalysisWindow(Gtk.Window):
             #setting vobject as active in main treeview.
             vobject_tmp.active = True
             self.main.main_treeview.treestore.set_value(vobject_tmp.e_treeview_iter, 6, True)
-
-
-
-
 
     def on_button_import_wavefunction (self, widget):
         """ Function doc """
