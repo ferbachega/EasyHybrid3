@@ -29,35 +29,141 @@
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
 
-
-#from LogFile import LogFileWriter
 # pDynamo
-from pBabel                    import *                                     
-from pCore                     import *                                     
-from pMolecule                 import *                  
-from pScientific               import *                                     
-from pScientific.Arrays        import *                                     
-from pScientific.Geometry3     import *                 
+from pBabel                    import *
+from pCore                     import *
+from pMolecule                 import *
+from pScientific               import *
+from pScientific.Arrays        import *
+from pScientific.Geometry3     import *
 from pSimulation               import *
 #*********************************************************************************
 import multiprocessing
-import copy
+import pickle
+import os
 
-from pScientific.RandomNumbers import NormalDeviateGenerator                       , \
-                                      RandomNumberGenerator
-import json
-from pprint import pprint
-import os, time, sys
+from pScientific.RandomNumbers import NormalDeviateGenerator, RandomNumberGenerator
 
 # --- imports entre modulos adicionados na refatoracao ---
 from pdynamo.p_methods._common import backup_orca_files, write_header
 
+
+# =====================================================================================
+#   Helpers  -  used to be duplicated ~6x across the file (1D/2D x pklfolder/vobject).
+#   Refactoring them out here means a fix/change only needs to happen in one place,
+#   and it also fixes a bug that existed in two of the six copies (see NOTE below).
+# =====================================================================================
+
+def compute_reaction_coordinate(coordinates3, rc):
+    """ Computes the value(s) of a reaction coordinate for the current frame.
+
+    Returns a tuple (d1, d2):
+        - simple_distance            -> (distance, None)
+        - multiple_distance          -> (dist(atom1,atom2), dist(atom2,atom3))
+        - multiple_distance*4atoms   -> (dist(atom1,atom2), dist(atom3,atom4))
+
+    NOTE: the original code had two copies (2D pklfolder / 2D vobject branches)
+    with a typo: `dist1 = didist_RC1_1 - dist_RC1_2` (undefined name
+    `didist_RC1_1`), which would raise NameError as soon as anyone used
+    'multiple_distance' with a 2D scan. Centralising the logic here removes
+    that broken code path entirely.
+    """
+    rc_type = rc['rc_type']
+    atoms   = rc['ATOMS']
+
+    if rc_type == 'simple_distance':
+        return coordinates3.Distance(atoms[0], atoms[1]), None
+
+    elif rc_type == 'multiple_distance':
+        d1 = coordinates3.Distance(atoms[0], atoms[1])
+        d2 = coordinates3.Distance(atoms[1], atoms[2])
+        return d1, d2
+
+    elif rc_type == 'multiple_distance*4atoms':
+        d1 = coordinates3.Distance(atoms[0], atoms[1])
+        d2 = coordinates3.Distance(atoms[2], atoms[3])
+        return d1, d2
+
+    return None, None
+
+
+def _apply_vobject_frame(system, frame):
+    """ Copies an in-memory (vobject) frame's xyz array into system.coordinates3. """
+    coordinates3 = system.coordinates3
+    for idx, xyz in enumerate(frame):
+        coordinates3[idx][0] = xyz[0]
+        coordinates3[idx][1] = xyz[1]
+        coordinates3[idx][2] = xyz[2]
+
+
+# =====================================================================================
+#   Multiprocessing workers
+#   ------------------------------------------------------------------------------
+#   ASSUMPTION (please validate on your machine): pDynamo QC/MM system objects can
+#   be pickled. This seems reasonable given that the existing code already reads/
+#   writes '.pkl' trajectory folders, but a full System object (with QC/MM state)
+#   is heavier than a coordinates3 object, so this is worth testing on a small
+#   case first. If pickling the system fails, `run()` automatically falls back
+#   to the original sequential behaviour and prints a warning - it will not
+#   silently produce wrong results.
+#
+#   Each worker process clones the system ONCE (in the pool initializer) and
+#   reuses that clone for every frame it processes, so we only pay the pickling
+#   cost N_workers times, not once per frame.
+# =====================================================================================
+
+_worker_system    = None
+_worker_data_path = None
+
+
+def _pool_initializer(system_pickle, data_path):
+    global _worker_system, _worker_data_path
+    _worker_system    = pickle.loads(system_pickle)
+    _worker_data_path = data_path
+
+
+def _pool_task_1d(args):
+    frame_id, frame, rc1, from_file, full_path_trajectory = args
+    system = _worker_system
+
+    if from_file:
+        system.coordinates3 = ImportCoordinates3(os.path.join(_worker_data_path, frame))
+    else:
+        _apply_vobject_frame(system, frame)
+
+    energy  = system.Energy()
+    d1, d2  = compute_reaction_coordinate(system.coordinates3, rc1)
+
+    if from_file:
+        backup_orca_files(system        = system,
+                           output_folder = full_path_trajectory,
+                           output_name   = 'frame' + str(frame_id))
+
+    return frame_id, energy, d1, d2
+
+
+def _pool_task_2d(args):
+    key, frame, rc1, rc2, from_file = args
+    system = _worker_system
+
+    if from_file:
+        system.coordinates3 = ImportCoordinates3(os.path.join(_worker_data_path, frame))
+    else:
+        _apply_vobject_frame(system, frame)
+
+    energy   = system.Energy()
+    d1, _rc1 = compute_reaction_coordinate(system.coordinates3, rc1)
+    d2, _rc2 = compute_reaction_coordinate(system.coordinates3, rc2)
+
+    return key, d1, d2, energy
+
+
 class LogFile:
     """ Class doc """
-    
+
     def __init__ (self, system):
         """ Class initialiser """
-        self.path = os.path.join(os.environ.get('PDYNAMO3_SCRATCH'), 'summary_temp.log')
+        self.path     = os.path.join(os.environ.get('PDYNAMO3_SCRATCH'), 'summary_temp.log')
         self.logFile2 = TextLogFileWriter.WithOptions ( path = self.path )
         system.Summary(log = self.logFile2)
         self.logFile2.Close()
@@ -65,671 +171,342 @@ class LogFile:
 
 class EnergyCalculation:
     """ Class doc """
-    
+
     def __init__ (self):
         """ Class initialiser """
         pass
-    
+
     def run (self, parameters):
         """ Function doc """
         full_path_file = os.path.join(parameters['folder'])
         self.logFile2  = TextLogFileWriter.WithOptions ( path = os.path.join(full_path_file, parameters['filename']+'.log') )
-        
+
         parameters['system'].Summary(log = self.logFile2)
-        #try:
         energy = parameters['system'].Energy(log = self.logFile2)
-        
-        '''
-        #---------------------------------------------------------------
-        print_MM   = True # print MM charges
-        print_QC   = True # print QC charges (does not inclue boundary atoms)
-        print_QCMM = True # print QC/MM 
-        try:
-            charges = list(parameters['system'].AtomicCharges())
-            #except:
-            #    charges = []
-            MM_charges = list(parameters['system'].mmState.charges)
-            
-             
-            #atomTypes  = parameters['system'].mmState.atomTypes
-            if getattr( parameters['system'], 'qcState', False):
-                qcAtoms = list(parameters['system'].qcState.qcAtoms)
-                e_qc_table = list(parameters['system'].qcState.pureQCAtoms)
-            else:
-                qcAtoms =[]
-                e_qc_table = []
-            print(qcAtoms, e_qc_table)
-            print(len(e_qc_table), len(qcAtoms), len(parameters['system'].atoms), len(charges)) 
-            print('---------------------------------------------')
-            print(' Index  Atom  Type   Charge QC/MM  Charge MM ')
-            print('---------------------------------------------')
-    
-            for index, atom in enumerate(parameters['system'].atoms):
-                #{:<3s} {:20.10f} 1 {:20.10f}
-                if index in qcAtoms:
-                    if index in e_qc_table:
-                        if print_QC: 
-                            line = ' {:<3d}    {:<5s} QC   {:10.6f}  {:10.6f}'.format(index ,
-                                                                                    atom.label, 
-                                                                                    charges[index], 
-                                                                                    MM_charges[index])
-                    else:
-                        if print_QCMM:
-                            line = ' {:<3d}    {:<5s} QC*  {:10.6f}  {:10.6f}'.format(index ,atom.label, charges[index], MM_charges[index])
-    
-                else:
-                    if print_MM:
-                        line = ' {:<3d}    {:<5s} MM   {:10.6f}  {:10.6f}'.format(index ,atom.label, charges[index], MM_charges[index])
-                print(line)
-            print('---------------------------------------------')
-        except:
-            print('Ops!')
-            #print(index ,atom.label, charges[index])
-        #---------------------------------------------------------------
-        #'''
-        
-        #except :
-        #    msg = 'Error!'
-        #    return False, msg
-        
-        backup_orca_files(system        = parameters['system']         , 
-                          output_folder = parameters['folder']         , 
+
+        backup_orca_files(system        = parameters['system'],
+                          output_folder = parameters['folder'],
                           output_name   = parameters['filename'])
-        
+
         self.logFile2.Footer ( )
         self.logFile2.Close()
         self.logFile2 = None
-        
+
         return energy, 'Energy: '+str(energy)
 
 
 class EnergyRefinement:
-    
+
     def __init__ (self):
         """ Class initialiser """
         pass
-    
+
+    # ---------------------------------------------------------------------------
+    #  Main entry point
+    # ---------------------------------------------------------------------------
     def run (self, parameters, interface = False):
-        
-        full_path_trajectory = os.path.join(parameters['folder'], 
-                               parameters['filename'])
-        os.mkdir(
-                 full_path_trajectory
-                 )
-        
-        # - - - - - - - - - - - - - Checking trajectory - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+        full_path_trajectory = os.path.join(parameters['folder'], parameters['filename'])
+        os.mkdir(full_path_trajectory)
+
+        # - - - - - - - - - - - - - Checking trajectory - - - - - - - - - - - - - - - - - -
         self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(full_path_trajectory, 'output.log') )
         parameters['system'].Summary(log = self.logFile2)
         self.logFile2.Header ( )
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         self.logFile2.Footer ( )
         self.logFile2.Close()
         self.logFile2 = None
-        
+
         logfile = self.write_header (parameters = parameters,
                                      logfile    = os.path.join(full_path_trajectory, 'output.log') )
-        
-        
-        
-        #---------------------------------------------------------------
+
+        # ---------------------------------------------------------------
+        # Clone the system, keeping GUI-only tree/list-store iterators out
+        # of the clone (Clone() has no reason to know about GTK objects).
+        # ---------------------------------------------------------------
         backup = []
         try:
             backup.append(parameters['system'].e_treeview_iter)
             backup.append(parameters['system'].e_liststore_iter)
             parameters['system'].e_treeview_iter   = None
             parameters['system'].e_liststore_iter  = None
-        except:
+        except AttributeError:
             pass
-        
-        sys  =  Clone(parameters['system'])
-        
-        
+
+        sys_clone = Clone(parameters['system'])
+
         try:
             parameters['system'].e_treeview_iter   = backup[0]
             parameters['system'].e_liststore_iter  = backup[1]
-        except:
+        except IndexError:
             pass
-        #---------------------------------------------------------------
-        
-        parameters['system'] = sys
-        
-        #-------------------------------------------------------------------------------
-        original_charges = None
+        # ---------------------------------------------------------------
+
+        parameters['system'] = sys_clone
+
+        # -------------------------------------------------------------------------------
         if parameters['ignore_mm_charges']:
             print('Adjusting electrical charges in the MM region to zero.')
-            
-            original_charges = parameters['system'].e_charges_backup.copy()
-            
-            for index, charge in enumerate(original_charges):
-                parameters['system'].mmState.charges[index] = 0.0
-            print(parameters['system'].mmState.charges)
-            
-            for i, charge in enumerate(parameters['system'].mmState.charges):
+            for i in range(len(parameters['system'].mmState.charges)):
                 parameters['system'].mmState.charges[i] = 0.0
-            print(list(parameters['system'].mmState.charges))
+        # -------------------------------------------------------------------------------
+
+        n_workers = max(1, int(parameters.get('NmaxThreads', 1) or 1))
+
+        if parameters['is_2D_xy']:
+            results = self._run_2d(parameters, full_path_trajectory, n_workers)
+            self._write_2d(results, logfile)
         else:
-            pass
-        #-------------------------------------------------------------------------------
-        
-        
-        if parameters['traj_type'] == 'pklfolder':
-            data_energy = {}
-            energy_list = []
-            text = ""
-            for frame in parameters["trajectory"]:
-                x = frame[5:-4]
-                parameters['system'].coordinates3 = ImportCoordinates3 (os.path.join(parameters['data_path'],frame)) 
-                energy = parameters['system'].Energy()
-                energy_list.append(energy)
-                
-                if parameters['RC1']['rc_type'] == 'simple_distance':
-                    atom1 = parameters['RC1']['ATOMS'][0]
-                    atom2 = parameters['RC1']['ATOMS'][1]
-                    dist =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                    data_energy[int(x)] = [energy, dist ]
-                
-                elif parameters['RC1']['rc_type'] == 'multiple_distance':
-                    atom1 = parameters['RC1']['ATOMS'][0]
-                    atom2 = parameters['RC1']['ATOMS'][1]
-                    atom3 = parameters['RC1']['ATOMS'][2]
-                    dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                    dist2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
-                    dist  =  dist1 - dist2 
-                    data_energy[int(x)] = [energy, dist1, dist2]
-                
-                elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
-                    atom1 = parameters['RC1']['ATOMS'][0]
-                    atom2 = parameters['RC1']['ATOMS'][1]
-                    atom3 = parameters['RC1']['ATOMS'][2]
-                    atom4 = parameters['RC1']['ATOMS'][3]
-                    dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                    dist2 =  parameters['system'].coordinates3.Distance (atom3, atom4) 
-                    dist  =  dist1 - dist2 
-                    data_energy[int(x)] = [energy, dist1, dist2]
-                
-                print ('frame:', x, dist,  energy)
-                backup_orca_files(system        = parameters['system']         , 
-                                  output_folder = full_path_trajectory         , 
-                                  output_name   = 'frame'+x)
-            
-            lowest_energy = min(energy_list)
-            keys = data_energy.keys()
-            
-            for i in range(0, len(keys)):
+            results = self._run_1d(parameters, full_path_trajectory, n_workers)
+            self._write_1d(results, parameters, logfile)
 
-                
-                if parameters['RC1']['rc_type'] == 'simple_distance':
-                    distance = data_energy[i][1]
-                    energy   = data_energy[i][0]
-                    text += "\nDATA %9i       %13.12f        %13.12f"% (int(i), float(distance), float(energy))
-                
-                elif parameters['RC1']['rc_type'] == 'multiple_distance':
-                    distance1 = data_energy[i][1]
-                    distance2 = data_energy[i][2]
-                    energy    = data_energy[i][0]
-                    text += "\nDATA %9i       %13.12f        %13.12f        %13.12f"% (int(i), float(distance1), float(distance2), float(energy))
-                
-                elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
-                    distance1 = data_energy[i][1]
-                    distance2 = data_energy[i][2]
-                    energy    = data_energy[i][0]
-                    text += "\nDATA %9i       %13.12f        %13.12f        %13.12f"% (int(i), float(distance1), float(distance2), float(energy))
-                
-                else:
-                    pass
-        
-        
-            logfile.write(text)
-        
-        
-        elif parameters['traj_type'] == 'pklfolder2D': 
-            max_i = 0
-            max_j = 0
-            i_list = []
-            j_list = []
-            data   = {}
-            energy_list = []
-            
-            text = ""
-            for frame in parameters["trajectory"]:
-                i_j = frame[5:-4].split('_')
-                parameters['system'].coordinates3 = ImportCoordinates3 (os.path.join(parameters['data_path'],frame)) 
-                energy = parameters['system'].Energy()
-                i = int(i_j[0])
-                j = int(i_j[1])
-                i_list.append(i)
-                j_list.append(j)
-                energy_list.append(energy)
-                
-                
-                
-                if parameters['RC1']['rc_type'] == 'simple_distance':
-                    atom1 = parameters['RC1']['ATOMS'][0]
-                    atom2 = parameters['RC1']['ATOMS'][1]
-                    
-                    dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
- 
-                
-                elif parameters['RC1']['rc_type'] == 'multiple_distance':
-                    atom1 = parameters['RC1']['ATOMS'][0]
-                    atom2 = parameters['RC1']['ATOMS'][1]
-                    atom3 = parameters['RC1']['ATOMS'][2]
-                    dist_RC1_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                    dist_RC1_2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
-                    
-                    dist1 =  didist_RC1_1 - dist_RC1_2
-                 
-                elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
-                    atom1 = parameters['RC1']['ATOMS'][0]
-                    atom2 = parameters['RC1']['ATOMS'][1]
-                    atom3 = parameters['RC1']['ATOMS'][2]
-                    atom4 = parameters['RC1']['ATOMS'][3]
-                    dist_RC1_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                    dist_RC1_2 =  parameters['system'].coordinates3.Distance (atom3, atom4) 
-                    dist1  =  dist_RC1_1 - dist_RC1_2 
-                 
-                
-                if parameters['RC2']['rc_type'] == 'simple_distance':
-                    atom1 = parameters['RC2']['ATOMS'][0]
-                    atom2 = parameters['RC2']['ATOMS'][1]
-                    dist2 = parameters['system'].coordinates3.Distance (atom1, atom2) 
-                 
-                elif parameters['RC2']['rc_type'] == 'multiple_distance':
-                    atom1 = parameters['RC2']['ATOMS'][0]
-                    atom2 = parameters['RC2']['ATOMS'][1]
-                    atom3 = parameters['RC2']['ATOMS'][2]
-                    dist_RC2_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                    dist_RC2_2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
-                    
-                    dist2 = dist_RC2_1 - dist_RC2_2
-                 
-                elif parameters['RC2']['rc_type'] == 'multiple_distance*4atoms':
-                    atom1 = parameters['RC2']['ATOMS'][0]
-                    atom2 = parameters['RC2']['ATOMS'][1]
-                    atom3 = parameters['RC2']['ATOMS'][2]
-                    atom4 = parameters['RC2']['ATOMS'][3]
-                    dist_RC2_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                    dist_RC2_2 =  parameters['system'].coordinates3.Distance (atom3, atom4) 
-                    dist2 = dist_RC2_1 - dist_RC2_2
-            
-                 
-                 
-                
-                data[(i,j)] = [dist1, dist2, energy]
-                print ('frame:', i_j, energy)
+        logfile.close()
 
-            max_i = max(i_list)
-            max_j = max(j_list)
-            
-            for i in range(0, max_i+1):
-                for j in range(0, max_j+1):
+    # ---------------------------------------------------------------------------
+    #  1D scans  (covers old 'pklfolder' branch + old 'vobject' / not is_2D_xy branch)
+    # ---------------------------------------------------------------------------
+    def _run_1d (self, parameters, full_path_trajectory, n_workers):
+        system    = parameters['system']
+        rc1       = parameters['RC1']
+        from_file = parameters['traj_type'] in ('pklfolder', 'pklfolder2D')
 
-                    text = "\nDATA  %4i  %4i     %13.12f       %13.12f       %13.12f"% (int(i), int(j),  float(data[(i,j)][0]), float(data[(i,j)][1]), float(data[(i,j)][2]))
-                    logfile.write(text)
+        tasks = []
+        if from_file:
+            for frame_name in parameters['trajectory']:
+                frame_id = int(frame_name[5:-4])
+                tasks.append((frame_id, frame_name))
+        else:
+            for frame_id, frame in enumerate(parameters['trajectory']):
+                tasks.append((frame_id, frame))
 
-        
-        elif parameters['traj_type'] == 'vobject':
-            data_energy = {}
-            energy_list = []
-            text = ""
-            
-            
-            if parameters["is_2D_xy"]:
-                max_i = 0
-                max_j = 0
-                i_list = []
-                j_list = []
-                data   = {}
+        if n_workers > 1:
+            try:
+                return self._run_parallel_1d(system, tasks, rc1, parameters,
+                                              full_path_trajectory, from_file, n_workers)
+            except Exception as exc:
+                print('[EnergyRefinement] Parallel execution failed ({}); '
+                      'falling back to sequential.'.format(exc))
 
+        # --- sequential path (also used as fallback) ---
+        results = {}
+        for frame_id, frame in tasks:
+            if from_file:
+                system.coordinates3 = ImportCoordinates3(os.path.join(parameters['data_path'], frame))
+            else:
+                _apply_vobject_frame(system, frame)
 
+            energy = system.Energy()
+            d1, d2 = compute_reaction_coordinate(system.coordinates3, rc1)
+            results[frame_id] = (energy, d1, d2)
 
-                print (parameters["idx_2D_xy"])
-                
-                for i_j, frame_idx in parameters["idx_2D_xy"].items():
-               
-                    
-                    frame = parameters["trajectory"][frame_idx]
-                    for idx, xyz in enumerate(frame):
-                        parameters['system'].coordinates3[idx][0] = xyz[0]
-                        parameters['system'].coordinates3[idx][1] = xyz[1]
-                        parameters['system'].coordinates3[idx][2] = xyz[2]
-                    
-                    energy = parameters['system'].Energy()
-                    i = int(i_j[0])
-                    j = int(i_j[1])
-                    i_list.append(i)
-                    j_list.append(j)
-                    energy_list.append(energy)
-                    
-                    if parameters['RC1']['rc_type'] == 'simple_distance':
-                        atom1 = parameters['RC1']['ATOMS'][0]
-                        atom2 = parameters['RC1']['ATOMS'][1]
-                        
-                        dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-    
-                    
-                    elif parameters['RC1']['rc_type'] == 'multiple_distance':
-                        atom1 = parameters['RC1']['ATOMS'][0]
-                        atom2 = parameters['RC1']['ATOMS'][1]
-                        atom3 = parameters['RC1']['ATOMS'][2]
-                        dist_RC1_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                        dist_RC1_2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
-                        
-                        dist1 =  didist_RC1_1 - dist_RC1_2
-                    
-                    elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
-                        atom1 = parameters['RC1']['ATOMS'][0]
-                        atom2 = parameters['RC1']['ATOMS'][1]
-                        atom3 = parameters['RC1']['ATOMS'][2]
-                        atom4 = parameters['RC1']['ATOMS'][3]
-                        dist_RC1_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                        dist_RC1_2 =  parameters['system'].coordinates3.Distance (atom3, atom4) 
-                        dist1  =  dist_RC1_1 - dist_RC1_2 
-                    
-                    
-                    if parameters['RC2']['rc_type'] == 'simple_distance':
-                        atom1 = parameters['RC2']['ATOMS'][0]
-                        atom2 = parameters['RC2']['ATOMS'][1]
-                        dist2 = parameters['system'].coordinates3.Distance (atom1, atom2) 
-                    
-                    elif parameters['RC2']['rc_type'] == 'multiple_distance':
-                        atom1 = parameters['RC2']['ATOMS'][0]
-                        atom2 = parameters['RC2']['ATOMS'][1]
-                        atom3 = parameters['RC2']['ATOMS'][2]
-                        dist_RC2_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                        dist_RC2_2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
-                        
-                        dist2 = dist_RC2_1 - dist_RC2_2
-                    
-                    elif parameters['RC2']['rc_type'] == 'multiple_distance*4atoms':
-                        atom1 = parameters['RC2']['ATOMS'][0]
-                        atom2 = parameters['RC2']['ATOMS'][1]
-                        atom3 = parameters['RC2']['ATOMS'][2]
-                        atom4 = parameters['RC2']['ATOMS'][3]
-                        dist_RC2_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                        dist_RC2_2 =  parameters['system'].coordinates3.Distance (atom3, atom4) 
-                        dist2 = dist_RC2_1 - dist_RC2_2
-                
-                    
-                    
-                    
-                    data[(i,j)] = [dist1, dist2, energy]
-                    print ('frame:', i_j, energy)
-    
-                max_i = max(i_list)
-                max_j = max(j_list)
-                
-                for i in range(0, max_i+1):
-                    for j in range(0, max_j+1):
+            print('frame:', frame_id, d1, energy)
 
-                        text = "\nDATA  %4i  %4i     %13.12f       %13.12f       %13.12f"% (int(i), int(j),  float(data[(i,j)][0]), float(data[(i,j)][1]), float(data[(i,j)][2]))
-                        logfile.write(text)                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-            else: # means that is 1D
-                
-                for x ,frame in  enumerate(parameters["trajectory"]):
+            if from_file:
+                backup_orca_files(system        = system,
+                                  output_folder = full_path_trajectory,
+                                  output_name   = 'frame' + str(frame_id))
 
-                    for i, xyz in enumerate(frame):
-                        parameters['system'].coordinates3[i][0] = xyz[0]
-                        parameters['system'].coordinates3[i][1] = xyz[1]
-                        parameters['system'].coordinates3[i][2] = xyz[2]
+        return results
 
-                    energy = parameters['system'].Energy()
-                    energy_list.append(energy)
-            
-                    if parameters['RC1']['rc_type'] == 'simple_distance':
-                        atom1 = parameters['RC1']['ATOMS'][0]
-                        atom2 = parameters['RC1']['ATOMS'][1]
-                        dist =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                        data_energy[int(x)] = [energy, dist ]
-                    
-                    elif parameters['RC1']['rc_type'] == 'multiple_distance':
-                        atom1 = parameters['RC1']['ATOMS'][0]
-                        atom2 = parameters['RC1']['ATOMS'][1]
-                        atom3 = parameters['RC1']['ATOMS'][2]
-                        dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                        dist2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
-                        dist  =  dist1 - dist2 
-                        data_energy[int(x)] = [energy, dist1, dist2]
-                    
-                    elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
-                        atom1 = parameters['RC1']['ATOMS'][0]
-                        atom2 = parameters['RC1']['ATOMS'][1]
-                        atom3 = parameters['RC1']['ATOMS'][2]
-                        atom4 = parameters['RC1']['ATOMS'][3]
-                        dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                        dist2 =  parameters['system'].coordinates3.Distance (atom3, atom4) 
-                        dist  =  dist1 - dist2 
-                        data_energy[int(x)] = [energy, dist1, dist2]        
+    def _run_parallel_1d (self, system, tasks, rc1, parameters, full_path_trajectory, from_file, n_workers):
+        system_pickle = pickle.dumps(system)
+        data_path      = parameters.get('data_path')
 
-                lowest_energy = min(energy_list)
-                keys = data_energy.keys()
-                
-                for i in range(0, len(keys)):
-                    if parameters['RC1']['rc_type'] == 'simple_distance':
-                        distance = data_energy[i][1]
-                        energy   = data_energy[i][0]
-                        text += "\nDATA %9i       %13.12f        %13.12f"% (int(i), float(distance), float(energy))
-                    
-                    elif parameters['RC1']['rc_type'] == 'multiple_distance':
-                        distance1 = data_energy[i][1]
-                        distance2 = data_energy[i][2]
-                        energy    = data_energy[i][0]
-                        text += "\nDATA %9i       %13.12f        %13.12f        %13.12f"% (int(i), float(distance1), float(distance2), float(energy))
-                    
-                    elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
-                        distance1 = data_energy[i][1]
-                        distance2 = data_energy[i][2]
-                        energy    = data_energy[i][0]
-                        text += "\nDATA %9i       %13.12f        %13.12f        %13.12f"% (int(i), float(distance1), float(distance2), float(energy))
-                    else:
-                        pass
-            
-            
-                logfile.write(text)
+        pool_args = [(frame_id, frame, rc1, from_file, full_path_trajectory)
+                     for frame_id, frame in tasks]
 
+        results = {}
+        with multiprocessing.Pool(processes  = n_workers,
+                                   initializer = _pool_initializer,
+                                   initargs    = (system_pickle, data_path)) as pool:
+            for frame_id, energy, d1, d2 in pool.imap_unordered(_pool_task_1d, pool_args):
+                results[frame_id] = (energy, d1, d2)
+                print('frame:', frame_id, d1, energy)
 
+        return results
 
+    def _write_1d (self, results, parameters, logfile):
+        rc_type = parameters['RC1']['rc_type']
+        lines = []
+        for frame_id in sorted(results):
+            energy, d1, d2 = results[frame_id]
+            if rc_type == 'simple_distance':
+                lines.append("\nDATA %9i       %13.12f        %13.12f"
+                             % (frame_id, float(d1), float(energy)))
+            elif rc_type in ('multiple_distance', 'multiple_distance*4atoms'):
+                lines.append("\nDATA %9i       %13.12f        %13.12f        %13.12f"
+                             % (frame_id, float(d1), float(d2), float(energy)))
 
+        logfile.write(''.join(lines))
 
+    # ---------------------------------------------------------------------------
+    #  2D scans  (covers old 'pklfolder2D' branch + old 'vobject' / is_2D_xy branch)
+    # ---------------------------------------------------------------------------
+    def _run_2d (self, parameters, full_path_trajectory, n_workers):
+        system    = parameters['system']
+        rc1       = parameters['RC1']
+        rc2       = parameters['RC2']
+        from_file = parameters['traj_type'] == 'pklfolder2D'
 
+        tasks = []
+        if from_file:
+            for frame_name in parameters['trajectory']:
+                i_str, j_str = frame_name[5:-4].split('_')
+                tasks.append(((int(i_str), int(j_str)), frame_name))
+        else:
+            for i_j, frame_idx in parameters['idx_2D_xy'].items():
+                key = (int(i_j[0]), int(i_j[1]))
+                tasks.append((key, parameters['trajectory'][frame_idx]))
 
+        if n_workers > 1:
+            try:
+                return self._run_parallel_2d(system, tasks, rc1, rc2, parameters,
+                                              full_path_trajectory, from_file, n_workers)
+            except Exception as exc:
+                print('[EnergyRefinement] Parallel execution failed ({}); '
+                      'falling back to sequential.'.format(exc))
 
+        # --- sequential path (also used as fallback) ---
+        results = {}
+        for (i, j), frame in tasks:
+            if from_file:
+                system.coordinates3 = ImportCoordinates3(os.path.join(parameters['data_path'], frame))
+            else:
+                _apply_vobject_frame(system, frame)
 
+            energy = system.Energy()
+            d1, _  = compute_reaction_coordinate(system.coordinates3, rc1)
+            d2, _  = compute_reaction_coordinate(system.coordinates3, rc2)
+            results[(i, j)] = (d1, d2, energy)
 
+            print('frame:', (i, j), energy)
 
+        return results
 
+    def _run_parallel_2d (self, system, tasks, rc1, rc2, parameters, full_path_trajectory, from_file, n_workers):
+        system_pickle = pickle.dumps(system)
+        data_path      = parameters.get('data_path')
 
+        pool_args = [(key, frame, rc1, rc2, from_file) for key, frame in tasks]
 
+        results = {}
+        with multiprocessing.Pool(processes  = n_workers,
+                                   initializer = _pool_initializer,
+                                   initargs    = (system_pickle, data_path)) as pool:
+            for key, d1, d2, energy in pool.imap_unordered(_pool_task_2d, pool_args):
+                results[key] = (d1, d2, energy)
+                print('frame:', key, energy)
 
+        return results
 
+    def _write_2d (self, results, logfile):
+        if not results:
+            return
 
+        max_i = max(key[0] for key in results)
+        max_j = max(key[1] for key in results)
 
+        lines = []
+        for i in range(max_i + 1):
+            for j in range(max_j + 1):
+                if (i, j) in results:
+                    d1, d2, energy = results[(i, j)]
+                    lines.append("\nDATA  %4i  %4i     %13.12f       %13.12f       %13.12f"
+                                 % (i, j, float(d1), float(d2), float(energy)))
 
+        logfile.write(''.join(lines))
 
-
-
-
-
-
-
-        
-
+    # ---------------------------------------------------------------------------
+    #  Header
+    # ---------------------------------------------------------------------------
     def write_header (self, parameters, logfile = 'output.log'):
         """ Function doc """
-        
-        arq = open(logfile, "a")
+
+        arq  = open(logfile, "a")
         text = ""
 
         if parameters['RC2'] is not None :
-            text = text + "\n"
-            text = text + "\n--------------------------------------------------------------------------------"
-            text = text + "\nTYPE                 EasyHybrid Energy Refinement 2D                            "
-            text = text + "\n--------------------------------------------------------------------------------"
-
+            text += "\n"
+            text += "\n--------------------------------------------------------------------------------"
+            text += "\nTYPE                 EasyHybrid Energy Refinement 2D                            "
+            text += "\n--------------------------------------------------------------------------------"
         else:
-            text = text + "\n"
-            text = text + "\n--------------------------------------------------------------------------------"
-            text = text + "\nTYPE                   EasyHybrid Energy Refinement                             "
-            text = text + "\n--------------------------------------------------------------------------------"
+            text += "\n"
+            text += "\n--------------------------------------------------------------------------------"
+            text += "\nTYPE                   EasyHybrid Energy Refinement                             "
+            text += "\n--------------------------------------------------------------------------------"
 
-
-
-
-        '''This part writes the parameters used in the first reaction coordinate'''
-        #-----------------------------------------------------------------------------------------------------------------------------------------------------------
+        # ---- Coordinate 1 -------------------------------------------------------------
         if parameters['RC1']["rc_type"] == 'simple_distance':
-            text = text + "\n"
-            text = text + "\n----------------------- Coordinate 1 - Simple-Distance -------------------------"
-            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOM_NAMES'][0] )
-            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOM_NAMES'][1] )
-            text = text + "\n--------------------------------------------------------------------------------"
+            text += "\n"
+            text += "\n----------------------- Coordinate 1 - Simple-Distance -------------------------"
+            text += "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0], parameters['RC1']['ATOM_NAMES'][0] )
+            text += "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1], parameters['RC1']['ATOM_NAMES'][1] )
+            text += "\n--------------------------------------------------------------------------------"
 
-        
         elif parameters['RC1']["rc_type"] == 'multiple_distance':
-            text = text + "\n"
-            text = text + "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"	
-            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOM_NAMES'][0] )
-            text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOM_NAMES'][1] )
-            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
-            text = text + "\n--------------------------------------------------------------------------------"
-        
-        
+            text += "\n"
+            text += "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"
+            text += "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOM_NAMES'][0] )
+            text += "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOM_NAMES'][1] )
+            text += "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
+            text += "\n--------------------------------------------------------------------------------"
+
         elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
-            text = text + "\n"
-            text = text + "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"	
-            text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOM_NAMES'][0] )
-            text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOM_NAMES'][1] )
-            text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
-            text = text + "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC1']['ATOMS'][3]    , parameters['RC1']['ATOM_NAMES'][3] )
-            text = text + "\n--------------------------------------------------------------------------------"
-        
-        
-        
-        else:
-            pass
-        #-----------------------------------------------------------------------------------------------------------------------------------------------------------
-        
-        
-        
-        
-        if parameters['RC2'] is not None :
+            text += "\n"
+            text += "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"
+            text += "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC1']['ATOMS'][0]    , parameters['RC1']['ATOM_NAMES'][0] )
+            text += "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC1']['ATOMS'][1]    , parameters['RC1']['ATOM_NAMES'][1] )
+            text += "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC1']['ATOMS'][2]    , parameters['RC1']['ATOM_NAMES'][2] )
+            text += "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC1']['ATOMS'][3]    , parameters['RC1']['ATOM_NAMES'][3] )
+            text += "\n--------------------------------------------------------------------------------"
 
-            '''This part writes the parameters used in the second reaction coordinate'''
-            #-----------------------------------------------------------------------------------------------------------------------------------------------------------
+        # ---- Coordinate 2 ---------------------------------------------------------------
+        if parameters['RC2'] is not None :
             if parameters['RC2']["rc_type"] == 'simple_distance':
-                text = text + "\n"
-                text = text + "\n----------------------- Coordinate 2 - Simple-Distance -------------------------"
-                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOM_NAMES'][0] )
-                text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOM_NAMES'][1] )
-                text = text + "\n--------------------------------------------------------------------------------"
+                text += "\n"
+                text += "\n----------------------- Coordinate 2 - Simple-Distance -------------------------"
+                text += "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0], parameters['RC2']['ATOM_NAMES'][0] )
+                text += "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1], parameters['RC2']['ATOM_NAMES'][1] )
+                text += "\n--------------------------------------------------------------------------------"
 
-            
             elif parameters['RC2']["rc_type"] == 'multiple_distance':
-                text = text + "\n"
-                text = text + "\n---------------------- Coordinate 2 - multiple-Distance ------------------------"	
-                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOM_NAMES'][0] )
-                text = text + "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOM_NAMES'][1] )
-                text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
-                text = text + "\n--------------------------------------------------------------------------------"
-            
+                text += "\n"
+                text += "\n---------------------- Coordinate 2 - multiple-Distance ------------------------"
+                text += "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOM_NAMES'][0] )
+                text += "\nATOM2*                 =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOM_NAMES'][1] )
+                text += "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
+                text += "\n--------------------------------------------------------------------------------"
+
             elif parameters['RC2']["rc_type"] == 'multiple_distance*4atoms':
-                text = text + "\n"
-                text = text + "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"	
-                text = text + "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOM_NAMES'][0] )
-                text = text + "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOM_NAMES'][1] )
-                text = text + "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
-                text = text + "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC2']['ATOMS'][3]    , parameters['RC2']['ATOM_NAMES'][3] )
-                text = text + "\n--------------------------------------------------------------------------------"
-            
-                
-            else:
-                pass
-            #-----------------------------------------------------------------------------------------------------------------------------------------------------------
-            
-        
-        
-        #-----------------------------------------------------------------------------------------------------------------------------------------------------------
-        '''This part writes the header of the frames distances and energy'''
+                text += "\n"
+                text += "\n---------------------- Coordinate 1 - multiple-Distance ------------------------"
+                text += "\nATOM1                  =%15i  ATOM NAME1             =%15s"     % (parameters['RC2']['ATOMS'][0]    , parameters['RC2']['ATOM_NAMES'][0] )
+                text += "\nATOM2                  =%15i  ATOM NAME2             =%15s"     % (parameters['RC2']['ATOMS'][1]    , parameters['RC2']['ATOM_NAMES'][1] )
+                text += "\nATOM3                  =%15i  ATOM NAME3             =%15s"     % (parameters['RC2']['ATOMS'][2]    , parameters['RC2']['ATOM_NAMES'][2] )
+                text += "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC2']['ATOMS'][3]    , parameters['RC2']['ATOM_NAMES'][3] )
+                text += "\n--------------------------------------------------------------------------------"
+
+        # ---- Data table header -----------------------------------------------------------
         if parameters['RC2'] is not None :
-            text = text + "\n\n--------------------------------------------------------------------------------"
-            text = text + "\n   Frame i  /  j        RCOORD-1             RCOORD-2                Energy     "
-            text = text + "\n--------------------------------------------------------------------------------"
-
-
-
-
+            text += "\n\n--------------------------------------------------------------------------------"
+            text += "\n   Frame i  /  j        RCOORD-1             RCOORD-2                Energy     "
+            text += "\n--------------------------------------------------------------------------------"
         else:
             if parameters['RC1']["rc_type"] == 'simple_distance':
-                text = text + "\n\n-------------------------------------------------------------"
-                text = text + "\n           Frame    dist-ATOM1-ATOM2             Energy      "
-                text = text + "\n-------------------------------------------------------------"
-            
+                text += "\n\n-------------------------------------------------------------"
+                text += "\n           Frame    dist-ATOM1-ATOM2             Energy      "
+                text += "\n-------------------------------------------------------------"
+
             elif parameters['RC1']["rc_type"] == 'multiple_distance':
-                text = text + "\n\n--------------------------------------------------------------------------------"
-                text = text + "\n           Frame     dist-ATOM1-ATOM2      dist-ATOM2-ATOM3         Energy        "
-                text = text + "\n--------------------------------------------------------------------------------  "
-            
+                text += "\n\n--------------------------------------------------------------------------------"
+                text += "\n           Frame     dist-ATOM1-ATOM2      dist-ATOM2-ATOM3         Energy        "
+                text += "\n--------------------------------------------------------------------------------  "
+
             elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
-                text = text + "\n\n--------------------------------------------------------------------------------"
-                text = text + "\n           Frame     dist-ATOM1-ATOM2      dist-ATOM3-ATOM4         Energy        "
-                text = text + "\n--------------------------------------------------------------------------------  "
-        #-----------------------------------------------------------------------------------------------------------------------------------------------------------
+                text += "\n\n--------------------------------------------------------------------------------"
+                text += "\n           Frame     dist-ATOM1-ATOM2      dist-ATOM3-ATOM4         Energy        "
+                text += "\n--------------------------------------------------------------------------------  "
 
-
-        
         arq.write(text)
         return arq

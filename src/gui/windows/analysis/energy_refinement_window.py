@@ -136,7 +136,10 @@ class EnergyRefinementWindow():
             #------------------------------------------------------------------------------------------------
             if self.main.p_session.psystem[self.p_session.active_id]:
                 if self.main.p_session.psystem[self.p_session.active_id].e_working_folder == None:
-                    folder = HOME
+                    # NOTE: 'HOME' was an undefined name here (NameError bug) - it should
+                    # refer to the window's own home path, exactly like self.home is used
+                    # everywhere else in this file.
+                    folder = self.home
                 else:
                     folder = self.main.p_session.psystem[self.p_session.active_id].e_working_folder
                 self.folder_chooser_button.set_folder(folder = folder)
@@ -221,35 +224,36 @@ class EnergyRefinementWindow():
                 pass
             
 
+    def _get_selected_vobject_info (self):
+        """ Resolves the vismol object currently selected in
+        combobox_starting_coordinates, along with its idx_2D_xy attribute
+        (if any). Returns (vobject, idx_2D_xy) or (None, None) if nothing
+        is selected.
+
+        This used to be duplicated (identically) in on_coordinates_combobox_change
+        and on_button_run_clicked - now both call this single implementation.
+        """
+        tree_iter = self.combobox_starting_coordinates.get_active_iter()
+        if tree_iter is None:
+            return None, None
+
+        model = self.combobox_starting_coordinates.get_model()
+        name, vobject_id = model[tree_iter][:2]
+
+        vobject   = self.main.vm_session.vm_objects_dic[vobject_id]
+        idx_2D_xy = getattr(vobject, 'idx_2D_xy', None)
+
+        return vobject, idx_2D_xy
+
     def on_coordinates_combobox_change (self, widget):
         """ Function doc """
-        _id = self.combobox_starting_coordinates.get_active()
-        print(_id)
-        
-        tree_iter = self.combobox_starting_coordinates.get_active_iter()
-        if tree_iter is not None:
-            '''selecting the vismol object from the content that is in the combobox '''
-            model = self.combobox_starting_coordinates.get_model()
-            name, vobject_id = model[tree_iter][:2]
-            
-            vobject = self.main.vm_session.vm_objects_dic[vobject_id]
-            
-            idx_2D_xy = getattr(vobject, 'idx_2D_xy', None)
-            
-           
-            if idx_2D_xy:
-                is_2D_xy = True
-                print("is_2D_xy" , True)
-                print("idx_2D_xy", idx_2D_xy)
-            else:
-                print("is_2D_xy" , False)
-                print("idx_2D_xy", idx_2D_xy)
+        vobject, idx_2D_xy = self._get_selected_vobject_info()
 
+        if vobject is not None:
+            print("is_2D_xy" , bool(idx_2D_xy))
+            print("idx_2D_xy", idx_2D_xy)
 
-            if idx_2D_xy:
-                self.builder.get_object('box_reaction_coordinate2').set_sensitive(True)
-            else:
-                self.builder.get_object('box_reaction_coordinate2').set_sensitive(False)
+            self.builder.get_object('box_reaction_coordinate2').set_sensitive(bool(idx_2D_xy))
 
 
 
@@ -284,28 +288,16 @@ class EnergyRefinementWindow():
         #----------------------------------------------------------------------
         if input_type == 0:
             parameters["traj_type"] = 'vobject'
-                             
-            tree_iter = self.combobox_starting_coordinates.get_active_iter()
-            if tree_iter is not None:
-                '''selecting the vismol object from the content that is in the combobox '''
-                model = self.combobox_starting_coordinates.get_model()
-                name, vobject_id = model[tree_iter][:2]
-                
-                vobject = self.main.vm_session.vm_objects_dic[vobject_id]
-                
-                idx_2D_xy = getattr(vobject, 'idx_2D_xy', None)
-                
-                if idx_2D_xy:
-                    parameters["is_2D_xy"] = True
-                    parameters["idx_2D_xy"] = idx_2D_xy
-                else:
-                    parameters["is_2D_xy"] = False
-                    parameters["idx_2D_xy"] = False
-                
+
+            vobject, idx_2D_xy = self._get_selected_vobject_info()
+            if vobject is not None:
+                parameters["is_2D_xy"]  = bool(idx_2D_xy)
+                parameters["idx_2D_xy"] = idx_2D_xy if idx_2D_xy else False
+
                 parameters["trajectory"] = vobject.frames
                 parameters["filename"] = self.builder.get_object('entry_logfile').get_text()
-                
-                
+
+
 
         elif input_type in [1,2]:
             if input_type == 1:
