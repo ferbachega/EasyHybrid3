@@ -372,67 +372,214 @@ class EnergyRefinement:
             data_energy = {}
             energy_list = []
             text = ""
-
-            for x ,frame in  enumerate(parameters["trajectory"]):
-
-                for i, xyz in enumerate(frame):
-                    parameters['system'].coordinates3[i][0] = xyz[0]
-                    parameters['system'].coordinates3[i][1] = xyz[1]
-                    parameters['system'].coordinates3[i][2] = xyz[2]
-
-                energy = parameters['system'].Energy()
-                energy_list.append(energy)
-        
-                if parameters['RC1']['rc_type'] == 'simple_distance':
-                    atom1 = parameters['RC1']['ATOMS'][0]
-                    atom2 = parameters['RC1']['ATOMS'][1]
-                    dist =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                    data_energy[int(x)] = [energy, dist ]
-                
-                elif parameters['RC1']['rc_type'] == 'multiple_distance':
-                    atom1 = parameters['RC1']['ATOMS'][0]
-                    atom2 = parameters['RC1']['ATOMS'][1]
-                    atom3 = parameters['RC1']['ATOMS'][2]
-                    dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                    dist2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
-                    dist  =  dist1 - dist2 
-                    data_energy[int(x)] = [energy, dist1, dist2]
-                
-                elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
-                    atom1 = parameters['RC1']['ATOMS'][0]
-                    atom2 = parameters['RC1']['ATOMS'][1]
-                    atom3 = parameters['RC1']['ATOMS'][2]
-                    atom4 = parameters['RC1']['ATOMS'][3]
-                    dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
-                    dist2 =  parameters['system'].coordinates3.Distance (atom3, atom4) 
-                    dist  =  dist1 - dist2 
-                    data_energy[int(x)] = [energy, dist1, dist2]        
-
-            lowest_energy = min(energy_list)
-            keys = data_energy.keys()
             
-            for i in range(0, len(keys)):
-                if parameters['RC1']['rc_type'] == 'simple_distance':
-                    distance = data_energy[i][1]
-                    energy   = data_energy[i][0]
-                    text += "\nDATA %9i       %13.12f        %13.12f"% (int(i), float(distance), float(energy))
+            
+            if parameters["is_2D_xy"]:
+                max_i = 0
+                max_j = 0
+                i_list = []
+                j_list = []
+                data   = {}
+
+
+
+                print (parameters["idx_2D_xy"])
                 
-                elif parameters['RC1']['rc_type'] == 'multiple_distance':
-                    distance1 = data_energy[i][1]
-                    distance2 = data_energy[i][2]
-                    energy    = data_energy[i][0]
-                    text += "\nDATA %9i       %13.12f        %13.12f        %13.12f"% (int(i), float(distance1), float(distance2), float(energy))
+                for i_j, frame_idx in parameters["idx_2D_xy"].items():
+               
+                    
+                    frame = parameters["trajectory"][frame_idx]
+                    for idx, xyz in enumerate(frame):
+                        parameters['system'].coordinates3[idx][0] = xyz[0]
+                        parameters['system'].coordinates3[idx][1] = xyz[1]
+                        parameters['system'].coordinates3[idx][2] = xyz[2]
+                    
+                    energy = parameters['system'].Energy()
+                    i = int(i_j[0])
+                    j = int(i_j[1])
+                    i_list.append(i)
+                    j_list.append(j)
+                    energy_list.append(energy)
+                    
+                    if parameters['RC1']['rc_type'] == 'simple_distance':
+                        atom1 = parameters['RC1']['ATOMS'][0]
+                        atom2 = parameters['RC1']['ATOMS'][1]
+                        
+                        dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+    
+                    
+                    elif parameters['RC1']['rc_type'] == 'multiple_distance':
+                        atom1 = parameters['RC1']['ATOMS'][0]
+                        atom2 = parameters['RC1']['ATOMS'][1]
+                        atom3 = parameters['RC1']['ATOMS'][2]
+                        dist_RC1_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                        dist_RC1_2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
+                        
+                        dist1 =  didist_RC1_1 - dist_RC1_2
+                    
+                    elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
+                        atom1 = parameters['RC1']['ATOMS'][0]
+                        atom2 = parameters['RC1']['ATOMS'][1]
+                        atom3 = parameters['RC1']['ATOMS'][2]
+                        atom4 = parameters['RC1']['ATOMS'][3]
+                        dist_RC1_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                        dist_RC1_2 =  parameters['system'].coordinates3.Distance (atom3, atom4) 
+                        dist1  =  dist_RC1_1 - dist_RC1_2 
+                    
+                    
+                    if parameters['RC2']['rc_type'] == 'simple_distance':
+                        atom1 = parameters['RC2']['ATOMS'][0]
+                        atom2 = parameters['RC2']['ATOMS'][1]
+                        dist2 = parameters['system'].coordinates3.Distance (atom1, atom2) 
+                    
+                    elif parameters['RC2']['rc_type'] == 'multiple_distance':
+                        atom1 = parameters['RC2']['ATOMS'][0]
+                        atom2 = parameters['RC2']['ATOMS'][1]
+                        atom3 = parameters['RC2']['ATOMS'][2]
+                        dist_RC2_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                        dist_RC2_2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
+                        
+                        dist2 = dist_RC2_1 - dist_RC2_2
+                    
+                    elif parameters['RC2']['rc_type'] == 'multiple_distance*4atoms':
+                        atom1 = parameters['RC2']['ATOMS'][0]
+                        atom2 = parameters['RC2']['ATOMS'][1]
+                        atom3 = parameters['RC2']['ATOMS'][2]
+                        atom4 = parameters['RC2']['ATOMS'][3]
+                        dist_RC2_1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                        dist_RC2_2 =  parameters['system'].coordinates3.Distance (atom3, atom4) 
+                        dist2 = dist_RC2_1 - dist_RC2_2
                 
-                elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
-                    distance1 = data_energy[i][1]
-                    distance2 = data_energy[i][2]
-                    energy    = data_energy[i][0]
-                    text += "\nDATA %9i       %13.12f        %13.12f        %13.12f"% (int(i), float(distance1), float(distance2), float(energy))
-                else:
-                    pass
-        
-        
-            logfile.write(text)
+                    
+                    
+                    
+                    data[(i,j)] = [dist1, dist2, energy]
+                    print ('frame:', i_j, energy)
+    
+                max_i = max(i_list)
+                max_j = max(j_list)
+                
+                for i in range(0, max_i+1):
+                    for j in range(0, max_j+1):
+
+                        text = "\nDATA  %4i  %4i     %13.12f       %13.12f       %13.12f"% (int(i), int(j),  float(data[(i,j)][0]), float(data[(i,j)][1]), float(data[(i,j)][2]))
+                        logfile.write(text)                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+            else: # means that is 1D
+                
+                for x ,frame in  enumerate(parameters["trajectory"]):
+
+                    for i, xyz in enumerate(frame):
+                        parameters['system'].coordinates3[i][0] = xyz[0]
+                        parameters['system'].coordinates3[i][1] = xyz[1]
+                        parameters['system'].coordinates3[i][2] = xyz[2]
+
+                    energy = parameters['system'].Energy()
+                    energy_list.append(energy)
+            
+                    if parameters['RC1']['rc_type'] == 'simple_distance':
+                        atom1 = parameters['RC1']['ATOMS'][0]
+                        atom2 = parameters['RC1']['ATOMS'][1]
+                        dist =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                        data_energy[int(x)] = [energy, dist ]
+                    
+                    elif parameters['RC1']['rc_type'] == 'multiple_distance':
+                        atom1 = parameters['RC1']['ATOMS'][0]
+                        atom2 = parameters['RC1']['ATOMS'][1]
+                        atom3 = parameters['RC1']['ATOMS'][2]
+                        dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                        dist2 =  parameters['system'].coordinates3.Distance (atom2, atom3) 
+                        dist  =  dist1 - dist2 
+                        data_energy[int(x)] = [energy, dist1, dist2]
+                    
+                    elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
+                        atom1 = parameters['RC1']['ATOMS'][0]
+                        atom2 = parameters['RC1']['ATOMS'][1]
+                        atom3 = parameters['RC1']['ATOMS'][2]
+                        atom4 = parameters['RC1']['ATOMS'][3]
+                        dist1 =  parameters['system'].coordinates3.Distance (atom1, atom2) 
+                        dist2 =  parameters['system'].coordinates3.Distance (atom3, atom4) 
+                        dist  =  dist1 - dist2 
+                        data_energy[int(x)] = [energy, dist1, dist2]        
+
+                lowest_energy = min(energy_list)
+                keys = data_energy.keys()
+                
+                for i in range(0, len(keys)):
+                    if parameters['RC1']['rc_type'] == 'simple_distance':
+                        distance = data_energy[i][1]
+                        energy   = data_energy[i][0]
+                        text += "\nDATA %9i       %13.12f        %13.12f"% (int(i), float(distance), float(energy))
+                    
+                    elif parameters['RC1']['rc_type'] == 'multiple_distance':
+                        distance1 = data_energy[i][1]
+                        distance2 = data_energy[i][2]
+                        energy    = data_energy[i][0]
+                        text += "\nDATA %9i       %13.12f        %13.12f        %13.12f"% (int(i), float(distance1), float(distance2), float(energy))
+                    
+                    elif parameters['RC1']['rc_type'] == 'multiple_distance*4atoms':
+                        distance1 = data_energy[i][1]
+                        distance2 = data_energy[i][2]
+                        energy    = data_energy[i][0]
+                        text += "\nDATA %9i       %13.12f        %13.12f        %13.12f"% (int(i), float(distance1), float(distance2), float(energy))
+                    else:
+                        pass
+            
+            
+                logfile.write(text)
 
 
 
