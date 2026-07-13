@@ -50,6 +50,7 @@ import random
 import string
 
 from pprint import pprint
+import traceback
 
 #VISMOL_HOME = os.environ.get('VISMOL_HOME')
 
@@ -451,6 +452,8 @@ class pSimulations:
             
         except Exception as exc:
             print(f"Error {sim_type}: {exc}")
+            traceback.print_exc()    # <-- imprime o traceback completo
+            
             results = {
                 'new_vobject': False,
                 'energy': False,

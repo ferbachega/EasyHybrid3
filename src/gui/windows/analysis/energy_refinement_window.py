@@ -278,10 +278,17 @@ class EnergyRefinementWindow():
                 '''selecting the vismol object from the content that is in the combobox '''
                 model = self.combobox_starting_coordinates.get_model()
                 name, vobject_id = model[tree_iter][:2]
+                
                 vobject = self.main.vm_session.vm_objects_dic[vobject_id]
+                
                 parameters["trajectory"] = vobject.frames
-            
-        
+                #print(type(parameters["trajectory"]), parameters["trajectory"])
+                parameters["filename"] = self.builder.get_object('entry_logfile').get_text()
+                #for frame in  parameters["trajectory"]:
+                #    for i, xyz in enumerate(frame):
+                #        print(i, xyz)
+                
+                
         elif input_type in [1,2]:
             if input_type == 1:
                 parameters["traj_type"]  = 'pklfolder'
@@ -327,7 +334,7 @@ class EnergyRefinementWindow():
         
         #----------------------------------------------------------------------
         
-        pprint (parameters)
+        #pprint (parameters)
         self.p_session.run_simulation( parameters = parameters )
 
 
