@@ -110,8 +110,26 @@ class VismolConfig                       :
         #                                   "picking_dots"}
         
         #.Rep list - Don't change this list
+        # [EN] "cartoon" re-added (was only in the commented-out version
+        # above). THIS is the file actually used at runtime -- easyhybrid.py
+        # (the real entry point) does "from gui.config import VismolConfig"
+        # and passes an instance of THIS class explicitly to
+        # EasyHybridSession(vm_config=vconfig), which overrides the
+        # submodule's own default vismol/core/vismol_config.py entirely
+        # (see VismolSession.__init__: "if vm_config: self.vm_config =
+        # vm_config"). An earlier fix mistakenly edited the submodule's
+        # vismol_config.py instead -- same class name (VismolConfig),
+        # same near-identical content, different file, never actually
+        # instantiated by the real app. Without "cartoon" here,
+        # vm_glcore.initialize()'s shader-compile loop
+        # (for rep in self.vm_config.representations_available: ...)
+        # simply never attempts "cartoon" at all -- no error at startup
+        # (nothing failed, it just never got tried), and
+        # shader_programs["cartoon"] stays unset until the first
+        # attempt to actually draw a Cartoon representation, which is
+        # exactly where the KeyError shows up.
         self.representations_available = {"dots", "lines", "nonbonded", "impostor",'dash', "posdot_type",
-                                          "sticks", "spheres", 'ribbons',#'ribbon_sphere', 
+                                          "sticks", "spheres", 'ribbons', 'cartoon', #'ribbon_sphere', 
                                           'dynamic','vdw_spheres', 
                                           'picking_spheres','static_freetype', 'surface'}
     
@@ -235,7 +253,6 @@ class VismolConfig                       :
         with open(config_path, "r") as config_file                       :
             self.gl_parameters = json.load(config_file)
     
-
 
 
 

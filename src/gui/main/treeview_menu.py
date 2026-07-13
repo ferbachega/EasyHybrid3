@@ -163,6 +163,35 @@ class TreeViewMenu:
                                 'Rename'                : self._menu_rename ,
                                 '_separator'            : ''      ,
                                 'Show / Hide Cell'      : self.show_or_hide_cell,
+                                
+                                # [EN] User request: add Cartoon as a
+                                # selectable representation option in
+                                # EasyHybrid. No existing menu here let
+                                # you pick a representation type at all
+                                # (only Rename/Frames/Go To Atom/Export/
+                                # Delete existed) -- this submenu covers
+                                # the representations already wired into
+                                # VismolObject.create_representation()
+                                # (see vismol_object.py), Cartoon
+                                # included (now that its secondary-
+                                # structure bug is fixed -- see
+                                # cartoon_BCK.py). Each entry toggles
+                                # that representation on/off for the
+                                # object that was right-clicked -- see
+                                # _menu_toggle_representation() below.
+                                
+                                #'''
+                                #'Representation': {
+                                #                  'Lines'      : lambda mi, rep='lines'     : self._menu_toggle_representation(mi, rep),
+                                #                  'Sticks'     : lambda mi, rep='sticks'    : self._menu_toggle_representation(mi, rep),
+                                #                  'Nonbonded'  : lambda mi, rep='nonbonded' : self._menu_toggle_representation(mi, rep),
+                                #                  'Dots'       : lambda mi, rep='dots'      : self._menu_toggle_representation(mi, rep),
+                                #                  '_separator' : None,
+                                #                  'Cartoon'    : lambda mi, rep='cartoon'   : self._menu_toggle_representation(mi, rep),
+                                #                  },
+                                ##'''
+                                
+                                '_separator'            : ''      ,
                                 'Frames': {
                                         'Edit': {
                                              "Size": self.call_editframe_window,
@@ -824,6 +853,28 @@ class TreeViewMenu:
 
         window.show_all ( )
     
+    def _menu_toggle_representation (self, menu_item, rep_type):
+        """ [EN] Toggles representation `rep_type` on/off for the object
+        that was right-clicked (self.vobject_index, set by open_menu()
+        above). Reuses VismolObject.create_representation() (already
+        wired up for every representation type shown in the
+        'Representation' submenu, see vobject_menu_items above) --
+        creating it fresh if it doesn't exist yet on this object (a new
+        representation is active=True by construction), or just flipping
+        its existing .active flag if it does, rather than tearing down
+        and recreating an already-correctly-built one every time
+        (particularly relevant for 'cartoon': recreating it re-runs the
+        whole secondary-structure calculation and spline generation for
+        no reason if it's already there and merely needs to be shown
+        again). """
+        vismol_object = self.treeview.main.vm_session.vm_objects_dic[self.vobject_index]
+        rep = vismol_object.representations.get(rep_type)
+        if rep is None:
+            vismol_object.create_representation(rep_type=rep_type)
+        else:
+            rep.active = not rep.active
+        self.treeview.main.vm_session.vm_glcore.queue_draw()
+
     def _menu_rename (self, menu_item = None ):
         """  
         menu_item = Gtk.MenuItem object at 0x7fbdcc035700 (GtkMenuItem at 0x37cf6c0)
