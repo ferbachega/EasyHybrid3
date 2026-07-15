@@ -45,7 +45,11 @@ import os
 from pScientific.RandomNumbers import NormalDeviateGenerator, RandomNumberGenerator
 
 # --- imports entre modulos adicionados na refatoracao ---
-from pdynamo.p_methods._common import backup_orca_files, write_header
+from pdynamo.p_methods._common import backup_orca_files, write_header, get_hamiltonian
+
+# QC hamiltonians that shell out to an external program and therefore need an
+# isolated scratch directory per concurrent task (same list used in surface_scan.py).
+_EXTERNAL_QC_HAMILTONIANS = ('DFTB QC Model', 'ORCA QC Model', 'XTB QC Model', 'external')
 
 
 # =====================================================================================
@@ -87,6 +91,34 @@ def compute_reaction_coordinate(coordinates3, rc):
     return None, None
 
 
+def _isolate_qc_scratch(system, task_id):
+    """ When the system uses an external QC program (DFTB/ORCA/XTB/other
+    'external' hamiltonian), redirect it to a dedicated scratch subfolder for
+    this specific task, so two tasks running concurrently in different
+    worker processes never read/write the same ORCA/XTB input-output files.
+
+    Mirrors exactly the pattern already used in surface_scan.py
+    (system.qcModel.scratch + '/process_<id>' + qcState.DeterminePaths),
+    just keyed by frame_id / (i, j) instead of the RC1 step index, since
+    that's what uniquely identifies a task in this module.
+
+    Cheap no-op for MM-only systems (hamiltonian not in the external list).
+    """
+    hamiltonian = get_hamiltonian(system)
+
+    if hamiltonian in _EXTERNAL_QC_HAMILTONIANS:
+        scratch_dir = system.qcModel.scratch + '/process_' + str(task_id)
+        try:
+            os.mkdir(scratch_dir)
+        except:
+            pass
+
+        try:
+            system.qcState.DeterminePaths(scratch_dir)
+        except:
+            pass
+
+
 def _apply_vobject_frame(system, frame):
     """ Copies an in-memory (vobject) frame's xyz array into system.coordinates3. """
     coordinates3 = system.coordinates3
@@ -126,6 +158,10 @@ def _pool_task_1d(args):
     frame_id, frame, rc1, from_file, full_path_trajectory = args
     system = _worker_system
 
+    # Must happen before system.Energy(): avoids two concurrent workers
+    # colliding on the same ORCA/XTB scratch files (see _isolate_qc_scratch).
+    _isolate_qc_scratch(system, frame_id)
+
     if from_file:
         system.coordinates3 = ImportCoordinates3(os.path.join(_worker_data_path, frame))
     else:
@@ -145,6 +181,10 @@ def _pool_task_1d(args):
 def _pool_task_2d(args):
     key, frame, rc1, rc2, from_file = args
     system = _worker_system
+
+    # Must happen before system.Energy(): avoids two concurrent workers
+    # colliding on the same ORCA/XTB scratch files (see _isolate_qc_scratch).
+    _isolate_qc_scratch(system, '{}_{}'.format(key[0], key[1]))
 
     if from_file:
         system.coordinates3 = ImportCoordinates3(os.path.join(_worker_data_path, frame))
