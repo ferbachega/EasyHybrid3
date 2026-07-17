@@ -211,6 +211,92 @@ def add_atom ( vismol_object, symbol, x, y, z, name = None,
     return atom
 
 
+def set_atom_element ( vismol_object, atom_id, symbol, name = None,
+                        recompute_bonds = True, update_representation = True ):
+    """ [EN] Changes the chemical ELEMENT of an already-existing atom, IN
+    PLACE -- same atom_id, same position, same bonds-list slot. Used by
+    the Builder's "add" tool when a plain click lands ON an atom that
+    already exists (see click_mode.handle_click_to_place_atom()):
+    instead of stacking a new, essentially-overlapping atom on top of
+    it, the existing atom is turned into the newly selected element.
+
+    Unlike add_atom()/remove_atom(), this does NOT touch vismol_object.
+    frames (position is unchanged) or vm_session.atom_dic_id / atom.
+    unique_id (identity for picking is unchanged -- it's still "the same
+    atom", just a different element now) -- only the element-derived
+    per-atom attributes are recomputed, exactly the same way Atom.
+    __init__ computes them the first time (self.symbol/self.name is set
+    first, THEN each _init_*() is called, since every one of them reads
+    self.symbol/self.name at call time -- see atom.py):
+      - atom.color             (_init_color)
+      - atom.vdw_rad            (_init_vdw_rad)
+      - atom.cov_rad            (_init_cov_rad)   <- affects bond detection
+      - atom.ball_rad           (_init_ball_rad)
+      - atom.electronegativity  (_init_electronegativity)
+
+    recompute_bonds : if True (default), re-runs
+               vismol_object.find_bonded_and_nonbonded_atoms() afterwards
+               -- REQUIRED, not just cosmetic: bond detection is based on
+               each atom's cov_rad (see that method), so e.g. turning a C
+               into an O (different covalent radius) can genuinely change
+               which neighbours count as bonded. Same reset-before-
+               recompute pattern add_atom()/remove_atom() already use
+               (those methods' asserts require bonds/non_bonded_atoms to
+               be None before a fresh detection pass).
+    update_representation : if True (default), rebuilds "lines"/
+               "nonbonded" and forces a re-build of the picking
+               representations, same reasoning as add_atom()/
+               remove_atom() (the new colour otherwise wouldn't show up
+               until something else forced a full rebuild).
+
+    Returns the (mutated) Atom object.
+    """
+    if atom_id not in vismol_object.atoms:
+        raise ValueError ( "set_atom_element: atom_id {} does not exist in this object.".format ( atom_id ) )
+
+    atom = vismol_object.atoms[atom_id]
+
+    if name is None:
+        name = symbol
+
+    atom.symbol = symbol
+    atom.name   = name
+
+    # Recompute every element-derived attribute -- same _init_*() methods
+    # Atom.__init__ itself calls, now reading the just-updated symbol/name.
+    atom.color             = atom._init_color ( )
+    atom.vdw_rad           = atom._init_vdw_rad ( )
+    atom.cov_rad           = atom._init_cov_rad ( )
+    atom.ball_rad          = atom._init_ball_rad ( )
+    atom.electronegativity = atom._init_electronegativity ( )
+
+    vm_session = vismol_object.vm_session
+
+    # same call add_atom()/remove_atom() make -- colors_id_start isn't
+    # actually used inside the method (confirmed reading the source), so
+    # the exact value passed doesn't matter, only that ALL atoms' colour
+    # vectors get regenerated (this atom's new colour included).
+    vismol_object._generate_color_vectors ( vm_session.atom_id_counter )
+
+    if recompute_bonds:
+        vismol_object.cov_radii_array = None
+        vismol_object.electronegativity_array = None
+        vismol_object.index_bonds = None
+        vismol_object.bonds = None
+        vismol_object.non_bonded_atoms = None
+        vismol_object.find_bonded_and_nonbonded_atoms ( )
+
+    if update_representation:
+        vismol_object.create_representation ( rep_type = "lines" )
+        vismol_object.create_representation ( rep_type = "nonbonded" )
+        vismol_object.core_representations["picking_dots"] = None
+        vismol_object.core_representations["picking_text"] = None
+        if getattr ( vm_session, "vm_glcore", None ) is not None:
+            vm_session.vm_glcore.queue_draw ( )
+
+    return atom
+
+
 def remove_atom ( vismol_object, atom_id ):
     """ [EN] Fourth building block of the Builder (delete-atom tool, 'd'
     key). Removes a single atom from vismol_object by its atom_id.
