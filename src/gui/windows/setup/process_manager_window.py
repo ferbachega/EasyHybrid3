@@ -30,13 +30,96 @@
 #
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk
+from gi.repository import Gtk, Gdk, GLib
 from gi.repository import GdkPixbuf
 from gui.widgets.custom_widgets  import get_colorful_square_pixel_buffer
 from gui.windows.setup.windows_and_dialogs import TextWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
-import os, sys, time
+import os, sys, time, signal
 from pprint import pprint
+
+
+def _get_descendant_pids ( pid ):
+    """ [EN] Returns every descendant PID (children, grandchildren, ...)
+    of `pid`, walking /proc/<pid>/task/<tid>/children recursively --
+    Linux-specific (available since kernel 3.5), deliberately NOT using
+    psutil: it isn't used anywhere else in this codebase and isn't
+    guaranteed to be installed on every user's machine -- avoids adding
+    that as a hard new dependency just for this one feature, on an app
+    that's Linux-only in practice already (pDynamo3's own install paths,
+    GTK, etc.).
+
+    Needed because multiprocessing.Process.terminate() only sends
+    SIGTERM to the ONE direct child process it tracks -- confirmed by
+    reading pdynamo/p_methods/energy.py, surface_scan.py and
+    umbrella_sampling.py directly: all three spawn their OWN
+    multiprocessing.Pool workers (or shell out to external QM programs
+    like ORCA/XTB) INSIDE that child process, which terminate() has no
+    idea about and never signals -- aborting a job used to report
+    success while those grandchildren kept running, orphaned, still
+    consuming CPU. """
+    descendants = [ ]
+    to_visit = [ pid ]
+    while to_visit:
+        current = to_visit.pop ( )
+        try:
+            with open ( '/proc/{}/task/{}/children'.format ( current, current ) ) as f:
+                children_str = f.read ( ).strip ( )
+        except ( FileNotFoundError, ProcessLookupError, NotADirectoryError ):
+            continue
+        if not children_str:
+            continue
+        children = [ int ( p ) for p in children_str.split ( ) ]
+        descendants.extend ( children )
+        to_visit.extend ( children )
+    return descendants
+
+
+def _pid_alive ( pid ):
+    """ True if `pid` still exists (POSIX: signal 0 doesn't actually
+    signal anything, just checks for existence/permission). """
+    try:
+        os.kill ( pid, 0 )
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True   # existe, so nao e nosso pra sinalizar (nao deveria acontecer com processos filhos nossos)
+    return True
+
+
+def _terminate_process_tree ( pid ):
+    """ Sends SIGTERM to `pid` and every descendant found via
+    _get_descendant_pids() -- see that function's own docstring for why
+    this is necessary at all instead of just process.terminate().
+    Deliberately does NOT block waiting for them to actually exit -- see
+    the GLib.timeout_add-based polling in
+    ProcessManagerWindow._check_abort_progress() for that (a blocking
+    process.join(timeout=5) on the main GTK thread used to freeze the
+    whole UI for up to 5 seconds every time a job was aborted).
+
+    Returns the full list of PIDs signalled (pid + all descendants), so
+    the caller can later check/escalate to SIGKILL against the exact
+    same set. """
+    all_pids = _get_descendant_pids ( pid ) + [ pid ]
+    for p in all_pids:
+        try:
+            os.kill ( p, signal.SIGTERM )
+        except ProcessLookupError:
+            pass
+    return all_pids
+
+
+def _force_kill_pids ( pids ):
+    """ SIGKILL for anything in `pids` still alive -- last resort, called
+    once the grace period in _check_abort_progress() runs out and
+    SIGTERM alone wasn't enough. """
+    for p in pids:
+        if _pid_alive ( p ):
+            try:
+                os.kill ( p, signal.SIGKILL )
+            except ProcessLookupError:
+                pass
+
 
 class ProcessManagerWindow(Gtk.Window):
     """
@@ -108,6 +191,7 @@ class ProcessManagerWindow(Gtk.Window):
         Build the context popup menu for job management.
 
         Provides the following options:
+            - View Log
             - Rerun a job
             - Abort a job
             - Remove a job from the list
@@ -115,7 +199,16 @@ class ProcessManagerWindow(Gtk.Window):
         """
         # Criar popup menu
         self.popup_menu = Gtk.Menu()
-        
+
+        # View Log -- new, requested by the user alongside the double-
+        # click (on_row_activated) shortcut that already existed but had
+        # no visible/discoverable menu entry.
+        menu_item0 = Gtk.MenuItem(label="View Log")
+        menu_item0.connect("activate", self.on_view_log_activate)
+        self.popup_menu.append(menu_item0)
+
+        self.popup_menu.append(Gtk.SeparatorMenuItem())
+
         # Rerun job
         menu_item1 = Gtk.MenuItem(label="Rerun")
         menu_item1.connect("activate", self.rerun_job)
@@ -336,21 +429,85 @@ class ProcessManagerWindow(Gtk.Window):
 
     def on_row_activated(self, treeview, path, column):
         model = treeview.get_model()
-        iter = model.get_iter(path)
-        nome = model[iter][0]
-        pid = model[iter][1]
-        e_id = model[iter][7]
-        step_counter = model[iter][8]
-        print(f"Double click on: {e_id} {nome} {step_counter} (PID={pid})")
-        system = self.p_session.psystem[e_id]
-        system.e_job_history[step_counter]['e_id'] = e_id
-        pprint(system.e_job_history[step_counter])
-        
-        logfile = system.e_job_history[step_counter]['logfile']
-        data = open(logfile, 'r')
-        data = data.read()
+        treeiter = model.get_iter(path)
+        self._open_log_for_row(model, treeiter)
+
+    def on_view_log_activate(self, widget):
+        """ Handler for the popup menu's new "View Log" item -- opens
+        the log for whichever row is currently selected (right-clicked),
+        same underlying logic double-click (on_row_activated) already
+        uses. """
+        model, treeiter = self.treeview.get_selection().get_selected()
+        if treeiter is None:
+            return
+        self._open_log_for_row(model, treeiter)
+
+    def _open_log_for_row (self, model, treeiter):
+        """ [EN] Shared by both on_row_activated() (double-click) and
+        on_view_log_activate() (the popup menu's "View Log" item) --
+        opens the log file associated with this row, if one is actually
+        available and readable.
+
+        BUG FIXED (reported by the user: this only ever worked for
+        Geometry Optimization jobs, not other simulation types): the
+        underlying cause was that several simulation runner classes
+        (RelaxedSurfaceScan/AdvancedRelaxedSurfaceScan, UmbrellaSampling,
+        NormalModes, EnergyRefinement, and Geometry Optimization itself
+        when saving a trajectory) never corrected parameters['logfile']
+        to their OWN real, actual log path after computing it -- so
+        system.e_job_history[...]['logfile'] was left holding
+        simulations_mixin._configure_logfile()'s scratch-based GUESS,
+        which didn't match where that runner actually wrote its log.
+        Fixed at the source now (see each runner's own fix in
+        pdynamo/p_methods/*.py, all mirroring the pattern
+        molecular_dynamics.py/chain_of_states.py already used
+        correctly). This function ALSO defends against whatever's still
+        missing/wrong (an unknown future simulation type, a manually
+        moved/deleted log file, a job saved from before this feature
+        existed, a system that no longer exists in this session, ...)
+        with a friendly error dialog instead of a silent crash/
+        exception dumped to the terminal. """
+        e_id         = model[treeiter][7]
+        step_counter = model[treeiter][8]
+        system_name  = model[treeiter][0].strip()
+
+        system = self.p_session.psystem.get(e_id)
+        if system is None:
+            self.main.simple_dialog.error(
+                msg="Could not find the system for this job (internal id {}).\n\n"
+                    "It may have been removed from the session.".format(e_id))
+            return
+
+        job = system.e_job_history.get(step_counter)
+        if job is None:
+            self.main.simple_dialog.error(
+                msg="No job history found for '{}' (step {}).".format(system_name, step_counter))
+            return
+
+        logfile = job.get('logfile')
+        if not logfile:
+            self.main.simple_dialog.error(
+                msg="This job has no log file associated with it.\n\n"
+                    "System: {}\nStep: {}".format(system_name, step_counter))
+            return
+
+        if not os.path.isfile(logfile):
+            self.main.simple_dialog.error(
+                msg="The log file for this job could not be found on disk "
+                    "(it may still be being written, or was moved/deleted):\n\n{}".format(logfile))
+            return
+
+        try:
+            with open(logfile, 'r') as f:
+                data = f.read()
+        except Exception as exc:
+            self.main.simple_dialog.error(
+                msg="Could not read the log file:\n\n{}\n\nError: {}".format(logfile, exc))
+            return
+
         textwindow = TextWindow(data, logfile)
-        
+
+
     def rerun_job(self, widget):
         #return False
         
@@ -414,36 +571,126 @@ class ProcessManagerWindow(Gtk.Window):
 
     def on_stop_activate(self, widget):
         model, treeiter = self.treeview.get_selection().get_selected()
-        
-        simple_dialog = SimpleDialog(self.main)
-        msg = 'Do you want to abort process number {}: {}?'.format(model[treeiter][8], model[treeiter][1])
-        yes_or_no = simple_dialog.question(msg)
-        
-        if yes_or_no:
-            pass
-        else:
-            return False
 
-        if treeiter:
-            e_id = model[treeiter][7]
-            
-            if model[treeiter][5] != 'Running...':
-                pass
-            else:
-                process = self.main.p_session.process_pool[e_id][1]
-                
-                # ... abort at some later point:
-                process.terminate()    # requests immediate termination
-                process.join(timeout=5)  # “awaits cleanup for up to 5 seconds”
-                model[treeiter][5] = "Aborted"
-                
-                system       = self.p_session.psystem[e_id]
-                step_counter = system.e_step_counter
-                system.e_job_history[step_counter]['status'] = "Aborted"
-                
-                self.p_session.psystem[e_id].e_step_counter += 1
-                self.set_time ( treeiter= treeiter,  end = True)
-          
+        # [EN] BUG FIXED: used to build the confirmation message from
+        # model[treeiter][...] BEFORE ever checking treeiter was valid --
+        # crashed immediately (instead of just doing nothing) if nothing
+        # was selected when this fired.
+        if treeiter is None:
+            return
+
+        job_num     = model[treeiter][8]
+        system_name = model[treeiter][1]
+
+        simple_dialog = SimpleDialog(self.main)
+        msg = 'Do you want to abort process number {}: {}?'.format(job_num, system_name)
+        yes_or_no = simple_dialog.question(msg)
+        if not yes_or_no:
+            return
+
+        status = model[treeiter][5]
+        if status != 'Running...':
+            # [EN] BUG FIXED: used to just silently `pass` here -- the
+            # user already said "yes" to a confirmation dialog and
+            # nothing visibly happened at all, with no explanation.
+            self.main.simple_dialog.error(
+                msg="This job is not currently running (status: {}) -- nothing to abort.".format(status))
+            return
+
+        e_id = model[treeiter][7]
+        if e_id not in self.main.p_session.process_pool:
+            self.main.simple_dialog.error(
+                msg="No running process found for this job (it may have just finished on its own).")
+            return
+
+        process = self.main.p_session.process_pool[e_id][1]
+        if not process.is_alive():
+            # [EN] Race: the job finished by itself between the row
+            # showing "Running..." and the user clicking Abort -- don't
+            # claim to have aborted something that already completed.
+            self.main.simple_dialog.error(
+                msg="This job already finished on its own -- nothing to abort.")
+            return
+
+        # [EN] BUG FIXED: used to read system.e_step_counter here (the
+        # SYSTEM's CURRENT/latest job number), not THIS row's OWN job
+        # number -- only ever gave the right answer because the app
+        # currently only allows one job per system at a time (see
+        # run_simulation()'s own is_alive() check); using the row's own
+        # value directly is correct regardless of that assumption ever
+        # changing later.
+        step_counter = job_num
+
+        # [EN] Kill the WHOLE process tree, not just the one direct
+        # child -- see _terminate_process_tree()'s own docstring for why
+        # process.terminate() alone wasn't enough (grandchild
+        # multiprocessing.Pool workers / external ORCA-XTB processes
+        # kept running, orphaned, after an "aborted" job). Does NOT
+        # block waiting for them to die -- see _check_abort_progress()
+        # below, polled via GLib.timeout_add instead of a blocking
+        # process.join(timeout=5) that used to freeze the whole UI for
+        # up to 5 seconds on every abort.
+        pids_to_watch = _terminate_process_tree(process.pid)
+
+        model[treeiter][5] = "Aborting..."
+
+        # Gtk.TreeRowReference survives the model changing underneath us
+        # (rows reordered/removed/added) while we wait asynchronously --
+        # a raw Gtk.TreeIter is NOT guaranteed to still be valid by the
+        # time the polling callback below actually runs.
+        row_ref = Gtk.TreeRowReference.new(model, model.get_path(treeiter))
+
+        GLib.timeout_add(200, self._check_abort_progress,
+                          row_ref, process, pids_to_watch, e_id, step_counter, time.time())
+
+    def _check_abort_progress(self, row_ref, process, pids_to_watch, e_id, step_counter, started_at):
+        """ [EN] Non-blocking replacement for the old blocking
+        process.join(timeout=5) call in on_stop_activate() (see its own
+        comment) -- checked every 200ms via GLib.timeout_add, for up to
+        the same 5-second grace period the old code waited, just without
+        freezing the GTK main thread while doing it. Returns True to
+        keep being called again, False to stop. """
+        GRACE_PERIOD_SECONDS = 5.0
+
+        if process.is_alive() and (time.time() - started_at) < GRACE_PERIOD_SECONDS:
+            return True   # continua verificando no proximo timeout
+
+        if process.is_alive():
+            # [EN] Grace period ran out and it's STILL alive -- escalate
+            # to SIGKILL for the whole tree (the old code had no
+            # escalation at all: it declared "Aborted" regardless of
+            # whether terminate() actually worked).
+            _force_kill_pids(pids_to_watch)
+            process.join(timeout=1)   # SIGKILL isn't catchable -- this should return almost immediately, bounded just in case
+
+        if row_ref.valid():
+            model    = row_ref.get_model()
+            treeiter = model.get_iter(row_ref.get_path())
+            model[treeiter][5] = "Aborted"
+            self.set_time(treeiter=treeiter, end=True)
+
+        system = self.p_session.psystem.get(e_id)
+        if system is not None and step_counter in system.e_job_history:
+            system.e_job_history[step_counter]['status'] = "Aborted"
+
+        # [EN] BUG FIXED: the old code did
+        # `self.p_session.psystem[e_id].e_step_counter += 1` here --
+        # incrementing the system's NEXT-job counter as a side effect of
+        # ABORTING a job had no clear purpose (looks like a leftover
+        # copy-paste from job-CREATION code) and risked step_counter
+        # values drifting/skipping unexpectedly. Removed.
+
+        # [EN] Clean up the process_pool entry now that it's confirmed
+        # dead -- the old code left a reference to a terminated Process
+        # object sitting in the dict forever (harmless today only
+        # because run_simulation()'s own is_alive() check still happens
+        # to work fine against an already-dead Process object, but still
+        # just dead weight that never gets cleared).
+        if e_id in self.p_session.process_pool:
+            del self.p_session.process_pool[e_id]
+
+        return False   # para de verificar -- ja finalizado
+
     def on_clear_list(self, widget):
         simple_dialog = SimpleDialog(self.main)
         
@@ -711,7 +958,3 @@ class ProcessManagerWindow_filtro(Gtk.Window):
 
         # Habilitar popup no clique direito
         self.treeview.connect("button-press-event", self.on_button_press_event)
-
-
-
-

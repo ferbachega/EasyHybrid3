@@ -251,6 +251,16 @@ class EnergyRefinement:
 
         # - - - - - - - - - - - - - Checking trajectory - - - - - - - - - - - - - - - - - -
         self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(full_path_trajectory, 'output.log') )
+        # [EN] BUG FIXED (reported by the user: the Process Manager's
+        # "open log" didn't work for Energy Refinement / PES scans --
+        # this method never set parameters['logfile'], so it kept
+        # whatever simulations_mixin._configure_logfile() GUESSED
+        # beforehand (always wrong here -- that guess assumes
+        # PDYNAMO3_SCRATCH + 'filename'+'.log' as a FLAT file, not
+        # parameters['folder'] + a 'filename' SUBFOLDER containing
+        # 'output.log'). Same self-correcting pattern
+        # molecular_dynamics.py/chain_of_states.py already use.
+        parameters['logfile'] = os.path.join(full_path_trajectory, 'output.log')
         parameters['system'].Summary(log = self.logFile2)
         self.logFile2.Header ( )
         self.logFile2.Footer ( )

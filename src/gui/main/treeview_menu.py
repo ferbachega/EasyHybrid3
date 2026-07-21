@@ -59,6 +59,7 @@ from gui.windows.setup.windows_and_dialogs import InfoWindow
 from gui.windows.setup.windows_and_dialogs import MergeSystemWindow
 from gui.windows.setup.windows_and_dialogs import SolvateSystemWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
+from gui.windows.setup.windows_and_dialogs import TextWindow
 from gui.windows.setup.edit_frames_dialog import EditFrameDialog
 
 from gui.windows.setup.easyhybrid_terminal    import TerminalWindow
@@ -210,6 +211,28 @@ class TreeViewMenu:
                                 
                                 #'Edit Frames'           : self.call_editframe_window,
                                 'Go To Atom'            : self._menu_go_to_atom ,
+                                '_separator'            : ''      ,
+                                # [EN] User request: link a simulation's
+                                # log file to the vismol_object IT
+                                # created, right here in the main
+                                # treeview's own right-click menu -- not
+                                # just in the Process Manager's own
+                                # treeview (see process_manager_window.
+                                # py's _open_log_for_row(), added for the
+                                # exact same underlying need). Made
+                                # possible by an existing hook that
+                                # already stores the WHOLE job results
+                                # dict (including 'logfile') directly on
+                                # the object simulations_mixin.
+                                # _handle_result() creates
+                                # (`vobject.results = results`) -- see
+                                # _menu_view_log() below for how this is
+                                # read back out, and why objects with no
+                                # such .results (loaded from a file,
+                                # drawn in the Builder, ...) get a plain,
+                                # friendly "no log" message instead of a
+                                # crash.
+                                'View Log'              : self._menu_view_log ,
                                 '_separator'            : ''      ,
                                 'Export As...'          : self._menu_export_data_window ,
                                 '_separator'            : ''      ,
@@ -910,7 +933,64 @@ class TreeViewMenu:
         """ Function doc """
         self.main.delete_vm_object ( vm_object_index = self.vobject_index)
         self._save_backup_file()
-    
+
+    def _menu_view_log (self, widget):
+        """ [EN] Opens the log file for whatever simulation CREATED the
+        right-clicked object -- see the 'View Log' entry added to
+        vobject_menu_items above for the full context.
+
+        Reads vismol_object.results['logfile'] -- results is set once,
+        directly on the object, by simulations_mixin._handle_result()
+        (`vobject.results = results`) the moment a simulation produces a
+        new vismol_object; results is the SAME dict
+        _target_process()/run_simulation() build for the Process
+        Manager's own job history (see process_manager_window.py's
+        _open_log_for_row(), fixed for the exact same underlying gap in
+        the same conversation this was added in: several simulation
+        runner classes not correcting their OWN real log path -- already
+        fixed at the source, in pdynamo/p_methods/*.py, so this reads
+        the same, now-correct value).
+
+        Objects with no .results at all (loaded from a file, drawn in
+        the Builder, or any object predating this feature) get a plain,
+        friendly message instead of a crash -- there's genuinely no log
+        to show for those, not a bug to report. """
+        vismol_object = self.treeview.main.vm_session.vm_objects_dic.get(self.vobject_index)
+        if vismol_object is None:
+            self.main.simple_dialog.error(msg="Could not find this object anymore.")
+            return
+
+        results = getattr(vismol_object, 'results', None)
+        if not results:
+            self.main.simple_dialog.error(
+                msg="'{}' has no simulation log associated with it.\n\n"
+                    "(Only objects CREATED by a simulation -- geometry "
+                    "optimization, MD, a scan, ... -- have one.)".format(vismol_object.name))
+            return
+
+        logfile = results.get('logfile')
+        if not logfile:
+            self.main.simple_dialog.error(
+                msg="'{}' has simulation data, but no log file path was recorded.".format(
+                    vismol_object.name))
+            return
+
+        if not os.path.isfile(logfile):
+            self.main.simple_dialog.error(
+                msg="The log file for '{}' could not be found on disk "
+                    "(it may have been moved or deleted):\n\n{}".format(vismol_object.name, logfile))
+            return
+
+        try:
+            with open(logfile, 'r') as f:
+                data = f.read()
+        except Exception as exc:
+            self.main.simple_dialog.error(
+                msg="Could not read the log file:\n\n{}\n\nError: {}".format(logfile, exc))
+            return
+
+        textwindow = TextWindow(data, logfile)
+
     def _menu_delete_system (self, widget):
         """ Function doc """
         self.main.delete_system (system_e_id = self.system_e_id )

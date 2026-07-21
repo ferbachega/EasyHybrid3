@@ -71,6 +71,18 @@ class GeometryOptimization:
             self.trajectory = ExportTrajectory(full_path_trajectory, parameters['system'], log=None )
             
             self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(full_path_trajectory, 'output.log') )
+            # [EN] BUG FIXED (reported by the user: the Process Manager's
+            # "open log" only worked for Geometry Optimization jobs run
+            # WITHOUT saving a trajectory -- see the else branch below,
+            # which already just trusts parameters['logfile'] as-is).
+            # simulations_mixin._configure_logfile() only ever GUESSES a
+            # log path (always under PDYNAMO3_SCRATCH) before this class
+            # even runs -- correct here, same pattern molecular_dynamics.
+            # py/chain_of_states.py already use, so _target_process()'s
+            # results dict (which reads parameters['logfile'] right after
+            # this method returns) picks up the REAL path, not the
+            # scratch-based guess.
+            parameters['logfile'] = os.path.join(full_path_trajectory, 'output.log')
             parameters['system'].Summary(log = self.logFile2)
             self.logFile2.Header ( )
         else:

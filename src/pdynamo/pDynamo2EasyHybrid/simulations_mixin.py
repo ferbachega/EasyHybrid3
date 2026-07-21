@@ -199,6 +199,37 @@ class pSimulations:
         return parameters
 
     def _configure_logfile(self, parameters):
+        """ [EN] Computes an INITIAL GUESS for where this job's log will
+        end up, stored in system.e_job_history[...]['logfile'] so the
+        Process Manager has SOMETHING to show even while the job is
+        still 'Running' (before it finishes and reports its own, REAL
+        path back through the results dict -- see _target_process(),
+        which reads parameters['logfile'] again right after the runner's
+        own .run() returns).
+
+        This is now just a best-effort PLACEHOLDER, not the definitive
+        answer: every runner class that writes to a folder/trajectory-
+        name scheme different from this guess is expected to correct
+        parameters['logfile'] itself before returning (confirmed already
+        done correctly in molecular_dynamics.py/chain_of_states.py, and
+        added to geometry_optimization.py/surface_scan.py/
+        umbrella_sampling.py/normal_modes.py/energy.py's EnergyRefinement
+        after the user reported the Process Manager's "open log" only
+        working for jobs that happened to match this guess exactly --
+        geometry optimization runs WITHOUT saving a trajectory, mainly).
+
+        [EN] BUG FIXED here too: this used to always base the guess on
+        PDYNAMO3_SCRATCH, even when parameters['folder'] (the user's own
+        chosen output folder) was available and is what nearly every
+        runner actually writes under -- now prefers parameters['folder']
+        when present, falling back to scratch only if it's genuinely not
+        provided. Doesn't make the guess perfect (each runner's exact
+        sub-folder/filename convention still differs -- see each fix
+        above) but makes it land in the right DIRECTORY at least, so a
+        double-click while a job is still running has a much better
+        chance of finding something sensible (or the right file, once
+        the runner's own correction lands) instead of an unrelated
+        scratch path. """
         system    = parameters['system']
         if 'logfile' in parameters:
             system.e_job_history[system.e_step_counter]['logfile'] = parameters['logfile']
@@ -209,7 +240,7 @@ class pSimulations:
         here we are setting a temporary name for the log files that 
         will be saved in the scratch directory
         '''
-        folder    = os.environ.get('PDYNAMO3_SCRATCH')
+        folder    = parameters.get('folder') or os.environ.get('PDYNAMO3_SCRATCH')
         e_id      = str(parameters['system'].e_id)
         key       = system.e_job_history[system.e_step_counter]['key6'] # this is the new key6 - to the object that will be created
         tmp_fname = '{}_{}.log'.format(e_id,key)
@@ -222,6 +253,9 @@ class pSimulations:
         
         elif parameters.get('trajectory_name'):
             parameters['logfile'] = os.path.join(folder, parameters['trajectory_name'], 'output.log')
+            system.e_job_history[system.e_step_counter]['logfile'] = parameters['logfile']
+        elif parameters.get('traj_folder_name'):
+            parameters['logfile'] = os.path.join(folder, parameters['traj_folder_name'] + '.ptGeo', 'output.log')
             system.e_job_history[system.e_step_counter]['logfile'] = parameters['logfile']
         else:
             parameters['logfile'] = os.path.join(folder, tmp_fname)

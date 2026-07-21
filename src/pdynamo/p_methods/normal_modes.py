@@ -69,6 +69,17 @@ class NormalModes:
         
         # . Logfile
         self.logFile2 = TextLogFileWriter.WithOptions ( path = os.path.join(trajectoryPath, parameters['trajectory_name']+'.log') )
+        # [EN] BUG FIXED (reported by the user: the Process Manager's
+        # "open log" didn't work for Normal Modes -- this method used
+        # the CORRECT parameter key ('trajectory_name', matching what
+        # simulations_mixin._configure_logfile() expects) but never
+        # corrected parameters['logfile'] to match its OWN actual
+        # filename scheme ('{trajectory_name}.log' inside the trajectory
+        # folder, not the generic 'output.log' _configure_logfile()
+        # assumes, nor PDYNAMO3_SCRATCH as the base folder). Same self-
+        # correcting pattern molecular_dynamics.py/chain_of_states.py
+        # already use.
+        parameters['logfile'] = os.path.join(trajectoryPath, parameters['trajectory_name']+'.log')
         parameters['system'].Summary(log = self.logFile2)
         self.logFile2.Header ( )
         
