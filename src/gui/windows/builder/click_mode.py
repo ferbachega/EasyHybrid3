@@ -69,6 +69,35 @@
 #
 import numpy as np
 from OpenGL import GL
+import ctypes
+
+
+def _current_frame_position ( vismol_object, atom_id ):
+    """ [EN] Returns atom_id's position at the CURRENTLY DISPLAYED frame
+    (vismol_object.vm_session.frame), NOT always frame 0.
+
+    BUG FIXED (reported by the user: the hover ring/info-text drawn by
+    draw_hover_highlight()/draw_hover_info_text() appeared "outside the
+    atom" after navigating a real, multi-frame trajectory): several
+    functions in this file used to read vismol_object.frames[0, atom_id]
+    directly -- harmless for Builder objects specifically (which only
+    ever have exactly one frame, so index 0 IS always "the" frame), but
+    silently wrong the moment those same functions got reused for
+    hovering/interacting with ANY object in the session, including
+    real, multi-frame trajectories, where frame 0 is only correct until
+    the user navigates away from it.
+
+    Same clamping VismolGLCore._safe_frame_coords() itself uses (clamp
+    to the last frame if vm_session.frame has somehow gone out of THIS
+    object's own range -- e.g. two objects loaded with different
+    trajectory lengths, current frame beyond the shorter one's count). """
+    n_frames = vismol_object.frames.shape[0]
+    frame_idx = vismol_object.vm_session.frame
+    if frame_idx < 0:
+        frame_idx = 0
+    elif frame_idx >= n_frames:
+        frame_idx = n_frames - 1
+    return vismol_object.frames[frame_idx, atom_id]
 
 
 def enable_atom_placement_mode ( vm_session, vismol_object, symbol = "C" ):
@@ -147,8 +176,14 @@ def handle_bond_shortcut ( vm_session ):
     if atom_a.vm_object is not atom_b.vm_object:
         return "The 2 selected atoms must belong to the same object."
 
-    from gui.windows.builder.atom_ops import add_bond
+    from gui.windows.builder.atom_ops import add_bond, adjust_hydrogens, push_undo_snapshot
+    push_undo_snapshot ( atom_a.vm_object )
     created = add_bond ( atom_a.vm_object, atom_a.atom_id, atom_b.atom_id )
+    adjust_hydrogens ( atom_a.vm_object, atom_a.atom_id )
+    adjust_hydrogens ( atom_a.vm_object, atom_b.atom_id )
+
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( atom_a.vm_object )
 
     sel.selection_function_viewing_set ( None )   # limpa a selecao pro proximo par
 
@@ -240,7 +275,7 @@ def _read_depth_and_atom_at_pixel ( vm_glcore, mouse_x, mouse_y ):
     pickedID = color_data[0] + color_data[1] * 256 + color_data[2] * 256 * 256
 
     if pickedID == BACKGROUND_ID:
-        print ( "DEBUG click_mode: depth buffer at clicked pixel = background (nothing rendered there)" )
+        #print ( "DEBUG click_mode: depth buffer at clicked pixel = background (nothing rendered there)" )
         return None, None
 
     atom = vm_glcore.vm_session.atom_dic_id.get ( pickedID )
@@ -409,8 +444,16 @@ def handle_click_to_place_atom ( vm_glcore, mouse_x, mouse_y ):
                     picked_atom.atom_id, symbol ) )
             return picked_atom
 
-        from gui.windows.builder.atom_ops import set_atom_element
+        from gui.windows.builder.atom_ops import set_atom_element, push_undo_snapshot, adjust_hydrogens
+        push_undo_snapshot ( vismol_object )
         atom = set_atom_element ( vismol_object, picked_atom.atom_id, symbol )
+        # [EN] The new element's standard valence is (almost always)
+        # different from the old one's -- adjust THIS atom's own
+        # hydrogens to match (its neighbours' bond orders to it are
+        # unchanged, so THEY don't need adjusting, only this atom does).
+        adjust_hydrogens ( vismol_object, atom.atom_id )
+        from gui.windows.builder.empty_object import sync_pdynamo_system
+        sync_pdynamo_system ( vismol_object )
         print ( "DEBUG click_mode: replaced atom #{} -> '{}'".format ( atom.atom_id, symbol ) )
         return atom
 
@@ -424,53 +467,1058 @@ def handle_click_to_place_atom ( vm_glcore, mouse_x, mouse_y ):
     print ( "DEBUG click_mode: world_point=({:.3f}, {:.3f}, {:.3f})  -> local_point (after inv(model_mat))=({:.3f}, {:.3f}, {:.3f})".format (
             wx, wy, wz, x, y, z ) )
 
-    from gui.windows.builder.atom_ops import add_atom
+    from gui.windows.builder.atom_ops import add_atom, push_undo_snapshot
+    push_undo_snapshot ( vismol_object )
     atom = add_atom ( vismol_object, symbol = symbol, x = x, y = y, z = z )
-    
-    
-    
-    
-    tmp = {'C': [[-0.785298, 0.243518, -0.653254], [0.322015, -0.981331, -0.189814], [-0.334691, 0.073016, 0.992665], [0.798227, 0.665009, -0.149645]], 'N': [[-0.785298, 0.243518, -0.653254], [0.322015, -0.981331, -0.189814], [-0.334691, 0.073016, 0.992665]], 'O': [[-0.785298, 0.243518, -0.653254], [0.322015, -0.981331, -0.189814]]}
-    
-    #tmp = {'C' : [
-    #             [-0.785298,  0.243518, -0.653254],
-    #             [ 0.322015, -0.981331, -0.189814],
-    #             [-0.334691,  0.073016,  0.992665],
-    #             [ 0.798227,  0.665009, -0.149645]
-    #             ],
-    #       
-    #       'N' : [
-    #             [-0.785298,  0.243518, -0.653254],
-    #             [ 0.322015, -0.981331, -0.189814],
-    #             [-0.334691,  0.073016,  0.992665],
-    #             ],
-    #       
-    #       'O' : [
-    #             [-0.785298,  0.243518, -0.653254],
-    #             [ 0.322015, -0.981331, -0.189814],
-    #             ]
-    #      }
-    
-    if picked_atom:
-       
-       pass
-    
-    
-    
-    # aqui é quando adicionamos um átomo novo  não ligado a uma subestrutura existente
-    else:
-        if symbol in tmp.keys():
-            H_list = tmp[symbol]
-            
-            for xyz  in H_list:
-                atm_tmp = add_atom ( vismol_object, symbol = "H", 
-                                             x = xyz[0]+x, 
-                                             y = xyz[1]+y, 
-                                             z = xyz[2]+z 
-                                             )
-    
-    
-        
-    for bond in atom.bonds:
-        print(atom,  bond.atom_i.symbol, bond.atom_j.symbol)
+
+    # [EN] DESIGN CHANGE: this used to have its own ad-hoc hydrogenation
+    # logic here (a `tmp` dict of fixed C/N/O direction templates),
+    # ONLY ever applied to a brand-new atom placed in empty space (never
+    # bonded to anything else). Replaced with a call to the new, general
+    # atom_ops.adjust_hydrogens() (see its own docstring), which works the
+    # same way here (atom has zero bonds yet -> needed_h == full target
+    # valence -> same fixed templates, same result) but ALSO now runs
+    # from every other place an atom's bonding can change (replace
+    # element, bond-drag finish, cycle bond order, delete atom/bond --
+    # see each of those call sites' own comment), instead of being a
+    # one-off special case just for this one interaction.
+    from gui.windows.builder.atom_ops import adjust_hydrogens
+    adjust_hydrogens ( vismol_object, atom.atom_id )
+
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( vismol_object )
+
     return atom
+
+
+# =====================================================================================
+#   Click-and-drag to create a bonded atom
+#   ------------------------------------------------------------------------------
+#   Third click interaction for the "add" tool (alongside "click on empty
+#   space -> new atom" and "click on an existing atom -> replace its
+#   element", both above): press-and-HOLD on an existing atom, then drag
+#   without releasing -- creates a new atom, already bonded to the one
+#   pressed, that follows the cursor live while the button stays down.
+#   Releasing the button drops the new atom at its current position and
+#   finalises the bond. A plain click (press+release with no real drag)
+#   on an atom still means "replace", exactly as before -- see the
+#   mouse_pressed()/mouse_motion()/mouse_released() hooks in
+#   vismol_glcore.py for how the two interactions are told apart.
+#
+#   State lives on vm_session (same getattr(..., default)-everywhere,
+#   nothing declared in VismolSession.__init__ convention already used
+#   for builder_atom_mode/builder_target_object above):
+#     builder_bond_drag_active       : bool, is a drag currently happening
+#     builder_bond_drag_origin_atom  : the Atom the drag started FROM
+#     builder_bond_drag_new_atom     : the Atom being dragged
+#     builder_bond_drag_object       : the vismol_object both belong to
+#     builder_bond_drag_depth        : FIXED distance-from-camera the new
+#                                       atom is kept at for the whole drag
+#                                       (see start_bond_drag()) -- picked
+#                                       once, at the origin atom's own
+#                                       depth, rather than re-reading
+#                                       whatever's under the cursor each
+#                                       motion event (which would jitter
+#                                       every time the cursor crosses over
+#                                       a DIFFERENT atom/bond mid-drag).
+# =====================================================================================
+
+def start_bond_drag ( vm_glcore, origin_atom, depth ):
+    """ Begins a click-and-drag-to-create-a-bonded-atom interaction.
+    Called from mouse_motion() (see the hook added there) the FIRST time
+    real mouse movement is detected after a press that landed on an atom
+    belonging to the current Builder target object -- render() only
+    records that atom as a CANDIDATE (see the hook added there, next to
+    builder_placing_atom); the drag doesn't actually start until this
+    function runs, precisely so that a plain click (press+release, no
+    real movement) never reaches here at all and still falls through to
+    the "replace element" interaction instead (handle_click_to_place_atom()).
+
+    Creates the new atom immediately, AT THE SAME POSITION as
+    origin_atom (distance zero -- it hasn't been dragged anywhere yet),
+    bonded to origin_atom via add_atom()'s own bonded_to parameter --
+    an EXPLICIT bond, which is now the ONLY kind that exists (distance-
+    based auto-detection is off entirely for the Builder -- see atom_ops.
+    add_atom()'s docstring). From here, update_bond_drag() repositions
+    this same new atom every motion event, and finish_bond_drag()
+    re-confirms the bond once the drag ends (see its own docstring for
+    why that re-confirmation still matters even though the bond was
+    already explicit from the very start).
+
+    `depth` is the REAL distance-from-camera of the pressed pixel
+    (already computed by the caller via _read_depth_and_atom_at_pixel()
+    -- not re-read here) -- stored on vm_session so update_bond_drag()
+    can keep the dragged atom at that SAME depth for the whole gesture
+    (see the module-level note above for why a fixed depth, not a
+    per-motion-event re-read, is what gives smooth/predictable
+    dragging).
+
+    Returns the new Atom. """
+    vm_session    = vm_glcore.vm_session
+    vismol_object = origin_atom.vm_object
+    symbol        = getattr ( vm_session, "builder_atom_symbol", "C" )
+
+    ox, oy, oz = [ float ( c ) for c in _current_frame_position ( vismol_object, origin_atom.atom_id ) ]
+
+    from gui.windows.builder.atom_ops import add_atom, push_undo_snapshot
+    push_undo_snapshot ( vismol_object )
+    new_atom = add_atom ( vismol_object, symbol = symbol, x = ox, y = oy, z = oz,
+                           bonded_to = origin_atom.atom_id )
+
+    vm_session.builder_bond_drag_active      = True
+    vm_session.builder_bond_drag_origin_atom = origin_atom
+    vm_session.builder_bond_drag_new_atom    = new_atom
+    vm_session.builder_bond_drag_object      = vismol_object
+    vm_session.builder_bond_drag_depth       = depth
+
+    print ( "DEBUG click_mode: bond-drag started -- new atom #{} ('{}') bonded to atom #{} ('{}')".format (
+            new_atom.atom_id, symbol, origin_atom.atom_id, origin_atom.symbol ) )
+
+    vm_glcore.updated_coords = True
+    vm_glcore.queue_draw ( )
+    return new_atom
+
+
+def update_bond_drag ( vm_glcore, mouse_x, mouse_y ):
+    """ Called from mouse_motion() on every motion event while
+    vm_session.builder_bond_drag_active is True. Repositions the
+    dragged atom (atom_ops.move_atom() -- cheap, no bond recompute) to
+    the current cursor position, unprojected at the FIXED depth captured
+    by start_bond_drag() (see module-level note above).
+
+    Pure math -- world_pos_from_mouse() only touches the GPU when its
+    `depth` argument is None, and here it never is -- safe to call
+    directly from mouse_motion() (a plain GTK handler, NOT render()),
+    unlike handle_click_to_place_atom() which needs a real depth-buffer
+    read and must stay deferred to render(). """
+    vm_session = vm_glcore.vm_session
+    if not getattr ( vm_session, "builder_bond_drag_active", False ):
+        return None
+
+    vismol_object = vm_session.builder_bond_drag_object
+    new_atom      = vm_session.builder_bond_drag_new_atom
+    depth         = vm_session.builder_bond_drag_depth
+
+    wx, wy, wz = world_pos_from_mouse ( vm_glcore, mouse_x, mouse_y, depth = depth )
+
+    world_point = np.array ( [ wx, wy, wz, 1.0 ], dtype = np.float32 )
+    inv_model   = np.linalg.inv ( vismol_object.model_mat )
+    local_point = world_point @ inv_model
+    x, y, z = float ( local_point[0] ), float ( local_point[1] ), float ( local_point[2] )
+
+    from gui.windows.builder.atom_ops import move_atom
+    move_atom ( vismol_object, new_atom.atom_id, x, y, z )
+    return new_atom
+
+
+def _find_bond_snap_target ( vismol_object, dragged_atom, exclude_ids, tolerance = 1.3 ):
+    """ [EN] Looks for an existing atom close enough to `dragged_atom`'s
+    CURRENT position to "snap" onto -- used by finish_bond_drag() (see
+    its own docstring) to decide whether dropping the dragged atom near/
+    onto another EXISTING atom should connect the two directly instead
+    of keeping the dragged (temporary) atom.
+
+    Deliberately a PURE 3D-DISTANCE check (position vs position), NOT a
+    screen-space click/pick: a pixel/depth-based pick at the cursor's
+    CURRENT position would almost always just hit the dragged atom
+    ITSELF (it's rendered exactly at the cursor, being actively dragged
+    there every motion event) -- so proximity in the object's own
+    coordinate space is what actually detects "dropped onto atom X"
+    here, not what pixel colour is on top.
+
+    Threshold is the same kind of covalent-radius-sum heuristic the old
+    (now-removed, see atom_ops.add_atom()'s docstring) distance-based
+    auto-detector used, just computed here on demand for this one
+    comparison rather than for the whole object: two atoms within
+    (cov_rad_a + cov_rad_b) * tolerance of each other are considered
+    "aimed at the same spot", not two unrelated atoms that merely ended
+    up somewhat close.
+
+    Returns the closest matching Atom (excluding anything in
+    `exclude_ids`, normally {origin_atom.atom_id, dragged_atom.atom_id}),
+    or None if nothing is within range. """
+    position = _current_frame_position ( vismol_object, dragged_atom.atom_id )
+
+    best_atom = None
+    best_dist = None
+    for candidate_id, candidate in vismol_object.atoms.items ( ):
+        if candidate_id in exclude_ids:
+            continue
+        candidate_pos = _current_frame_position ( vismol_object, candidate_id )
+        dist = float ( np.linalg.norm ( candidate_pos - position ) )
+        threshold = ( dragged_atom.cov_rad + candidate.cov_rad ) * tolerance
+        if dist <= threshold and ( best_dist is None or dist < best_dist ):
+            best_atom = candidate
+            best_dist = dist
+
+    return best_atom
+
+
+def finish_bond_drag ( vm_glcore ):
+    """ Called from mouse_released() (checked FIRST, before anything
+    else -- see the hook added there) once the button comes back up
+    while a bond-drag is active. Finalises the dragged atom at its
+    current (already up to date, from the last update_bond_drag() call)
+    position.
+
+    NEW: if that final position is close enough to an EXISTING atom
+    (other than the one the drag started from) -- see
+    _find_bond_snap_target() -- the temporary dragged atom is REMOVED,
+    and the bond is made directly between the origin atom and that
+    existing atom instead. This is what makes "drag from atom A, aim at
+    already-existing atom B, release" connect A and B directly rather
+    than leaving a new, redundant atom sitting on top of B.
+
+    [EN] DESIGN CHANGE: this used to re-run distance-based bond
+    detection from scratch here (vismol_object.find_bonded_and_
+    nonbonded_atoms()) to pick up any OTHER bond the dropped atom might
+    have landed close enough to, then re-add the origin<->new-atom bond
+    explicitly afterwards since that recompute could silently drop it.
+    Distance-based auto-detection is now turned OFF entirely for the
+    Builder (see atom_ops.add_atom()'s docstring for why) -- the
+    "landed close to another atom" case is now handled explicitly and
+    deliberately above (_find_bond_snap_target()), not as a side effect
+    of a general-purpose distance recompute; and the origin<->new-atom
+    bond, when the dragged atom IS kept, was already explicit from the
+    moment start_bond_drag() created it (via add_atom()'s bonded_to
+    parameter), so it was never at risk of being dropped in the first
+    place.
+
+    Clears all builder_bond_drag_* state and turns vm_glcore.updated_coords
+    back off (start_bond_drag()/update_bond_drag() need it on for the
+    live-follow effect during the drag; leaving it on afterwards would
+    just mean every representation's coordinates get needlessly re-
+    uploaded on every future frame, forever -- see the note in
+    atom_ops.move_atom()).
+
+    Returns the finalised Atom (the ORIGINAL dragged atom, or the
+    existing atom it snapped onto if the dragged one was removed), or
+    None if no drag was active. """
+    vm_session = vm_glcore.vm_session
+    if not getattr ( vm_session, "builder_bond_drag_active", False ):
+        return None
+
+    vismol_object = vm_session.builder_bond_drag_object
+    origin_atom   = vm_session.builder_bond_drag_origin_atom
+    new_atom      = vm_session.builder_bond_drag_new_atom
+
+    from gui.windows.builder.atom_ops import add_bond, remove_atom, adjust_hydrogens
+
+    snap_target = _find_bond_snap_target (
+        vismol_object, new_atom,
+        exclude_ids = { origin_atom.atom_id, new_atom.atom_id }
+    )
+
+    if snap_target is not None:
+        # [EN] Dropped onto an existing atom -- connect origin directly
+        # to IT, and throw away the temporary dragged atom. Capture both
+        # ids BEFORE removing new_atom: new_atom is always the MOST
+        # RECENTLY created atom in this object (nothing else has been
+        # added since start_bond_drag() created it, only moved via
+        # move_atom()), so its atom_id is the HIGHEST one currently in
+        # use -- removing it therefore can NEVER renumber origin_atom's
+        # or snap_target's ids out from under us (remove_atom() only
+        # shifts ids ABOVE the removed one down by one).
+        origin_id = origin_atom.atom_id
+        target_id = snap_target.atom_id
+        remove_atom ( vismol_object, new_atom.atom_id )
+        add_bond ( vismol_object, origin_id, target_id )
+
+        print ( "DEBUG click_mode: bond-drag finished -- snapped onto existing atom #{} ('{}'), connected to atom #{} ('{}'); temporary dragged atom removed".format (
+                target_id, snap_target.symbol, origin_id, origin_atom.symbol ) )
+
+        finalised_atom = vismol_object.atoms[target_id]
+    else:
+        add_bond ( vismol_object, origin_atom.atom_id, new_atom.atom_id )
+
+        print ( "DEBUG click_mode: bond-drag finished -- atom #{} ('{}') dropped, bonded to atom #{} ('{}')".format (
+                new_atom.atom_id, new_atom.symbol, origin_atom.atom_id, origin_atom.symbol ) )
+
+        finalised_atom = new_atom
+
+    # [EN] Adjust BOTH atoms' hydrogens now that their bonding changed --
+    # origin_atom just gained a bond (may now have too MANY H's to still
+    # be correct), and finalised_atom either just got created (needs its
+    # full set of H's) or -- in the snap case -- also just gained a bond
+    # (same "too many H's" possibility). Always re-read .atom_id from the
+    # live Atom OBJECT here (not a cached int): remove_atom() -- possibly
+    # triggered by the FIRST adjust_hydrogens() call below, if it happens
+    # to remove some hydrogens -- mutates every SURVIVING atom's
+    # .atom_id IN PLACE, so reading it fresh off the object is always
+    # correct regardless of what the first call did, even though a
+    # lower-numbered atom may have been removed in between the two calls.
+    adjust_hydrogens ( vismol_object, origin_atom.atom_id )
+    adjust_hydrogens ( vismol_object, finalised_atom.atom_id )
+
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( vismol_object )
+
+    vm_session.builder_bond_drag_active      = False
+    vm_session.builder_bond_drag_origin_atom = None
+    vm_session.builder_bond_drag_new_atom    = None
+    vm_session.builder_bond_drag_object      = None
+    vm_session.builder_bond_drag_depth       = None
+    vm_session.builder_press_candidate_atom  = None
+    vm_session.builder_press_candidate_depth = None
+
+    vm_glcore.updated_coords = False
+    vm_glcore.queue_draw ( )
+    return finalised_atom
+
+
+# =====================================================================================
+#   Ctrl+click on a bond -- cycle its order (single -> double -> triple -> single)
+#   ------------------------------------------------------------------------------
+#   Fourth click interaction for the "add" tool (alongside "click on empty
+#   space -> new atom", "click on an existing atom -> replace its
+#   element", and "click+drag from an atom -> new bonded atom", all
+#   above): Ctrl+click (no drag) on an existing BOND cycles that bond's
+#   order. Deliberately scoped to ONLY the current Builder target object
+#   (vm_session.builder_target_object) -- by design, only one object is
+#   ever being edited at a time, so there's no reason for this to affect,
+#   or even look at, any other object in the session.
+#
+#   DESIGN CHOICE: bond "picking" here is a plain 2D-projection distance
+#   check (project each candidate bond's two endpoints to screen pixels,
+#   see _project_local_point_to_pixel(), then find the closest bond's
+#   on-screen line segment to the click), NOT a GPU colour-ID pick like
+#   atom picking (vm_session.atom_dic_id / VismolGLCore._pick()). Building
+#   a parallel colour-ID system for bonds would need a genuinely separate
+#   VAO/VBO (each bond needs its OWN 2 vertices with a UNIFORM colour --
+#   the existing "lines" representation shares vertex data with atoms,
+#   colouring each line endpoint by its OWN atom's colour, which can't
+#   also encode "this bond" since one atom can be an endpoint of several
+#   different bonds at once) and a brand new GPU render pass, which isn't
+#   feasible to get right without a live GL context to test against. The
+#   projection-distance approach only needs plain Python/numpy -- the
+#   exact same matrices world_pos_from_mouse() already uses, just applied
+#   in the FORWARD direction (3D -> 2D) instead of backward (2D -> 3D).
+# =====================================================================================
+
+def _project_local_point_to_pixel ( vm_glcore, vismol_object, local_xyz ):
+    """ Forward projection: a LOCAL 3D point (vismol_object's own
+    coordinate space, i.e. straight out of vismol_object.frames) -> 2D
+    pixel coordinates (GTK convention, origin top-left). The exact
+    inverse chain of world_pos_from_mouse()'s own unprojection math (see
+    that function's docstring for the verified formulas) plus the
+    model_mat step documented in handle_click_to_place_atom()'s
+    docstring, run FORWARDS instead of backwards.
+
+    Returns (pixel_x, pixel_y, view_z). view_z is returned too so the
+    caller can discard points BEHIND the camera (view_z >= 0, i.e. depth
+    <= 0) instead of projecting them to a nonsensical pixel position --
+    in that case pixel_x/pixel_y come back as None. """
+    width  = float ( vm_glcore.width )
+    height = float ( vm_glcore.height )
+
+    local_point = np.array ( [ local_xyz[0], local_xyz[1], local_xyz[2], 1.0 ], dtype = np.float32 )
+    world_point = local_point @ vismol_object.model_mat
+    view_point  = world_point @ vm_glcore.glcamera.view_matrix
+
+    view_z = float ( view_point[2] )
+    depth = -view_z   # camera olha para -Z no espaco de view (ver docstring de world_pos_from_mouse)
+
+    if depth <= 1e-6:
+        return None, None, view_z   # atras da camera -- nao ha pixel sensato
+
+    fovy   = float ( vm_glcore.glcamera.field_of_view )
+    aspect = float ( vm_glcore.glcamera.viewport_aspect_ratio )
+    f = 1.0 / np.tan ( fovy * np.pi / 180.0 )   # mesma formula de my_glPerspectivef (matrix_operations.pyx)
+
+    ndc_x = float ( view_point[0] ) * f / ( aspect * depth )
+    ndc_y = float ( view_point[1] ) * f / depth
+
+    pixel_x = ( ndc_x + 1.0 ) * width  / 2.0
+    pixel_y = ( 1.0 - ndc_y ) * height / 2.0
+
+    return pixel_x, pixel_y, view_z
+
+
+def _point_to_segment_distance_2d ( px, py, ax, ay, bx, by ):
+    """ Standard 2D point-to-line-SEGMENT distance: perpendicular
+    distance if the closest point falls within the segment, distance to
+    the nearest endpoint otherwise. Used to measure how close a click
+    is to a bond's projected on-screen line. """
+    abx, aby = bx - ax, by - ay
+    seg_len_sq = abx * abx + aby * aby
+    if seg_len_sq < 1e-9:
+        return float ( np.hypot ( px - ax, py - ay ) )   # bond endpoints coincide on-screen -- treat as a point
+
+    t = ( ( px - ax ) * abx + ( py - ay ) * aby ) / seg_len_sq
+    t = max ( 0.0, min ( 1.0, t ) )
+    closest_x = ax + t * abx
+    closest_y = ay + t * aby
+    return float ( np.hypot ( px - closest_x, py - closest_y ) )
+
+
+def find_bond_at_pixel ( vm_glcore, vismol_object, mouse_x, mouse_y, pixel_threshold = 10.0 ):
+    """ Finds the bond of `vismol_object` whose on-screen line segment is
+    closest to (mouse_x, mouse_y), within pixel_threshold screen pixels.
+    See the module-level note above for why this is a plain 2D-projection
+    distance check rather than a GPU colour-ID pick.
+
+    Only ever called with vismol_object = vm_session.builder_target_object
+    (see cycle_bond_order()'s caller in vismol_glcore.py) -- bonds of any
+    OTHER object are never even considered, by construction, matching the
+    "only one object is editable at a time" design.
+
+    Returns the closest Bond within range, or None. """
+    best_bond = None
+    best_dist = None
+
+    for bond in vismol_object.bonds.values ( ):
+        pos_i = _current_frame_position ( vismol_object, bond.atom_index_i )
+        pos_j = _current_frame_position ( vismol_object, bond.atom_index_j )
+
+        px_i, py_i, _z_i = _project_local_point_to_pixel ( vm_glcore, vismol_object, pos_i )
+        px_j, py_j, _z_j = _project_local_point_to_pixel ( vm_glcore, vismol_object, pos_j )
+
+        if px_i is None or px_j is None:
+            continue   # uma das pontas esta atras da camera -- ignora esse bond
+
+        dist = _point_to_segment_distance_2d ( mouse_x, mouse_y, px_i, py_i, px_j, py_j )
+        if dist <= pixel_threshold and ( best_dist is None or dist < best_dist ):
+            best_bond = bond
+            best_dist = dist
+
+    return best_bond
+
+
+def find_atom_at_pixel_2d ( vm_glcore, vismol_object, mouse_x, mouse_y, pixel_threshold = 12.0 ):
+    """ [EN] Pure-CPU hover test: projects every atom of `vismol_object`
+    to a screen pixel (_project_local_point_to_pixel() -- no GPU calls
+    at all, same technique find_bond_at_pixel() already uses for bonds)
+    and returns whichever one is closest to (mouse_x, mouse_y), within
+    pixel_threshold pixels.
+
+    Deliberately NOT a GPU colour-ID pick (glReadPixels forces the GPU
+    to finish and sync with the CPU before returning -- a real,
+    well-documented stall, not just "one more call" -- see the
+    conversation this was designed in for the full reasoning): this
+    needs to be cheap enough to run on EVERY mouse_motion event, even
+    pure hovering with no button held (POINTER_MOTION_MASK is enabled on
+    this widget -- see vismol_gtkwidget.py -- so motion events fire
+    constantly while the cursor is over the view, not just while
+    dragging). Projecting N atoms is a handful of matrix multiplies,
+    still far cheaper than one synchronous GPU readback, regardless of
+    whether the camera happens to be moving.
+
+    Only checks THIS ONE object -- see find_atom_at_pixel_2d_any_object()
+    below for the general, "hover works everywhere" version actually
+    wired into mouse_motion() now; this single-object version is kept
+    around since it's still what the Builder-specific bond/atom-drag
+    features (start_bond_drag() and friends) conceptually only ever
+    needed one object for.
+
+    Returns the closest Atom within range, or None. """
+    best_atom = None
+    best_dist = None
+
+    for atom_id, atom in vismol_object.atoms.items ( ):
+        pos = _current_frame_position ( vismol_object, atom_id )
+        px, py, _z = _project_local_point_to_pixel ( vm_glcore, vismol_object, pos )
+        if px is None:
+            continue   # atras da camera
+
+        dist = float ( np.hypot ( mouse_x - px, mouse_y - py ) )
+        if dist <= pixel_threshold and ( best_dist is None or dist < best_dist ):
+            best_atom = atom
+            best_dist = dist
+
+    return best_atom
+
+
+def find_atom_at_pixel_2d_any_object ( vm_glcore, mouse_x, mouse_y, pixel_threshold = 12.0 ):
+    """ [EN] Same idea as find_atom_at_pixel_2d() above (pure-CPU,
+    no-GPU-calls screen-space hover test), but searches across EVERY
+    active VismolObject in the session (vm_session.vm_objects_dic),
+    not just one -- this is what actually makes hovering work "a
+    qualquer momento" (over any loaded molecule, any time), not only
+    while editing in the Builder.
+
+    PERFORMANCE NOTE: this is a plain Python for-loop over every atom of
+    every active object, run on every single mouse_motion event
+    (including pure hover, no button held). For a Builder-sized molecule
+    (a handful to a few dozen atoms) this is trivial. For a large,
+    normally-loaded system (a protein with thousands of atoms), this
+    could start to add up, unlike the GPU colour-ID pick it replaces
+    (which is O(1) per pixel regardless of atom count -- its cost comes
+    entirely from the CPU/GPU sync, not from iterating atoms). If hover
+    ever feels laggy on a large system, the fix is to VECTORISE this
+    with numpy -- project every atom's position through the view/
+    projection matrices in one batched matrix multiply (instead of
+    _project_local_point_to_pixel()'s current one-atom-at-a-time Python
+    loop) and use a single vectorised distance comparison -- rather than
+    reintroducing a GPU readback. Not done here to keep this change
+    small and match exactly what was asked; flagged for later if it
+    turns out to matter in practice.
+
+    Returns the closest Atom within range across ALL active objects, or
+    None. """
+    best_atom = None
+    best_dist = None
+
+    for vm_object in vm_glcore.vm_session.vm_objects_dic.values ( ):
+        if not vm_object.active:
+            continue
+        for atom_id, atom in vm_object.atoms.items ( ):
+            pos = _current_frame_position ( vm_object, atom_id )
+            px, py, _z = _project_local_point_to_pixel ( vm_glcore, vm_object, pos )
+            if px is None:
+                continue   # atras da camera
+
+            dist = float ( np.hypot ( mouse_x - px, mouse_y - py ) )
+            if dist <= pixel_threshold and ( best_dist is None or dist < best_dist ):
+                best_atom = atom
+                best_dist = dist
+
+    return best_atom
+
+
+def cycle_bond_order ( vm_glcore, vismol_object, bond ):
+    """ Cycles bond.bond_order: 1 -> 2 -> 3 -> 1 (single -> double ->
+    triple -> single). Triggered by Ctrl+click on an existing bond (see
+    the mouse_released() hook in vismol_glcore.py).
+
+    Persists the new order in vismol_object.manual_bond_orders (keyed by
+    the normalized (min,max) atom-id pair), which atom_ops.
+    _reapply_manual_bonds() now feeds into vismol_object.
+    _bonds_from_pair_of_indexes_list() as `external_orders` -- REQUIRED,
+    not optional: bonds get recreated FROM SCRATCH (fresh Bond() objects)
+    every time ANYTHING changes on this object (add_atom(), remove_atom(),
+    add_bond()...), so without persisting it somewhere durable, cycling a
+    bond's order here would get silently overwritten back to the default
+    the very next time anything else is edited -- the exact same class of
+    bug manual_bonds itself had to be fixed for (see
+    _reapply_manual_bonds()'s own docstring).
+
+    [EN] BUG FIX, found while wiring this up: vismol_object.
+    _bonds_from_pair_of_indexes_list()'s external_orders parameter
+    already existed but its actual assignment (bond.bond_order = ...) was
+    commented out (a dead "pass" in its place) -- passing external_orders
+    had literally no effect before. Fixed there directly (see that
+    method's own updated comment) since there was no way to make this
+    feature work otherwise. """
+    pair = ( bond.atom_index_i, bond.atom_index_j )
+    pair = ( min ( pair ), max ( pair ) )
+
+    new_order = ( bond.bond_order % 3 ) + 1
+
+    from gui.windows.builder.atom_ops import _reapply_manual_bonds, push_undo_snapshot, adjust_hydrogens
+    push_undo_snapshot ( vismol_object )
+
+    # capturados ANTES de qualquer ajuste de hidrogenio -- ver comentario
+    # abaixo sobre reler .atom_id do objeto ao vivo em vez de reusar pair[0]/pair[1]
+    atom_a_obj = vismol_object.atoms[pair[0]]
+    atom_b_obj = vismol_object.atoms[pair[1]]
+
+    if not hasattr ( vismol_object, "manual_bond_orders" ) or vismol_object.manual_bond_orders is None:
+        vismol_object.manual_bond_orders = { }
+    vismol_object.manual_bond_orders[pair] = new_order
+
+    _reapply_manual_bonds ( vismol_object )
+
+    vismol_object.create_representation ( rep_type = "lines" )
+    vismol_object.create_representation ( rep_type = "nonbonded" )
+    vismol_object.core_representations["picking_dots"] = None
+    vismol_object.core_representations["picking_text"] = None
+
+    # [EN] The bond's order changed, so BOTH atoms' valence sums changed
+    # (e.g. single -> double frees up one unit of valence on each side,
+    # which could now need one FEWER hydrogen apiece). Same "re-read
+    # .atom_id from the live object" reasoning as finish_bond_drag()'s
+    # own hydrogen-adjustment call -- adjusting atom_a_obj first might
+    # remove a lower-numbered hydrogen than atom_b_obj, which would shift
+    # atom_b_obj's own id if we used a stale cached int instead.
+    adjust_hydrogens ( vismol_object, atom_a_obj.atom_id )
+    adjust_hydrogens ( vismol_object, atom_b_obj.atom_id )
+
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( vismol_object )
+
+    print ( "DEBUG click_mode: bond order cycled -- atoms #{} <-> #{} now order {}".format (
+            pair[0], pair[1], new_order ) )
+
+    vm_glcore.queue_draw ( )
+    return new_order
+
+
+# =====================================================================================
+#   Ctrl+drag to reposition an EXISTING atom
+#   ------------------------------------------------------------------------------
+#   Fifth click interaction for the "add" tool (alongside "click on empty
+#   space -> new atom", "click on an existing atom -> replace its
+#   element", "click+drag from an atom -> new bonded atom", and
+#   "Ctrl+click a bond -> cycle its order"): Ctrl+press-and-HOLD on an
+#   existing atom, then drag -- moves THAT SAME atom to follow the
+#   cursor, live, with NO new atom and NO new bond created (unlike the
+#   plain, non-Ctrl click-and-drag feature above). Releasing drops it at
+#   its current position.
+#
+#   Deliberately reuses the exact same "lazy start on real motion" +
+#   "fixed depth for the whole gesture" design as start_bond_drag()/
+#   update_bond_drag()/finish_bond_drag() above (see those functions'
+#   own docstrings for the reasoning -- it's identical here): a plain
+#   Ctrl+CLICK (no real drag) on a BOND still means "cycle its order"
+#   (cycle_bond_order() above) -- these two Ctrl interactions never
+#   conflict because they target different things (an ATOM vs. a BOND's
+#   on-screen LINE), and because the atom-drag only ever actually
+#   STARTS on real mouse movement, exactly like the plain click-and-
+#   drag-to-create-a-bond feature does for the non-Ctrl case.
+# =====================================================================================
+
+def start_atom_drag ( vm_glcore, atom, depth ):
+    """ Begins a Ctrl+drag-to-reposition-an-existing-atom interaction.
+    Called from mouse_motion() (see the hook added there) the FIRST time
+    real mouse movement is detected after a Ctrl+press that landed on an
+    atom belonging to the current Builder target object -- render() only
+    records that atom as a CANDIDATE (mirroring start_bond_drag()'s own
+    candidate mechanism, see the render() hook in vismol_glcore.py); the
+    drag doesn't actually start until this runs, so a plain Ctrl+click
+    (press+release, no real movement) never reaches here.
+
+    Pushes an undo snapshot immediately (BEFORE any repositioning
+    happens) -- same "snapshot once per logical gesture, not once per
+    motion event" reasoning as start_bond_drag(). """
+    vm_session    = vm_glcore.vm_session
+    vismol_object = atom.vm_object
+
+    from gui.windows.builder.atom_ops import push_undo_snapshot
+    push_undo_snapshot ( vismol_object )
+
+    vm_session.builder_ctrl_drag_active = True
+    vm_session.builder_ctrl_drag_atom   = atom
+    vm_session.builder_ctrl_drag_object = vismol_object
+    vm_session.builder_ctrl_drag_depth  = depth
+
+    print ( "DEBUG click_mode: atom-drag started -- moving atom #{} ('{}')".format (
+            atom.atom_id, atom.symbol ) )
+
+    vm_glcore.updated_coords = True
+    vm_glcore.queue_draw ( )
+
+
+def update_atom_drag ( vm_glcore, mouse_x, mouse_y ):
+    """ Called from mouse_motion() on every motion event while
+    vm_session.builder_ctrl_drag_active is True. Repositions the dragged
+    atom (atom_ops.move_atom() -- cheap, no bond recompute, exactly like
+    update_bond_drag() uses for the atom it creates) to the current
+    cursor position, unprojected at the FIXED depth captured by
+    start_atom_drag() -- same reasoning as update_bond_drag()'s own
+    fixed-depth choice: keeps the atom moving in a plane parallel to the
+    screen, rather than jumping depth if the cursor crosses over some
+    other atom/bond mid-drag.
+
+    Pure math -- safe to call directly from mouse_motion() (a plain GTK
+    handler), not render() -- see update_bond_drag()'s own docstring for
+    why (world_pos_from_mouse() only touches the GPU when its `depth`
+    argument is None, and here it never is). """
+    vm_session = vm_glcore.vm_session
+    if not getattr ( vm_session, "builder_ctrl_drag_active", False ):
+        return None
+
+    vismol_object = vm_session.builder_ctrl_drag_object
+    atom          = vm_session.builder_ctrl_drag_atom
+    depth         = vm_session.builder_ctrl_drag_depth
+
+    wx, wy, wz = world_pos_from_mouse ( vm_glcore, mouse_x, mouse_y, depth = depth )
+
+    world_point = np.array ( [ wx, wy, wz, 1.0 ], dtype = np.float32 )
+    inv_model   = np.linalg.inv ( vismol_object.model_mat )
+    local_point = world_point @ inv_model
+    x, y, z = float ( local_point[0] ), float ( local_point[1] ), float ( local_point[2] )
+
+    from gui.windows.builder.atom_ops import move_atom
+    move_atom ( vismol_object, atom.atom_id, x, y, z )
+    return atom
+
+
+def finish_atom_drag ( vm_glcore ):
+    """ Called from mouse_released() (checked FIRST, before the existing
+    Ctrl+click-a-bond handling -- see the hook added there) once the
+    button comes back up while an atom-drag is active.
+
+    Unlike finish_bond_drag(), there's no bonding to reconcile here at
+    all -- moving an atom doesn't change which OTHER atoms it's bonded
+    to, or their bond orders, so no add_bond()/adjust_hydrogens() calls
+    are needed. Just syncs the linked pDynamo system (positions changed,
+    even though bonds/topology didn't -- see empty_object.
+    sync_pdynamo_system()'s own docstring: it rebuilds coordinates3 every
+    time regardless) and clears the drag state.
+
+    Returns the repositioned Atom, or None if no drag was active. """
+    vm_session = vm_glcore.vm_session
+    if not getattr ( vm_session, "builder_ctrl_drag_active", False ):
+        return None
+
+    vismol_object = vm_session.builder_ctrl_drag_object
+    atom          = vm_session.builder_ctrl_drag_atom
+
+    print ( "DEBUG click_mode: atom-drag finished -- atom #{} ('{}') repositioned".format (
+            atom.atom_id, atom.symbol ) )
+
+    vm_session.builder_ctrl_drag_active           = False
+    vm_session.builder_ctrl_drag_atom             = None
+    vm_session.builder_ctrl_drag_object           = None
+    vm_session.builder_ctrl_drag_depth            = None
+    vm_session.builder_ctrl_press_candidate_atom  = None
+    vm_session.builder_ctrl_press_candidate_depth = None
+
+    vm_glcore.updated_coords = False
+
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( vismol_object )
+
+    vm_glcore.queue_draw ( )
+    return atom
+
+
+# =====================================================================================
+#   Hover highlight -- a flat, camera-facing (billboard) yellow ring
+#   ------------------------------------------------------------------------------
+#   Drawn around whichever atom find_atom_at_pixel_2d_any_object() reports
+#   as hovered (see the mouse_motion() hook in vismol_glcore.py) -- makes
+#   the SAME atom that's about to be printed also visible, and doubles as
+#   a sanity check that the pure-CPU hover test agrees with what the
+#   normal GPU pick would select (which is what it's actually built out
+#   of now -- see find_atom_at_pixel_2d_any_object()'s own docstring:
+#   the hover test used to disagree with real click-picking because it
+#   ignored occlusion; drawing the highlighted atom directly on top of
+#   the real atom makes any remaining disagreement immediately obvious
+#   -- if the ring ever visibly sits on the WRONG atom, that's the thing
+#   to re-check).
+#
+#   "Camera-facing, doesn't rotate with the model" -- built directly in
+#   WORLD space (not the hovered object's own local/model space): the
+#   ring's plane is spanned by the camera's OWN right/up axes (extracted
+#   from view_matrix -- this codebase implements "rotate the view" by
+#   rotating every vismol_object's OWN model_mat, see _rotate_view(), so
+#   the camera's view_matrix itself never changes -- meaning these two
+#   axes are effectively FIXED for the whole session, not something that
+#   needs recomputing defensively every frame, though it's cheap enough
+#   to just do it every time regardless), not the object's local axes --
+#   so the ring's ORIENTATION stays exactly the same regardless of how
+#   the model has been rotated, only its POSITION follows the atom.
+#   Verified numerically offline first (see the conversation this was
+#   built in): projected a ring built this way through several different
+#   camera orientations and confirmed the projected shape's variation
+#   was IDENTICAL across all of them (proving the ring's screen-space
+#   shape doesn't depend on model_mat rotation) before wiring this in.
+#
+#   [EN] FILLED + TRANSPARENT variant added afterwards (the user asked
+#   for a filled, partially-transparent disk instead of just an
+#   outline): the "lines_sel" shader used for the outline ring hardcodes
+#   alpha=1.0 in its OWN fragment shader (sel_fragment_shader_lines --
+#   confirmed by reading shaders/lines.py directly: `final_color =
+#   vec4(frag_color, 1.0)`), so no amount of vertex-colour or
+#   glBlendFunc tweaking on this end could ever make it transparent --
+#   the shader itself throws the alpha away. Rather than risk modifying
+#   an existing, shared shader (used by real bond-line rendering
+#   elsewhere) to add alpha support it was never built for, a small,
+#   dedicated shader pair (_HOVER_FILL_VERTEX_SHADER/
+#   _HOVER_FILL_FRAGMENT_SHADER below) was written instead, taking a
+#   genuine vec4 (RGBA) per-vertex colour straight through to
+#   final_color, compiled once via vm_glcore.load_shaders() (which
+#   already handles linking AND binding the shared camera UBO to the new
+#   program automatically -- confirmed by reading load_shaders() itself,
+#   no extra setup needed on this end) and cached on vm_glcore so it
+#   only compiles once, not every time an atom is hovered.
+# =====================================================================================
+
+_HOVER_FILL_VERTEX_SHADER = """
+#version 330
+precision highp float;
+precision highp int;
+
+layout(std140) uniform CameraMatrices {
+    mat4 view_mat;
+    mat4 proj_mat;
+};
+uniform mat4 model_mat;
+
+in vec3 vert_coord;
+in vec4 vert_color;
+
+out vec4 frag_color;
+
+void main(){
+    frag_color = vert_color;
+    gl_Position = proj_mat * view_mat * model_mat * vec4(vert_coord, 1.0);
+}
+"""
+
+_HOVER_FILL_FRAGMENT_SHADER = """
+#version 330
+precision highp float;
+precision highp int;
+
+in vec4 frag_color;
+out vec4 final_color;
+
+void main(){
+    final_color = frag_color;
+}
+"""
+
+
+def _get_hover_fill_program ( vm_glcore ):
+    """ Lazily compiles (once) and caches the small dedicated shader used
+    by the FILLED hover disk -- see the module-level note above for why
+    this couldn't just reuse "lines_sel". """
+    program = getattr ( vm_glcore, "builder_hover_fill_program", None )
+    if program is None:
+        program = vm_glcore.load_shaders ( _HOVER_FILL_VERTEX_SHADER, _HOVER_FILL_FRAGMENT_SHADER )
+        vm_glcore.builder_hover_fill_program = program
+    return program
+
+
+def draw_hover_highlight ( vm_glcore, atom, n_segments = 24, filled = True,
+                            color = ( 1.0, 1.0, 0.0 ), alpha = 0.10 ):
+                            #color = ( 1.0, 1.0, 0.0 ), alpha = 0.15 ):
+    """ Draws a flat, camera-facing highlight around `atom`'s CURRENT
+    position -- a semi-transparent FILLED disk by default (filled=True),
+    or a solid outline ring (filled=False, the original style, opaque --
+    see the module-level note above for why that style can't support
+    transparency). Called from render() (see the hook added there),
+    every frame that vm_glcore.builder_hover_atom is set -- rebuilds a
+    tiny, throwaway VAO/VBO pair each time (a couple dozen vertices at
+    most) rather than caching one: the position needs to track the
+    hovered atom live anyway (in case it moves while hovered), and a
+    buffer this small costs nothing worth optimising away.
+
+    color : RGB tuple, 0-1 range.
+    alpha : 0 (fully transparent) - 1 (fully opaque). Only meaningful
+            when filled=True -- the outline ring is always fully opaque
+            (see above).
+
+    Returns (world_center, up, radius) -- the same camera-facing "up"
+    vector and world position this function already had to compute,
+    handed back so draw_hover_info_text() (see below) can position the
+    info line just below this same highlight without recomputing any of
+    it itself. """
+    vismol_object = atom.vm_object
+    view_matrix   = vm_glcore.glcamera.view_matrix
+
+    right = view_matrix[0:3, 0]
+    up    = view_matrix[0:3, 1]
+    right = right / np.linalg.norm ( right )
+    up    = up    / np.linalg.norm ( up )
+
+    local_pos = _current_frame_position ( vismol_object, atom.atom_id )
+    local_pos_h = np.array ( [ local_pos[0], local_pos[1], local_pos[2], 1.0 ], dtype = np.float32 )
+    world_center = ( local_pos_h @ vismol_object.model_mat )[:3]
+
+    #radius = float ( getattr ( atom, "vdw_rad", None ) or 0.4 ) * 1.3
+    radius = 0.47
+
+    thetas = np.linspace ( 0, 2 * np.pi, n_segments, endpoint = False )
+    ring_points = [ world_center + right * np.cos ( t ) * radius + up * np.sin ( t ) * radius for t in thetas ]
+
+    #GL.glEnable ( GL.GL_DEPTH_TEST )
+    GL.glDisable ( GL.GL_DEPTH_TEST )
+    GL.glEnable ( GL.GL_BLEND )
+    GL.glBlendFunc ( GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA )
+
+    if filled:
+        # [EN] GL_TRIANGLE_FAN: centre vertex first, then every
+        # perimeter point in order, then the FIRST perimeter point
+        # again to close the fan -- standard technique for a filled
+        # N-gon (here, N=n_segments, close enough to a circle).
+        vertices = [ world_center ] + ring_points + [ ring_points[0] ]
+        coords = np.array ( vertices, dtype = np.float32 )
+        rgba = ( color[0], color[1], color[2], alpha )
+        colors = np.tile ( np.array ( rgba, dtype = np.float32 ), ( len ( vertices ), 1 ) )
+
+        program = _get_hover_fill_program ( vm_glcore )
+        GL.glUseProgram ( program )
+        vm_glcore.load_matrices ( program, np.identity ( 4, dtype = np.float32 ) )   # ja em world space -- model_mat = identidade
+
+        vao = GL.glGenVertexArrays ( 1 )
+        GL.glBindVertexArray ( vao )
+
+        coord_vbo = GL.glGenBuffers ( 1 )
+        GL.glBindBuffer ( GL.GL_ARRAY_BUFFER, coord_vbo )
+        GL.glBufferData ( GL.GL_ARRAY_BUFFER, coords.nbytes, coords, GL.GL_DYNAMIC_DRAW )
+        att_position = GL.glGetAttribLocation ( program, "vert_coord" )
+        GL.glEnableVertexAttribArray ( att_position )
+        GL.glVertexAttribPointer ( att_position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3 * coords.itemsize, ctypes.c_void_p ( 0 ) )
+
+        col_vbo = GL.glGenBuffers ( 1 )
+        GL.glBindBuffer ( GL.GL_ARRAY_BUFFER, col_vbo )
+        GL.glBufferData ( GL.GL_ARRAY_BUFFER, colors.nbytes, colors, GL.GL_DYNAMIC_DRAW )
+        att_color = GL.glGetAttribLocation ( program, "vert_color" )
+        GL.glEnableVertexAttribArray ( att_color )
+        GL.glVertexAttribPointer ( att_color, 4, GL.GL_FLOAT, GL.GL_FALSE, 4 * colors.itemsize, ctypes.c_void_p ( 0 ) )
+
+        GL.glDrawArrays ( GL.GL_TRIANGLE_FAN, 0, len ( vertices ) )
+
+        GL.glBindVertexArray ( 0 )
+        GL.glDeleteBuffers ( 2, [ coord_vbo, col_vbo ] )
+        GL.glDeleteVertexArrays ( 1, [ vao ] )
+        GL.glUseProgram ( 0 )
+
+    else:
+        # [EN] Original outline-ring style -- "lines_sel" shader, always
+        # fully opaque (see the module-level note above). sel_vertex_
+        # shader_lines' geometry shader consumes GL_LINES (pairs of
+        # vertices, one segment per pair) -- NOT GL_LINE_LOOP -- so each
+        # consecutive pair of ring points (wrapping back to the first)
+        # needs to be laid out as its OWN pair in the vertex buffer.
+        
+        
+        GL.glEnable ( GL.GL_LINE_SMOOTH )
+        GL.glHint ( GL.GL_LINE_SMOOTH_HINT, GL.GL_NICEST )
+
+        vertices = [ ]
+        for i in range ( n_segments ):
+            vertices.append ( ring_points[i] )
+            vertices.append ( ring_points[ ( i + 1 ) % n_segments ] )
+
+        coords = np.array ( vertices, dtype = np.float32 )
+        colors = np.tile ( np.array ( color, dtype = np.float32 ), ( len ( vertices ), 1 ) )
+
+        program = vm_glcore.shader_programs["lines_sel"]
+        GL.glUseProgram ( program )
+        GL.glLineWidth ( 2.0 )
+        vm_glcore.load_matrices ( program, np.identity ( 4, dtype = np.float32 ) )
+
+        vao = GL.glGenVertexArrays ( 1 )
+        GL.glBindVertexArray ( vao )
+
+        coord_vbo = GL.glGenBuffers ( 1 )
+        GL.glBindBuffer ( GL.GL_ARRAY_BUFFER, coord_vbo )
+        GL.glBufferData ( GL.GL_ARRAY_BUFFER, coords.nbytes, coords, GL.GL_DYNAMIC_DRAW )
+        att_position = GL.glGetAttribLocation ( program, "vert_coord" )
+        GL.glEnableVertexAttribArray ( att_position )
+        GL.glVertexAttribPointer ( att_position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3 * coords.itemsize, ctypes.c_void_p ( 0 ) )
+
+        col_vbo = GL.glGenBuffers ( 1 )
+        GL.glBindBuffer ( GL.GL_ARRAY_BUFFER, col_vbo )
+        GL.glBufferData ( GL.GL_ARRAY_BUFFER, colors.nbytes, colors, GL.GL_DYNAMIC_DRAW )
+        att_color = GL.glGetAttribLocation ( program, "vert_color" )
+        GL.glEnableVertexAttribArray ( att_color )
+        GL.glVertexAttribPointer ( att_color, 3, GL.GL_FLOAT, GL.GL_FALSE, 3 * colors.itemsize, ctypes.c_void_p ( 0 ) )
+
+        GL.glDrawArrays ( GL.GL_LINES, 0, len ( vertices ) )
+
+        GL.glBindVertexArray ( 0 )
+        GL.glDeleteBuffers ( 2, [ coord_vbo, col_vbo ] )
+        GL.glDeleteVertexArrays ( 1, [ vao ] )
+
+        GL.glDisable ( GL.GL_LINE_SMOOTH )
+        GL.glLineWidth ( 1 )
+        GL.glUseProgram ( 0 )
+
+    GL.glDisable ( GL.GL_BLEND )
+
+    return world_center, up, radius
+
+
+def draw_hover_info_text ( vm_glcore, atom, world_center, up, radius ):
+    """ [EN] Draws a short info line (atom index, element, residue/chain,
+    object name) just below the hover ring built by draw_hover_highlight()
+    (see its own docstring -- world_center/up/radius are exactly what
+    that function already computed, handed back so this doesn't need to
+    redo any of it). Called from render() right after the ring.
+
+    Reuses this codebase's OWN existing freetype text pipeline (the
+    ACTIVE LabelRepresentation class, gui/libgl/representations.py --
+    confirmed by checking which of the two same-named classes in that
+    file is actually live code and which is dead, commented-out legacy:
+    counted every triple-quote in the file to track the string-literal
+    state and found the SECOND LabelRepresentation sits entirely inside
+    an unclosed docstring block, so it's inert -- the FIRST one, and its
+    same vm_font.* calls used here, are the real, working API).
+
+    Text is BILLBOARD by construction, same as the ring, but for a
+    different, simpler reason: read shaders/vm_freetype.py directly and
+    confirmed its vertex shader applies ONLY view_mat (no model_mat) to
+    each character's world-space anchor point, and its geometry shader
+    expands each point into a quad by offsetting X/Y in VIEW SPACE (not
+    world space) before applying proj_mat -- so every character quad
+    faces the camera automatically, with no billboard math needed on
+    this end beyond supplying a single WORLD-space position per
+    character (same "verify by reading the actual shader source, not by
+    assuming" approach already used for the ring's own camera-facing
+    math).
+
+    [EN] NOT copied verbatim from LabelRepresentation: that class
+    transforms its anchor point through `vm_glcore.model_mat` before
+    upload, which is a DIFFERENT matrix from any given atom's own
+    `vismol_object.model_mat` (the one this whole Builder feature set
+    has consistently used everywhere else, verified numerically more
+    than once earlier in this project). Using vismol_object.model_mat
+    here instead keeps this consistent with everything else already
+    built, rather than reusing a call that looks likely to be a
+    pre-existing, rarely-exercised bug in that class. """
+    
+    
+    #this fuction is not been used -but could
+    return False
+    
+    
+    
+    font = getattr ( vm_glcore, "builder_hover_font", None )
+    if font is None:
+        from vismol.libgl.vismol_font import VismolFont
+        font = VismolFont ( color = [ 1.0, 1.0, 0.0, 1.0 ] )
+        font.set_dimensions ( width = 0.12, height = 0.12 )
+        font.make_freetype_font ( )
+        font.make_freetype_texture ( vm_glcore.core_shader_programs["freetype"] )
+        vm_glcore.builder_hover_font = font
+
+    residue = getattr ( atom, "residue", None )
+    chain   = getattr ( atom, "chain", None )
+    resn    = residue.name  if residue is not None else "?"
+    resi    = residue.index if residue is not None else "?"
+    chain_name = chain.name if chain is not None else "?"
+
+    text = "#{}/{}/{} - {}/{}".format (
+    #text = "#{} {} {}{}/{} @ {}".format (
+    #        atom.atom_id, atom.symbol, resn, resi, chain_name, atom.vm_object.name )
+            atom.atom_id, atom.symbol, atom.name, resn, resi)
+
+    anchor = world_center - up * ( radius + 0.35 )   # um pouco abaixo do anel
+
+    xyz_pos   = [ ]
+    uv_coords = [ ]
+    chars     = 0
+
+    GL.glBindTexture ( GL.GL_TEXTURE_2D, font.texture_id )
+    for i, c in enumerate ( text ):
+        chars += 1
+        c_id = ord ( c )
+        x = c_id % 16
+        y = c_id // 16 - 2
+        xyz_pos.append ( anchor[0] + i * font.char_width - ( len ( text ) * font.char_width ) / 2.0 )
+        xyz_pos.append ( anchor[1] )
+        xyz_pos.append ( anchor[2] )
+        uv_coords.append ( x * font.text_u )
+        uv_coords.append ( y * font.text_v )
+        uv_coords.append ( ( x + 1 ) * font.text_u )
+        uv_coords.append ( ( y + 1 ) * font.text_v )
+
+    xyz_pos   = np.array ( xyz_pos, dtype = np.float32 )
+    uv_coords = np.array ( uv_coords, dtype = np.float32 )
+
+    GL.glBindBuffer ( GL.GL_ARRAY_BUFFER, font.coord_vbo )
+    GL.glBufferData ( GL.GL_ARRAY_BUFFER, xyz_pos.itemsize * len ( xyz_pos ), xyz_pos, GL.GL_DYNAMIC_DRAW )
+    GL.glBindBuffer ( GL.GL_ARRAY_BUFFER, font.text_vbo )
+    GL.glBufferData ( GL.GL_ARRAY_BUFFER, uv_coords.itemsize * len ( uv_coords ), uv_coords, GL.GL_DYNAMIC_DRAW )
+    GL.glBindBuffer ( GL.GL_ARRAY_BUFFER, 0 )
+
+    GL.glDisable ( GL.GL_DEPTH_TEST )   # texto sempre legivel, mesmo atras de outra geometria -- mesma convencao ja usada por LabelRepresentation
+    GL.glEnable ( GL.GL_BLEND )
+    GL.glBlendFunc ( GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA )
+    GL.glUseProgram ( vm_glcore.core_shader_programs["freetype"] )
+
+    font.load_matrices ( vm_glcore.core_shader_programs["freetype"],
+                          vm_glcore.glcamera.view_matrix, vm_glcore.glcamera.projection_matrix )
+    font.load_font_params ( vm_glcore.core_shader_programs["freetype"] )
+
+    GL.glBindVertexArray ( font.vao )
+    GL.glDrawArrays ( GL.GL_POINTS, 0, chars )
+    GL.glDisable ( GL.GL_BLEND )
+    GL.glEnable ( GL.GL_DEPTH_TEST )
+    GL.glBindVertexArray ( 0 )
+    GL.glUseProgram ( 0 )

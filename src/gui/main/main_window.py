@@ -92,7 +92,7 @@ from util.geometric_analysis import get_simple_distance
 from util.sequence_plot import GtkSequenceViewer
 from util.rama_plot import RamachandranWindow
 
-#from gui.windows.builder.builder_main import BuilderMainWindow
+from gui.windows.builder.builder_sidebar      import BuilderSidebarWindow
 
 
 from pdynamo.pDynamo2EasyHybrid import pDynamoSession
@@ -381,6 +381,7 @@ class MainWindow:
 
         self.trajectory_player_window  = TrajectoryPlayerWindow (main = self)
         self.terminal_window           = TerminalWindow  (main = self)
+        self.builder_sidebar_window    = BuilderSidebarWindow (main = self)
         
         self.molecular_dynamics_window  = MolecularDynamicsWindow(main = self)
         self.window_list.append(self.molecular_dynamics_window)
@@ -545,12 +546,15 @@ class MainWindow:
             self.gtk_save_as_file (button)
         
         if button  == self.builder.get_object('_show_cell'):
-            print('Under construction!')
-            #self.builder_window = BuilderMainWindow(self)
-            #self.builder_window.open_window()
-            
-            
-            #self.run_test(None)
+            # [EN] Was "print('Under construction!')" -- the Builder GUI
+            # didn't exist at all when this was written (only the
+            # backend atom_ops.py/click_mode.py modules did, driven
+            # entirely via the terminal's `new`/`placemode`/`add`/`tool`
+            # commands -- see easyhybrid_terminal.py). Now that the
+            # sidebar exists (gui/windows/builder/builder_sidebar.py),
+            # this button opens it -- opening the sidebar IS entering
+            # Builder editing mode, see that module's own design note.
+            self.builder_sidebar_window.open_window ( )
             
         if button == self.builder.get_object('toolbutton_terminal'):
             if button.get_active ():
@@ -638,7 +642,8 @@ class MainWindow:
             #obj = self.vm_session.vobject_names[lista[0]]
             #print(obj.topology)
         
-        if button  == self.builder.get_object('button_test'):
+        #if button  == self.builder.get_object('button_test'):
+        if button  == self.builder.get_object('button_task_list'):
             ##print('toolbutton_umbrella_sampling')
             self.process_manager_window.open_window()
 

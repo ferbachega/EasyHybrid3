@@ -894,10 +894,14 @@ class Command:
 
     def cmd_new(self, name="new_molecule", **_):
         """ Creates an empty, editable molecule object -- the starting
-        point of the Builder (draw a molecule from scratch). No pDynamo
-        system is attached yet (it's a pure visual sketchpad for now).
-        The new object appears at index len(list)-1 in 'list', and as a
-        root-level row in the main treeview.
+        point of the Builder (draw a molecule from scratch). Also
+        creates a matching (initially empty) pDynamo System linked to
+        it right away (see gui/windows/builder/empty_object.py's
+        sync_pdynamo_system() for how, and its own module docstring for
+        why this is the LEAST-verified part of the whole Builder feature
+        set -- test this specific piece first if anything looks off).
+        The new object appears at index len(list)-1 in 'list', nested
+        under its own system row in the main treeview.
 
         name : the object's name (default "new_molecule")
 
@@ -980,6 +984,11 @@ class Command:
                                                atom_id, no selection/mouse
                                                needed (handy for terminal-only
                                                use).
+
+        Adjusts both atoms' hydrogens afterwards and syncs the linked
+        pDynamo system -- same steps every GUI bond-creating interaction
+        already goes through (see gui/windows/builder/atom_ops.
+        adjust_hydrogens() / empty_object.sync_pdynamo_system()).
         """
         if self.vm_session is None:
             return "Session unavailable."
@@ -988,11 +997,16 @@ class Command:
                 vobj = self.vm_session.vm_objects_dic[int(obj)]
             except (KeyError, ValueError):
                 return "Object '{}' not found. Use 'list' to see the indices.".format(obj)
-            from gui.windows.builder.atom_ops import add_bond
+            from gui.windows.builder.atom_ops import add_bond, adjust_hydrogens, push_undo_snapshot
+            push_undo_snapshot(vobj)
             try:
                 created = add_bond(vobj, int(atom1), int(atom2))
             except ValueError as e:
                 return str(e)
+            adjust_hydrogens(vobj, int(atom1))
+            adjust_hydrogens(vobj, int(atom2))
+            from gui.windows.builder.empty_object import sync_pdynamo_system
+            sync_pdynamo_system(vobj)
             return ("Bond created between atom {} and atom {}.".format(atom1, atom2) if created
                     else "A bond between these 2 atoms already existed.")
         from gui.windows.builder.click_mode import handle_bond_shortcut
@@ -1001,8 +1015,10 @@ class Command:
     def cmd_add(self, obj=None, symbol="C", x=0.0, y=0.0, z=0.0, **_):
         """ Adds one atom to a Builder object, at an explicit position
         (in Angstrom) -- the terminal-only equivalent of clicking on the
-        3D view in 'placemode'. Automatically (re)runs distance-based
-        bond detection afterwards, so nearby atoms bond on their own.
+        3D view in 'placemode'. Adjusts this atom's hydrogens afterwards
+        (it starts with zero bonds, so this just gives it its full
+        complement -- see gui/windows/builder/atom_ops.
+        adjust_hydrogens()) and syncs the linked pDynamo system.
 
         obj    : object index (see 'list')
         symbol : element symbol            (default "C")
@@ -1020,8 +1036,12 @@ class Command:
             vobj = self.vm_session.vm_objects_dic[int(obj)]
         except (KeyError, ValueError):
             return "Object '{}' not found. Use 'list' to see the indices.".format(obj)
-        from gui.windows.builder.atom_ops import add_atom
+        from gui.windows.builder.atom_ops import add_atom, adjust_hydrogens, push_undo_snapshot
+        push_undo_snapshot(vobj)
         atom = add_atom(vobj, symbol=symbol, x=float(x), y=float(y), z=float(z))
+        adjust_hydrogens(vobj, atom.atom_id)
+        from gui.windows.builder.empty_object import sync_pdynamo_system
+        sync_pdynamo_system(vobj)
         return "Atom added: {} #{} at ({}, {}, {}) -- object now has {} atom(s)".format(
             atom.symbol, atom.atom_id, x, y, z, len(vobj.atoms))
 
@@ -1030,7 +1050,12 @@ class Command:
         terminal-only equivalent of clicking on it in the "delete" tool
         ('tool name=delete'). Remaining atoms with a higher atom_id get
         renumbered down by one automatically (atom_id must stay a dense,
-        contiguous 0..N-1 index).
+        contiguous 0..N-1 index). Adjusts the FORMER neighbours'
+        hydrogens afterwards (unless the removed atom was itself a
+        hydrogen -- see gui/windows/builder/atom_ops.adjust_hydrogens()'s
+        call site in vismol_glcore.py for why: instantly replacing a
+        deliberately-deleted H would make the deletion a no-op) and
+        syncs the linked pDynamo system.
 
         obj  : object index (see 'list')
         atom : atom_id to remove (0-based)
@@ -1046,11 +1071,34 @@ class Command:
             vobj = self.vm_session.vm_objects_dic[int(obj)]
         except (KeyError, ValueError):
             return "Object '{}' not found. Use 'list' to see the indices.".format(obj)
-        from gui.windows.builder.atom_ops import remove_atom
+        from gui.windows.builder.atom_ops import remove_atom, adjust_hydrogens, push_undo_snapshot
+
+        deleted_id = int(atom)
+        if deleted_id not in vobj.atoms:
+            return "Atom {} does not exist in this object.".format(deleted_id)
+
+        deleted_symbol = vobj.atoms[deleted_id].symbol
+        neighbor_objs = []
+        for bond in vobj.bonds.values():
+            if bond.atom_index_i != deleted_id and bond.atom_index_j != deleted_id:
+                continue
+            other_id = bond.atom_index_j if bond.atom_index_i == deleted_id else bond.atom_index_i
+            neighbor = vobj.atoms[other_id]
+            if neighbor.symbol != 'H':
+                neighbor_objs.append(neighbor)
+
+        push_undo_snapshot(vobj)
         try:
-            remove_atom(vobj, int(atom))
+            remove_atom(vobj, deleted_id)
         except ValueError as e:
             return str(e)
+
+        if deleted_symbol != 'H':
+            for neighbor in neighbor_objs:
+                adjust_hydrogens(vobj, neighbor.atom_id)
+
+        from gui.windows.builder.empty_object import sync_pdynamo_system
+        sync_pdynamo_system(vobj)
         return "Atom {} removed -- object now has {} atom(s).".format(atom, len(vobj.atoms))
 
     def cmd_load(self, file=None, **_):

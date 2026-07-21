@@ -2,26 +2,61 @@
 # -*- coding: utf-8 -*-
 #
 #  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
-#  Module: Molecule Builder -- empty object creation
+#  Module: Molecule Builder -- empty object creation + pDynamo system sync
 #
 #  Description:
 #      First building block of the "Builder" tool (draw molecules from
-#      scratch). Creates a VismolObject that is NOT backed by a pDynamo
-#      system/psystem entry -- deliberately kept separate from the
-#      p_session/QC-MM machinery for now (explicit decision: the builder
-#      starts as a pure visual sketchpad; promoting a drawn molecule into
-#      a real pDynamo system is a separate, later step).
+#      scratch). Creates a VismolObject AND, since the user explicitly
+#      asked for the two to be kept in sync, a matching pDynamo System
+#      linked to it via vismol_object.e_id -- REVERSING an earlier,
+#      explicit decision (kept here for context, not because it's still
+#      true): "the builder starts as a pure visual sketchpad; promoting a
+#      drawn molecule into a real pDynamo system is a separate, later
+#      step". That later step is THIS one.
 #
-#      Because of that choice, this module does NOT use
-#      eSession._add_vismol_object() (which unconditionally looks up
-#      self.main.p_session.psystem[vismol_object.e_id], which does not
-#      exist for a builder-only object). register_builder_object()
-#      below is a deliberately minimal, parallel registration path: it
-#      does only the bookkeeping needed for the object to render
-#      correctly and show up in session-level object lookups
-#      (self.vm_session.vm_objects_dic, used directly by
-#      vm_glcore.render(), the terminal's `list`/`show`/`select`
-#      commands, etc.).
+#      sync_pdynamo_system() (see its own docstring) rebuilds the linked
+#      System from scratch to match the VismolObject's CURRENT atoms/
+#      bonds/positions -- called once here, at creation (see
+#      create_empty_vismol_object() below), and again by atom_ops.
+#      adjust_hydrogens() every time it runs (which itself already runs
+#      after every structural edit -- place/replace an atom, a bond-drag,
+#      cycling a bond's order, deleting an atom/bond -- see each of
+#      those call sites' own comments in click_mode.py/vismol_glcore.py).
+#      Same "always fully rebuild rather than incrementally patch"
+#      philosophy already used throughout atom_ops.py for the
+#      VismolObject's own bonds/topology (_reapply_manual_bonds()) --
+#      NOT wired into move_atom() (called on every single mouse-motion
+#      event during a live drag), which would rebuild a whole pDynamo
+#      System dozens of times a second for no benefit.
+#
+#      [EN] The underlying pDynamo API used here (Connectivity,
+#      Atom.WithOptions, Bond.WithNodes, ConvertInputConnectivity,
+#      System.FromConnectivity) was NOT guessed at -- it was read
+#      directly out of util/extras/MOL2FileReader.py's own ToSystem()
+#      method (already vendored in this repo), which builds a System the
+#      exact same way when importing a real MOL2 file. The zero-atom case
+#      (creating the system for a brand new, still-empty Builder object)
+#      was verified against pDynamo3's own upstream source (github.com/
+#      pdynamo/pDynamo3, cloned and read directly, not executed -- no
+#      live pDynamo environment available here either) rather than
+#      assumed: ConvertInputConnectivity has its own explicit
+#      `if len(self.nodes) > 0:` guard (a no-op for zero atoms, not an
+#      error), and AtomContainer._SetItemsFromIterable's handling of an
+#      empty iterable is ordinary Python (empty list in, empty list out,
+#      no special-casing needed). This is still the LEAST-verified part
+#      of the whole Builder feature set so far -- everything else in
+#      this project could at least be reasoned about against this same
+#      codebase's own, already-working patterns; this one relies on
+#      reading a separate, external library's source with no live
+#      execution feedback at all. Test this specific piece first,
+#      in isolation, before relying on the rest.
+#
+#      Because of the (former) separate-from-pDynamo choice, this module
+#      still does NOT use eSession._add_vismol_object() for the
+#      VismolObject side of things (see register_builder_object()'s own
+#      docstring for why) -- only the pDynamo SYSTEM side now goes
+#      through the normal channel (p_session.add_new_system_to_psession(),
+#      the exact same method real, file-loaded systems use).
 #
 #      TREEVIEW DISPLAY: main_treeview.add_vismol_object_to_treeview()
 #      IS used now (unlike an earlier version of this module/comment,
@@ -33,15 +68,11 @@
 #      add_vismol_object_to_treeview() on EVERY vm_objects_dic entry
 #      unconditionally): the very first refresh() after creating a
 #      Builder object would have raised KeyError(None) there, before
-#      this fix. See main_treeview.py's own comments at the fix site for
-#      the rest of the story (the -1 sentinel used for the treestore's
-#      strictly-int e_id column, root-level placement instead of nesting
-#      under a system node, and the matching guard added to
-#      on_treeview_mouse_button_release_event() so right-clicking a
-#      Builder row doesn't also raise inside treeview_menu.open_menu()).
-#      STILL NOT done: a Builder-specific right-click context menu
-#      (rename, delete object, promote to a real pDynamo system, ...) --
-#      right-click on a Builder row is a silent no-op for now.
+#      this fix. Now that sync_pdynamo_system() gives the object a REAL
+#      e_id from the moment it's created, that -1/root-level fallback
+#      path is only ever exercised in the (should no longer happen, but
+#      harmless if it somehow does) case where system creation itself
+#      fails -- see sync_pdynamo_system()'s own try/except.
 #
 #      Verified safe against a zero-atom object (this is exactly what an
 #      empty builder object is) by reading, but not executing (no live
@@ -127,7 +158,127 @@ def create_empty_vismol_object ( vm_session, name = "new_molecule" ):
 
     register_builder_object ( vm_session, vismol_object, show_molecule = False )
 
+    sync_pdynamo_system ( vismol_object )
+
     if getattr ( vm_session, "vm_glcore", None ) is not None:
         vm_session.vm_glcore.queue_draw ( )
 
     return vismol_object
+
+
+def _build_pdynamo_system_from_vismol_object ( vismol_object, label = None ):
+    """ [EN] Builds a brand-new pDynamo System matching vismol_object's
+    CURRENT atoms/bonds/positions -- see this module's own docstring
+    (top of file) for where this exact sequence of calls came from
+    (util/extras/MOL2FileReader.py's ToSystem()) and how the zero-atom
+    case was verified against pDynamo3's own upstream source.
+
+    Bond orders: BondType.Single/Double/Triple, from vismol_object.
+    manual_bond_orders (defaulting to Single for any pair not explicitly
+    recorded there -- see atom_ops.add_bond()'s own docstring for why
+    EVERY bond, regardless of order, ends up in manual_bonds).
+
+    Returns the new System (not yet registered with any eSession/
+    treeview -- see sync_pdynamo_system(), which calls this and then
+    handles registration). """
+    from pMolecule             import Atom, Bond, BondType, Connectivity, ConvertInputConnectivity, System
+    from pScientific            import PeriodicTable
+    from pScientific.Geometry3  import Coordinates3
+
+    connectivity = Connectivity ( )
+
+    for atom_id in sorted ( vismol_object.atoms.keys ( ) ):
+        atom = vismol_object.atoms[atom_id]
+        atomic_number = PeriodicTable.AtomicNumber ( atom.symbol )
+        connectivity.AddNode ( Atom.WithOptions ( atomicNumber = atomic_number, label = atom.name ) )
+
+    bond_type_by_order = { 1: BondType.Single, 2: BondType.Double, 3: BondType.Triple }
+    manual_bonds       = getattr ( vismol_object, "manual_bonds", None ) or set ( )
+    manual_bond_orders = getattr ( vismol_object, "manual_bond_orders", None ) or { }
+
+    for ( i, j ) in manual_bonds:
+        order     = manual_bond_orders.get ( ( i, j ), 1 )
+        bond_type = bond_type_by_order.get ( order, BondType.Single )
+        connectivity.AddEdge ( Bond.WithNodes ( connectivity.nodes[i], connectivity.nodes[j],
+                                                 isAromatic = False, type = bond_type ) )
+
+    ConvertInputConnectivity ( connectivity, { } )
+
+    system       = System.FromConnectivity ( connectivity = connectivity )
+    system.label = label if label else vismol_object.name
+
+    n_atoms      = len ( vismol_object.atoms )
+    coordinates3 = Coordinates3.WithExtent ( n_atoms )
+    for atom_id in range ( n_atoms ):
+        pos = vismol_object.frames[0, atom_id]
+        coordinates3[atom_id, 0] = float ( pos[0] )
+        coordinates3[atom_id, 1] = float ( pos[1] )
+        coordinates3[atom_id, 2] = float ( pos[2] )
+    system.coordinates3 = coordinates3
+
+    return system
+
+
+def sync_pdynamo_system ( vismol_object ):
+    """ [EN] (Re)builds vismol_object's LINKED pDynamo System from
+    scratch (_build_pdynamo_system_from_vismol_object() above) and (re)
+    registers it, so the two never drift apart -- see this module's own
+    docstring for the full list of when this gets called and why NOT
+    from move_atom()/every mouse-motion event.
+
+    First call for a given vismol_object (no e_id yet): goes through
+    p_session.add_new_system_to_psession() -- the SAME registration
+    method real, file-loaded systems use, so the new system gets every
+    piece of EasyHybrid bookkeeping (e_working_folder, e_selections,
+    e_charges_backup, ...) that method sets up, not just the bare
+    pDynamo object -- then links vismol_object.e_id to the new system's
+    e_id and flips is_builder_only to False (it now genuinely isn't
+    builder-only anymore).
+
+    Every call after that (vismol_object.e_id already set): rebuilds the
+    System object itself from scratch (structure changed -- new/removed
+    atoms or bonds, or a moved position), but reuses the SAME e_id slot
+    in p_session.psystem instead of registering a new one -- re-running
+    add_new_system_to_psession() every time would both leak a fresh e_id
+    per edit (a new treeview row every time, instead of updating the
+    existing one) AND needlessly redo one-time setup (working folder,
+    colour palette, ...) that should stay stable for this object's whole
+    lifetime. Any 'e_'-prefixed attribute already present on the OLD
+    system object (all that one-time EasyHybrid bookkeeping) is copied
+    onto the freshly-rebuilt one first, so it survives the swap.
+
+    Finally, calls main_treeview.refresh() -- a full treeview rebuild
+    (clears and re-adds every system + every vobject, see that method's
+    own code) rather than trying to surgically patch just this one row;
+    simpler and safe to call this often for a Builder-sized session.
+
+    Silently does nothing (prints a warning instead of raising) if
+    anything in the pDynamo/eSession call chain fails -- the Builder's
+    OWN vismol_object state is the source of truth either way, so a
+    pDynamo-sync failure shouldn't take down editing itself. """
+    try:
+        main       = vismol_object.vm_session.main
+        p_session  = main.p_session
+
+        new_system = _build_pdynamo_system_from_vismol_object ( vismol_object, label = vismol_object.name )
+
+        existing_e_id = getattr ( vismol_object, "e_id", None )
+
+        if existing_e_id is not None and existing_e_id in p_session.psystem:
+            old_system = p_session.psystem[existing_e_id]
+            for attr_name, attr_value in old_system.__dict__.items ( ):
+                if attr_name.startswith ( "e_" ) and not hasattr ( new_system, attr_name ):
+                    setattr ( new_system, attr_name, attr_value )
+            new_system.e_id = existing_e_id
+            p_session.psystem[existing_e_id] = new_system
+        else:
+            p_session.add_new_system_to_psession ( system = new_system, name = vismol_object.name )
+            vismol_object.e_id            = new_system.e_id
+            vismol_object.is_builder_only = False
+
+        main.main_treeview.refresh ( )
+
+    except Exception as exc:
+        print ( "WARNING empty_object.sync_pdynamo_system: failed to (re)build/register the linked "
+                "pDynamo system for '{}' -- Builder editing continues unaffected. Error: {}".format (
+                getattr ( vismol_object, "name", "?" ), exc ) )
