@@ -37,6 +37,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes">Which energy dataset (scan/profile) of the selected object to show.</property>
                     <property name="label" translatable="yes">data:</property>
                   </object>
                   <packing>
@@ -48,6 +49,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes">Color map used to draw the 2D energy surface.</property>
                     <property name="label" translatable="yes">cmap:</property>
                   </object>
                   <packing>
@@ -59,6 +61,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes">Which loaded object/trajectory to analyze (only objects with PES/energy data attached are listed).</property>
                     <property name="label" translatable="yes">Coordinates:</property>
                   </object>
                   <packing>
@@ -70,6 +73,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes">Energies above this value (kJ/mol, relative to the minimum) are clipped to the same color, so noisy high-energy regions don't wash out the color scale.</property>
                     <property name="label" translatable="yes">threshold: </property>
                   </object>
                   <packing>
@@ -79,9 +83,10 @@
                 </child>
                 <child>
                   <object class="GtkEntry" id="threshold_entry">
-                    <property name="width-request">10</property>
+                    <property name="width-request">70</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
+                    <property name="tooltip-text" translatable="yes">Energies above this value (kJ/mol, relative to the minimum) are clipped to the same color. Press Enter to apply.</property>
                   </object>
                   <packing>
                     <property name="left-attach">7</property>
@@ -140,6 +145,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes">Whether the plot axes are labeled by frame number or by the actual reaction-coordinate distance (Å).</property>
                     <property name="label" translatable="yes">RC label type:</property>
                   </object>
                   <packing>
@@ -153,6 +159,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes">When picking points on the surface, automatically fills in the intermediate grid points between the last click and this one, instead of only adding the exact point clicked.</property>
                     <property name="active">True</property>
                     <property name="draw-indicator">True</property>
                   </object>
@@ -167,6 +174,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes">Interpolates colors between grid points for a smoother-looking surface, instead of showing each grid point as a flat, discrete block of color.</property>
                     <property name="draw-indicator">True</property>
                   </object>
                   <packing>
@@ -175,16 +183,83 @@
                   </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkCheckButton" id="checkbox_contours">
+                    <property name="label" translatable="yes">Show Contours</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes">Draws energy contour lines (isolines) over the 2D surface, evenly spaced between the minimum and maximum energy.</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">4</property>
+                    <property name="top-attach">0</property>
+                  </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes">Number of contour lines to draw, evenly spaced between the minimum and maximum energy.</property>
+                    <property name="label" translatable="yes">levels:</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">5</property>
+                    <property name="top-attach">0</property>
+                  </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkSpinButton" id="spinbtn_contour_levels">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="width-chars">3</property>
+                    <property name="adjustment">adjustment1</property>
+                    <property name="value">8</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">6</property>
+                    <property name="top-attach">0</property>
+                  </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="spacing">9</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">Maximum number of tick labels shown on the 1D energy profile's x-axis (below). Lower this if labels overlap when many frames are picked/optimized.</property>
+                        <property name="label" translatable="yes">x labels:</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="spinbtn_max_x_labels">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="tooltip-text" translatable="yes">Maximum number of tick labels shown on the 1D energy profile's x-axis (below). Lower this if labels overlap when many frames are picked/optimized.</property>
+                        <property name="width-chars">3</property>
+                        <property name="text" translatable="yes">15</property>
+                        <property name="adjustment">adjustment2</property>
+                        <property name="value">15</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="left-attach">7</property>
+                    <property name="top-attach">0</property>
+                  </packing>
                 </child>
               </object>
               <packing>
@@ -247,6 +322,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="receives-default">True</property>
+                        <property name="tooltip-text" translatable="yes">Creates a new trajectory object containing only the points/path currently picked on the surface (left-click on the plot to pick points).</property>
                         <property name="valign">start</property>
                         <signal name="clicked" handler="on_button_export_trajectory" swapped="no"/>
                       </object>
@@ -255,6 +331,9 @@
                         <property name="fill">False</property>
                         <property name="position">1</property>
                       </packing>
+                    </child>
+                    <child>
+                      <placeholder/>
                     </child>
                   </object>
                   <packing>
@@ -318,5 +397,12 @@
         </child>
       </object>
     </child>
+  </object>
+  <object class="GtkAdjustment" id="adjustment2">
+    <property name="lower">2</property>
+    <property name="upper">50</property>
+    <property name="value">15</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">5</property>
   </object>
 </interface>

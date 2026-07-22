@@ -297,11 +297,19 @@ class MainWindow:
             self.paned_H.add(self.HBOX)
             self.paned_H.add(self.notebook_H2)
             self.paned_H.set_position(250)
-            self.paned_V.add(self.paned_H)
-            
-            # Bottom notebook for logs, status, and command terminal
+
+            # . paned_V splits the GL/treeview area (top) from the bottom
+            #   notebook (Status/Annotations/Sequence). Using plain .add()
+            #   here would make the FIRST child (the top, containing the
+            #   GL area) fixed-size and the SECOND child (the bottom
+            #   notebook) absorb all resizing -- the opposite of what we
+            #   want: the 3D view should resize with the window, and the
+            #   bottom notebook should keep whatever size the user set for
+            #   it. pack1/pack2 let us set "resize" explicitly instead of
+            #   relying on add()'s implicit (and here backwards) default.
             self.bottom_notebook = BottomNoteBook(main = self)
-            self.paned_V.add(self.bottom_notebook.widget)
+            self.paned_V.pack1 (self.paned_H,               True,  True)
+            self.paned_V.pack2 (self.bottom_notebook.widget, False, True)
             self.paned_V_position = 400
             self.paned_V.set_position(self.paned_V_position)
 

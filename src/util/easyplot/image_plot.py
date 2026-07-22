@@ -82,6 +82,16 @@ class ImagePlot(Canvas):
         
         self.selected_dot = None #it is the i and j coordinates at the energey matrix
         self.sel_dot_rgb  = [1,0,0]
+
+        # --- contour lines (isolines) -------------------------------------
+        self.show_contours       = False
+        self.num_contour_levels  = 8
+        self.contour_color       = [0, 0, 0]
+        self.contour_line_width  = 1.0
+        self.contour_label_font_size = 11
+        self.contour_label_format    = '{:.1f}'
+        self._contour_cache_key  = None
+        self._contour_cache      = { }
         
         
     def define_datanorm (self):
@@ -621,6 +631,278 @@ class ImagePlot(Canvas):
         cr.stroke ()
 
 
+    # ─────────────────────────────────────────────────────────────────────
+    #  C O N T O U R   L I N E S   ( I S O L I N E S )
+    #
+    #  Simple marching-squares implementation that traces energy contour
+    #  lines directly over self.data (the real, un-normalized values), so
+    #  requested levels are in the same physical units (kJ/mol) shown
+    #  elsewhere in the plot (color bar, hover readout).
+    # ─────────────────────────────────────────────────────────────────────
+    @staticmethod
+    def _interp (p1, p2, v1, v2, level):
+        """ Linear interpolation of the point along edge p1-p2 where the
+        data value crosses "level". """
+        if v1 == v2:
+            t = 0.5
+        else:
+            t = (level - v1) / (v2 - v1)
+        x = p1[0] + t * (p2[0] - p1[0])
+        y = p1[1] + t * (p2[1] - p1[1])
+        return (x, y)
+
+    @classmethod
+    def _cell_contour_segments (cls, corners, values, level):
+        """
+        corners: 4 (x, y) grid points in cell order [bottom-left,
+                 bottom-right, top-right, top-left].
+        values:  the 4 data values at those corners, same order.
+
+        Returns a list of 0, 1 or 2 line segments ((x0,y0),(x1,y1)) where
+        the contour at "level" crosses this cell. Uses a generic
+        edge-crossing test (equivalent to marching squares) instead of a
+        hardcoded 16-case lookup table, including the standard "average
+        value" rule to disambiguate saddle points (where the contour
+        crosses all 4 edges of the cell and there are two valid ways to
+        connect them).
+        """
+        edges = ( (0, 1), (1, 2), (2, 3), (3, 0) )   # bottom, right, top, left
+        crossings = [ ]
+        for a, b in edges:
+            va, vb = values[a], values[b]
+            if (va >= level) != (vb >= level):
+                crossings.append ( cls._interp ( corners[a], corners[b], va, vb, level ) )
+
+        if len ( crossings ) == 2:
+            return [ ( crossings[0], crossings[1] ) ]
+
+        if len ( crossings ) == 4:
+            # . Saddle point -- disambiguate using the cell's average value.
+            bottom, right, top, left = crossings
+            average = sum ( values ) / 4.0
+            if average >= level:
+                return [ (left, bottom), (right, top) ]
+            return [ (left, top), (bottom, right) ]
+
+        return [ ]
+
+    def _compute_contour_segments (self, levels):
+        """ Runs marching squares over the whole data grid for every
+        requested level. Returns { level: [ (p0, p1), ... ] } with points
+        in fractional GRID coordinates (not yet converted to pixels).
+        Cells touching an undefined value (inf/-inf/NaN -- e.g. missing
+        points in an umbrella-sampling grid) are skipped, so contours
+        never cross through regions with no data. """
+        data    = self.data
+        size_x  = len ( data )
+        size_y  = len ( data[0] )
+
+        segments = { level: [ ] for level in levels }
+
+        for i in range ( size_x - 1 ):
+            for j in range ( size_y - 1 ):
+                corner_values = [ data[i][j], data[i+1][j], data[i+1][j+1], data[i][j+1] ]
+                if any ( ( v in ( float('inf'), float('-inf') ) ) or ( v != v ) for v in corner_values ):
+                    continue
+
+                corner_points = [ (i, j), (i+1, j), (i+1, j+1), (i, j+1) ]
+
+                for level in levels:
+                    segments[level].extend (
+                        self._cell_contour_segments ( corner_points, corner_values, level ) )
+
+        return segments
+
+    def get_contour_levels (self, num_levels = None):
+        """ Evenly-spaced levels strictly between the data's min and max
+        (excluding the extremes themselves, which would otherwise produce
+        degenerate contours right at the edge of the surface). """
+        if num_levels is None:
+            num_levels = self.num_contour_levels
+
+        finite_values = [ v for row in self.data for v in row
+                          if v not in ( float('inf'), float('-inf') ) and v == v ]
+        if len ( finite_values ) < 2:
+            return [ ]
+
+        vmin, vmax = min ( finite_values ), max ( finite_values )
+        if vmax <= vmin:
+            return [ ]
+
+        return list ( np.linspace ( vmin, vmax, num_levels + 2 )[1:-1] )
+
+    def _ensure_contour_cache (self, levels):
+        """ (Re)computes self._contour_cache only when the data or the
+        requested levels actually changed since the last call. """
+        cache_key = ( id ( self.data ), tuple ( levels ) )
+        if cache_key != self._contour_cache_key:
+            self._contour_cache     = self._compute_contour_segments ( levels )
+            self._contour_cache_key = cache_key
+
+    def draw_contours (self, cr, levels = None, label_gaps = None):
+        """ Draws energy contour lines (isolines) on top of the 2D PES
+        surface. "levels" defaults to get_contour_levels() (evenly spaced
+        between the data's min and max). "label_gaps" is an optional set
+        of id(segment) values (see compute_contour_labels()) to skip --
+        used to leave a small break in the line exactly where an inline
+        label sits, so the label text doesn't overlap the line under it.
+        Segment positions are cached and only recomputed when the data or
+        the requested levels change, so redraws triggered by e.g. mouse
+        movement stay cheap. """
+        if not self.data:
+            return
+
+        if levels is None:
+            levels = self.get_contour_levels ( )
+        if not levels:
+            return
+
+        self._ensure_contour_cache ( levels )
+        label_gaps = label_gaps or set ( )
+
+        cr.save ( )
+        cr.set_source_rgb ( *self.contour_color )
+        cr.set_line_width ( self.contour_line_width )
+
+        for level in levels:
+            for segment in self._contour_cache.get ( level, [ ] ):
+                if id ( segment ) in label_gaps:
+                    continue
+                p0, p1 = segment
+                px0 = self.bx + (p0[0] + 0.5) * self.factor_x
+                py0 = self.by + (p0[1] + 0.5) * self.factor_y
+                px1 = self.bx + (p1[0] + 0.5) * self.factor_x
+                py1 = self.by + (p1[1] + 0.5) * self.factor_y
+                cr.move_to ( px0, py0 )
+                cr.line_to ( px1, py1 )
+
+        cr.stroke ( )
+        cr.restore ( )
+
+    @staticmethod
+    def _trace_branches (segments, precision = 6):
+        """
+        Groups a flat list of contour-line segments into separate
+        connected branches (visually distinct curves/loops), by chaining
+        segments that share an endpoint. Two endpoints are considered
+        "the same point" if they round to the same coordinates at
+        "precision" decimal places (marching squares produces exactly
+        shared endpoints between neighbouring cells; this is just a
+        safety margin against floating-point noise).
+
+        Returns a list of branches, each a list of the very same segment
+        objects passed in (so the caller can later match one of them by
+        id()/identity -- e.g. to leave a gap in the line under a label).
+        """
+        def point_key (pt):
+            return ( round ( pt[0], precision ), round ( pt[1], precision ) )
+
+        parent = { }
+
+        def find (x):
+            parent.setdefault ( x, x )
+            root = x
+            while parent[root] != root:
+                root = parent[root]
+            while parent[x] != root:
+                parent[x], x = root, parent[x]
+            return root
+
+        def union (a, b):
+            ra, rb = find ( a ), find ( b )
+            if ra != rb:
+                parent[ra] = rb
+
+        for (p0, p1) in segments:
+            union ( point_key ( p0 ), point_key ( p1 ) )
+
+        branches = { }
+        for segment in segments:
+            p0, _p1 = segment
+            root = find ( point_key ( p0 ) )
+            branches.setdefault ( root, [ ] ).append ( segment )
+
+        return list ( branches.values ( ) )
+
+    def compute_contour_labels (self, levels = None, min_spacing_px = 45, min_branch_segments = 2):
+        """
+        Decides where to place inline contour labels: one per visually
+        distinct branch/loop of each requested level (so a level that
+        shows up as several separate curves -- e.g. around different
+        basins -- gets more than a single label), skipping branches too
+        short to fit a label legibly, and finally dropping any candidate
+        that would land closer than "min_spacing_px" screen pixels to a
+        label already kept -- so labels never end up cluttered/
+        overlapping no matter how many levels/branches are requested.
+
+        Returns a list of dicts with keys "level", "segment" (the exact
+        (p0, p1) grid-coordinate segment the label sits on, so the line
+        can be broken there -- see draw_contours()'s "label_gaps") and
+        "pixel" (the label's screen position).
+        """
+        if not self.data:
+            return [ ]
+        if levels is None:
+            levels = self.get_contour_levels ( )
+        if not levels:
+            return [ ]
+
+        self._ensure_contour_cache ( levels )
+
+        candidates = [ ]
+        for level in levels:
+            segments = self._contour_cache.get ( level, [ ] )
+            if not segments:
+                continue
+            for branch in self._trace_branches ( segments ):
+                if len ( branch ) < min_branch_segments:
+                    continue
+                mid_segment = branch[ len ( branch ) // 2 ]
+                p0, p1 = mid_segment
+                gx = (p0[0] + p1[0]) / 2.0
+                gy = (p0[1] + p1[1]) / 2.0
+                px = self.bx + (gx + 0.5) * self.factor_x
+                py = self.by + (gy + 0.5) * self.factor_y
+                candidates.append ( { 'level' : level, 'segment' : mid_segment, 'pixel' : (px, py) } )
+
+        accepted = [ ]
+        for candidate in candidates:
+            px, py = candidate['pixel']
+            too_close = False
+            for other in accepted:
+                ox, oy = other['pixel']
+                if ( (px - ox) ** 2 + (py - oy) ** 2 ) ** 0.5 < min_spacing_px:
+                    too_close = True
+                    break
+            if not too_close:
+                accepted.append ( candidate )
+
+        return accepted
+
+    def draw_contour_labels (self, cr, labels):
+        """ Draws the inline value label (e.g. "42.3") for each entry
+        returned by compute_contour_labels(). The background is fully
+        transparent -- meant to be used together with passing the same
+        labels' segments as draw_contours()'s "label_gaps", which leaves
+        a small break in the line so the text never overlaps it. """
+        if not labels:
+            return
+
+        cr.save ( )
+        cr.select_font_face ( "Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL )
+        cr.set_font_size ( self.contour_label_font_size )
+        cr.set_source_rgb ( *self.contour_color )
+
+        for label in labels:
+            px, py = label['pixel']
+            text = self.contour_label_format.format ( label['level'] )
+            x_bearing, y_bearing, width, height, x_advance, y_advance = cr.text_extents ( text )
+
+            cr.move_to ( px - width/2.0 - x_bearing, py - height/2.0 - y_bearing )
+            cr.show_text ( text )
+
+        cr.restore ( )
+
     def on_draw(self, widget, cr, ):
         self.cr =  cr
         self.width = widget.get_allocated_width()   #widget dimentions
@@ -673,7 +955,14 @@ class ImagePlot(Canvas):
         self.draw_color_bar (self.temp_cr, res = self.size_y)#(cr, res = self.size_y)
 
         self.draw_image (self.temp_cr)#(cr)
-        
+
+        if self.show_contours:
+            levels = self.get_contour_levels ( )
+            labels = self.compute_contour_labels ( levels = levels )
+            label_gaps = { id ( label['segment'] ) for label in labels }
+            self.draw_contours (self.temp_cr, levels = levels, label_gaps = label_gaps)
+            self.draw_contour_labels (self.temp_cr, labels)
+
         self.draw_image_box (self.temp_cr, line_width = 1, color = [0,0,0])#(cr, line_width = 1, color = [0,0,0])
 
         self.draw_scale(self.temp_cr)#(cr)
