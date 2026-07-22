@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -227,7 +228,7 @@ class SetupMOPACWindow:
         self.parameters['keywords'] = self.entry_keywords.get_text()
         self.parameters['scratch']  = self.entry_scratch .get_text()
         
-        print(self.parameters)
+        dprint(self.parameters)
         self.close_window (widget,None)
 
     def close_window (self, button, data  = None):

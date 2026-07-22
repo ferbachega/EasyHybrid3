@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
@@ -757,7 +758,7 @@ class ProcessManagerWindow(Gtk.Window):
             system    = self.p_session.psystem[e_id]
             
             
-            print (len(self.p_session.psystem.keys()),
+            dprint (len(self.p_session.psystem.keys()),
                    len(system.e_job_history.keys()),
                    system.label
                   

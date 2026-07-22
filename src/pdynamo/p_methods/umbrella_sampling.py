@@ -32,6 +32,7 @@
 
 #from LogFile import LogFileWriter
 # pDynamo
+from util.debug import dprint
 from pBabel                    import *                                     
 from pCore                     import *                                     
 from pMolecule                 import *                  
@@ -510,7 +511,7 @@ class UmbrellaSampling:
                 i = int(pkl[5:-4]) 
                 joblist.append([i, pkl, parameters, parameters['system']])
             
-            print('input_type', parameters['input_type'],  joblist, parameters['NmaxThreads'])
+            dprint('input_type', parameters['input_type'],  joblist, parameters['NmaxThreads'])
             p = multiprocessing.Pool(processes=parameters['NmaxThreads'])
             #results = p.map(_run_parallel_umbrella_sampling_1D, joblist)
             results = p.map(_run_advanced_parallel_umbrella_sampling_1D, joblist)

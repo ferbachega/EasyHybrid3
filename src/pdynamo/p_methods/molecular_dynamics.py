@@ -32,6 +32,7 @@
 
 #from LogFile import LogFileWriter
 # pDynamo
+from util.debug import dprint
 from pBabel                    import *                                     
 from pCore                     import *                                     
 from pMolecule                 import *                  
@@ -196,7 +197,7 @@ class MolecularDynamics:
         #normalDeviateGenerator = NormalDeviateGenerator.WithRandomNumberGenerator ( RandomNumberGenerator.WithSeed ( 491831 ) )
         if parameters['trajectory_name'  ]:
             full_path_trajectory = os.path.join(parameters['folder'], parameters['trajectory_name'] +".ptGeo")
-            print(full_path_trajectory)
+            dprint(full_path_trajectory)
             trajectory = ExportTrajectory(full_path_trajectory, parameters['system'], log=None )        
         # . Data-collection.
         #'''
@@ -268,7 +269,7 @@ class MolecularDynamics:
         '''
         if parameters['trajectory_name'  ]:
             full_path_trajectory = os.path.join(parameters['folder'], parameters['trajectory_name'] +".ptGeo")
-            print(full_path_trajectory)
+            dprint(full_path_trajectory)
             trajectory = ExportTrajectory(full_path_trajectory, parameters['system'], log=None )        
         '''
         

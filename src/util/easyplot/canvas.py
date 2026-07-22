@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk
@@ -84,12 +85,12 @@ class Canvas(Gtk.DrawingArea):
         """ Function doc """
         
         if int(x_on_plot) < 0 or int(x_on_plot) >= self.size_x :
-            print('canvas')
+            dprint('canvas')
             self.points = []
             self.selected_dot = None
             return False
         elif int(y_on_plot) < 0 or int(y_on_plot) >= self.size_y :
-            print('canvas')
+            dprint('canvas')
             self.points = []
             self.selected_dot = None #set no None the redot at IJ matrix
             return False
@@ -99,10 +100,10 @@ class Canvas(Gtk.DrawingArea):
             
             self.points.append((x_on_plot, y_on_plot))
         
-        print("Mouse clicker at:",  x, y, int(x_on_plot), int(y_on_plot), 
+        dprint("Mouse clicker at:",  x, y, int(x_on_plot), int(y_on_plot), 
                                     (x-self.bx)/self.factor_x, #/(self.x_final-self.bx), 
                                     (y-self.by)/self.factor_y) #/(self.y_final-self.by) ) #, x - self.x_final , y - self.y_final , self.x_final ,  self.y_final ,   (x-self.bx) /self.factor_x ,    (y-self.by)/self.factor_y )
-        print(self.points)
+        dprint(self.points)
 
     
     def on_mouse_button_press(self, widget, event):
@@ -129,10 +130,10 @@ class Canvas(Gtk.DrawingArea):
         else:
             self.points.append((x_on_plot, y_on_plot))
         
-        print("Mouse clicker at:",  x, y, int(x_on_plot), int(y_on_plot), 
+        dprint("Mouse clicker at:",  x, y, int(x_on_plot), int(y_on_plot), 
                                     (x-self.bx)/self.factor_x, #/(self.x_final-self.bx), 
                                     (y-self.by)/self.factor_y) #/(self.y_final-self.by) ) #, x - self.x_final , y - self.y_final , self.x_final ,  self.y_final ,   (x-self.bx) /self.factor_x ,    (y-self.by)/self.factor_y )
-        print(self.points)
+        dprint(self.points)
         self.queue_draw()
 
     

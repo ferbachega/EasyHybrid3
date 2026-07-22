@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -271,7 +272,7 @@ class PotentialEnergyAnalysisWindow:
                                                         system_id   , 
                                                         pixbuf     ])
                     except:
-                        print('Log data not found!')
+                        dprint('Log data not found!')
             else:
                 pass
 
@@ -295,14 +296,14 @@ class PotentialEnergyAnalysisWindow:
 
     def on_RC_type_combobox (self, widget):
         self.RC_type = widget.get_active()
-        print(self.RC_type)
+        dprint(self.RC_type)
         self.plot.set_label_mode(mode = self.RC_type)
         self.plot.queue_draw()
 
     def on_cmap_combobox_change (self, widget):
         """ Function doc """
         self.cmap_id = widget.get_active()
-        print(self.cmap_id, self.cmap_ref_dict[self.cmap_id])
+        dprint(self.cmap_id, self.cmap_ref_dict[self.cmap_id])
         self.plot.cmap = self.cmap_ref_dict[self.cmap_id]
         self.plot.set_cmap (cmap = self.cmap_ref_dict[self.cmap_id])
         
@@ -386,7 +387,7 @@ class PotentialEnergyAnalysisWindow:
                 minlist.append(min(line))
             
             _min = min(minlist)
-            print(self.data)
+            dprint(self.data)
             for i in range(0, len(self.data['Z'])):
                 for j in range(0, len(self.data['Z'][i])):
                     self.data['Z'][i][j] = self.data['Z'][i][j]-_min 
@@ -469,7 +470,7 @@ class PotentialEnergyAnalysisWindow:
                     self.plot2.x_major_ticks = x_major_ticks
                 self.plot2.Xmax   = 10 
                 #self.plot2.x_major_ticks = 10
-                print("Mouse clicker at:",  x, y, 
+                dprint("Mouse clicker at:",  x, y, 
                                             int(i_on_plot), int(j_on_plot), 
                                             widget.data[int(i_on_plot)][int(j_on_plot)] )
             
@@ -523,7 +524,7 @@ class PotentialEnergyAnalysisWindow:
         else:
             x = [int(value)]
             y = [self.data['Z'][int(value)]]
-            print(x,y)
+            dprint(x,y)
             text = 'E = {:<15.6f}'.format(y[0])
             self.builder.get_object('label_energy').set_text(str(y[0]))
             
@@ -579,14 +580,14 @@ class PotentialEnergyAnalysisWindow:
         # objetos vindos de uma varredura PES 2D. Sem ela, aborta com aviso em
         # vez de estourar AttributeError no loop abaixo.
         if not getattr(self.vobject, 'idx_2D_xy', False):
-            print("[PES] trajectory export unavailable: object has no 2D grid (idx_2D_xy).")
+            dprint("[PES] trajectory export unavailable: object has no 2D grid (idx_2D_xy).")
             return
 
         active_id = self.main.p_session.active_id
         
         new_vismol_object = self.main.p_session.generate_new_empty_vismol_object(system_id = self.vobject.e_id , 
                                                                                  name      = 'new_coordinates' )
-        print('\n\n')
+        dprint('\n\n')
         
         text = ''
 #The RC1 and RC2 refer to the reaction coordinates I and II, respectively. In case of RC is a  
@@ -606,8 +607,8 @@ class PotentialEnergyAnalysisWindow:
             
             text += '\n {:3d}   {:3d}    {:3.4f}    {:3.4f}    {:3.6f}'.format(xy[1], xy[0], self.data['RC1'][xy[0]][xy[1]],self.data['RC2'][xy[0]][xy[1]], self.data['Z'][xy[0]][xy[1]] )
             #print(text)
-        print (text)
-        print('\n\n')
+        dprint (text)
+        dprint('\n\n')
 
         self.main.p_session._apply_fixed_representation_to_vobject(system_id = None, vismol_object = new_vismol_object)
         self.main.p_session._apply_QC_representation_to_vobject   (system_id = None, vismol_object = new_vismol_object) 
@@ -663,7 +664,7 @@ class PotentialEnergyAnalysisWindow:
 
     def _menu_opt_pathway            (self, widget):
         """ Function doc """
-        print('Here - _menu_opt_pathway')
+        dprint('Here - _menu_opt_pathway')
         
         input_coord = self.plot.points
         e_matrix    = self.plot.data
@@ -747,7 +748,7 @@ class PotentialEnergyAnalysisWindow:
         #y_disp = self.sbtn_disp_y.get_value_as_int()
         folder = self.folder_chooser_button.get_folder()
         name  = self.builder2.get_object('entry_folder_name').get_text()
-        print(folder,name)
+        dprint(folder,name)
         #self.refresh_addtional_frame_list(x_disp, y_disp)
         #self.plot.queue_draw()
         self._export_incomplete_data(folder = folder, name = name)
@@ -971,18 +972,18 @@ def run_surface_NEB (input_coord = None, e_matrix = None, k = 1.5  ):
     #Initial_positions = [reac, ts,  prod]
     '''
     
-    print ('Matrix size:', len(e_matrix[0]), len(e_matrix))
+    dprint ('Matrix size:', len(e_matrix[0]), len(e_matrix))
     
     initial_size = len(input_coord)
     xy_surface_positions   = build_chain_of_states(input_coord)
     final_size   = len(xy_surface_positions)
 
     #------------------------------------------------------------------
-    print ("\n\nInitial chain of states: \n")
+    dprint ("\n\nInitial chain of states: \n")
     for xy_coord in xy_surface_positions:
         x = xy_coord[0]
         y = xy_coord[1]
-        print (x, y, e_matrix[x][y])
+        dprint (x, y, e_matrix[x][y])
     #------------------------------------------------------------------
 
     #------------------------------------------------------------------
@@ -1036,7 +1037,7 @@ def run_surface_NEB (input_coord = None, e_matrix = None, k = 1.5  ):
                     energy_midle = k*(  x_midpoint    - x_before )**2 + k*( x_after -  x_midpoint    )**2
                     energy_right = k*( (x_midpoint+1) - x_before )**2 + k*( x_after - (x_midpoint+1) )**2
                 
-                    print(  x_before, x_midpoint, x_after, energy_left, energy_midle , energy_right )
+                    dprint(  x_before, x_midpoint, x_after, energy_left, energy_midle , energy_right )
                     energy_left__from_matrix = e_matrix[x_midpoint-1][y_midpoint]
                     energy_midle_from_matrix = e_matrix[x_midpoint  ][y_midpoint]
                     energy_right_from_matrix = e_matrix[x_midpoint+1][y_midpoint]
@@ -1106,7 +1107,7 @@ def run_surface_NEB (input_coord = None, e_matrix = None, k = 1.5  ):
 
             delta = total_sum_grad_ateriror - total_sum_grad
             total_sum_grad_ateriror = total_sum_grad
-            print('delta: ' , delta)
+            dprint('delta: ' , delta)
 
             old = None
             for xy_coord in xy_surface_positions:
@@ -1145,12 +1146,12 @@ def run_surface_NEB (input_coord = None, e_matrix = None, k = 1.5  ):
                 
                 
     #print xy_surface_positions
-    print ("\n\nOptimized chain of states: \n")
+    dprint ("\n\nOptimized chain of states: \n")
     for xy_coord in xy_surface_positions:
         #                    X     Y
         x = xy_coord[0]
         y = xy_coord[1]
-        print (x, y, e_matrix[x][y])                
+        dprint (x, y, e_matrix[x][y])                
     #"""
     return xy_surface_positions
         

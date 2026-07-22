@@ -32,6 +32,7 @@
 
 #from LogFile import LogFileWriter
 # pDynamo
+from util.debug import dprint
 from pBabel                    import *                                     
 from pCore                     import *                                     
 from pMolecule                 import *                  
@@ -112,7 +113,7 @@ class GeometryOptimization:
             self._run_FIRE(parameters)
         
         else:
-            print('Geometry Optimization method not found!' )
+            dprint('Geometry Optimization method not found!' )
         
         
         '''ORCA backup files'''

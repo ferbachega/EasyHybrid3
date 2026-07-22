@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk
@@ -532,7 +533,7 @@ class XYPlot(Gtk.DrawingArea):
         else:
             (x, y) = int(event.x), int(event.y)
             
-            print("Mouse moved to:", 'x = {:10.5f} y = {:10.5f}'.format( 
+            dprint("Mouse moved to:", 'x = {:10.5f} y = {:10.5f}'.format( 
                 
                 ((((x-self.bx)) / self.x_box_size)  *  self.deltaX + self.Xmin),
                 
@@ -694,7 +695,7 @@ class XYScatterPlot(Gtk.DrawingArea) :
         cr.set_line_width (3.0)
         #----------------------------------------------------------------------
         #retangle
-        print('draw_box')
+        dprint('draw_box')
         cr.set_source_rgb( color[0], color[1], color[2])
         cr.rectangle(self.bx,
                      self.by, 

@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, cairo
@@ -929,7 +930,7 @@ if __name__ == '__main__':
     seqview.add_new_sequence(sequence)
     seqview.add_new_sequence(sequence2)
     seqview.add_new_sequence(sequence3)
-    print(seqview.sequences)
+    dprint(seqview.sequences)
     
     
     main.add(notebook) 

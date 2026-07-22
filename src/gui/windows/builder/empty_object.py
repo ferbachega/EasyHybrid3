@@ -92,6 +92,7 @@
 #          vm_object.representations.values() (skipping None entries) -- no
 #          dependency on p_session/psystem anywhere in this loop.
 #
+from util.debug import dprint
 import numpy as np
 from vismol.core.vismol_object import VismolObject
 
@@ -279,6 +280,6 @@ def sync_pdynamo_system ( vismol_object ):
         main.main_treeview.refresh ( )
 
     except Exception as exc:
-        print ( "WARNING empty_object.sync_pdynamo_system: failed to (re)build/register the linked "
+        dprint ( "WARNING empty_object.sync_pdynamo_system: failed to (re)build/register the linked "
                 "pDynamo system for '{}' -- Builder editing continues unaffected. Error: {}".format (
                 getattr ( vismol_object, "name", "?" ), exc ) )

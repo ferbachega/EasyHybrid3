@@ -1,5 +1,6 @@
 """The SPARROW QC model."""
 
+from util.debug import dprint
 import glob, math, os, os.path, subprocess, re
 
 from  pCore                     import logFile           , \
@@ -301,7 +302,7 @@ class QCModelSPARROW ( QCModel ):
                     for value in line2:
                         GRADIENTS.append(float(value))
         #print(GRADIENTS)
-        print(len ( state.atomicNumbers ))
+        dprint(len ( state.atomicNumbers ))
         for i in range ( len ( state.atomicNumbers ) ): 
             #gradients3[i,0] = float(GRADIENTS[i*3+0])*GRAD_FACTOR #Force in kcal/A˚ to Eh/bohr
             #gradients3[i,1] = float(GRADIENTS[i*3+1])*GRAD_FACTOR #Force in kcal/A˚ to Eh/bohr

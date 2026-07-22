@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
@@ -326,7 +327,7 @@ class LoadAndSaveData:
                         vobj['is_surface'] = False
                     
                     if vobj['is_surface']:
-                        print(vobj['is_surface'])
+                        dprint(vobj['is_surface'])
                         pass
                     else:
                         vm_object = self._build_vobject_from_pdynamo_system ( system = system, name = name ) 

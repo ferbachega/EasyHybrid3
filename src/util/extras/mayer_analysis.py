@@ -23,6 +23,7 @@
 #  
 
 
+from util.debug import dprint
 import os
 import re
 
@@ -172,7 +173,7 @@ for n , symbol in enumerate(data[0]['data']['symbol']):
     
     #stringline+='\n'
     lines.append(stringline)
-    print(stringline)
+    dprint(stringline)
 #print(lines)
         #for j in data[i]['data']['NA'] :
         

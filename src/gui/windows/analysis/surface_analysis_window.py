@@ -440,6 +440,7 @@
 #===============================================================================
 #
 
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -768,7 +769,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             
             # Remove todas as colunas criadas pelo Glade
             for col in self.treeview.get_columns():
-                print(col)
+                dprint(col)
                 self.treeview.remove_column(col)
             
             self.treeview.set_model(self.liststore)
@@ -1062,7 +1063,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
     def surface_combobox_change (self, widget):
         """ Function doc """
         index = self.cbx_surface_type.get_active()
-        print(index)
+        dprint(index)
 
         if index == 4:
             self.label_mep_vmin.show()
@@ -1198,7 +1199,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 for i, data in vobject.normal_modes_dict.items():
                     self.liststore.append([False, str(i), data[0]])
             except:
-                print('vobject has no Normal Modes data')
+                dprint('vobject has no Normal Modes data')
                 pass
 
     def on_treeview_Objects_row_activated(self, tree, event, data):
@@ -1239,7 +1240,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
         indexes =  A list of atoms for selection
         '''
         key     = model.get_value(iter, 0)
-        print(key, vismol_object.frames.shape[0], model, model[iter][1])
+        dprint(key, vismol_object.frames.shape[0], model, model[iter][1])
         name = str(key) +' '+model[iter][1]#+' '+ str(model[iter][3])
         #_GridSpacing = 0.6
         _OrbitalTag    = "Grid Orbitals"
@@ -1252,7 +1253,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
         for frame in range(vismol_object.frames.shape[0]):
             #self.p_session.set_psystem_coordinates_from_vobject(vobject)
             #'''
-            print(vismol_object, frame)
+            dprint(vismol_object, frame)
             self.p_session.set_psystem_coordinates_from_vobject( vobject = vismol_object, 
                                                                            system_id = None, 
                                                                            frame = frame)
@@ -1358,7 +1359,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
         '''
         results = p.map(generate_grid_parallel, joblist)
         
-        print (results)
+        dprint (results)
         vismol_object.surface_trajectory = results # trajectory
         #-----------------------------------------------------------------------
         #generator.ExportProperty ( "/home/fernando/programs/EasyHybrid3/examples/scripts/tmp", _IsosurfaceTag )
@@ -1389,7 +1390,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
         """ Function doc """
         
         vobject_id = self.coordinates_combobox.get_vobject_id()
-        print(vobject_id)
+        dprint(vobject_id)
         
         model = self.treeview.get_model()
         if model is not None:
@@ -1526,7 +1527,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             vobject_tmp.e_id = system.e_id
             self.vm_session._add_vismol_object(vobject_tmp, show_molecule=False, autocenter=False)
             
-            print('\n\nvismol_object.e_treeview_iter', vismol_object.e_treeview_iter,'\n\n')
+            dprint('\n\nvismol_object.e_treeview_iter', vismol_object.e_treeview_iter,'\n\n')
             self.main.main_treeview.add_vismol_object_to_treeview(vobject_tmp,vismol_object.e_treeview_iter )
             # Add the VisMol object to the vobject liststore dictionary
             self.main.add_vobject_to_vobject_liststore_dict(vobject_tmp)
@@ -1646,7 +1647,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
 
         elif index == 3:
             if not self.external_density_path:
-                print("No density/orbital .cube file selected -- "
+                dprint("No density/orbital .cube file selected -- "
                       "click 'Choose file...' before rendering.")
                 return False
 
@@ -1674,7 +1675,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             try:
                 single_result = generate_grid_parallel ( [ 0, None, None, parameters ] )
             except CubeFileError as error:
-                print ( "Error reading .cube file: {}".format ( error ) )
+                dprint ( "Error reading .cube file: {}".format ( error ) )
                 return False
 
             # replica o mesmo resultado pra todos os "frames" do objeto
@@ -1839,7 +1840,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             indexes =  A list of atoms for selection
             '''
             key     = model.get_value(iter, 0)
-            print(key, vismol_object.frames.shape[0], model, model[iter][1])
+            dprint(key, vismol_object.frames.shape[0], model, model[iter][1])
             name = str(key) +' '+model[iter][1]#+' '+ str(model[iter][3])
             #_GridSpacing = 0.6
             _OrbitalTag    = "Grid Orbitals"
@@ -1939,14 +1940,14 @@ class SurfaceAnalysisWindow(Gtk.Window):
 
     def on_button_import_wavefunction (self, widget):
         """ Function doc """
-        print('on_button_import_wavefunction')
+        dprint('on_button_import_wavefunction')
         
         system_id = self.system_names_combo.get_system_id()
         system    = self.main.p_session.psystem[system_id]
         
         vobject_id    = self.coordinates_combobox.get_vobject_id()
         vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
-        print(system_id, vobject_id, system, vismol_object)
+        dprint(system_id, vobject_id, system, vismol_object)
         backup = []
         try:
             backup.append(system.e_treeview_iter)
@@ -2003,7 +2004,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 self.liststore.append(orbitals[reverse_index ])
                 self.orbital_liststore_dict[vobject_id].append(self.liststore)
         
-        print()
+        dprint()
         self.treeview.set_model(self.orbital_liststore_dict[vobject_id][self.frame])
 
     def on_orbital_row_selected (self, treeview):
@@ -2042,24 +2043,24 @@ class SurfaceAnalysisWindow(Gtk.Window):
         vobject_id = self.coordinates_combobox.get_vobject_id ( )
         wave_data  = self.wave_function_dict.get ( vobject_id )
         if not wave_data:
-            print ( "No orbital computed yet -- click 'Import Wavefunction' first." )
+            dprint ( "No orbital computed yet -- click 'Import Wavefunction' first." )
             return
 
         frame = self.frame if self.frame < len ( wave_data ) else 0
         frame_data = wave_data[frame]
         if len ( frame_data ) < 6:
-            print ( "LCAO data not available (computed with an older version, before this capture existed)." )
+            dprint ( "LCAO data not available (computed with an older version, before this capture existed)." )
             return
 
         orbitals_matrix, center_function_pointers, atom_symbols = frame_data[3], frame_data[4], frame_data[5]
         if orbitals_matrix is None or center_function_pointers is None or atom_symbols is None:
-            print ( "LCAO data not available for this frame (see the error message from the wavefunction import)." )
+            dprint ( "LCAO data not available for this frame (see the error message from the wavefunction import)." )
             return
 
         coeffs = orbitals_matrix[:, orbital_index]
 
-        print ( )
-        print ( "=== LCAO do orbital {} ({}, frame {}, energia = {:.6f} Hartree) ===".format (
+        dprint ( )
+        dprint ( "=== LCAO do orbital {} ({}, frame {}, energia = {:.6f} Hartree) ===".format (
                  orbital_index, orbital_label, frame, orbital_energy ) )
         for atom_idx, symbol in enumerate ( atom_symbols ):
             start = int ( center_function_pointers[atom_idx] )
@@ -2067,9 +2068,9 @@ class SurfaceAnalysisWindow(Gtk.Window):
             atom_coeffs = coeffs[start:end]
             rough_weight = float ( np.sum ( atom_coeffs ** 2 ) )
             coeffs_str = ", ".join ( "{:+.4f}".format ( c ) for c in atom_coeffs )
-            print ( "  Atom {:3d} ({:>2s})  weight~{:6.2%}  coefficients = [{}]".format (
+            dprint ( "  Atom {:3d} ({:>2s})  weight~{:6.2%}  coefficients = [{}]".format (
                      atom_idx, symbol, rough_weight, coeffs_str ) )
-        print ( "  (weight = sum of squared coefficients per atom -- this is NOT a real "
+        dprint ( "  (weight = sum of squared coefficients per atom -- this is NOT a real "
                  "Mulliken population, which would also need the overlap matrix; "
                  "it is just a quick indicator of which atoms contribute the most.)" )
 
@@ -2103,7 +2104,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
         vobject_id = self.coordinates_combobox.get_vobject_id ( )
         wave_data  = self.wave_function_dict.get ( vobject_id )
         if not wave_data:
-            print ( "No orbital computed yet for this object -- "
+            dprint ( "No orbital computed yet for this object -- "
                      "click 'Import Wavefunction' first." )
             return
 
@@ -2200,7 +2201,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 filepath += ".txt"
             with open ( filepath, "w" ) as f:
                 f.write ( text_content )
-            print ( "Orbital energies exported to:", filepath )
+            dprint ( "Orbital energies exported to:", filepath )
             dialog.destroy ( )
             # [EN] BUG FIX (user asked "onde ele salvou o
             # orbital_energies.txt?" -- the only confirmation was the
@@ -2258,7 +2259,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 self.treeview_menu.open_menu(iter, system_id)
 
         if event.button == 1:
-            print ('event.button == 1')
+            dprint ('event.button == 1')
 
 
 
@@ -2540,7 +2541,7 @@ def surface_parser ( surface, iso_color):
 
     valid_mask, skipped = _compute_valid_polygon_mask ( polygons, vertices )
     if skipped:
-        print ( "surface_parser: {} triangulo(s) fantasma (aresta anormal) descartado(s)".format ( skipped ) )
+        dprint ( "surface_parser: {} triangulo(s) fantasma (aresta anormal) descartado(s)".format ( skipped ) )
 
     polygons_np = _pdynamo_array_to_numpy ( polygons, np.int64 )[valid_mask]
     vertices_np = _pdynamo_array_to_numpy ( vertices, np.float64 )
@@ -2895,7 +2896,7 @@ def build_potential_interpolator ( potentialProperty ):
             converte pra Angstrom na hora de montar o buffer de exibicao). """
             return _trilinear_interpolate ( values_3d, origin, spacing, query_points )
     else:
-        print ( "build_potential_interpolator: the potential grid does not form a "
+        dprint ( "build_potential_interpolator: the potential grid does not form a "
                 "complete regular box -- using nearest-neighbor (slower) "
                 "instead of trilinear interpolation." )
 
@@ -2921,7 +2922,7 @@ def surface_parser_mep ( surface, vertex_colors ):
 
     valid_mask, skipped = _compute_valid_polygon_mask ( polygons, vertices )
     if skipped:
-        print ( "surface_parser_mep: {} triangulo(s) fantasma (aresta anormal) descartado(s)".format ( skipped ) )
+        dprint ( "surface_parser_mep: {} triangulo(s) fantasma (aresta anormal) descartado(s)".format ( skipped ) )
 
     polygons_np      = _pdynamo_array_to_numpy ( polygons, np.int64 )[valid_mask]
     vertices_np      = _pdynamo_array_to_numpy ( vertices, np.float64 )
@@ -3078,7 +3079,7 @@ def generate_grid_parallel (job):
     generator = QCGridPropertyGenerator.FromSystem (system )
     _t_grid0 = time.perf_counter ( )   # DEBUG TEMPORARIO
     generator.DefineGrid    ( gridSpacing = _GridSpacing ) # . Some value in atomic units - e.g. 0.2
-    print ( "DEBUG TIMING: DefineGrid (gridSpacing={}) levou {:.3f} s".format ( _GridSpacing, time.perf_counter() - _t_grid0 ) )
+    dprint ( "DEBUG TIMING: DefineGrid (gridSpacing={}) levou {:.3f} s".format ( _GridSpacing, time.perf_counter() - _t_grid0 ) )
     
 
     
@@ -3123,12 +3124,12 @@ def generate_grid_parallel (job):
         #    aproximar bem o contorno de van der Waals).
         _t = time.perf_counter ( )   # DEBUG TEMPORARIO
         generator.GridDensity ( tag = 'density_mep' )
-        print ( "DEBUG TIMING: GridDensity levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
+        dprint ( "DEBUG TIMING: GridDensity levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
         generator.Isosurface  ( 'density_mep', _isovalue, tag = _IsosurfaceTag )
-        print ( "DEBUG TIMING: Isosurface (density) levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
+        dprint ( "DEBUG TIMING: Isosurface (density) levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
         surfaceProperty = generator.GetProperty ( _IsosurfaceTag )
         density_iso = surfaceProperty.isosurface
-        print ( "DEBUG TIMING: n_vertices={} n_triangulos={}".format ( density_iso.vertices.rows, density_iso.polygons.rows ) )
+        dprint ( "DEBUG TIMING: n_vertices={} n_triangulos={}".format ( density_iso.vertices.rows, density_iso.polygons.rows ) )
 
         # 2. Grid de POTENCIAL bruto (os valores a mapear na malha acima).
         #    Tag propria, distinta de 'density_mep' e de _IsosurfaceTag --
@@ -3153,11 +3154,11 @@ def generate_grid_parallel (job):
         _potential_spacing = _mep_pot_spacing if _mep_pot_spacing is not None else _GridSpacing * 2.5
         generator.DefineGrid ( gridSpacing = _potential_spacing )
         generator.GridPotential ( tag = 'potential_mep' )
-        print ( "DEBUG TIMING: GridPotential (spacing={:.3f}, {}x coarser than density) took {:.3f} s".format (
+        dprint ( "DEBUG TIMING: GridPotential (spacing={:.3f}, {}x coarser than density) took {:.3f} s".format (
                 _potential_spacing, _potential_spacing / _GridSpacing, time.perf_counter() - _t ) ); _t = time.perf_counter ( )
         potentialProperty  = generator.GetProperty ( 'potential_mep' )
         evaluate_potential = build_potential_interpolator ( potentialProperty )
-        print ( "DEBUG TIMING: build_potential_interpolator (inclui reconstrucao do grid) levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
+        dprint ( "DEBUG TIMING: build_potential_interpolator (inclui reconstrucao do grid) levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
 
         # 3. Avalia o potencial em cada vertice ORIGINAL da malha de densidade,
         #    em Bohr (mesma unidade do grid do pDynamo -- a conversao pra
@@ -3167,13 +3168,13 @@ def generate_grid_parallel (job):
         verts_bohr = _pdynamo_array_to_numpy ( density_iso.vertices, np.float64 )
 
         potential_values = evaluate_potential ( verts_bohr )
-        print ( "DEBUG TIMING: evaluate_potential (interpolacao) levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
+        dprint ( "DEBUG TIMING: evaluate_potential (interpolacao) levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
         vertex_colors    = mep_colormap ( potential_values, vmin = _mep_vmin, vmax = _mep_vmax,
                                            cmap_name = _mep_cmap_name )
-        print ( "DEBUG TIMING: mep_colormap levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
+        dprint ( "DEBUG TIMING: mep_colormap levou {:.3f} s".format ( time.perf_counter() - _t ) ); _t = time.perf_counter ( )
 
         vertices, colors, indexes, normals, polygons_np = surface_parser_mep ( density_iso, vertex_colors )
-        print ( "DEBUG TIMING: surface_parser_mep levou {:.3f} s".format ( time.perf_counter() - _t ) )
+        dprint ( "DEBUG TIMING: surface_parser_mep levou {:.3f} s".format ( time.perf_counter() - _t ) )
         orbital_iso['obital_plus'] = [vertices, colors, indexes, normals]
         # [EN] Cached here (alongside the mesh itself) so a LATER change
         # to the MEP colour scale (vmin/vmax/colormap -- see _surf_setup
@@ -3224,7 +3225,7 @@ def generate_grid_parallel (job):
     #vertices, colors, indexes = surface_parser ( surface = isosurface_n , iso_color = [0,0,1] )
     #orbital_iso['obital_minus'] = [vertices, colors, indexes]
     
-    print ( "DEBUG TIMING: generate_grid_parallel TOTAL levou {:.3f} s (tipo: {})".format ( time.perf_counter() - _t_start, _type ) )
+    dprint ( "DEBUG TIMING: generate_grid_parallel TOTAL levou {:.3f} s (tipo: {})".format ( time.perf_counter() - _t_start, _type ) )
     return orbital_iso
     
     #generator.DefineGrid    ( gridSpacing = _GridSpacing ) # . Some value in atomic units - e.g. 0.2
@@ -3322,7 +3323,7 @@ def generate_wavefunction_parallel(job):
     except Exception as e:
         # Nao deixa a falta/erro da parte de LCAO quebrar o calculo de
         # energias/orbitais em si, que ja funcionava antes disso existir.
-        print ( "generate_wavefunction_parallel: could not capture LCAO data ({}).".format ( e ) )
+        dprint ( "generate_wavefunction_parallel: could not capture LCAO data ({}).".format ( e ) )
         orbitals_matrix = None
         center_function_pointers = None
         atom_symbols = None
@@ -3336,7 +3337,7 @@ def generate_wavefunction_parallel(job):
     '''
     for i in range(len(orbitals)):
         reverse_index = -i-1 #- len(orbitals)
-        print(reverse_index, orbitals[reverse_index ])
+        dprint(reverse_index, orbitals[reverse_index ])
         self.liststore.append(orbitals[reverse_index ])
     '''
 

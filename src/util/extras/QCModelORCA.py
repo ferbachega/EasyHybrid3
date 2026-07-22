@@ -1,5 +1,6 @@
 """The ORCA QC model."""
 
+from util.debug import dprint
 import glob, math, os, os.path, subprocess, re
 
 from  pCore                     import logFile           , \
@@ -196,7 +197,7 @@ class QCModelORCA ( QCModel ):
             while True:
                 try:
                     line = next ( outFile ).strip ( )
-                    print(line)
+                    dprint(line)
                     # . CHELPG charges.
                     if line == "Chelpg Charges":
                         data = Array.WithExtent ( n )

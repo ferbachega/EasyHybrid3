@@ -89,6 +89,87 @@ HOME             = os.environ.get('HOME')
 PDYNAMO3_SCRATCH = os.environ.get('PDYNAMO3_SCRATCH')
 
 
+import re
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  L O G   S Y N T A X   H I G H L I G H T I N G
+#
+#  Lightweight, regex-based highlighting for the plain-text pDynamo logs
+#  shown in TextWindow (system summaries, energy/SCF results, geometry
+#  scans, MD/process-manager logs, RMSD/PES analysis output, ...).
+#  Colors are chosen to read well on TextView's default light background.
+# ─────────────────────────────────────────────────────────────────────────────
+_LOG_SEPARATOR_RE      = re.compile(r'^[\-=]{10,}\s*$')
+_LOG_EMBEDDED_TITLE_RE = re.compile(r'^-{3,}[^\-]+-{3,}$')
+_LOG_DATA_ROW_RE       = re.compile(r'^(DATA)\b')
+
+_LOG_INLINE_RULES = (
+    # . Problems -- checked before "success" so "Not Converged" wins over
+    #   the "Converged" substring it contains.
+    ( re.compile ( r'\b(Error|ERROR|Failed|FAILED|Not\s+Converged|WARNING|Warning)\b' ), 'log_error'   ) ,
+    # . Success / good news.
+    ( re.compile ( r'(?<!Not\s)(?<!Not)\b(Converged|Successful|Done|OK!)\b' ),            'log_success' ) ,
+    # . Timing metadata.
+    ( re.compile ( r'\b(Start Time|Stop Time|CPU Time)\b' ),                              'log_time'    ) ,
+)
+
+
+def _ensure_log_tags ( buffer ):
+    """Creates (once per buffer) the Gtk.TextTags used for log highlighting."""
+    table = buffer.get_tag_table ( )
+
+    def ensure ( name, **props ):
+        tag = table.lookup ( name )
+        if tag is None:
+            tag = buffer.create_tag ( name, **props )
+        return tag
+
+    ensure ( 'log_header'  , foreground = '#1B4F72', weight = Pango.Weight.BOLD )
+    ensure ( 'log_data'    , foreground = '#1F618D', weight = Pango.Weight.BOLD )
+    ensure ( 'log_time'    , foreground = '#7D3C98', style  = Pango.Style.ITALIC )
+    ensure ( 'log_success' , foreground = '#1E8449', weight = Pango.Weight.BOLD )
+    ensure ( 'log_error'   , foreground = '#B03A2E', weight = Pango.Weight.BOLD )
+
+
+def apply_log_highlighting ( buffer ):
+    """
+    Applies syntax highlighting to the whole contents of a Gtk.TextBuffer
+    holding a pDynamo-style plain-text log: section separators/titles,
+    "DATA" scan/table rows, timestamps, and success/error keywords.
+    Safe to call on any plain text -- lines/keywords that don't match
+    anything are simply left as-is.
+    """
+    _ensure_log_tags ( buffer )
+
+    start, end = buffer.get_bounds ( )
+    text = buffer.get_text ( start, end, True )
+
+    offset = 0
+    for line in text.split ( '\n' ):
+        stripped = line.strip ( )
+
+        if _LOG_SEPARATOR_RE.match ( line ) or _LOG_EMBEDDED_TITLE_RE.match ( stripped ):
+            s = buffer.get_iter_at_offset ( offset )
+            e = buffer.get_iter_at_offset ( offset + len ( line ) )
+            buffer.apply_tag_by_name ( 'log_header', s, e )
+        else:
+            data_match = _LOG_DATA_ROW_RE.match ( stripped )
+            if data_match:
+                lead = len ( line ) - len ( line.lstrip ( ) )
+                s = buffer.get_iter_at_offset ( offset + lead )
+                e = buffer.get_iter_at_offset ( offset + lead + data_match.end ( ) )
+                buffer.apply_tag_by_name ( 'log_data', s, e )
+
+            for pattern, tag_name in _LOG_INLINE_RULES:
+                for m in pattern.finditer ( line ):
+                    s = buffer.get_iter_at_offset ( offset + m.start ( ) )
+                    e = buffer.get_iter_at_offset ( offset + m.end ( ) )
+                    buffer.apply_tag_by_name ( tag_name, s, e )
+
+        offset += len ( line ) + 1   # +1 for the '\n' split away
+
+
 class TextWindow:
     """ Class doc """
     
@@ -104,8 +185,9 @@ class TextWindow:
         self.textview = Gtk.TextView()
         self.textbuffer = self.textview.get_buffer()
         self.textbuffer.set_text(text)
-        
-        
+
+        apply_log_highlighting ( self.textbuffer )
+
         # Create a Pango font description with the desired font family and size
         fontdesc = Pango.FontDescription()
         fontdesc.set_family("Monospace")

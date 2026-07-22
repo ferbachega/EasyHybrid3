@@ -30,6 +30,7 @@
 #
 
 # pDynamo
+from util.debug import dprint
 from pBabel                    import *
 from pCore                     import *
 from pMolecule                 import *
@@ -45,7 +46,7 @@ import os
 from pScientific.RandomNumbers import NormalDeviateGenerator, RandomNumberGenerator
 
 # --- imports entre modulos adicionados na refatoracao ---
-from pdynamo.p_methods._common import backup_orca_files, write_header, get_hamiltonian
+from pdynamo.p_methods._common import backup_qc_files, write_header, get_hamiltonian
 
 # QC hamiltonians that shell out to an external program and therefore need an
 # isolated scratch directory per concurrent task (same list used in surface_scan.py).
@@ -171,7 +172,7 @@ def _pool_task_1d(args):
     d1, d2  = compute_reaction_coordinate(system.coordinates3, rc1)
 
     if from_file:
-        backup_orca_files(system        = system,
+        backup_qc_files(system        = system,
                            output_folder = full_path_trajectory,
                            output_name   = 'frame' + str(frame_id))
 
@@ -224,7 +225,7 @@ class EnergyCalculation:
         parameters['system'].Summary(log = self.logFile2)
         energy = parameters['system'].Energy(log = self.logFile2)
 
-        backup_orca_files(system        = parameters['system'],
+        backup_qc_files(system        = parameters['system'],
                           output_folder = parameters['folder'],
                           output_name   = parameters['filename'])
 
@@ -296,7 +297,7 @@ class EnergyRefinement:
 
         # -------------------------------------------------------------------------------
         if parameters['ignore_mm_charges']:
-            print('Adjusting electrical charges in the MM region to zero.')
+            dprint('Adjusting electrical charges in the MM region to zero.')
             for i in range(len(parameters['system'].mmState.charges)):
                 parameters['system'].mmState.charges[i] = 0.0
         # -------------------------------------------------------------------------------
@@ -334,7 +335,7 @@ class EnergyRefinement:
                 return self._run_parallel_1d(system, tasks, rc1, parameters,
                                               full_path_trajectory, from_file, n_workers)
             except Exception as exc:
-                print('[EnergyRefinement] Parallel execution failed ({}); '
+                dprint('[EnergyRefinement] Parallel execution failed ({}); '
                       'falling back to sequential.'.format(exc))
 
         # --- sequential path (also used as fallback) ---
@@ -349,10 +350,10 @@ class EnergyRefinement:
             d1, d2 = compute_reaction_coordinate(system.coordinates3, rc1)
             results[frame_id] = (energy, d1, d2)
 
-            print('frame:', frame_id, d1, energy)
+            dprint('frame:', frame_id, d1, energy)
 
             if from_file:
-                backup_orca_files(system        = system,
+                backup_qc_files(system        = system,
                                   output_folder = full_path_trajectory,
                                   output_name   = 'frame' + str(frame_id))
 
@@ -371,7 +372,7 @@ class EnergyRefinement:
                                    initargs    = (system_pickle, data_path)) as pool:
             for frame_id, energy, d1, d2 in pool.imap_unordered(_pool_task_1d, pool_args):
                 results[frame_id] = (energy, d1, d2)
-                print('frame:', frame_id, d1, energy)
+                dprint('frame:', frame_id, d1, energy)
 
         return results
 
@@ -413,7 +414,7 @@ class EnergyRefinement:
                 return self._run_parallel_2d(system, tasks, rc1, rc2, parameters,
                                               full_path_trajectory, from_file, n_workers)
             except Exception as exc:
-                print('[EnergyRefinement] Parallel execution failed ({}); '
+                dprint('[EnergyRefinement] Parallel execution failed ({}); '
                       'falling back to sequential.'.format(exc))
 
         # --- sequential path (also used as fallback) ---
@@ -429,7 +430,7 @@ class EnergyRefinement:
             d2, _  = compute_reaction_coordinate(system.coordinates3, rc2)
             results[(i, j)] = (d1, d2, energy)
 
-            print('frame:', (i, j), energy)
+            dprint('frame:', (i, j), energy)
 
         return results
 
@@ -445,7 +446,7 @@ class EnergyRefinement:
                                    initargs    = (system_pickle, data_path)) as pool:
             for key, d1, d2, energy in pool.imap_unordered(_pool_task_2d, pool_args):
                 results[key] = (d1, d2, energy)
-                print('frame:', key, energy)
+                dprint('frame:', key, energy)
 
         return results
 

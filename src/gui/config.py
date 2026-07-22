@@ -29,6 +29,7 @@
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
 
+from util.debug import dprint
 import os
 import json
 
@@ -188,7 +189,7 @@ class VismolConfig                       :
             if os.path.exists(config):
                 
                 try:
-                    print("Loading EasyHybrid config file.")
+                    dprint("Loading EasyHybrid config file.")
                     with open(config, 'r', encoding='utf-8') as f:
                         self.gl_parameters = json.load(f)
                 
@@ -199,11 +200,11 @@ class VismolConfig                       :
                                 self.gl_parameters[key] = self.gl_parameters_default[keys]
                                 
                 except:
-                    print("Failed to open EasyHybrid configuration file. Loading default settings.")
+                    dprint("Failed to open EasyHybrid configuration file. Loading default settings.")
                     self.gl_parameters = self.gl_parameters_default
                 
             else:
-                print("Configuration file not found. Creating a new file from default settings.")
+                dprint("Configuration file not found. Creating a new file from default settings.")
                 with open(config, 'w', encoding='utf-8') as f:
                     json.dump(self.gl_parameters_default, f, ensure_ascii=False, indent=4)
                     self.gl_parameters = self.gl_parameters_default
@@ -239,7 +240,7 @@ class VismolConfig                       :
         if self.easyhybrid_home is not None:
             config = os.path.join ( self.easyhybrid_home,'.config.json')
             
-            print("Saving configuration file.")
+            dprint("Saving configuration file.")
             
             with open(config, 'w', encoding='utf-8') as f:
                 json.dump(self.gl_parameters, f, ensure_ascii=False, indent=4)        

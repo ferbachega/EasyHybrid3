@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import os, sys, time
 import gi 
 import signal
@@ -234,7 +235,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
             system = self.main.p_session.psystem[e_id]
             sqr_color = get_colorful_square_pixel_buffer(system)
 
-        print(system, vismol_object, e_id)
+        dprint(system, vismol_object, e_id)
 
         # If a parent is specified (e.g., surface), attach there
         if vobj_parent:
@@ -283,7 +284,7 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         self.expand_row(row.path, True)
 
         # Refresh UI components linked to trajectories
-        print('Refresh UI components linked to trajectories')
+        dprint('Refresh UI components linked to trajectories')
         self.refresh_trajectory_scalebar()
 
         # Update sequence viewer with new vismol object

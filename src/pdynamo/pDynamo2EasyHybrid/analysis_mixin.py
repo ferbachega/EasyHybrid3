@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
@@ -119,7 +120,7 @@ class pAnalysis:
         self.imgPlot = None
         
     def on_mouse_button_press (self, widget, event):
-        print (widget, event )
+        dprint (widget, event )
     
     def on_motion (self, widget, event):
         """ Function doc """
@@ -140,7 +141,7 @@ class pAnalysis:
                                                                                          self.imgPlot.dataRC1[j][i], 
                                                                                          self.imgPlot.dataRC2[j][i],  
                                                                                          self.imgPlot.data[j][i])
-                print(text)
+                dprint(text)
                     #self.RC_label.set_text(text)
 
 
@@ -198,7 +199,7 @@ class pAnalysis:
                     '''                   PMF plot                  '''
                     #self.plot2 = XYPlot(bg_color = [0,0,0])
                     self.plot2 = XYPlot( )
-                    print(results['pmf'])
+                    dprint(results['pmf'])
                     data2 = open(results['pmf'], 'r')
                     for line in data2:
                         line2 = line.split()

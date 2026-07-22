@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -624,7 +625,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         #print ( tree, event)
         
         if event.button == 3:
-            print ("button 3", event)
+            dprint ("button 3", event)
 
         if event.button == 2:
             self.treeview.get_selection().set_mode(Gtk.SelectionMode.SINGLE)
@@ -700,7 +701,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             self.treeview.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
 
     def on_chk_renderer_toggled(self, cell, path, model):
-        print('on_chk_renderer_toggled -> model[path][0]: ', model[path][0])
+        dprint('on_chk_renderer_toggled -> model[path][0]: ', model[path][0])
 
     def residue_filter_func(self, model, iter, data):
         """Tests if the language in the row is the one in the filter"""
@@ -732,10 +733,10 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
         
         if key == 'Shift_R' or key == 'Shift_L':
             self.shift = True
-        print(widget, event, Gdk.keyval_name(event.keyval), self.shift)
+        dprint(widget, event, Gdk.keyval_name(event.keyval), self.shift)
     
     def key_released (self, widget, event):
         key = Gdk.keyval_name(event.keyval)
         if key == 'Shift_R' or key == 'Shift_L':
             self.shift = False
-        print(widget, event, Gdk.keyval_name(event.keyval), self.shift)
+        dprint(widget, event, Gdk.keyval_name(event.keyval), self.shift)

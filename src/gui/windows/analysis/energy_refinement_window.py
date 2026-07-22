@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 import os
 gi.require_version("Gtk", "3.0")
@@ -250,8 +251,8 @@ class EnergyRefinementWindow():
         vobject, idx_2D_xy = self._get_selected_vobject_info()
 
         if vobject is not None:
-            print("is_2D_xy" , bool(idx_2D_xy))
-            print("idx_2D_xy", idx_2D_xy)
+            dprint("is_2D_xy" , bool(idx_2D_xy))
+            dprint("idx_2D_xy", idx_2D_xy)
 
             self.builder.get_object('box_reaction_coordinate2').set_sensitive(bool(idx_2D_xy))
 
@@ -284,7 +285,7 @@ class EnergyRefinementWindow():
         parameters['folder'] = self.folder_chooser_button.get_folder()
         
         input_type = self.comobobox_input_type.get_active()
-        print('_type: ',input_type)
+        dprint('_type: ',input_type)
         #----------------------------------------------------------------------
         if input_type == 0:
             parameters["traj_type"] = 'vobject'
@@ -317,8 +318,8 @@ class EnergyRefinementWindow():
                 if _file.endswith('.pkl'):
                     pkl_files.append(_file)
 
-            print ('pDynamo pkl folder:' , parameters['traj_type'])
-            print ('Number of pkl files:', len(pkl_files))
+            dprint ('pDynamo pkl folder:' , parameters['traj_type'])
+            dprint ('Number of pkl files:', len(pkl_files))
             parameters["trajectory"] = pkl_files
         
         else:

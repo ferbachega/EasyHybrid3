@@ -2,6 +2,7 @@
 # . Classes and functions to read MOL2 files.
 #===================================================================================================================================
 
+from util.debug import dprint
 from  pCore                 import logFile                  , \
                                    LogFileActive            , \
                                    TextFileReader
@@ -115,7 +116,7 @@ class MOL2FileReader ( TextFileReader ):
                     
                     
                     symbol = self.get_symbol ( atom_name = items[1], atom_type = items[5])
-                    print(symbol)
+                    dprint(symbol)
                     atomicNumber = PeriodicTable.AtomicNumber ( symbol )
                     #print(atomicNumber, symbol, items[1], items[5])
                     
@@ -346,10 +347,10 @@ class MOL2FileReader ( TextFileReader ):
 
         '''
         sequence = Sequence.FromAtoms ( system.atoms )
-        print(sequence)
+        dprint(sequence)
         for atom in system.atoms:
             resName, resSeq, iCode = sequence.ParseLabel ( atom.parent.label, fields = 3 )
-            print(resName, resSeq, iCode, atom.label)
+            dprint(resName, resSeq, iCode, atom.label)
         '''
         #.Bachega
         # These two attributes are important for EasyHybrid to be able 

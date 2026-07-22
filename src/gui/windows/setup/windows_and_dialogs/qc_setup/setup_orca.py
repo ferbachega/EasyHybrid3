@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -381,8 +382,8 @@ class SetupORCAWindow:
         
         self.setup_QC_model_window.orca_random_scratch = self.builder.get_object('checkbox_orca_random_scratch').get_active()
         
-        print (text)
-        print ('checkbox_random_scratch', self.setup_QC_model_window.orca_random_scratch, self.builder.get_object('checkbox_orca_random_scratch').get_active())
+        dprint (text)
+        dprint ('checkbox_random_scratch', self.setup_QC_model_window.orca_random_scratch, self.builder.get_object('checkbox_orca_random_scratch').get_active())
         self.close_window (None)
     
     def on_button_ok2 (self, button):

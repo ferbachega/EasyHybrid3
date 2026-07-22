@@ -30,6 +30,7 @@
 #      standard single-value-per-point cube, which is what orca_plot
 #      writes for one orbital/density/potential at a time.
 #
+from util.debug import dprint
 import numpy as np
 
 
@@ -165,15 +166,15 @@ def read_cube_file ( path ):
 if __name__ == "__main__":
     import sys
     if len ( sys.argv ) < 2:
-        print ( "usage: python3 cube_reader.py file.cube" )
+        dprint ( "usage: python3 cube_reader.py file.cube" )
         sys.exit ( 1 )
     grid = read_cube_file ( sys.argv[1] )
-    print ( "title   :", grid.title )
-    print ( "comment :", grid.comment )
-    print ( "natoms  :", grid.natoms )
-    print ( "atoms   :", grid.atoms )
-    print ( "origin (Bohr):", grid.origin )
-    print ( "dims (nx,ny,nz):", grid.dims )
-    print ( "is_orthogonal:", grid.is_orthogonal )
-    print ( "spacing (Bohr):", grid.spacing )
-    print ( "value range:", grid.value_range ( ) )
+    dprint ( "title   :", grid.title )
+    dprint ( "comment :", grid.comment )
+    dprint ( "natoms  :", grid.natoms )
+    dprint ( "atoms   :", grid.atoms )
+    dprint ( "origin (Bohr):", grid.origin )
+    dprint ( "dims (nx,ny,nz):", grid.dims )
+    dprint ( "is_orthogonal:", grid.is_orthogonal )
+    dprint ( "spacing (Bohr):", grid.spacing )
+    dprint ( "value range:", grid.value_range ( ) )

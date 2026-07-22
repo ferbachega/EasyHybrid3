@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 from collections import deque
 import numpy as np
 import math
@@ -210,11 +211,11 @@ def center_on_atom(vobject, x, y, z, subgroup, frame = 0):
 def move_to_origin (molecule, center_id):
     """ Function doc """
     coord_center = molecule[center_id] 
-    print(coord_center)
+    dprint(coord_center)
     #coord_center = ['x',10,10,10] 
     
     for index, atom in enumerate(molecule):
-        print(index, atom)
+        dprint(index, atom)
         molecule[index][1] = molecule[index][1] - coord_center[1] 
         molecule[index][2] = molecule[index][2] - coord_center[2] 
         molecule[index][3] = molecule[index][3] - coord_center[3] 

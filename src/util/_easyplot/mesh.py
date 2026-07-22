@@ -1,3 +1,4 @@
+from util.debug import dprint
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, cairo
@@ -128,7 +129,7 @@ class MyWindow(Gtk.Window):
         self.factor_x = int((self.x_final - self.bx)/self.size_x)
         self.factor_y = int((self.y_final - self.by)/self.size_y)
         
-        print (
+        dprint (
         
         '\n bx       ',  self.bx      ,  
         '\n by       ',  self.by      ,  
@@ -162,15 +163,15 @@ class MyWindow(Gtk.Window):
 
         
         if int(x_on_plot) < 0 or int(x_on_plot) >= self.size_x :
-            print('canvas')
+            dprint('canvas')
             self.points = []
         elif int(y_on_plot) < 0 or int(y_on_plot) >= self.size_y :
-            print('canvas')
+            dprint('canvas')
             self.points = []
         else:
             self.points.append((x, y))
         
-        print("Mouse clicker at:",  x, y, int(x_on_plot), int(y_on_plot), 
+        dprint("Mouse clicker at:",  x, y, int(x_on_plot), int(y_on_plot), 
                                     (x-self.bx)/self.factor_x, #/(self.x_final-self.bx), 
                                     (y-self.by)/self.factor_y) #/(self.y_final-self.by) ) #, x - self.x_final , y - self.y_final , self.x_final ,  self.y_final ,   (x-self.bx) /self.factor_x ,    (y-self.by)/self.factor_y )
         
@@ -182,7 +183,7 @@ class MyWindow(Gtk.Window):
     def on_motion(self, widget, event):
         (x, y) = int(event.x), int(event.y)
         #x, y = device.get_position(widget)
-        print("Mouse moved to:", x, y)
+        dprint("Mouse moved to:", x, y)
 
 
 
@@ -256,7 +257,7 @@ class MyWindow(Gtk.Window):
 
     def on_draw(self, widget, cr):
         self.cr =  cr
-        print('aqui', cr)
+        dprint('aqui', cr)
         width = widget.get_allocated_width()
         height = widget.get_allocated_height()
         

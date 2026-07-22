@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import os, sys, time
 import gi 
 import signal
@@ -386,8 +387,8 @@ class TreeViewMenu:
         
         atom_qtty = len(vobject.atoms.items())
         size = len(vobject.frames)
-        print(atom_qtty, size)
-        print('Interpolating, wait a second…')
+        dprint(atom_qtty, size)
+        dprint('Interpolating, wait a second…')
         
         #coords
         
@@ -402,7 +403,7 @@ class TreeViewMenu:
             new_traje[0][j][1] = init_frame[j][1]
             new_traje[0][j][2] = init_frame[j][2]
         
-        print('adding:', 0)
+        dprint('adding:', 0)
         
         for i in range(0, len(frames)-1):
             frame1 = frames[i]
@@ -492,7 +493,7 @@ class TreeViewMenu:
 
     def call_extract_current_frame (self, widget):
         """ Function doc """
-        print('extrac_current_frame / Under construction')
+        dprint('extrac_current_frame / Under construction')
         
         self.call_copy_current_frame(None)
         self.call_delete_current_frame(None)
@@ -1140,7 +1141,7 @@ class TreeViewMenu:
         """ Function doc """
         self.system_e_id     = system_e_id    
         self.vobject_index = vobject_index
-        print(system_e_id, vobject_index)
+        dprint(system_e_id, vobject_index)
         
         system = self.treeview.main.p_session.psystem[self.system_e_id] 
         self.tree_header_sys_menu.set_label(system.label)
@@ -1157,7 +1158,7 @@ class TreeViewMenu:
             is_surface  =  getattr(vismol_object, 'is_surface', None)
             #vismol object mgiht be a surface or a struture 
             if is_surface:
-                print('is_surface:', vismol_object.is_surface)
+                dprint('is_surface:', vismol_object.is_surface)
                 self.tree_header_surf_menu.set_label(vismol_object.name)
                 self.tree_view_surf_menu.popup(None, None, None, None, 0, 0)
             else:
@@ -1181,7 +1182,7 @@ class TreeViewMenu:
         
         atom_qtty = len(vobject.atoms.items())
         size = len(vobject.frames)
-        print(atom_qtty, size)
+        dprint(atom_qtty, size)
         
         if frame_state > size-1:
             init_frame = frames[-1]
@@ -1211,7 +1212,7 @@ class TreeViewMenu:
 
     def call_delete_current_frame_old_not_used (self, widget):
         """ Function doc """
-        print('delete_current_frame / Under construction')
+        dprint('delete_current_frame / Under construction')
         selection        = self.treeview.get_selection()
         (model, iter)    = selection.get_selected()
         e_id             = int(model.get_value(iter, 0))
@@ -1223,7 +1224,7 @@ class TreeViewMenu:
         frame_state = self.main.vm_session.get_frame()
         atom_qtty = len(vobject.atoms.items())
         size = len(vobject.frames)
-        print(atom_qtty, size, type(frames))
+        dprint(atom_qtty, size, type(frames))
         
         if frame_state > size-1:
             vobject.frames = np.delete(frames,-1, axis=0)

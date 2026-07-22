@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import os, sys, time
 import gi 
 import signal
@@ -441,7 +442,7 @@ class MainWindow:
 
         for uri in data.get_uris():
             path, _ = GLib.filename_from_uri(uri)
-            print(path)
+            dprint(path)
             self.vm_session.load(path)
 
     def restart (self):
@@ -1381,12 +1382,12 @@ class MainWindow:
         response = dialog.run()
 
         if response == Gtk.ResponseType.OK:
-            print("File selected: " + dialog.get_filename())
+            dprint("File selected: " + dialog.get_filename())
             self.p_session.save_easyhybrid_session( filename = dialog.get_filename())
             dialog.destroy()
             # Save file here...
         elif response == Gtk.ResponseType.CANCEL:
-            print("Save operation canceled.")
+            dprint("Save operation canceled.")
             dialog.destroy()
 
     def open_gtk_load_files (self, button):
@@ -1506,7 +1507,7 @@ class MainWindow:
         else:
             #print(self.vm_session.vobject_names.values())
             if name in self.vm_session.vobject_names.keys():
-                print('Invalid name.')
+                dprint('Invalid name.')
                 return False
 
             else:
@@ -1558,7 +1559,7 @@ class MainWindow:
             
             '''removing from vm_object_dic'''
             for index in pop_list:
-                print('removing sys = {}, obj = {}, name = {}'.format(system_e_id, 
+                dprint('removing sys = {}, obj = {}, name = {}'.format(system_e_id, 
                                                                       index,
                                                                       self.vm_session.vm_objects_dic[index].name))
                 
@@ -1601,7 +1602,7 @@ class MainWindow:
             system = self.p_session.psystem[vobject.e_id]
             #print(vobject.e_id, vm_object_index)
             if vm_object_index in system.e_logfile_data.keys():
-                print ('deleting plotting data...')
+                dprint ('deleting plotting data...')
                 system.e_logfile_data[vm_object_index] = None
                 system.e_logfile_data.pop(vm_object_index)
             #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1765,7 +1766,7 @@ class MainWindow:
                     a1_coord = pklist[2].coords(frame=i)
                     a2_coord = pklist[3].coords(frame=i)
                     dist3 = get_simple_distance(a1_coord, a2_coord)
-                print(dist1, dist2, dist3)
+                dprint(dist1, dist2, dist3)
                 
     def run_test (self, widget):
         '''Test'''

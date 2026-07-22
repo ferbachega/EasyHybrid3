@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -246,7 +247,7 @@ class EasyHybridSelectionWindow:
                                                                  radius        = _radius,  
                                                                  grid_size     = _radius)
         if TrueFalse:
-            print(msg)
+            dprint(msg)
             pass
             #self.main.simple_dialog.info(msg = msg )
         else:
@@ -435,7 +436,7 @@ class PDynamoSelectionWindow:
             self.builder.get_object('resi_entry' ).set_text(str(atom1.residue.index) )
             self.builder.get_object('atom_entry' ).set_text(str(atom1.name) )
         else:
-            print('use picking selection to chose the central atom')
+            dprint('use picking selection to chose the central atom')
             
     def update (self):
         """ Function doc """

@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -287,7 +288,7 @@ class EasyHybridSetupQCModelWindow:
                     try:
                         estimated_charge += system.mmState.charges[index]
                     except:
-                        print('System object has no attribute mmState - pure QC system')
+                        dprint('System object has no attribute mmState - pure QC system')
                         estimated_charge += 0
             else:
                 estimated_charge = 0
@@ -307,7 +308,7 @@ class EasyHybridSetupQCModelWindow:
                 estimated_charge = int(round(estimated_charge))
                 self.spinbutton_charge.set_value (estimated_charge)
             else:
-                print('mmModel not found, pure QC system.')
+                dprint('mmModel not found, pure QC system.')
             number_of_qc_atoms = len(system.atoms)
             self.entry_number_of_qc_atoms.set_text(str(number_of_qc_atoms)+ ' (all)')
         '''----------------------------------------------------------------------------------------------'''
@@ -333,7 +334,7 @@ class EasyHybridSetupQCModelWindow:
         
     def on_qc_engine_combo_changed (self, combobox):
         self.qc_engine_id = self.builder.get_object('QCEngine_combobox').get_active()
-        print(self.qc_engine_id)
+        dprint(self.qc_engine_id)
         
         if self.qc_engine_id ==0:            
             self.builder.get_object('button_setup_orca').hide()
@@ -390,7 +391,7 @@ class EasyHybridSetupQCModelWindow:
         pass
         #
         self.method_id = self.builder.get_object('QCModel_methods_combobox').get_active()
-        print(self.method_id)
+        dprint(self.method_id)
         if self.method_id in [0,1,2,3,4,5]:            
             self.builder.get_object('button_setup_orca').hide()
             self.builder.get_object('button_setup_dftb').hide()
@@ -421,7 +422,7 @@ class EasyHybridSetupQCModelWindow:
             #self.builder.get_object('button_setup_dftb').show()
             #self.builder.get_object('button_setup_orca').hide()
             #self.builder.get_object('expander_DIISSCF_converger').hide()
-            print('here')
+            dprint('here')
             self.setup_mopac_window.open_window()
         else:
             pass
@@ -476,6 +477,7 @@ class EasyHybridSetupQCModelWindow:
             parameters['fermi_temp'] = self.setup_xtb_window.parameters['fermi_temp'  ] 
             parameters['keywords'  ] = self.setup_xtb_window.parameters['add_keywords'] 
             parameters['scratch'   ] = self.setup_xtb_window.parameters['scratch'] 
+            parameters['xtb_backup_files'] = self.setup_xtb_window.parameters['backup_files']
         
         elif self.qc_engine_id == 4:
             #parameters['method'    ]  = 'MOPAC'
@@ -488,7 +490,7 @@ class EasyHybridSetupQCModelWindow:
         parameters['densityTolerance' ] = float(self.builder.get_object('entry_densityTolerance').get_text())
         parameters['maximumIterations'] = int(self.builder.get_object('entry_maximumIterations').get_text())
 
-        print(parameters)
+        dprint(parameters)
         
         self.main_session.p_session.define_a_new_QCModel(system        = None,  
                                                          parameters    = parameters, 
@@ -507,7 +509,7 @@ class EasyHybridSetupQCModelWindow:
             self.setup_dftb_window.open_window()
         
         elif self.method_id == 8:
-            print(self.method_id, self.setup_xtb_window)
+            dprint(self.method_id, self.setup_xtb_window)
             self.setup_xtb_window.open_window() 
         
         else:

@@ -32,6 +32,7 @@
 
 #from LogFile import LogFileWriter
 # pDynamo
+from util.debug import dprint
 from pBabel                    import *                                     
 from pCore                     import *                                     
 from pMolecule                 import *                  
@@ -204,7 +205,7 @@ class AdvancedRelaxedSurfaceScan:
             #distance1 = parameters['system'].coordinates3.Distance( atom1 , atom2  )
             #distance2 = parameters['system'].coordinates3.Distance( atom2 , atom3  )
             energy   = parameters['system'].Energy(log=None)
-            print(distance, energy)
+            dprint(distance, energy)
             #data.append([i, distance1, distance2, energy])             
             data.append([i, distance, energy])             
             
@@ -394,7 +395,7 @@ class AdvancedRelaxedSurfaceScan:
                              }
             
             #print(i, j, 'Energy:', energy, opt_convergency)
-            print(i, j, 'Energy:', energy)
+            dprint(i, j, 'Energy:', energy)
             #  - - - - adding to the joblist - - - - 
             joblist.append([i, pkl, new_parameters, parameters['system']])
             #--------------------------------------------------------------------------------------
@@ -465,7 +466,7 @@ class RelaxedSurfaceScan:
         #    advanced = True
         
         if parameters['RC2'] is not None:
-            print('\n\n\nself._run_scan_2D(parameters = parameters, interface = False)')
+            dprint('\n\n\nself._run_scan_2D(parameters = parameters, interface = False)')
             
             if parameters['_is_ts_centered']:
                 parameters['RC1']['up_nsteps'  ] = parameters['RC1']['nsteps']
@@ -844,8 +845,8 @@ class RelaxedSurfaceScan:
         atom_RC2_1 = parameters['RC2']['ATOMS'][0]
         atom_RC2_2 = parameters['RC2']['ATOMS'][1]                   
         
-        print(atom_RC1_1, atom_RC1_2, atom_RC2_1, atom_RC2_2)
-        print(parameters['RC1']['ATOMS'], parameters['RC2']['ATOMS'])
+        dprint(atom_RC1_1, atom_RC1_2, atom_RC2_1, atom_RC2_2)
+        dprint(parameters['RC1']['ATOMS'], parameters['RC2']['ATOMS'])
         
         #return True
         #---------------------------------
@@ -1077,7 +1078,7 @@ class RelaxedSurfaceScan:
                              'traj_folder_name': parameters['traj_folder_name']
                              }
             
-            print(i, j, 'Energy:', energy, opt_convergency)
+            dprint(i, j, 'Energy:', energy, opt_convergency)
             #  - - - - adding to the joblist - - - - 
             joblist.append([i, pkl, new_parameters, parameters['system']])
             #--------------------------------------------------------------------------------------
@@ -1370,7 +1371,7 @@ def _run_advanced_second_coordinate_in_parallel (job):
                           output_name   = "frame{}_{}".format(i,j))
         #--------------------------------------------------------------------------------------
         #print(i, j, 'Energy:', energy, opt_convergency)
-        print(i, j, 'Energy:', energy)
+        dprint(i, j, 'Energy:', energy)
     return data
 
 
@@ -1570,7 +1571,7 @@ def _run_second_coordinate_in_parallel (job):
                           output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
                           output_name   = "frame{}_{}".format(i,j))
         #--------------------------------------------------------------------------------------
-        print(i, j, 'Energy:', energy, opt_convergency)
+        dprint(i, j, 'Energy:', energy, opt_convergency)
     return data
 
 

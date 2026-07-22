@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk
@@ -398,7 +399,7 @@ class ImagePlot(Canvas):
                     x05   = (x1 + x0)/2
                     y05   = (y1 + y0)/2
                     '''
-                    print(
+                    dprint(
                     x0 , y0   ,
                     x0 , y05 ,
                     x0 , y1   ,
@@ -719,7 +720,7 @@ class ImagePlot(Canvas):
                 if self.RC_label:
                     self.RC_label.set_text(text)
                 else:
-                    print(text)
+                    dprint(text)
 
 
     def get_pixel_rgb_from_surface(self, surface, x, y):

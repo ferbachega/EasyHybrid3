@@ -21,6 +21,7 @@
 #  MA 02110-1301, USA.
 #  
 #  
+from util.debug import dprint
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, cairo
@@ -191,20 +192,20 @@ class Canvas(Gtk.DrawingArea):
 
         
         if int(x_on_plot) < 0 or int(x_on_plot) >= self.size_x :
-            print('canvas')
+            dprint('canvas')
             self.points = []
         elif int(y_on_plot) < 0 or int(y_on_plot) >= self.size_y :
-            print('canvas')
+            dprint('canvas')
             self.points = []
         else:
             
             
             self.points.append((x_on_plot, y_on_plot))
         
-        print("Mouse clicker at:",  x, y, int(x_on_plot), int(y_on_plot), 
+        dprint("Mouse clicker at:",  x, y, int(x_on_plot), int(y_on_plot), 
                                     (x-self.bx)/self.factor_x, #/(self.x_final-self.bx), 
                                     (y-self.by)/self.factor_y) #/(self.y_final-self.by) ) #, x - self.x_final , y - self.y_final , self.x_final ,  self.y_final ,   (x-self.bx) /self.factor_x ,    (y-self.by)/self.factor_y )
-        print(self.points)
+        dprint(self.points)
         self.queue_draw()
 
     
@@ -278,7 +279,7 @@ class ImagePlot(Canvas):
         _min = np.min(self.data)
         _max = np.max(self.data)
         factor2 = (_max - _min)/10
-        print(_min, _max)
+        dprint(_min, _max)
         counter = 0
         for j in range(0, self.size_y+1, factor ):    
             

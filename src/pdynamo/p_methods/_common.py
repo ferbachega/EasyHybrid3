@@ -32,6 +32,7 @@
 
 #from LogFile import LogFileWriter
 # pDynamo
+from util.debug import dprint
 from pBabel                    import *                                     
 from pCore                     import *                                     
 from pMolecule                 import *                  
@@ -76,20 +77,127 @@ def backup_orca_files (system, output_folder = None, output_name = None):
             
          
             
-            print ('\nChecking for ORCA files at: ', scratch)
+            dprint ('\nChecking for ORCA files at: ', scratch)
 
             try:
                 os.rename(os.path.join(scratch, 'orcaJob.log'),   os.path.join(folder , output_name+'.orca.log'))
-                print('Renaming logfile to:', os.path.join(folder , output_name+'.orca.log'))
+                dprint('Renaming logfile to:', os.path.join(folder , output_name+'.orca.log'))
             except:
-                print('File {} not found at:'.format(output_name+'.orca.log'), scratch)
+                dprint('File {} not found at:'.format(output_name+'.orca.log'), scratch)
             
             try:
                 os.rename(os.path.join(scratch, 'orcaJob.gbw'), os.path.join(folder , output_name+'.orca.gbw'))
-                print('Renaming gbwfile to:', os.path.join(folder , output_name+'.orca.gbw'))
+                dprint('Renaming gbwfile to:', os.path.join(folder , output_name+'.orca.gbw'))
             except:
-                print('File {} not found at:'.format(output_name+'.orca.gbw'), scratch)
-            print ('\n')
+                dprint('File {} not found at:'.format(output_name+'.orca.gbw'), scratch)
+            dprint ('\n')
+
+
+# . Job files known to be written by pDynamo3's XTB QC model (see
+#   QCModelXTBState.DeterminePaths in util/extras/QCModelXTB.py), plus a few
+#   extra files xTB itself can write depending on the keywords used (e.g.
+#   "molden.input" when "--molden" is passed -- this one is NOT prefixed
+#   with the job name, xTB always writes it under that fixed name in the
+#   working/scratch directory). The keys are what the "Backup Files"
+#   checkboxes in the xTB setup window
+#   (gui/windows/setup/windows_and_dialogs/qc_setup/setup_xtb.py) refer to.
+#
+# . Each entry is ( source_filename_or_None, source_extension_or_None, description ).
+#   If "source_filename" is given, it is used as-is (fixed name, independent
+#   of the job name). Otherwise the source file is "<_XTB_JOB_NAME>.<source_extension>".
+_XTB_JOB_NAME       = 'XTBJob'
+_XTB_BACKUP_FILES = {
+    'log'    : { 'extension' : 'log'    , 'description' : 'Output'                 } ,
+    'inp'    : { 'extension' : 'inp'    , 'description' : 'Input'                  } ,
+    'engrad' : { 'extension' : 'engrad' , 'description' : 'Gradient'               } ,
+    'coord'  : { 'extension' : 'coord'  , 'description' : 'Coordinates'            } ,
+    'pc'     : { 'extension' : 'pc'     , 'description' : 'Point charges'          } ,
+    'pcgrad' : { 'extension' : 'pcgrad' , 'description' : 'Point-charge gradient'  } ,
+    # . Fixed name, only written when "--molden" is among the xTB keywords.
+    'molden' : { 'source_name' : 'molden.input', 'extension' : 'molden.input', 'description' : 'Molden orbitals' } ,
+}
+
+
+def backup_xtb_files (system, output_folder = None, output_name = None, files = None):
+    """
+    Copies the requested xTB job files from the scratch folder to a
+    permanent output folder, analogous to backup_orca_files() above, but
+    letting the user choose *which* files to keep (see the "Backup Files"
+    option added to the xTB setup window). Only files that were actually
+    requested (and that xTB actually wrote -- e.g. "molden.input" is only
+    written when "--molden" is among the xTB keywords) are copied; anything
+    else is silently skipped, exactly like the ORCA counterpart.
+
+    "files" is a list of keys from _XTB_BACKUP_FILES (e.g. ['log',
+    'molden']). If not given, falls back to the "e_xtb_backup_files"
+    attribute that EasyHybrid attaches to the system when the xTB QC model
+    is defined (see session.define_a_new_QCModel), or just ['log'] if that
+    is not set either.
+    """
+    if not system.qcModel:
+        return
+
+    items = system.qcModel.SummaryItems()
+    '''Checking if xTB is being used'''
+    if items[0][0] != 'XTB QC Model':
+        return
+
+    if files is None:
+        files = getattr ( system, 'e_xtb_backup_files', [ 'log' ] )
+    if not files:
+        return
+
+    scratch =  system.qcModel.scratch
+    _time = time.asctime()
+
+    if output_folder is None:
+        folder = scratch
+    else:
+        folder = output_folder
+
+    if output_name is None:
+        output_name = 'XTBJob' + _time
+
+    dprint ('\nChecking for xTB files at: ', scratch)
+
+    for key in files:
+        file_info = _XTB_BACKUP_FILES.get ( key )
+        if file_info is None:
+            dprint ('Unknown xTB backup file type requested: {}'.format ( key ))
+            continue
+
+        description = file_info['description']
+        extension   = file_info['extension']
+        source_name = file_info.get ( 'source_name', '{}.{}'.format ( _XTB_JOB_NAME, extension ) )
+        destination_name = '{}.xtb.{}'.format ( output_name, extension )
+
+        try:
+            os.rename ( os.path.join ( scratch, source_name ), os.path.join ( folder, destination_name ) )
+            dprint ('Renaming {} ({}) file to:'.format ( description, source_name ), os.path.join ( folder, destination_name ))
+        except Exception:
+            dprint ('File {} not found at:'.format ( source_name ), scratch)
+
+    dprint ('\n')
+
+
+def backup_qc_files (system, output_folder = None, output_name = None, xtb_files = None):
+    """
+    Single entry point used by the energy-calculation code: figures out
+    which external QC engine (if any) the system is currently using, and
+    dispatches to the matching backup function (backup_orca_files /
+    backup_xtb_files). Safe to call unconditionally -- it is a no-op for
+    systems without a QC model, or with a QC model that has no backup
+    routine implemented (e.g. MOPAC, DFTB+, MNDO).
+    """
+    if not system.qcModel:
+        return
+
+    engine = system.qcModel.SummaryItems()[0][0]
+
+    if engine == 'ORCA QC Model':
+        backup_orca_files ( system = system, output_folder = output_folder, output_name = output_name )
+    elif engine == 'XTB QC Model':
+        backup_xtb_files  ( system = system, output_folder = output_folder, output_name = output_name, files = xtb_files )
 
 
 def get_hamiltonian (system):
@@ -266,7 +374,7 @@ def write_header (parameters, logfile = 'output.log'):
         #text = text + "\n\n------------------------------------------------------"
         #text = text + "\n       Frame     distance-pK1-pK2         Energy      "
         #text = text + "\n------------------------------------------------------"
-    print(text)
+    dprint(text)
     arq.write(text)
     return arq
 
@@ -293,4 +401,4 @@ def plot_data (matrix_i_j):
 
 def func (job):
     """ Function doc """
-    print(job)
+    dprint(job)

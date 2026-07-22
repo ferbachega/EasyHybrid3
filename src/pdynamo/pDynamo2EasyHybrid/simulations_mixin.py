@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
@@ -186,7 +187,7 @@ class pSimulations:
                         
                     '''
                     #Selection.FromIterable (freeAtoms)
-                    print("restraint_list[3]",restraint_list[3])
+                    dprint("restraint_list[3]",restraint_list[3])
                     selection          = Selection.FromIterable (restraint_list[3])
                     reference          = Clone (parameters['system'].coordinates3 )
                     tetherEnergyModel  = RestraintEnergyModel.Harmonic ( 0.0, float(restraint_list[5]) )
@@ -261,7 +262,7 @@ class pSimulations:
             parameters['logfile'] = os.path.join(folder, tmp_fname)
             system.e_job_history[system.e_step_counter]['logfile'] = parameters['logfile']
         
-        print ('_configure_logfile:', parameters)
+        dprint ('_configure_logfile:', parameters)
         return parameters
 
     # ========================================================================
@@ -319,7 +320,7 @@ class pSimulations:
 
             except Exception as e:
                 # Prevent GUI crash due to queue handling issues
-                print(f"Error checking the queue of process {e_id}: {e}")
+                dprint(f"Error checking the queue of process {e_id}: {e}")
 
         # Keep the GLib timeout active
         return True
@@ -485,7 +486,7 @@ class pSimulations:
             queue.put(self.MSG_DONE)
             
         except Exception as exc:
-            print(f"Error {sim_type}: {exc}")
+            dprint(f"Error {sim_type}: {exc}")
             traceback.print_exc()    # <-- imprime o traceback completo
             
             results = {

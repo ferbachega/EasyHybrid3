@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -464,7 +465,7 @@ class ImportANewSystemWindow(Gtk.Window):
                 try:
                     os.makedirs(wfolder)
                 except:
-                    print('Failed to create the working directory {}'.format(wfolder))
+                    dprint('Failed to create the working directory {}'.format(wfolder))
         else:
             wfolder = None
         
@@ -495,10 +496,14 @@ class ImportANewSystemWindow(Gtk.Window):
                 self.color_counter += 1
         except Exception as e:
             error_str = str(e)  # converte a mensagem de erro para string
-            print("Error:", error_str)
+            tb        = traceback.format_exc()
+            dprint("Error:", tb)
             self.easyhybrid_main.bottom_notebook.status_teeview_add_new_item(message = 'Could not import the system.', system = None)
             simpledialog = SimpleDialog(self.easyhybrid_main)
-            simpledialog.error("Could not import the system.\n\n{}".format(error_str))
+            simpledialog.error_details(parent  = self.window,
+                                        msg     = "Could not import the system.\n\n{}".format(error_str),
+                                        details = tb,
+                                        title   = 'Import Error')
 
     def on_entry_widget_change (self, widget = None):
         """ Function doc """

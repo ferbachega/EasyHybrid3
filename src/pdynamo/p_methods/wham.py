@@ -32,6 +32,7 @@
 
 #from LogFile import LogFileWriter
 # pDynamo
+from util.debug import dprint
 from pBabel                    import *                                     
 from pCore                     import *                                     
 from pMolecule                 import *                  
@@ -112,7 +113,7 @@ class WHAMAnalysis:
         files = parameters['file_names']
         try:
             for _file in files:
-                print (_file)
+                dprint (_file)
                 basename = os.path.basename(_file)
                 output_file = os.path.join(parameters['folder'], parameters['logfile']+'_'+basename+'_histogram.dat')
                 # . Histogram the trajectory data.

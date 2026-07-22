@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -423,12 +424,14 @@ class ImportTrajectoryWindow:
             tb = traceback.format_exc()
             self.main.bottom_notebook.status_teeview_add_new_item(
                 message=f"Error loading data: {e}", system=None)
-                #message=f"Error loading data: {e}\n{tb}", system=None)
-            
+
             simpledialog = SimpleDialog(self.main )
-            simpledialog.error(f"Error loading data: {e}")
-            
-            print(f"Error loading data: {e}\n{tb}")
+            simpledialog.error_details(parent  = self.window,
+                                        msg     = f"Error loading data: {e}",
+                                        details = tb,
+                                        title   = 'Import Error')
+
+            dprint(f"Error loading data: {e}\n{tb}")
            
             #system = None
         

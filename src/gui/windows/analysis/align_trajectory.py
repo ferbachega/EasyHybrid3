@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -187,7 +188,7 @@ class AlignTrajectoryWindow:
         system_id    = self.coordinates_combobox.get_system_id()
         vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
         
-        print(vobject_id, system_id, vismol_object)
+        dprint(vobject_id, system_id, vismol_object)
         #'''
         frame_ref = int(self.builder.get_object('entry_frame_reference').get_text())
         #print('align')
@@ -209,9 +210,9 @@ class AlignTrajectoryWindow:
                             selections        = selections )
         
         
-        print('type'     ,  _type)
-        print('ref frame',  frame_ref)
-        print('subset   ',  subset)
+        dprint('type'     ,  _type)
+        dprint('ref frame',  frame_ref)
+        dprint('subset   ',  subset)
 
 
         new_traj = align_trajectory(vismol_object.frames          , 
@@ -245,7 +246,7 @@ def get_subset (vismol_object, _type = 0, ignore_H = True, selections = None):
             if atom.residue.is_protein:
                 if atom.name in  ["CA", 'C', 'O', 'N']:
                     subset.append(atom.index -1)
-                    print(atom.name)
+                    dprint(atom.name)
 
     
     if _type == 2:
@@ -253,7 +254,7 @@ def get_subset (vismol_object, _type = 0, ignore_H = True, selections = None):
             if atom.residue.is_protein:
                 if atom.name in  ["CA", 'C', 'N']:
                     subset.append(atom.index -1)
-                    print(atom.name)
+                    dprint(atom.name)
 
 
 

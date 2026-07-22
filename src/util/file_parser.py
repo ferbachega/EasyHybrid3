@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 from pprint import pprint
 import re
 
@@ -487,7 +488,7 @@ def extract_txt_charges (filename):
         filetext = _file.readlines()
         
         for line in filetext:
-            print(line)
+            dprint(line)
             #line = line.strip()
             if len(line) > 0:
                 try:
@@ -749,7 +750,7 @@ def chrg_file_parser (_file = None, _type = None):
     """
     _type = _file.split('.')
     
-    print('_type', _type)
+    dprint('_type', _type)
     if len(_type) > 1:
         _type = _type[-1]
     else:
@@ -806,7 +807,7 @@ files =[
 ]
 
 for _file in files:
-    print(detect_qm_log_type(_file))
+    dprint(detect_qm_log_type(_file))
     
 
 
@@ -818,6 +819,6 @@ data = extract_orca_charges (filename = '/home/fernando/programs/pDynamo3/scratc
 #data = extract_mopac_charges('/home/fernando/programs/pDynamo3/scratch/MOPACJob.out')
 data = extract_aux_charges('/home/fernando/programs/Gabedit64/maria01.aux')
 
-print (data)
+dprint (data)
 #read_MOL2 (filein = "/home/fernando/Desktop/NoName.mol2")
 '''

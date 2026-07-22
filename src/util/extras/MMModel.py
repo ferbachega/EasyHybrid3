@@ -1,5 +1,6 @@
 """Defines MM energy model classes."""
 
+from util.debug import dprint
 import itertools, math, os, os.path
 
 from   pCore                 import Clone              , \
@@ -339,7 +340,7 @@ class MMModel ( EnergyModel ):
                             if Tripos_type[atype]:
                                 
                                 if  atomTypes[i] != Tripos_type[atype]:
-                                    print('replacing:', i, atomTypes[i], Tripos_type[atype])
+                                    dprint('replacing:', i, atomTypes[i], Tripos_type[atype])
                                     atomTypes[i] = Tripos_type[atype]
             #-----------------------------------------------------------
             

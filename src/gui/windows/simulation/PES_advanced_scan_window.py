@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import os
 import pprint
 import gi
@@ -250,21 +251,21 @@ class AdvancedPotentialEnergyScanWindow:
 
     def on_row_inserted(self, model, path, iter):
         if model is  self.rc_liststore1:
-            print("Row inserted at:", path)  
+            dprint("Row inserted at:", path)  
             self.RC_box1.refresh_dmininum()
         else:
             self.RC_box2.refresh_dmininum()
 
     def on_row_deleted(self, model, path):
-        print("Row removed at:", path)
+        dprint("Row removed at:", path)
         if model is  self.rc_liststore1:
-            print("Row inserted at:", path)  
+            dprint("Row inserted at:", path)  
             self.RC_box1.refresh_dmininum()
         else:
             self.RC_box2.refresh_dmininum()
     
     def on_row_changed(self, model, path, iter):
-        print("Row changed at:", path)
+        dprint("Row changed at:", path)
         
     def on_cell_edited1 (self, widget, path, new_text, column_index):
         """
@@ -285,7 +286,7 @@ class AdvancedPotentialEnergyScanWindow:
 
     def on_button_press_event (self, widget):
         """ Function doc """
-        print(widget)
+        dprint(widget)
     
     def change_check_button_TS_centered_mode(self, widget: Gtk.ToggleButton) -> None:
         """Enable/disable TS-centered mode."""
@@ -398,7 +399,7 @@ class AdvancedPotentialEnergyScanWindow:
             parameters["traj_type"] = "pklfolder"
             
         
-        print(parameters)
+        dprint(parameters)
         #
         #if self.builder.get_object("label_check_button_reaction_coordinate2").get_active():
         #    parameters["RC2"] = self.RC_box2.get_rc_data(ts_mode)
@@ -456,7 +457,7 @@ class AdvancedPotentialEnergyScanWindow:
             parameters = self.last_parameters
 
         if not parameters:
-            print("No previous PES scan parameters available to rerun.")
+            dprint("No previous PES scan parameters available to rerun.")
             return
         
         #--------------------------------------------------------------
@@ -500,7 +501,7 @@ class AdvancedPotentialEnergyScanWindow:
 
 def get_distance (vobject, index1, index2):
     """ Function doc """
-    print( index1, index2)
+    dprint( index1, index2)
     atom1 = vobject.atoms[index1]
     atom2 = vobject.atoms[index2]
     a1_coord = atom1.coords()
@@ -510,7 +511,7 @@ def get_distance (vobject, index1, index2):
     dy = a1_coord[1] - a2_coord[1]
     dz = a1_coord[2] - a2_coord[2]
     dist = (dx**2+dy**2+dz**2)**0.5
-    print('distance a1 - a2:', dist)
+    dprint('distance a1 - a2:', dist)
     return dist
 #===========================================================
 def get_angle (vobject, index1, index2, index3):
@@ -539,8 +540,8 @@ def compute_sigma_a1_a3 (vobject, index1, index3):
     mass3 = periodic_table.get_atomic_mass(symbol3)
     #mass1 = atomic_dic[symbol1][4]
     #mass3 = atomic_dic[symbol3][4]
-    print(atom1.name, symbol1, mass1)
-    print(atom3.name, symbol3, mass3)
+    dprint(atom1.name, symbol1, mass1)
+    dprint(atom3.name, symbol3, mass3)
 
     ##pk1_name
     ##pk3_name
@@ -548,10 +549,10 @@ def compute_sigma_a1_a3 (vobject, index1, index3):
     #mass3 = atomic_dic[pk3_name][4]
     #
     sigma_pk1_pk3 =  mass1/(mass1+mass3)
-    print ("sigma_pk1_pk3: ",sigma_pk1_pk3)
+    dprint ("sigma_pk1_pk3: ",sigma_pk1_pk3)
     #
     sigma_pk3_pk1 =  mass3/(mass1+mass3)
     sigma_pk3_pk1 = sigma_pk3_pk1*-1
     #
-    print ("sigma_pk3_pk1: ", sigma_pk3_pk1)
+    dprint ("sigma_pk3_pk1: ", sigma_pk3_pk1)
     return(sigma_pk1_pk3, sigma_pk3_pk1)

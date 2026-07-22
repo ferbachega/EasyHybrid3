@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -587,7 +588,7 @@ class ExportDataWindow:
         
         except Exception as e:
             error_str = str(e)  # converte a mensagem de erro para string
-            print("Error:", error_str)
+            dprint("Error:", error_str)
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'Error: Could not export data.', system = None)
             simpledialog = SimpleDialog(self.main)
             simpledialog.error("Error: Could not export data.")
@@ -618,7 +619,7 @@ class ExportDataWindow:
                 system=parameters['system']
             )
         except:
-            print('Failed when trying to export system data: ', parameters['system'].label)
+            dprint('Failed when trying to export system data: ', parameters['system'].label)
         
         if self.checkbox_keep_window.get_active():
             pass

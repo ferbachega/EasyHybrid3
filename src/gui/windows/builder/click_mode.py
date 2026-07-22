@@ -67,6 +67,7 @@
 #      periodic-table panel or similar is a separate, later step), visual
 #      feedback for which mode is currently active, undo.
 #
+from util.debug import dprint
 import numpy as np
 from OpenGL import GL
 import ctypes
@@ -288,7 +289,7 @@ def _read_depth_and_atom_at_pixel ( vm_glcore, mouse_x, mouse_y ):
     ndc_z = 2.0 * depth_buffer_value - 1.0
     distance = p32 / ( ndc_z + p22 )
 
-    print ( "DEBUG click_mode: depth buffer at clicked pixel = {:.5f}  ->  distance from camera = {:.3f}  ->  atom = {}".format (
+    dprint ( "DEBUG click_mode: depth buffer at clicked pixel = {:.5f}  ->  distance from camera = {:.3f}  ->  atom = {}".format (
             depth_buffer_value, distance, ( "#{} ({})".format ( atom.atom_id, atom.symbol ) if atom is not None else None ) ) )
     return atom, float ( distance )
 
@@ -354,11 +355,11 @@ def world_pos_from_mouse ( vm_glcore, mouse_x, mouse_y, depth = None ):
     inv_view   = np.linalg.inv ( vm_glcore.glcamera.view_matrix )
     world_point = view_point @ inv_view
 
-    print ( "DEBUG click_mode: mouse=({:.1f}, {:.1f})  viewport=({:.0f}x{:.0f})  ndc=({:.3f}, {:.3f})".format (
+    dprint ( "DEBUG click_mode: mouse=({:.1f}, {:.1f})  viewport=({:.0f}x{:.0f})  ndc=({:.3f}, {:.3f})".format (
             mouse_x, mouse_y, width, height, ndc_x, ndc_y ) )
-    print ( "DEBUG click_mode: fovy={:.2f} aspect={:.3f} depth_used={:.3f}".format ( fovy, aspect, depth ) )
-    print ( "DEBUG click_mode: view_point=({:.3f}, {:.3f}, {:.3f})".format ( view_x, view_y, view_z ) )
-    print ( "DEBUG click_mode: world_point=({:.3f}, {:.3f}, {:.3f})  <- new atom position".format (
+    dprint ( "DEBUG click_mode: fovy={:.2f} aspect={:.3f} depth_used={:.3f}".format ( fovy, aspect, depth ) )
+    dprint ( "DEBUG click_mode: view_point=({:.3f}, {:.3f}, {:.3f})".format ( view_x, view_y, view_z ) )
+    dprint ( "DEBUG click_mode: world_point=({:.3f}, {:.3f}, {:.3f})  <- new atom position".format (
             world_point[0], world_point[1], world_point[2] ) )
 
     return float ( world_point[0] ), float ( world_point[1] ), float ( world_point[2] )
@@ -431,16 +432,16 @@ def handle_click_to_place_atom ( vm_glcore, mouse_x, mouse_y ):
         depth = float ( abs ( vm_glcore.dist_cam_zrp ) )
 
     if picked_atom is not None:
-        print ( "DEBUG click_mode: an atom WAS clicked -- atom #{} ({}), object '{}'".format (
+        dprint ( "DEBUG click_mode: an atom WAS clicked -- atom #{} ({}), object '{}'".format (
                 picked_atom.atom_id, picked_atom.symbol, picked_atom.vm_object.name ) )
     
-        print(picked_atom.atom_id, picked_atom.bonds )
+        dprint(picked_atom.atom_id, picked_atom.bonds )
     else:
-        print ( "DEBUG click_mode: no atom was clicked (empty space)." )
+        dprint ( "DEBUG click_mode: no atom was clicked (empty space)." )
 
     if picked_atom is not None and picked_atom.vm_object is vismol_object:
         if picked_atom.symbol == symbol:
-            print ( "DEBUG click_mode: clicked atom #{} is already '{}' -- nothing to replace.".format (
+            dprint ( "DEBUG click_mode: clicked atom #{} is already '{}' -- nothing to replace.".format (
                     picked_atom.atom_id, symbol ) )
             return picked_atom
 
@@ -454,7 +455,7 @@ def handle_click_to_place_atom ( vm_glcore, mouse_x, mouse_y ):
         adjust_hydrogens ( vismol_object, atom.atom_id )
         from gui.windows.builder.empty_object import sync_pdynamo_system
         sync_pdynamo_system ( vismol_object )
-        print ( "DEBUG click_mode: replaced atom #{} -> '{}'".format ( atom.atom_id, symbol ) )
+        dprint ( "DEBUG click_mode: replaced atom #{} -> '{}'".format ( atom.atom_id, symbol ) )
         return atom
 
     wx, wy, wz = world_pos_from_mouse ( vm_glcore, mouse_x, mouse_y, depth = depth )
@@ -464,7 +465,7 @@ def handle_click_to_place_atom ( vm_glcore, mouse_x, mouse_y ):
     local_point = world_point @ inv_model
     x, y, z = float ( local_point[0] ), float ( local_point[1] ), float ( local_point[2] )
 
-    print ( "DEBUG click_mode: world_point=({:.3f}, {:.3f}, {:.3f})  -> local_point (after inv(model_mat))=({:.3f}, {:.3f}, {:.3f})".format (
+    dprint ( "DEBUG click_mode: world_point=({:.3f}, {:.3f}, {:.3f})  -> local_point (after inv(model_mat))=({:.3f}, {:.3f}, {:.3f})".format (
             wx, wy, wz, x, y, z ) )
 
     from gui.windows.builder.atom_ops import add_atom, push_undo_snapshot
@@ -571,7 +572,7 @@ def start_bond_drag ( vm_glcore, origin_atom, depth ):
     vm_session.builder_bond_drag_object      = vismol_object
     vm_session.builder_bond_drag_depth       = depth
 
-    print ( "DEBUG click_mode: bond-drag started -- new atom #{} ('{}') bonded to atom #{} ('{}')".format (
+    dprint ( "DEBUG click_mode: bond-drag started -- new atom #{} ('{}') bonded to atom #{} ('{}')".format (
             new_atom.atom_id, symbol, origin_atom.atom_id, origin_atom.symbol ) )
 
     vm_glcore.updated_coords = True
@@ -724,14 +725,14 @@ def finish_bond_drag ( vm_glcore ):
         remove_atom ( vismol_object, new_atom.atom_id )
         add_bond ( vismol_object, origin_id, target_id )
 
-        print ( "DEBUG click_mode: bond-drag finished -- snapped onto existing atom #{} ('{}'), connected to atom #{} ('{}'); temporary dragged atom removed".format (
+        dprint ( "DEBUG click_mode: bond-drag finished -- snapped onto existing atom #{} ('{}'), connected to atom #{} ('{}'); temporary dragged atom removed".format (
                 target_id, snap_target.symbol, origin_id, origin_atom.symbol ) )
 
         finalised_atom = vismol_object.atoms[target_id]
     else:
         add_bond ( vismol_object, origin_atom.atom_id, new_atom.atom_id )
 
-        print ( "DEBUG click_mode: bond-drag finished -- atom #{} ('{}') dropped, bonded to atom #{} ('{}')".format (
+        dprint ( "DEBUG click_mode: bond-drag finished -- atom #{} ('{}') dropped, bonded to atom #{} ('{}')".format (
                 new_atom.atom_id, new_atom.symbol, origin_atom.atom_id, origin_atom.symbol ) )
 
         finalised_atom = new_atom
@@ -1036,7 +1037,7 @@ def cycle_bond_order ( vm_glcore, vismol_object, bond ):
     from gui.windows.builder.empty_object import sync_pdynamo_system
     sync_pdynamo_system ( vismol_object )
 
-    print ( "DEBUG click_mode: bond order cycled -- atoms #{} <-> #{} now order {}".format (
+    dprint ( "DEBUG click_mode: bond order cycled -- atoms #{} <-> #{} now order {}".format (
             pair[0], pair[1], new_order ) )
 
     vm_glcore.queue_draw ( )
@@ -1091,7 +1092,7 @@ def start_atom_drag ( vm_glcore, atom, depth ):
     vm_session.builder_ctrl_drag_object = vismol_object
     vm_session.builder_ctrl_drag_depth  = depth
 
-    print ( "DEBUG click_mode: atom-drag started -- moving atom #{} ('{}')".format (
+    dprint ( "DEBUG click_mode: atom-drag started -- moving atom #{} ('{}')".format (
             atom.atom_id, atom.symbol ) )
 
     vm_glcore.updated_coords = True
@@ -1154,7 +1155,7 @@ def finish_atom_drag ( vm_glcore ):
     vismol_object = vm_session.builder_ctrl_drag_object
     atom          = vm_session.builder_ctrl_drag_atom
 
-    print ( "DEBUG click_mode: atom-drag finished -- atom #{} ('{}') repositioned".format (
+    dprint ( "DEBUG click_mode: atom-drag finished -- atom #{} ('{}') repositioned".format (
             atom.atom_id, atom.symbol ) )
 
     vm_session.builder_ctrl_drag_active           = False

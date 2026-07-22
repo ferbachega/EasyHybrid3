@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -136,5 +137,5 @@ class TrajectoryPlayerWindow:
     def change_range (self, upper = 100):
         """ Function doc """
         if self.Visible:
-            print('upper =', upper)
+            dprint('upper =', upper)
             self.vm_traj_obj.change_range (upper = upper)

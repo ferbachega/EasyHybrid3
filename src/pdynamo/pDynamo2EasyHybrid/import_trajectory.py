@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
@@ -267,7 +268,7 @@ class EasyHybridImportTrajectory:
                 pkl_files.append(_file)
 
 
-        print ('pDynamo pkl folder:' , parameters)
+        dprint ('pDynamo pkl folder:' , parameters)
         
         if parameters['new_vobj_name']:
             '''it is necessary to create a new object'''
@@ -342,8 +343,8 @@ class EasyHybridImportTrajectory:
             if _file.endswith('.pkl'):
                 pkl_files.append(_file)
         pkl_files.sort()
-        print ('pDynamo pkl folder:' , parameters['data_type'])
-        print ('Number of pkl files:', len(pkl_files))
+        dprint ('pDynamo pkl folder:' , parameters['data_type'])
+        dprint ('Number of pkl files:', len(pkl_files))
         
         self.psystem[parameters['system_id']].coordinates3 = ImportCoordinates3 (os.path.join(parameters['data_path'], 
                                                                                               'frame0_0.pkl' )
@@ -453,7 +454,7 @@ class EasyHybridImportTrajectory:
         """ Function doc """
         #system self.psystem[parameters['system_id']]
         #trajectory = ImportTrajectory ( trajectoryPath, system )
-        print('_import_dcd_file')
+        dprint('_import_dcd_file')
         if parameters['new_vobj_name']:
             #- - - - - - - - - - - - - - -  Creating a new easyhybrid/vismol object  - - - - - - - - - - - - - - -
             #-----------------------------------------------------------------------------------------------------------------------------
@@ -573,7 +574,7 @@ class EasyHybridImportTrajectory:
 
                 if response == Gtk.ResponseType.OK:
                     selected = dialog.get_selected_item()
-                    print("selected:", selected)
+                    dprint("selected:", selected)
 
                 dialog.destroy()
                 charges = charges[selected]
@@ -618,7 +619,7 @@ class EasyHybridImportTrajectory:
                             self.psystem[parameters['system_id']].e_logfile_data[vobject_id][0]["RC1"] += data["RC1"]
                             self.psystem[parameters['system_id']].e_logfile_data[vobject_id][0]["Z"] += data["Z"]
                         except:
-                            print('Error: could not process the log file.')
+                            dprint('Error: could not process the log file.')
                     else:
                         '''In this case, the list already exists, but there is nothing inside.'''
                         self.psystem[parameters['system_id']].e_logfile_data[vobject_id].append(data)
@@ -683,7 +684,7 @@ class EasyHybridImportTrajectory:
         #for line in data:
         #    print(line)
         
-        print (charges)
+        dprint (charges)
         
         return charges
    

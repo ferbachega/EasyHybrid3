@@ -29,6 +29,7 @@
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
 
+from util.debug import dprint
 from pCore import *
 from datetime import datetime
 from timeit import default_timer as timer
@@ -174,7 +175,7 @@ class LogFileWriter:
         """ Function doc """
         filename = filename+".log"
         logfile = open( os.path.join(path, filename), "w" ) 
-        print(os.path.join(path, filename))
+        dprint(os.path.join(path, filename))
         logfile.write(self.text)
         logfile.close()
     
@@ -201,7 +202,7 @@ class LogFileWriter:
         #--------------------------------------------------------
         self.end = timer()
         cputime = self.end - self.start
-        print("Cpu time: " + str(cputime) )
+        dprint("Cpu time: " + str(cputime) )
         now = datetime.now()
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         #--------------------------------------------------------
@@ -400,7 +401,7 @@ class LogFileReader:
                         Z.append(float(line2[1]))
                         RC1.append(float(line2[-1]))
                     except ValueError:
-                        print('Logfile parsing: line is not valid data')
+                        dprint('Logfile parsing: line is not valid data')
 
             data = {
                 'name': self.basename,
@@ -576,7 +577,7 @@ class LogFileReader_old:
             RC2     = []
             
             for line in datalines:
-                print(line)
+                dprint(line)
                 #if line[0] == 'DATA':
                 Z.append(float(line[-1])) 
                 RC1.append(float(line[1]))
@@ -620,7 +621,7 @@ class LogFileReader_old:
                         Z.append(float(line2[1]))
                         RC1.append(float(line2[-1]))
                     except:
-                        print('Logfile parsing. Line is not a valid data')
+                        dprint('Logfile parsing. Line is not a valid data')
             data = {
                    'name': self.basename,
                    'type': "plot1D",

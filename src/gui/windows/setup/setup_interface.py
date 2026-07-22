@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -162,7 +163,7 @@ class EasyHybridPreferencesWindow():
         #self.BackUpWindowData()
         self.window.destroy()
         self.visible    =  False
-        print('self.visible',self.visible)
+        dprint('self.visible',self.visible)
     
     def get_color_pixbuf(self, rgb_values):
         rgb = rgb_values
@@ -304,7 +305,7 @@ class EasyHybridPreferencesWindow():
         not used anymore       
         """
         color = widget.get_rgba()
-        print("Selected color: ", list(color))
+        dprint("Selected color: ", list(color))
         color = list(color)
         
         #-----------------------------------------------------------------------
@@ -334,7 +335,7 @@ class EasyHybridPreferencesWindow():
             pass
         
         elif widget == self.color_btn_pk_dist_lines:
-            print(color)
+            dprint(color)
             self.vm_session.vm_config.gl_parameters["dashed_dist_lines_color"] = color
             #self.vm_session.vm_glcore.vm_font_dist.vao = None
             pass
@@ -590,7 +591,7 @@ class EasyHybridPreferencesWindow():
             if os.path.isdir(parameters['tmp_path']):
                 pass
             else:
-                print('Folder not found:', parameters['tmp_path'])
+                dprint('Folder not found:', parameters['tmp_path'])
                 PDYNAMO3_SCRATCH = os.environ.get('PDYNAMO3_SCRATCH')
                 parameters['tmp_path'] = PDYNAMO3_SCRATCH
         else:            
@@ -602,7 +603,7 @@ class EasyHybridPreferencesWindow():
             if os.path.isdir(parameters['workspace_path']):
                 pass
             else:
-                print('Folder not found:', parameters['workspace_path'])
+                dprint('Folder not found:', parameters['workspace_path'])
                 workspace_path = os.path.join(self.home, 'workspace')
                 parameters['workspace_path'] = workspace_path
         else:
@@ -614,7 +615,7 @@ class EasyHybridPreferencesWindow():
             if os.path.isdir(parameters['startup_path']):
                 pass
             else:
-                print('Folder not found:', parameters['startup_path'])
+                dprint('Folder not found:', parameters['startup_path'])
                 parameters['startup_path'] = self.home
         else:
             parameters['startup_path'] = self.home
@@ -833,7 +834,7 @@ class EasyHybridPreferencesWindow():
         path = self.entry_startup_path.get_text()
         if os.path.isdir(path):
             self.vm_session.vm_config.gl_parameters['startup_path'] = path
-            print('Defining New Startup Path:', path)
+            dprint('Defining New Startup Path:', path)
 
         else:
             dialog = Gtk.MessageDialog(
@@ -857,7 +858,7 @@ class EasyHybridPreferencesWindow():
         workspace_path = self.builder.get_object('entry_workspace_path').get_text()
         if os.path.isdir(workspace_path):
             self.vm_session.vm_config.gl_parameters['workspace_path'] = workspace_path
-            print('Defining workspace path:', workspace_path)
+            dprint('Defining workspace path:', workspace_path)
         else:
             dialog = Gtk.MessageDialog(
                                 flags=0,
@@ -878,7 +879,7 @@ class EasyHybridPreferencesWindow():
         tmp_path       = self.builder.get_object('entry_tmp_path').get_text()
         if os.path.isdir(tmp_path):
             self.vm_session.vm_config.gl_parameters['tmp_path'] = tmp_path
-            print('Defining temporary path:', tmp_path)
+            dprint('Defining temporary path:', tmp_path)
         else:
             dialog = Gtk.MessageDialog(
                                 flags=0,
@@ -901,7 +902,7 @@ class EasyHybridPreferencesWindow():
 
         self.vm_session.vm_config.gl_parameters['autosave']      = a
         self.vm_session.vm_config.gl_parameters['askSaveUnsave'] = b
-        print(a,b)
+        dprint(a,b)
         
         
         '''

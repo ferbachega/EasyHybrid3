@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -110,7 +111,12 @@ class SetupXTBWindow:
                           'iterations'   : 300,
                           'fermi_temp'   : 300.0,
                           'add_keywords' : '',
-                          'scratch'      : None#os.path.join(scratch,'XTBScratch')
+                          'scratch'      : None,#os.path.join(scratch,'XTBScratch')
+                          # . Which xTB job files to keep a copy of whenever
+                          #   xTB is used to calculate the energy (see
+                          #   "Backup Files" in this window, and
+                          #   pdynamo.p_methods._common.backup_xtb_files).
+                          'backup_files' : [ 'log' ],
                           }
         
         self.setup_QC_model_window = setup_QC_model_window
@@ -124,7 +130,7 @@ class SetupXTBWindow:
             
             self.window = self.builder.get_object('window_setup_xtb')
             self.window.set_keep_above(True)
-            self.window.set_default_size(450, 200)
+            self.window.set_default_size(450, 360)
             
             self.button_ok         = self.builder.get_object('btn_xtb_ok') 
             self.button_cancel     = self.builder.get_object('btn_xtb_cancel') 
@@ -153,6 +159,17 @@ class SetupXTBWindow:
             self.entry_xtb_fermi_temp = self.builder.get_object('entry_xtb_fermi_temp')
             self.entry_keywords       = self.builder.get_object('entry_keywords')
             self.entry_scratch        = self.builder.get_object('entry_scratch')
+
+            # . "Backup Files" checkboxes.
+            self.checkbox_xtb_backup = {
+                'log'    : self.builder.get_object('checkbox_xtb_backup_log')    ,
+                'inp'    : self.builder.get_object('checkbox_xtb_backup_input')  ,
+                'engrad' : self.builder.get_object('checkbox_xtb_backup_engrad') ,
+                'coord'  : self.builder.get_object('checkbox_xtb_backup_coord')  ,
+                'pc'     : self.builder.get_object('checkbox_xtb_backup_pc')     ,
+                'pcgrad' : self.builder.get_object('checkbox_xtb_backup_pcgrad') ,
+                'molden' : self.builder.get_object('checkbox_xtb_backup_molden') ,
+            }
             
             
             #.Interface Show All
@@ -179,6 +196,9 @@ class SetupXTBWindow:
             self.entry_xtb_fermi_temp.set_text(str(self.parameters['fermi_temp'  ]))
             self.entry_keywords      .set_text(str(self.parameters['add_keywords']))
             self.entry_scratch       .set_text(str(self.parameters['scratch']))
+
+            for key, checkbox in self.checkbox_xtb_backup.items():
+                checkbox.set_active(key in self.parameters['backup_files'])
             
             
             
@@ -199,9 +219,12 @@ class SetupXTBWindow:
         self.parameters['fermi_temp'  ] = float(self.entry_xtb_fermi_temp.get_text())
         self.parameters['add_keywords'] = self.entry_keywords      .get_text()
         self.parameters['scratch']      = self.entry_scratch       .get_text()
+
+        self.parameters['backup_files'] = [ key for key, checkbox in self.checkbox_xtb_backup.items()
+                                                  if checkbox.get_active() ]
         
-        print(self.parameters)
-        print('on_button_ok')
+        dprint(self.parameters)
+        dprint('on_button_ok')
         self.close_window (widget,None)
         
     def close_window (self, button, data  = None):

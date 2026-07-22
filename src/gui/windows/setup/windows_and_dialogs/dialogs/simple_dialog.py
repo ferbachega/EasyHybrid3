@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -170,7 +171,7 @@ class SimpleDialog:
         if modal:
             flags = Gtk.DialogFlags.MODAL
         else:
-            print('not modal')
+            dprint('not modal')
             flags = 0
 
         dialog = Gtk.MessageDialog(
@@ -221,7 +222,7 @@ class SimpleDialog:
         if modal:
             flags = Gtk.DialogFlags.MODAL
         else:
-            print('not modal')
+            dprint('not modal')
             flags = 0
             
         dialog = Gtk.MessageDialog(
@@ -259,66 +260,69 @@ class SimpleDialog:
         dialog.destroy()
         return None
 
-    def error_details (self, parent, msg, details = None, title='Error!'):
-        """ Function doc """
-        dialog = Gtk.MessageDialog(title=title,
-            transient_for=parent,
-            modal=True,
-            destroy_with_parent=True,
+    def error_details (self, parent = None, msg = '', details = None, title = 'Error!'):
+        """
+        Shows an error dialog with a short message plus an expandable
+        "Show details" section containing the full technical details (e.g.
+        a traceback), so the user isn't stuck with only a one-line summary
+        when something goes wrong -- while still keeping the dialog itself
+        short and readable by default.
+        """
+        dialog = Gtk.MessageDialog(
+            title               = title,
+            transient_for       = parent if parent is not None else self.main.window,
+            modal               = True,
+            destroy_with_parent = True,
+            message_type        = Gtk.MessageType.ERROR,
         )
-        # Main message shown to the user (short description of the error)
-        dialog.format_secondary_text(msg)
-        # Revealer is used to show/hide the error details (stacktrace/log)
-        dialog.revealer = Gtk.Revealer()
-        dialog.revealer.set_reveal_child(False)
+        dialog.add_button ( "OK", Gtk.ResponseType.CLOSE )
 
-        # Scrolled window to contain the log output (scrollable for long text)
-        scrolled = Gtk.ScrolledWindow()
-        scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-        scrolled.set_min_content_height(250)
-        scrolled.set_hexpand(True)
-        scrolled.set_vexpand(True)
+        # Main message shown to the user (short description of the error).
+        dialog.format_secondary_text ( msg )
 
-        # TextView to display the traceback/log (non-editable)
-        self.textview = Gtk.TextView()
-        self.textview.set_editable(False)
+        # Revealer used to show/hide the details (stacktrace/log). Stored on
+        # the dialog itself (not on "self") so multiple error dialogs don't
+        # clash with each other's widgets.
+        dialog.revealer = Gtk.Revealer ( )
+        dialog.revealer.set_reveal_child ( False )
 
-        # Define style (monospace font for technical logs)
-        css_provider = Gtk.CssProvider()
-        css_provider.load_from_data(b"""
-            textview {
-                font-family: monospace;
-                font-size: 10pt;
-            }
-        """)
+        # Scrolled window to contain the log output (scrollable for long text).
+        scrolled = Gtk.ScrolledWindow ( )
+        scrolled.set_policy ( Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC )
+        scrolled.set_min_content_height ( 250 )
+        scrolled.set_hexpand ( True )
+        scrolled.set_vexpand ( True )
 
-        context = self.textview.get_style_context()
-        context.add_provider(css_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        # TextView to display the traceback/log (non-editable, monospace).
+        dialog.textview = Gtk.TextView ( )
+        dialog.textview.set_editable ( False )
+        dialog.textview.set_monospace ( True )
+        dialog.textview.set_wrap_mode ( Gtk.WrapMode.WORD_CHAR )
 
-        # Insert traceback or log into the TextView
-        buffer = self.textview.get_buffer()
-        buffer.set_text(details)
+        buffer = dialog.textview.get_buffer ( )
+        buffer.set_text ( details if details else 'No further details available.' )
 
-        scrolled.add(self.textview)
-        self.revealer.add(scrolled)
+        scrolled.add ( dialog.textview )
+        dialog.revealer.add ( scrolled )
 
-        # Extra buttons
-        self.btn_details = Gtk.Button(label="Show details")
-        self.btn_details.connect("clicked", self.on_toggle_details)
+        def _on_toggle_details ( button ):
+            showing = dialog.revealer.get_reveal_child ( )
+            dialog.revealer.set_reveal_child ( not showing )
+            button.set_label ( 'Hide details' if not showing else 'Show details' )
 
-        # Optional "Copy log" button (currently disabled)
-        # self.btn_copy = Gtk.Button(label="Copy log")
-        # self.btn_copy.connect("clicked", self.on_copy_log)
+        dialog.btn_details = Gtk.Button ( label = 'Show details' )
+        dialog.btn_details.connect ( "clicked", _on_toggle_details )
 
-        # Add buttons and widgets to the dialog’s message area
-        box = self.get_message_area()
-        # box.pack_end(self.btn_copy, False, False, 0)
-        box.pack_end(self.btn_details, False, False, 0)
-        box.pack_end(self.revealer, True, True, 0)
+        # Add the button/revealer to the dialog's message area.
+        box = dialog.get_message_area ( )
+        box.pack_end ( dialog.btn_details, False, False, 0 )
+        box.pack_end ( dialog.revealer, True, True, 0 )
 
-        # Add default close button
-        dialog.add_button("OK", Gtk.ResponseType.CLOSE)
-        dialog.show_all()
+        dialog.set_default_size ( 520, 150 )
+        dialog.show_all ( )
+        dialog.run ( )
+        dialog.destroy ( )
+        return None
 
 
 

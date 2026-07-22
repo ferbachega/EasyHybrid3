@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
@@ -164,7 +165,7 @@ for _name, _candidate_names, _free_parameters in _CRYSTAL_SYSTEM_CANDIDATES:
     if _crystal_system_class is not None:
         CRYSTAL_SYSTEMS[ _name ] = { 'class' : _crystal_system_class, 'free_parameters' : _free_parameters }
     else:
-        print( 'EditCellWindow: crystal system "{}" is not available in this pDynamo3 '
+        dprint( 'EditCellWindow: crystal system "{}" is not available in this pDynamo3 '
                'installation (tried: {}) -- it will not be offered in the "Edit Cell" '
                'window.'.format( _name, ', '.join( _candidate_names ) ) )
 
@@ -363,7 +364,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             
             self.define_NBModel(_type = 1, system = system)          
             if input_files['charges']:
-                print('\nGetting atomic charges from mol2 file!\n')
+                dprint('\nGetting atomic charges from mol2 file!\n')
                 self.main.bottom_notebook.status_teeview_add_new_item(message = 'Getting atomic charges from mol2 file!', system = None)
                 for index, chg in enumerate(input_files['charges']):
                     system.mmState.charges[index] = chg
@@ -863,13 +864,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             beta  = vobject.cell_parameters['beta']
             gamma = vobject.cell_parameters['gamma']
             
-            print('setting cell parameters vobj to psys:')
-            print('a = ', a)
-            print('b = ', b)
-            print('c = ', c)
-            print('alpha = ', alpha)
-            print('beta  = ', beta )
-            print('gamma = ', gamma)
+            dprint('setting cell parameters vobj to psys:')
+            dprint('a = ', a)
+            dprint('b = ', b)
+            dprint('c = ', c)
+            dprint('alpha = ', alpha)
+            dprint('beta  = ', beta )
+            dprint('gamma = ', gamma)
             
             self.psystem[system_id].symmetryParameters.SetCrystalParameters(a,b,c, alpha ,beta, gamma)
             
@@ -1174,7 +1175,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             #'''
             for term in system.mmState.mmTerms:
                 if term.label == 'Harmonic Bond':
-                    print('Bonds defined from pDynamo system topology.')
+                    dprint('Bonds defined from pDynamo system topology.')
                     index_bonds = term.Get12Indices()
             #'''
             '''
@@ -1197,18 +1198,18 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                         index_bonds.append(j)
                         #print(pbond.type.value[0])
                         bond_orders.append(pbond.type.value[0])
-                    print(len(bond_orders), len(index_bonds))
+                    dprint(len(bond_orders), len(index_bonds))
             #'''
                 
             if index_bonds:
                 vm_object.define_bonds_from_external(index_bonds=index_bonds, bond_orders = bond_orders)
             else:
                 vm_object.find_bonded_and_nonbonded_atoms()
-                print('Bonds defined from distance.')
+                dprint('Bonds defined from distance.')
         else:
             # No topology: fallback to distance-based bond assignment
             vm_object.find_bonded_and_nonbonded_atoms()
-            print('Bonds defined from distance.')
+            dprint('Bonds defined from distance.')
 
         # -------------------------------------------------------------------------
         # 7. Final metadata and flags
@@ -1811,6 +1812,10 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                               #json     = parameters['json'    ] ,
                                               #vfukui   = parameters['vfukui'  ] ,
                                               )
+            # . Which job files (if any) should be kept whenever xTB is used
+            #   to calculate the energy -- see the "Backup Files" option in
+            #   the xTB setup window, and pdynamo.p_methods._common.backup_xtb_files.
+            system.e_xtb_backup_files = parameters.get ( 'xtb_backup_files', [ 'log' ] )
         
         elif parameters['qcengine'] == 'MOPAC':
             #print(parameters)
@@ -1871,7 +1876,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             try:
                 system.DefineQCModel (qcModel, qcSelection = Selection.FromIterable ( system.e_qc_table) )          
             except MMModelError:
-                print('\n\n\n MMModelError. Total active MM charge is neither integral nor zero', MMModelError)
+                dprint('\n\n\n MMModelError. Total active MM charge is neither integral nor zero', MMModelError)
                 call_message_dialog(text1 = 'MMModelError', text2 = 'Total active MM charge is neither integral nor zero', transient_for =  None)
                 return None
             if system.mmModel:
