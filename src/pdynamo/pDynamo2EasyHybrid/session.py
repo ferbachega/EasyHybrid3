@@ -120,6 +120,55 @@ from pdynamo.pDynamo2EasyHybrid.import_trajectory import EasyHybridImportTraject
 from pdynamo.pDynamo2EasyHybrid.restraints import Restraints
 from pdynamo.pDynamo2EasyHybrid.helpers import Atom, generate_random_code, export_special_PDB
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  C R Y S T A L   S Y S T E M S
+#
+#  Used by the "Edit Cell" window (gui/windows/setup/edit_cell.py) to build the
+#  crystal-system combobox and to know which of the six cell parameters
+#  (a, b, c, alpha, beta, gamma) are actually independent/editable for a given
+#  crystal system -- the others are derived automatically by pDynamo.
+#
+#  The classes referenced here (CrystalSystemCubic, CrystalSystemTetragonal,
+#  ...) come from the "from pScientific.Symmetry import*" star-import above.
+#  Different pDynamo3 versions/installations may not expose every single one
+#  of these classes (e.g. some older/alternative builds name them
+#  "CrystalClassXxx" instead of "CrystalSystemXxx", or simply don't ship a
+#  given crystal system) -- so this is built defensively: any crystal system
+#  whose class can't be found is silently skipped instead of crashing the
+#  whole import (and therefore the whole application).
+# ─────────────────────────────────────────────────────────────────────────────
+def _find_crystal_system_class (*candidate_names):
+    """ Returns the first of "candidate_names" that exists in this module's
+    namespace (i.e. was made available by the pScientific.Symmetry star
+    import above), or None if none of them is available. """
+    for name in candidate_names:
+        crystal_system_class = globals().get(name, None)
+        if crystal_system_class is not None:
+            return crystal_system_class
+    return None
+
+
+_CRYSTAL_SYSTEM_CANDIDATES = [
+    ( 'Cubic',        ( 'CrystalSystemCubic',        'CrystalClassCubic'        ), [ 'a' ] ),
+    ( 'Tetragonal',   ( 'CrystalSystemTetragonal',   'CrystalClassTetragonal'   ), [ 'a', 'c' ] ),
+    ( 'Orthorhombic', ( 'CrystalSystemOrthorhombic', 'CrystalClassOrthorhombic' ), [ 'a', 'b', 'c' ] ),
+    ( 'Monoclinic',   ( 'CrystalSystemMonoclinic',   'CrystalClassMonoclinic'   ), [ 'a', 'b', 'c', 'beta' ] ),
+    ( 'Triclinic',    ( 'CrystalSystemTriclinic',    'CrystalClassTriclinic'    ), [ 'a', 'b', 'c', 'alpha', 'beta', 'gamma' ] ),
+    ( 'Hexagonal',    ( 'CrystalSystemHexagonal',    'CrystalClassHexagonal'    ), [ 'a', 'c' ] ),
+    ( 'Rhombohedral', ( 'CrystalSystemRhombohedral', 'CrystalClassRhombohedral' ), [ 'a', 'alpha' ] ),
+]
+
+CRYSTAL_SYSTEMS = { }
+for _name, _candidate_names, _free_parameters in _CRYSTAL_SYSTEM_CANDIDATES:
+    _crystal_system_class = _find_crystal_system_class( *_candidate_names )
+    if _crystal_system_class is not None:
+        CRYSTAL_SYSTEMS[ _name ] = { 'class' : _crystal_system_class, 'free_parameters' : _free_parameters }
+    else:
+        print( 'EditCellWindow: crystal system "{}" is not available in this pDynamo3 '
+               'installation (tried: {}) -- it will not be offered in the "Edit Cell" '
+               'window.'.format( _name, ', '.join( _candidate_names ) ) )
+
+
 class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveData, EasyHybridImportTrajectory, Restraints):
     """ Class doc """
     
@@ -1278,6 +1327,111 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             return False
 
 
+    #-------------------------------------------------------------------------
+    #  E D I T   C E L L   /   C R Y S T A L   S Y S T E M
+    #-------------------------------------------------------------------------
+    def get_crystal_system_names (self):
+        """ Returns the list of crystal system names that can be shown/selected
+        in the "Edit Cell" window combobox (see gui/windows/setup/edit_cell.py)."""
+        return list ( CRYSTAL_SYSTEMS.keys ( ) )
+
+
+    def get_crystal_system_free_parameters (self, crystal_system_name):
+        """ Returns which of [a, b, c, alpha, beta, gamma] are independently
+        editable for the given crystal system name; the others are derived
+        automatically by pDynamo (e.g. b = c = a and all angles = 90 for Cubic)."""
+        info = CRYSTAL_SYSTEMS.get ( crystal_system_name, None )
+        if info is None:
+            return [ 'a', 'b', 'c', 'alpha', 'beta', 'gamma' ]
+        return info[ 'free_parameters' ]
+
+
+    def get_cell_and_symmetry (self, system_e_id = None):
+        """
+        Returns the current crystal system name and cell parameters of a
+        pDynamo system, so that the "Edit Cell" window can be pre-filled
+        with the data the system already has.
+
+        Returns:
+            ( has_symmetry, crystal_system_name, [a, b, c, alpha, beta, gamma] )
+            has_symmetry is False (and the rest is None) if the system has no
+            periodic boundary conditions defined yet.
+        """
+        if system_e_id is None or system_e_id not in self.psystem:
+            return False, None, None
+
+        system = self.psystem[ system_e_id ]
+
+        if not system.symmetry:
+            return False, None, None
+
+        crystal_system_name = system.symmetry.crystalSystem.label
+
+        a     = system.symmetryParameters.a
+        b     = system.symmetryParameters.b
+        c     = system.symmetryParameters.c
+        alpha = system.symmetryParameters.alpha
+        beta  = system.symmetryParameters.beta
+        gamma = system.symmetryParameters.gamma
+
+        return True, crystal_system_name, [ a, b, c, alpha, beta, gamma ]
+
+
+    def set_cell_and_symmetry (self, system_e_id         = None,
+                                      crystal_system_name = 'Cubic',
+                                      a                    = 1.0,
+                                      b                    = 1.0,
+                                      c                    = 1.0,
+                                      alpha                = 90.0,
+                                      beta                 = 90.0,
+                                      gamma                = 90.0 ):
+        """
+        Creates or updates the crystal system/symmetry and cell parameters of
+        a pDynamo system. Used by the "Edit Cell" window
+        (gui/windows/setup/edit_cell.py), which lets the user pick, per
+        object/system, a crystal system and its a, b, c, alpha, beta, gamma
+        parameters (important since NPT simulations change the cell volume,
+        so different objects/frames can have different cell parameters).
+
+        If the system does not have a symmetry yet, or the crystal system is
+        being changed to a different one, a new symmetry/symmetryParameters
+        pair is (re)built from scratch, since pDynamo's SymmetryParameters
+        object dimensionality depends on the crystal system (e.g. Cubic only
+        stores "a", Triclinic stores all six parameters).
+        """
+        if system_e_id is None or system_e_id not in self.psystem:
+            return False
+
+        system = self.psystem[ system_e_id ]
+
+        info = CRYSTAL_SYSTEMS.get ( crystal_system_name, None )
+        if info is None:
+            return False
+
+        crystal_system_class = info[ 'class' ]
+
+        current_crystal_system_name = None
+        if system.symmetry:
+            current_crystal_system_name = system.symmetry.crystalSystem.label
+
+        if ( not system.symmetry ) or ( current_crystal_system_name != crystal_system_name ):
+            # . (Re)build the symmetry object from scratch: the new crystal
+            #   system may need a different SymmetryParameters dimensionality
+            #   than the one currently in place (or there may be none yet).
+            crystal_system_instance = crystal_system_class ( )
+            temporary_parameters    = SymmetryParameters ( )
+            temporary_parameters.SetCrystalParameters ( a, b, c, alpha, beta, gamma )
+
+            unique_parameters          = crystal_system_instance.GetUniqueSymmetryParameters ( temporary_parameters )
+            system.symmetry            = PeriodicBoundaryConditions.WithCrystalSystem ( crystal_system_instance )
+            system.symmetryParameters  = system.symmetry.MakeSymmetryParameters ( **unique_parameters )
+        else:
+            # . Same crystal system already in place -- just update the values.
+            system.symmetryParameters.SetCrystalParameters ( a, b, c, alpha, beta, gamma )
+
+        return True
+
+
     def make_solvent_box (self, parameters):
         """ Function doc """
         # . Parameters.
@@ -1326,65 +1480,146 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
 
     def solvate_system (self, e_id = None, parameters = None):
-        """ Function doc """
-        # . Retrieve the system.
+        """
+        Adds counter-ions and/or a pre-built solvent box around a solute
+        system.
+
+        parameters (dict):
+            XBox, YBox, ZBox : dimensions (Å) of the box used to place the
+                               counter-ions (usually matches the solvent
+                               box, but can be set independently, e.g. when
+                               adding ions with no solvent box at all).
+            NPositive/NNegative, cation/anion : counter-ion settings (paths
+                               to pickled ion systems); ions are skipped
+                               when the corresponding count is 0.
+            reorient         : whether to reorient the solute along its
+                               principal axes before placing ions/solvent.
+            add_solvent      : if True (default), superimposes "solvent"
+                               (a pre-built, periodic solvent-box system)
+                               around the solute/ion system. If False, only
+                               the counter-ion step is performed and the
+                               resulting (non-periodic) system with ions is
+                               used directly -- useful when the user only
+                               wants to neutralize/add ions to a system
+                               without solvating it.
+            solvent          : the pDynamo solvent-box system (required
+                               when add_solvent is True).
+
+        Returns the newly created system on success. Raises ValueError with
+        a user-facing message on invalid/incomplete input, so that the
+        calling window can catch it and show a dialog instead of crashing.
+        """
+        if e_id is None or e_id not in self.psystem:
+            raise ValueError ( 'Please select a valid solute system.' )
+
+        add_solvent = parameters.get ( 'add_solvent', True )
+
+        # . Retrieve the ion-placement box.
         _XBox      =  parameters['XBox']
         _YBox      =  parameters['YBox']
         _ZBox      =  parameters['ZBox']
-        
-        
+
+
         #----------------------------------------------------------------------
         _NPositive =  parameters['NPositive']
         if _NPositive > 0:
+            if not parameters.get ( 'cation' ) or not os.path.isfile ( parameters['cation'] ):
+                raise ValueError ( 'Please choose a valid cation file (a pickled ion system).' )
             cation     =  Unpickle ( parameters['cation'])
         else:
             cation     = None
         #----------------------------------------------------------------------
-        
-        
+
+
         #----------------------------------------------------------------------
         _NNegative =  parameters['NNegative']
         if _NNegative > 0:
+            if not parameters.get ( 'anion' ) or not os.path.isfile ( parameters['anion'] ):
+                raise ValueError ( 'Please choose a valid anion file (a pickled ion system).' )
             anion      =  Unpickle ( parameters['anion'])
         else:
             anion      =  None
         #----------------------------------------------------------------------
-        
-        
-        solvent    =  parameters['solvent']
+
+
+        if add_solvent:
+            solvent = parameters.get ( 'solvent', None )
+            if solvent is None:
+                raise ValueError ( 'Please select a pre-built solvent-box system, '
+                                    'or uncheck "Add Solvent Box" to only add ions.' )
+            if not solvent.symmetry:
+                raise ValueError ( 'The selected solvent-box system has no cell parameters '
+                                    '(it does not look like a valid periodic solvent box).' )
+        else:
+            solvent = None
+
         system     =  self.psystem[e_id]
         system.Summary ( )
-        
+
         if parameters['reorient']: masses = Array.FromIterable ( [ atom.mass for atom in system.atoms ] )
-        
+
         # . Reorient the system if necessary (see the results of GetSolvationInformation.py).
         if parameters['reorient']: system.coordinates3.ToPrincipalAxes ( weights = masses )
-    
-        # . Add the counterions.
-        
-        if anion is None and cation is None:
-            solute = system
-        else:
-            #print('\n\n\n AddCounterIons \n\n\n\n')
-            #print( system, 
-            #                          _NNegative, anion, 
-            #                          _NPositive, cation, 
-            #                          ( _XBox, _YBox, _ZBox )
-            #                          )
-            
-            
-            
-            solute = AddCounterIons ( system, 
-                                      _NNegative, anion, 
-                                      _NPositive, cation, 
-                                      ( _XBox, _YBox, _ZBox )
-                                      )
-        solute.Summary ( )
-        
-        #--------------------------------------------------------------------------------------------
-        # . Create the solvated system.
-        solution       = SolvateSystemBySuperposition ( solute, solvent, reorientSolute = False )
-        solution.label = "Solvated {:s}".format ( system.label )
+
+        # . Work around a pDynamo3 bug: AddCounterIons/SolvateSystemBySuperposition
+        #   merge the solute with systems that normally have no RestraintModel
+        #   (ion systems, solvent boxes). If the solute itself has restraints
+        #   defined (e.g. from a QM/MM reaction-coordinate setup) but the
+        #   system it's being merged with does not, pDynamo3's
+        #   RestraintModel.Merge() ends up trying to set an attribute on
+        #   None and crashes with "AttributeError: 'NoneType' object has no
+        #   attribute '_target'". As a workaround, temporarily detach any
+        #   restraints from the solute before merging, and restore them on
+        #   the ORIGINAL (pre-solvation) system afterwards -- they do not
+        #   carry over automatically anyway, since atom indices change once
+        #   ions/solvent are added.
+        original_restraint_model = getattr ( system, 'restraintModel', None )
+        had_restraints           = bool ( original_restraint_model )
+        if had_restraints:
+            system.DefineRestraintModel ( None )
+
+        try:
+            # . Add the counterions.
+            if anion is None and cation is None:
+                solute = system
+            else:
+                solute = AddCounterIons ( system,
+                                          _NNegative, anion,
+                                          _NPositive, cation,
+                                          ( _XBox, _YBox, _ZBox )
+                                          )
+            solute.Summary ( )
+
+            #--------------------------------------------------------------------------------------------
+            if add_solvent:
+                # . Create the solvated system.
+                try:
+                    solution = SolvateSystemBySuperposition ( solute, solvent, reorientSolute = False )
+                except AttributeError as error:
+                    if '_target' in str ( error ):
+                        raise ValueError ( 'pDynamo3 could not merge the solute with the solvent box. '
+                                            'This is a known pDynamo3 limitation when the solute still has '
+                                            'restraints/RestraintModel data attached that could not be fully '
+                                            'cleared beforehand. Please remove any restraints from the solute '
+                                            'and try again.' )
+                    raise
+                solution.label = "Solvated {:s}".format ( system.label )
+            else:
+                # . Ions only -- no solvent box requested.
+                solution       = solute
+                solution.label = "{:s} + ions".format ( system.label )
+        finally:
+            # . Restore the restraints on the original, pre-solvation system
+            #   regardless of whether solvation succeeded or failed.
+            if had_restraints:
+                system.DefineRestraintModel ( original_restraint_model )
+
+        if had_restraints:
+            self.main.bottom_notebook.status_teeview_add_new_item(
+                message = 'Note: restraints defined on "{}" were not carried over to the new '
+                          'solvated system (atom numbering changes after solvation) -- please '
+                          're-define them there if needed.'.format ( system.label ) )
+
         self.define_NBModel (_type = 1 , parameters =  None, system = solution)
         #--------------------------------------------------------------------------------------------
 
@@ -1396,6 +1631,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(new_system.label, new_system.e_tag, ff), system = new_system)
         self._add_vismol_object_to_easyhybrid_session (new_system, True) #, name = 'olha o  coco')
         #--------------------------------------------------------------------------------------------
+        return new_system
+
 
     def clone_system (self, e_id = None, vobject = None, name = 'Unknow', tag = 'UNK', color = [0,1,1]):
         

@@ -61,6 +61,7 @@ from gui.windows.setup.windows_and_dialogs import MergeSystemWindow
 from gui.windows.setup.windows_and_dialogs import SolvateSystemWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
 from gui.windows.setup.edit_frames_dialog import EditFrameDialog
+from gui.windows.setup.edit_cell          import EditCellWindow
 
 from gui.windows.setup.easyhybrid_terminal    import TerminalWindow
 from gui.windows.setup.selection_list_window  import *
@@ -421,6 +422,9 @@ class MainWindow:
         self.preferences_window = EasyHybridPreferencesWindow(main = self)
 
         self.make_solvent_box_window = MakeSolventBoxWindow(main = self)
+
+        self.edit_cell_window = EditCellWindow(main = self)
+        self.window_list.append(self.edit_cell_window)
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
 
         # -------------------- WINDOW SIGNALS --------------------
@@ -921,6 +925,9 @@ class MainWindow:
         
         #elif menuitem == self.builder.get_object('menuitem_cell_and_symmetry'):
         #    print ('menuitem_cell_and_symmetry')
+
+        elif menuitem == self.builder.get_object('menuitem_edit_cell'):
+            self.edit_cell_window.open_window()
             
             
             

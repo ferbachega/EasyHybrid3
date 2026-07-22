@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.22.2 -->
+<!-- solvate_system_window.glade  -  "Solvate System" window -->
 <interface>
   <requires lib="gtk+" version="3.0"/>
   <object class="GtkAdjustment" id="adjustment1">
-    <property name="upper">100</property>
+    <property name="upper">1000</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
   <object class="GtkAdjustment" id="adjustment2">
-    <property name="upper">100</property>
+    <property name="upper">1000</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
   <object class="GtkWindow" id="window">
     <property name="can_focus">False</property>
+    <property name="title" translatable="yes">Solvate System</property>
+    <property name="default-width">460</property>
     <signal name="delete-event" handler="close_window" swapped="no"/>
-    <signal name="destroy" handler="close_window" swapped="no"/>
-    <signal name="destroy-event" handler="close_window" swapped="no"/>
     <child type="titlebar">
       <placeholder/>
     </child>
@@ -34,6 +34,8 @@
             <property name="can_focus">False</property>
             <property name="orientation">vertical</property>
             <property name="spacing">9</property>
+
+            <!-- ==================== Solute ==================== -->
             <child>
               <object class="GtkFrame" id="dftp_setup_box2">
                 <property name="visible">True</property>
@@ -64,6 +66,7 @@
                               <object class="GtkBox" id="box_system">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
+                                <property name="hexpand">True</property>
                                 <property name="orientation">vertical</property>
                                 <child>
                                   <placeholder/>
@@ -105,8 +108,9 @@
                               <object class="GtkLabel" id="label_system6">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Coordinates:</property>
+                                <property name="label" translatable="yes">Object / frame:</property>
                                 <property name="xalign">1</property>
+                                <property name="tooltip-text" translatable="yes">Which loaded structure/frame of this system to solvate. Useful when a system has several loaded coordinate sets (e.g. different frames of a trajectory).</property>
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>
@@ -122,11 +126,12 @@
                         </child>
                         <child>
                           <object class="GtkCheckButton" id="checkbox_reorient">
-                            <property name="label" translatable="yes"> Reorient</property>
+                            <property name="label" translatable="yes">Reorient solute along principal axes</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
                             <property name="draw_indicator">True</property>
+                            <property name="tooltip-text" translatable="yes">Rotates the solute onto its principal axes before adding ions/solvent, which usually gives a tighter, more symmetric box.</property>
                           </object>
                           <packing>
                             <property name="expand">False</property>
@@ -152,6 +157,8 @@
                 <property name="position">0</property>
               </packing>
             </child>
+
+            <!-- ==================== Solvent Box ==================== -->
             <child>
               <object class="GtkAlignment">
                 <property name="visible">True</property>
@@ -167,7 +174,7 @@
                     <property name="label_xalign">0.5</property>
                     <property name="shadow_type">etched-out</property>
                     <child>
-                      <object class="GtkAlignment">
+                      <object class="GtkAlignment" id="frame_solvent_box">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="top_padding">10</property>
@@ -181,18 +188,74 @@
                             <property name="orientation">vertical</property>
                             <property name="spacing">10</property>
                             <child>
-                              <object class="GtkBox" id="box_solvent_box2">
+                              <!-- n-columns=2 n-rows=1 -->
+                              <object class="GtkGrid">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="orientation">vertical</property>
+                                <property name="column_spacing">6</property>
                                 <child>
-                                  <placeholder/>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
+                                    <property name="label" translatable="yes">Pre-built solvent box:</property>
+                                    <property name="xalign">1</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left_attach">0</property>
+                                    <property name="top_attach">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkBox" id="box_solvent_box2">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
+                                    <property name="hexpand">True</property>
+                                    <property name="orientation">vertical</property>
+                                    <child>
+                                      <placeholder/>
+                                    </child>
+                                  </object>
+                                  <packing>
+                                    <property name="left_attach">1</property>
+                                    <property name="top_attach">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkButton" id="button_make_solvent_box">
+                                    <property name="label" translatable="yes">Make Solvent Box...</property>
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="receives_default">True</property>
+                                    <property name="tooltip-text" translatable="yes">Opens the "Make Solvent Box" tool to build a new pre-equilibrated solvent box (e.g. water) that can then be selected here.</property>
+                                    <signal name="clicked" handler="on_button_make_solvent_box_clicked" swapped="no"/>
+                                  </object>
+                                  <packing>
+                                    <property name="left_attach">2</property>
+                                    <property name="top_attach">0</property>
+                                  </packing>
                                 </child>
                               </object>
                               <packing>
-                                <property name="expand">True</property>
+                                <property name="expand">False</property>
                                 <property name="fill">True</property>
                                 <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="label" translatable="yes">Ion-placement box (Å) -- auto-filled from the solvent box above, editable if needed:</property>
+                                <property name="wrap">True</property>
+                                <property name="xalign">0</property>
+                                <style>
+                                  <class name="dim-label"/>
+                                </style>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">1</property>
                               </packing>
                             </child>
                             <child>
@@ -238,6 +301,8 @@
                                   <object class="GtkEntry" id="entry_a">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="text">30.0</property>
+                                    <property name="width-chars">7</property>
                                   </object>
                                   <packing>
                                     <property name="left_attach">1</property>
@@ -248,6 +313,8 @@
                                   <object class="GtkEntry" id="entry_b">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="text">30.0</property>
+                                    <property name="width-chars">7</property>
                                   </object>
                                   <packing>
                                     <property name="left_attach">3</property>
@@ -258,6 +325,8 @@
                                   <object class="GtkEntry" id="entry_c">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="text">30.0</property>
+                                    <property name="width-chars">7</property>
                                   </object>
                                   <packing>
                                     <property name="left_attach">5</property>
@@ -268,7 +337,7 @@
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
-                                <property name="position">1</property>
+                                <property name="position">2</property>
                               </packing>
                             </child>
                           </object>
@@ -277,12 +346,13 @@
                     </child>
                     <child type="label">
                       <object class="GtkCheckButton" id="checkbox_add_solvent_box">
-                        <property name="label" translatable="yes"> Add Solvent Box</property>
+                        <property name="label" translatable="yes">Add Solvent Box</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">False</property>
                         <property name="active">True</property>
                         <property name="draw_indicator">True</property>
+                        <property name="tooltip-text" translatable="yes">Uncheck this if you only want to add counter-ions to the solute, without surrounding it with a solvent box.</property>
                         <signal name="toggled" handler="on_checkbox_add_solvent_box_toggled" swapped="no"/>
                       </object>
                     </child>
@@ -295,6 +365,8 @@
                 <property name="position">1</property>
               </packing>
             </child>
+
+            <!-- ==================== Ions ==================== -->
             <child>
               <object class="GtkFrame" id="dftp_setup_box4">
                 <property name="visible">True</property>
@@ -402,7 +474,7 @@
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
                                 <property name="hexpand">False</property>
-                                <property name="label" translatable="yes">Ions</property>
+                                <property name="label" translatable="yes">Ion file</property>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
@@ -436,11 +508,12 @@
                 </child>
                 <child type="label">
                   <object class="GtkCheckButton" id="checkbox_add_ions">
-                    <property name="label" translatable="yes"> Add Ions</property>
+                    <property name="label" translatable="yes">Add Ions</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="draw_indicator">True</property>
+                    <property name="tooltip-text" translatable="yes">Cation/anion files are pDynamo systems previously saved with "Pickle" (a single ion each).</property>
                     <signal name="toggled" handler="on_checkbox_add_ions_toggled" swapped="no"/>
                   </object>
                 </child>
@@ -451,6 +524,27 @@
                 <property name="position">2</property>
               </packing>
             </child>
+
+            <!-- ==================== Status / info ==================== -->
+            <child>
+              <object class="GtkLabel" id="label_info">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">Select a solute system and a solvent box, then click Run.</property>
+                <property name="wrap">True</property>
+                <property name="xalign">0</property>
+                <style>
+                  <class name="dim-label"/>
+                </style>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">3</property>
+              </packing>
+            </child>
+
+            <!-- ==================== Buttons ==================== -->
             <child>
               <object class="GtkButtonBox">
                 <property name="visible">True</property>
@@ -458,14 +552,12 @@
                 <property name="spacing">8</property>
                 <property name="layout_style">end</property>
                 <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <object class="GtkButton">
+                  <object class="GtkButton" id="button_cancel">
                     <property name="label" translatable="yes">Cancel</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
+                    <signal name="clicked" handler="on_button_cancel_clicked" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -492,7 +584,7 @@
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">3</property>
+                <property name="position">4</property>
               </packing>
             </child>
           </object>
