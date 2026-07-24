@@ -179,7 +179,24 @@ class MainWindow:
         self.builder.add_from_file(os.path.join(self.home,'src/gui/MainWindow.glade'))
         self.builder.connect_signals(self)
         self.window = self.builder.get_object('window1')
-        self.window.set_default_size(1200, 600)                          
+        # Restaura as dimensoes salvas da ultima sessao, mas so' se
+        # gl_parameters['save_window_size'] estiver ligado (checkbox "Save
+        # window size" na Preferences). Se desligado, usa sempre o tamanho
+        # fixo 1200x600 -- window_resize() abaixo tambem respeita essa
+        # flag, entao nada e' sobrescrito em gl_parameters nesse caso.
+        # [BUG FIX] Usa o PARAMETRO local 'vm_session', nao 'self.vm_session'
+        # -- self.vm_session so' e' atribuido mais abaixo neste __init__
+        # (linha ~223), entao acessa-lo aqui gerava AttributeError.
+        if vm_session.vm_config.gl_parameters.get('save_window_size', True):
+            saved_w = vm_session.vm_config.gl_parameters.get('main_window_width', 1200)
+            saved_h = vm_session.vm_config.gl_parameters.get('main_window_height', 600)
+        else:
+            saved_w, saved_h = 1200, 600
+        # Guardado pra calcular a posicao inicial do paned_V mais abaixo
+        # neste __init__ (ver 'self.paned_V_position'), com base na mesma
+        # altura de janela restaurada aqui.
+        self._restored_window_height = saved_h
+        self.window.set_default_size(saved_w, saved_h)                          
         self.window.set_title('EasyHybrid {}'.format(self.EASYHYBRID_VERSION))                          
         
         
@@ -310,8 +327,23 @@ class MainWindow:
             self.bottom_notebook = BottomNoteBook(main = self)
             self.paned_V.pack1 (self.paned_H,               True,  True)
             self.paned_V.pack2 (self.bottom_notebook.widget, False, True)
-            self.paned_V_position = 400
+            # [ATUALIZACAO] Antes era um valor fixo (400px), que nao fazia
+            # sentido nenhum se a janela restaurada tiver uma altura bem
+            # diferente (ver self._restored_window_height, calculado la'
+            # em cima a partir de gl_parameters['main_window_height']).
+            # Agora guarda/usa a posicao como PROPORCAO da altura da janela
+            # (gl_parameters['main_window_paned_v_ratio']) -- assim a
+            # divisao entre a area 3D/treeview e o notebook de baixo
+            # acompanha o tamanho da janela, em vez de ficar "grudada" num
+            # numero de pixels que so' fazia sentido pro tamanho default
+            # antigo (1200x600). Ver window_resize() e on_paned_v_position_
+            # changed() abaixo, que mantem isso atualizado continuamente.
+            default_paned_v_ratio = 400.0 / 600.0
+            paned_v_ratio = self.vm_session.vm_config.gl_parameters.get(
+                'main_window_paned_v_ratio', default_paned_v_ratio)
+            self.paned_V_position = int(round(paned_v_ratio * self._restored_window_height))
             self.paned_V.set_position(self.paned_V_position)
+            self.paned_V.connect("notify::position", self.on_paned_v_position_changed)
 
             self.bottom_notebook.status_teeview_add_new_item(message = 'Welcome to EasyHybrid 3.0, have a happy simulation day!')
 
@@ -336,6 +368,13 @@ class MainWindow:
 
         #             EASYHYBRID SESSION FILE
         self.session_filename = None
+        
+        # Timer periodico de autosave (criterio "a cada N minutos" -- o
+        # criterio "a cada N eventos" fica em pDynamoSession.register_
+        # change_and_maybe_autosave, chamado nas acoes do treeview). Os dois
+        # disparam o mesmo p_session._do_autosave(), o que vier primeiro.
+        self._autosave_timer_id = None
+        self._restart_autosave_timer()
         
 
         
@@ -481,7 +520,79 @@ class MainWindow:
         
     def window_resize (self, a, b =None, c=None):
         """ Function doc """
+        # [BUG FIX] Antes essa funcao lia w,h e nao fazia nada com eles --
+        # nenhuma dimensao de janela era persistida em lugar nenhum. Guarda
+        # em memoria aqui (barato, roda a cada evento 'check-resize'); a
+        # gravacao em disco de fato acontece em on_delete_event, nao aqui,
+        # pra nao escrever no arquivo de config a cada pixel arrastado.
+        # Respeita gl_parameters['save_window_size']: se desligado, nao
+        # atualiza nada (o tamanho fixo 1200x600 continua valendo na
+        # proxima abertura).
+        if not self.vm_session.vm_config.gl_parameters.get('save_window_size', True):
+            return
         w, h = a.get_size()
+        self.vm_session.vm_config.gl_parameters['main_window_width']  = int(w)
+        self.vm_session.vm_config.gl_parameters['main_window_height'] = int(h)
+        
+        # Mantem o divisor paned_V (area 3D/treeview vs. notebook de baixo)
+        # acompanhando a proporcao atual, em vez de ficar fixo num numero de
+        # pixels enquanto a janela cresce/encolhe. set_position() dispara
+        # "notify::position" -> on_paned_v_position_changed(), que so'
+        # reconfirma a MESMA proporcao (nao diverge, so' redundante).
+        paned_v = getattr(self, 'paned_V', None)
+        if paned_v is not None and h > 0:
+            ratio = self.vm_session.vm_config.gl_parameters.get('main_window_paned_v_ratio', 400.0/600.0)
+            new_pos = int(round(ratio * h))
+            if paned_v.get_position() != new_pos:
+                paned_v.set_position(new_pos)
+    
+    def on_paned_v_position_changed (self, paned, gparam):
+        """ Atualiza gl_parameters['main_window_paned_v_ratio'] sempre que a
+            posicao do paned_V muda -- seja por arrasto do usuario (o caso
+            que realmente importa persistir) ou programaticamente (quando
+            window_resize acima reaplica a mesma proporcao apos a janela
+            mudar de tamanho -- nesse caso o valor recalculado e' o mesmo,
+            so' um pouco redundante, sem problema).
+
+            Respeita gl_parameters['save_window_size'] (mesma flag que
+            controla o resto da persistencia de layout da janela -- ver
+            window_resize/on_delete_event). """
+        if not self.vm_session.vm_config.gl_parameters.get('save_window_size', True):
+            return
+        h = self.window.get_size()[1]
+        if h > 0:
+            self.paned_V_position = paned.get_position()
+            self.vm_session.vm_config.gl_parameters['main_window_paned_v_ratio'] = self.paned_V_position / float(h)
+    
+    def _restart_autosave_timer (self):
+        """ (Re)inicia o timer periodico de autosave, conforme gl_parameters
+            ['autosave_interval_minutes']. Chamado uma vez no __init__ e de
+            novo sempre que a janela de Preferences aplica mudancas (o
+            intervalo pode ter sido alterado la'). """
+        if getattr(self, '_autosave_timer_id', None) is not None:
+            GLib.source_remove(self._autosave_timer_id)
+            self._autosave_timer_id = None
+        interval_min = self.vm_session.vm_config.gl_parameters.get('autosave_interval_minutes', 5)
+        try:
+            interval_min = float(interval_min)
+        except (TypeError, ValueError):
+            interval_min = 5.0
+        # Piso de 10s: evita um valor absurdo (ex.: 0 ou negativo, digitado
+        # por engano na Preferences) travar a interface com autosave a
+        # cada tick do loop.
+        interval_sec = max(int(interval_min * 60), 10)
+        self._autosave_timer_id = GLib.timeout_add_seconds(interval_sec, self._on_autosave_timer_tick)
+
+    def _on_autosave_timer_tick (self):
+        """ Callback do timer periodico de autosave (criterio "a cada N
+            minutos"). So' salva se autosave estiver ligado E houver
+            mudancas nao salvas (self.p_session.changed). Retorna True
+            sempre, pra o GLib manter o timer se repetindo -- retornar
+            False cancelaria o timer. """
+        gl_parameters = self.vm_session.vm_config.gl_parameters
+        if gl_parameters.get('autosave', True) and self.p_session.changed:
+            self.p_session._do_autosave()
+        return True
     
     def add_vobject_to_vobject_liststore_dict (self, vismol_object):
         """ Adds a vobject to the vobject liststore. """
@@ -1839,6 +1950,17 @@ class MainWindow:
         
         return "\n".join(pov_lines)
 
+    def _persist_window_and_config (self):
+        """ Salva gl_parameters (incluindo as dimensoes atuais da janela,
+            atualizadas a cada resize em window_resize()) em disco antes de
+            fechar o EasyHybrid, para restaurar na proxima abertura (ver
+            MainWindow.__init__). Silencioso em caso de falha -- nao deve
+            impedir o encerramento do programa. """
+        try:
+            self.vm_session.vm_config.save_easyhybrid_config()
+        except Exception as e:
+            print('Could not save preferences on exit:', e)
+
     def on_delete_event(self, widget, event):
         if self.p_session.changed:
             if self.session_filename == None:
@@ -1870,6 +1992,7 @@ class MainWindow:
 
             
             if response == -9:   # Don't Save and close
+                self._persist_window_and_config()
                 Gtk.main_quit()
             
             elif response == -6: # Cancel - don't close
@@ -1881,9 +2004,11 @@ class MainWindow:
                 else:
                     self.p_session.save_easyhybrid_session( filename = self.session_filename)
                 #print('Saving' )
+                self._persist_window_and_config()
                 Gtk.main_quit() 
             
             else:
                 return True 
         else:
+            self._persist_window_and_config()
             Gtk.main_quit()

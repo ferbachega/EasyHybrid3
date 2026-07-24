@@ -209,6 +209,11 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         "'''
         self.random_code = generate_random_code(10)
         self.changed = False
+        # Contador de mudancas desde o ultimo autosave (criterio "a cada N
+        # eventos" -- ver register_change_and_maybe_autosave em io_data.py e
+        # gl_parameters['autosave_event_count']). Zerado a cada autosave
+        # (seja disparado pelo contador ou pelo timer periodico).
+        self.autosave_change_counter = 0
         
         '''
         There is now a self.process_pool attribute (a dictionary),

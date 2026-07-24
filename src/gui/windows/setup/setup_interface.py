@@ -368,6 +368,23 @@ class EasyHybridPreferencesWindow():
         
         self.tmp_autosave            .set_active(a)
         self.ask_autosave_and_unsaved.set_active(b)
+        
+        # Criterio de autosave (timer em minutos + contador de eventos --
+        # dispara pelo que vier primeiro. Ver MainWindow._restart_autosave_
+        # timer e pDynamoSession.register_change_and_maybe_autosave).
+        self.entry_autosave_interval    = self.builder.get_object('entry_autosave_interval')
+        self.entry_autosave_event_count = self.builder.get_object('entry_autosave_event_count')
+        interval = self.vm_session.vm_config.gl_parameters.get('autosave_interval_minutes', 5)
+        count    = self.vm_session.vm_config.gl_parameters.get('autosave_event_count', 20)
+        self.entry_autosave_interval   .set_text(str(interval))
+        self.entry_autosave_event_count.set_text(str(count))
+        
+        # "Save window size" -- ja existia no glade, era lido em __apply_
+        # interface_general_parameters mas o valor nunca era usado (nem
+        # setado aqui na abertura). Ver gl_parameters['save_window_size'].
+        self.checkbox_save_window_size = self.builder.get_object('checkbox_save_window_size')
+        save_window_size = self.vm_session.vm_config.gl_parameters.get('save_window_size', True)
+        self.checkbox_save_window_size.set_active(bool(save_window_size))
         pass
     
     def set_general_parameters (self):
@@ -511,6 +528,15 @@ class EasyHybridPreferencesWindow():
         
         self.entry_dbond_radius.set_text(str(sticks_radius))
         self.entry_dbond_type  .set_text(str(sticks_type))
+        
+        # Liga/desliga a representacao de ligacoes duplas/triplas nos sticks
+        # (gl_parameters['multiple_bonds'] -- ver SticksRepresentation._get_
+        # bond_order_per_bond em representations.py). Quando desligado, todas
+        # as ligacoes sao desenhadas como simples, independente da ordem
+        # percebida.
+        self.checkbox_multiple_bonds = self.builder.get_object('checkbox_multiple_bonds')
+        multiple_bonds = self.vm_session.vm_config.gl_parameters.get('multiple_bonds', True)
+        self.checkbox_multiple_bonds.set_active(bool(multiple_bonds))
 
     def set_light_parameters (self):
         """ Function doc """
@@ -692,6 +718,14 @@ class EasyHybridPreferencesWindow():
         
         self.gl_parameters['sticks_radius'] = stick_radius
         self.gl_parameters['sticks_type']   = stick_type  
+        
+        # Liga/desliga ligacoes duplas/triplas nos sticks. Nao precisa
+        # reconstruir nenhuma representacao: SticksRepresentation._get_bond_
+        # order_per_bond le' este valor de gl_parameters a cada frame (ver
+        # _refresh_bond_order_tbo), entao o efeito aparece no proximo redraw
+        # (ja disparado por __apply_all_changes logo apos todos os
+        # __apply_*_parameters, via vm_glcore.queue_draw()).
+        self.gl_parameters['multiple_bonds'] = self.checkbox_multiple_bonds.get_active()
 
     def __apply_lines_parameters (self):
         lines_with            = float(self.entry_lines_with           .get_text())
@@ -902,7 +936,34 @@ class EasyHybridPreferencesWindow():
 
         self.vm_session.vm_config.gl_parameters['autosave']      = a
         self.vm_session.vm_config.gl_parameters['askSaveUnsave'] = b
-        dprint(a,b)
+        # [BUG FIX] 'c' era lido mas nunca usado -- o checkbox "Save window
+        # size" nao tinha efeito nenhum. Agora liga/desliga a persistencia
+        # de dimensoes da janela (ver MainWindow.__init__/window_resize/
+        # on_delete_event).
+        self.vm_session.vm_config.gl_parameters['save_window_size'] = c
+        dprint(a,b,c)
+        
+        # Criterio de autosave (timer em minutos + contador de eventos).
+        # Aceita virgula OU ponto decimal; cai pro valor atual em caso de
+        # entrada invalida, em vez de quebrar o Apply inteiro.
+        try:
+            interval = float(self.entry_autosave_interval.get_text().replace(',', '.'))
+            self.vm_session.vm_config.gl_parameters['autosave_interval_minutes'] = interval
+        except ValueError:
+            dprint('Invalid autosave interval, keeping previous value.')
+        try:
+            count = int(float(self.entry_autosave_event_count.get_text().replace(',', '.')))
+            self.vm_session.vm_config.gl_parameters['autosave_event_count'] = count
+        except ValueError:
+            dprint('Invalid autosave event count, keeping previous value.')
+        
+        # O intervalo pode ter mudado: reinicia o timer periodico de
+        # autosave da janela principal com o novo valor. self.main_session
+        # e' a propria instancia de MainWindow (ver EasyHybridPreferencesWindow.
+        # __init__: self.main_session = main).
+        restart_timer = getattr(self.main_session, '_restart_autosave_timer', None)
+        if restart_timer is not None:
+            restart_timer()
         
         
         '''

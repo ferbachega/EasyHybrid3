@@ -94,6 +94,7 @@ from pSimulation               import*
 import numpy as np
 #from vismol.model.molecular_properties import ATOM_TYPES
 from vismol.libgl.representations import DashedLinesRepresentation
+from vismol.libgl.representations import SurfaceRepresentation
 
 from util.colorpalette import CUSTOM_COLOR_PALETTE
 
@@ -119,6 +120,46 @@ class LoadAndSaveData:
         """ Class initialiser """
         pass
 
+    def register_change_and_maybe_autosave (self):
+        """ Ponto de entrada do criterio de autosave por CONTADOR DE EVENTOS
+            (o criterio por TEMPO/timer periodico vive em main_window.py,
+            MainWindow._on_autosave_timer_tick -- os dois disparam o mesmo
+            _do_autosave() abaixo, o que vier primeiro).
+
+            Chame este metodo (em vez de save_easyhybrid_session(tmp=True)
+            direto) em qualquer acao que deva contar como "mudanca" para
+            fins de autosave -- ver as chamadas ja existentes em
+            treeview_menu.py/treeview_menu_new.py (_save_backup_file).
+
+            Sempre marca self.changed = True (a mudanca aconteceu de
+            qualquer forma, autosave ligado ou nao -- isso e' o que faz
+            on_delete_event perguntar antes de fechar). O autosave de fato
+            so' dispara se gl_parameters['autosave'] estiver ligado E o
+            contador atingir gl_parameters['autosave_event_count'].
+        """
+        self.changed = True
+        gl_parameters = self.vm_session.vm_config.gl_parameters
+        if not gl_parameters.get('autosave', True):
+            return
+        self.autosave_change_counter += 1
+        threshold = gl_parameters.get('autosave_event_count', 20)
+        if self.autosave_change_counter >= threshold:
+            self._do_autosave()
+
+    def _do_autosave (self):
+        """ Dispara o autosave de fato: grava <arquivo_da_sessao>~ (ou um
+            arquivo temporario em vm_config.easyhybrid_tmp se a sessao ainda
+            nao foi salva nenhuma vez -- ver save_easyhybrid_session(tmp=
+            True) abaixo, que ja' cobria esse caso). Zera o contador de
+            eventos. Chamado tanto pelo criterio de contador (acima) quanto
+            pelo timer periodico (main_window.py). Nunca propaga excecao --
+            uma falha de autosave nao deve interromper o uso normal do
+            programa. """
+        try:
+            self.save_easyhybrid_session(filename=self.main.session_filename, tmp=True)
+        except Exception as e:
+            print('Autosave failed:', e)
+        self.autosave_change_counter = 0
 
     def save_easyhybrid_session (self, filename = 'session.easy', tmp = False):
         """   
@@ -154,6 +195,18 @@ class LoadAndSaveData:
             'projection_matrix'   : np.copy(glcamera.projection_matrix),
             'z_near'              : float(glcamera.z_near),
             'z_far'               : float(glcamera.z_far),
+            # [NOVO - propriedade OPCIONAL] Tamanho da GLArea (viewport) no
+            # momento do save. Usado no load para restaurar o mesmo aspect
+            # ratio e evitar distorcao de camera (a projection_matrix salva
+            # acima foi calculada para ESTE aspect ratio; se o .easy for
+            # reaberto numa janela de tamanho/proporcao diferente, sem isso
+            # a imagem ficaria esticada/comprimida). Chave NOVA: arquivos
+            # .easy salvos antes desta mudanca simplesmente nao vao te-la --
+            # load_easyhybrid_serialization_file usa .get() e so' tenta
+            # restaurar o tamanho se a chave existir, entao sessoes antigas
+            # continuam carregando normalmente, so' sem esse ajuste extra.
+            'glarea_width'        : float(self.vm_session.vm_glcore.width),
+            'glarea_height'       : float(self.vm_session.vm_glcore.height),
         }
         
         for e_id, system in self.psystem.items():
@@ -193,6 +246,66 @@ class LoadAndSaveData:
                         
                         if getattr (vobject, 'is_surface', False):
                             vobj_data['is_surface'] = vobject.is_surface
+                            # [NOVO] Dados extras necessarios pra reconstruir a
+                            # superficie no load (ver load_easyhybrid_serialization_
+                            # file / _rebuild_surface_vobject_from_saved_data
+                            # abaixo). Sao todas chaves NOVAS dentro de vobj_data
+                            # -- sessoes .easy salvas antes desta mudanca so' tem
+                            # 'is_surface' (sem as chaves abaixo), entao o loader
+                            # continua tratando esse caso como antes (superficie
+                            # pulada, resto da sessao carrega normal).
+                            #
+                            # surface_trajectory: a malha (vertices/normais/faces
+                            # por frame) ja' computada, a mesma coisa que a
+                            # superficie usa pra desenhar em memoria -- salva ela
+                            # direto em vez de tentar recalcular no load (evita
+                            # depender do sistema QC/arquivo .cube/etc. ainda
+                            # estarem disponiveis e identicos).
+                            vobj_data['surface_trajectory'] = getattr(vobject, 'surface_trajectory', None)
+                            vobj_data['surface_type']       = getattr(vobject, 'surface_type', None)
+                            vobj_data['parameters']         = getattr(vobject, 'parameters', None)
+                            vobj_data['model_mat']          = np.copy(vobject.model_mat)
+                            vobj_data['trans_mat']          = np.copy(vobject.trans_mat)
+                            # Setup especifico de MEP (colormap + limites de
+                            # cor), lido/gravado pela janela "Surface Setup"
+                            # (ver treeview_menu.py). So' existe pra
+                            # surface_type == "mep"; getattr com default None
+                            # cobre os outros tipos sem erro.
+                            vobj_data['mep_cmap_name'] = getattr(vobject, 'mep_cmap_name', None)
+                            vobj_data['mep_vmin']      = getattr(vobject, 'mep_vmin', None)
+                            vobj_data['mep_vmax']      = getattr(vobject, 'mep_vmax', None)
+                            # Uma ou duas SurfaceRepresentation por objeto de
+                            # superficie (ex.: "surface1"/"surface2" -- lobulo
+                            # positivo/negativo de um orbital, ou so' "surface1"
+                            # pra densidade/potencial/MEP simples). So' precisa
+                            # salvar 'surf_name' (a chave usada em
+                            # vismol_object.surface_trajectory[frame][surf_name]
+                            # pra buscar vertices/cores/normais/indices -- ver
+                            # SurfaceRepresentation.draw_representation) e
+                            # 'active'. O parametro 'iso_color' do construtor
+                            # NAO e' salvo aqui porque a classe nunca o usa de
+                            # fato (aceito no __init__ mas nunca vira atributo
+                            # nem e' referenciado no resto do corpo da classe --
+                            # a cor real vem embutida por vertice dentro do
+                            # proprio surface_trajectory, ja salvo acima).
+                            #
+                            # 'render_mode' ("surface"/"lines" -- wireframe),
+                            # 'alpha' (opacidade) e 'smooth_shading' (flat vs.
+                            # normal por vertice) sao os controles comuns da
+                            # janela "Surface Setup" (treeview_menu.py) --
+                            # salvos aqui pra restaurar exatamente como o
+                            # usuario deixou, em vez de sempre voltar pro
+                            # default (opaco, preenchido, flat shading).
+                            vobj_data['surface_representations'] = {}
+                            for rep_name, rep in vobject.representations.items():
+                                if isinstance(rep, SurfaceRepresentation):
+                                    vobj_data['surface_representations'][rep_name] = {
+                                        'surf_name'     : getattr(rep, 'surf_name', rep_name),
+                                        'active'        : rep.active,
+                                        'render_mode'   : getattr(rep, 'render_mode', 'surface'),
+                                        'alpha'         : getattr(rep, 'alpha', 1.0),
+                                        'smooth_shading': getattr(rep, 'smooth_shading', False),
+                                    }
                         
                         data['vobjects'].append(vobj_data)
                             
@@ -292,6 +405,32 @@ class LoadAndSaveData:
             glcamera.z_near = camera_data['z_near']
             glcamera.z_far  = camera_data['z_far']
             glcamera.update_fog()
+            
+            # [NOVO - propriedade OPCIONAL] Arquivos .easy salvos antes desta
+            # mudanca nao tem 'glarea_width'/'glarea_height' -- .get() retorna
+            # None e o bloco abaixo e' pulado, sem quebrar nada (mesmo padrao
+            # de compatibilidade do bloco 'camera' acima).
+            #
+            # Quando presente: tenta redimensionar a GLArea pro mesmo tamanho
+            # de quando foi salva (set_size_request -- 'melhor esforco', o
+            # container do GTK pode nao respeitar 100% conforme o layout) e,
+            # mais importante para eliminar a distorcao de fato, recalcula o
+            # aspect ratio/projection_matrix via resize_window() usando esse
+            # MESMO tamanho salvo (com o z_near/z_far ja restaurados acima) --
+            # a projection_matrix crua restaurada logo acima foi calculada
+            # para o aspect ratio de QUANDO FOI SALVA, que pode nao bater com
+            # o da janela atual; resize_window garante consistencia.
+            glarea_w = camera_data.get('glarea_width')
+            glarea_h = camera_data.get('glarea_height')
+            if glarea_w and glarea_h:
+                vm_widget = getattr(self.vm_session, 'vm_widget', None)
+                if vm_widget is not None:
+                    try:
+                        vm_widget.set_size_request(int(glarea_w), int(glarea_h))
+                    except Exception as e:
+                        dprint('Could not resize GLArea on session load:', e)
+                vm_glcore.resize_window(glarea_w, glarea_h)
+            
             vm_glcore.queue_draw()
         
         for data  in easyhybrid_session_data['systems']:
@@ -327,8 +466,7 @@ class LoadAndSaveData:
                         vobj['is_surface'] = False
                     
                     if vobj['is_surface']:
-                        dprint(vobj['is_surface'])
-                        pass
+                        self._rebuild_surface_vobject_from_saved_data(system = system, vobj = vobj)
                     else:
                         vm_object = self._build_vobject_from_pdynamo_system ( system = system, name = name ) 
                         vm_object.frames = frames
@@ -364,6 +502,99 @@ class LoadAndSaveData:
             self.main.session_filename = filename
         self.main.process_manager_window.build_liststore_from_job_history (clear = True)
         
-    
+    def _rebuild_surface_vobject_from_saved_data (self, system, vobj):
+        """ Reconstroi um VismolObject de superficie (orbital/densidade/
+            potencial/MEP/cubo externo -- ver surface_analysis_window.py)
+            a partir dos dados salvos em save_easyhybrid_session.
+
+            [PROPRIEDADE OPCIONAL / COMPATIVEL] Sessoes .easy salvas antes
+            desta mudanca tem 'is_surface' mas nao tem 'surface_trajectory'
+            -- nesse caso, a superficie e' simplesmente pulada (mesmo
+            comportamento de sempre), sem quebrar o carregamento do resto
+            da sessao.
+
+            Nao recalcula a malha (nao chama de volta o gerador de
+            orbital/densidade/MEP/etc.) -- so' restaura a malha ja'
+            computada e salva (vertices/cores/normais/indices por frame,
+            em vobj['surface_trajectory']), o que evita depender do
+            sistema QC, do arquivo .cube original ou de qualquer estado
+            de calculo ainda estarem disponiveis/identicos no momento do
+            load.
+        """
+        name = vobj.get('name', 'surface')
+        if vobj.get('surface_trajectory') is None:
+            dprint('Surface object "%s" has no saved geometry (older .easy '
+                   'file, or was created before this feature) -- skipping.' % name)
+            return
+        
+        vobject_tmp = VismolObject(name = name, index = -1,
+                                   vismol_session        = self.vm_session,
+                                   trajectory            = [],
+                                   bonds_pair_of_indexes = [0, 1])
+        
+        vobject_tmp.model_mat = vobj.get('model_mat', np.identity(4, dtype=np.float32))
+        vobject_tmp.trans_mat = vobj.get('trans_mat', np.identity(4, dtype=np.float32))
+        vobject_tmp.surface_trajectory = vobj['surface_trajectory']
+        vobject_tmp.parameters         = vobj.get('parameters')
+        vobject_tmp.surface_type       = vobj.get('surface_type')
+        vobject_tmp.frames             = vobj['frames']
+        vobject_tmp.active             = vobj.get('active', True)
+        vobject_tmp.is_surface         = True
+        vobject_tmp.e_id               = system.e_id
+        
+        # Setup especifico de MEP (colormap + limites de cor). getattr/get
+        # com default None: para outros surface_type, essas chaves existem
+        # no vobj (salvas como None) e simplesmente nao fazem nada aqui.
+        if vobj.get('mep_cmap_name') is not None:
+            vobject_tmp.mep_cmap_name = vobj['mep_cmap_name']
+        if vobj.get('mep_vmin') is not None:
+            vobject_tmp.mep_vmin = vobj['mep_vmin']
+        if vobj.get('mep_vmax') is not None:
+            vobject_tmp.mep_vmax = vobj['mep_vmax']
+        
+        # Recria uma SurfaceRepresentation por entrada salva (normalmente
+        # "surface1" e, se for orbital/MEP, tambem "surface2" -- ver
+        # save_easyhybrid_session). Cada uma busca sua propria malha em
+        # vobject_tmp.surface_trajectory[frame][surf_name] na hora de
+        # desenhar, entao so' precisamos recriar o objeto com o mesmo
+        # surf_name/active salvos -- nao ha malha pra passar aqui.
+        surface_reps = vobj.get('surface_representations') or {}
+        for rep_name, rep_data in surface_reps.items():
+            rep = SurfaceRepresentation(
+                vismol_object = vobject_tmp,
+                vismol_glcore = self.vm_session.vm_glcore,
+                name          = 'surface',
+                active        = rep_data.get('active', True),
+                indexes       = [],
+                is_dynamic    = False,
+                surface_name  = rep_data.get('surf_name', rep_name),
+            )
+            # Restaura wireframe/opacidade/shading exatamente como o usuario
+            # deixou (janela "Surface Setup", treeview_menu.py) -- sem isso,
+            # toda superficie recarregada voltaria pro default (opaca,
+            # preenchida, flat shading), perdendo qualquer ajuste feito.
+            if hasattr(rep, 'set_render_mode'):
+                rep.set_render_mode(rep_data.get('render_mode', 'surface'))
+            if hasattr(rep, 'set_alpha'):
+                rep.set_alpha(rep_data.get('alpha', 1.0))
+            if hasattr(rep, 'set_shading_mode'):
+                rep.set_shading_mode('smooth' if rep_data.get('smooth_shading', False) else 'flat')
+            vobject_tmp.representations[rep_name] = rep
+        
+        self.vm_session._add_vismol_object(vobject_tmp, show_molecule = False, autocenter = False)
+        # [LIMITACAO CONHECIDA] Ao gerar uma superficie pela primeira vez
+        # (surface_analysis_window.py), ela e' aninhada no treeview sob o
+        # vobject que a originou (vobj_parent = <vobject original>.
+        # e_treeview_iter). Aqui so' temos 'system' (o sistema pDynamo) em
+        # maos, nao o vobject pai especifico -- e_treeview_iter fica no
+        # VOBJECT, nao no system (ver main_treeview.py). Passar o iter
+        # errado arriscaria um AttributeError/comportamento incorreto, entao
+        # por enquanto a superficie reconstruida entra como item de TOPO no
+        # treeview (ainda funcional/visivel, so' nao aninhada visualmente
+        # sob a molecula original como da primeira vez).
+        self.main.main_treeview.add_vismol_object_to_treeview(vobject_tmp)
+        self.main.add_vobject_to_vobject_liststore_dict(vobject_tmp)
+        self.main.refresh_widgets()
+        
     def save_special_PDB (vObject):
         """ Function doc """

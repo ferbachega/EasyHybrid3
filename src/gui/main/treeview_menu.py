@@ -1135,7 +1135,14 @@ class TreeViewMenu:
                     
         def _save_backup_file (self):
             """ Function doc """
-            self.main.p_session.save_easyhybrid_session( filename = self.main.session_filename, tmp = True)
+            # [ATUALIZACAO] Antes chamava save_easyhybrid_session(tmp=True)
+            # direto, incondicional -- ignorava completamente o toggle
+            # gl_parameters['autosave'] e nao contribuia pro criterio de
+            # contador de eventos. Agora passa por register_change_and_
+            # maybe_autosave, que respeita o toggle e so' salva de fato ao
+            # atingir gl_parameters['autosave_event_count'] (ou via o timer
+            # periodico em main_window.py).
+            self.main.p_session.register_change_and_maybe_autosave()
 
     def open_menu (self, system_e_id = None , vobject_index = None):
         """ Function doc """
@@ -1166,7 +1173,8 @@ class TreeViewMenu:
                 
     def _save_backup_file (self):
         """ Function doc """
-        self.main.p_session.save_easyhybrid_session( filename = self.main.session_filename, tmp = True)
+        # Ver comentario na outra definicao de _save_backup_file, acima.
+        self.main.p_session.register_change_and_maybe_autosave()
         
     def call_copy_current_frame_old_not_used (self, widget):
         """ Function doc """

@@ -218,6 +218,15 @@ def main():
                             datefmt="%Y-%m-%d:%H:%M:%S", level=logging.DEBUG)
 
         vconfig = VismolConfig(home = EASYHYBRID_HOME)
+        # [REVERTIDO] Uma chamada explicita a vconfig.load_easyhybrid_config(...)
+        # foi adicionada aqui numa correcao anterior, mas era redundante: o
+        # proprio __init__ do VismolConfig ja chama _check_config_file()
+        # (que carrega o .config.json salvo) seguido de _check_startup_path()
+        # (que valida/corrige o startup_path). Chamar load_easyhybrid_config
+        # de novo DEPOIS disso fazia merge com o conteudo BRUTO do arquivo
+        # salvo, desfazendo a correcao que _check_startup_path() ja tinha
+        # aplicado -- causa direta de um AttributeError/TypeError com
+        # startup_path=None mais adiante, em EasyHybridPreferencesWindow.
         
         
         vm_session = EasyHybridSession(vm_config = vconfig)

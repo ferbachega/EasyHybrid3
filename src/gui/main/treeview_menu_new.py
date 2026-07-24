@@ -582,4 +582,5 @@ class TreeViewMenu_new:
                     
         def _save_backup_file (self):
             """ Function doc """
-            self.main.p_session.save_easyhybrid_session( filename = self.main.session_filename, tmp = True)
+            # Ver comentario na definicao equivalente em treeview_menu.py.
+            self.main.p_session.register_change_and_maybe_autosave()
