@@ -39,6 +39,7 @@ from gi.repository import GdkPixbuf
 
 from gui.widgets.custom_widgets  import VismolSelectionTypeBox
 import vismol.utils.mesh_decimation as mesh_decimation
+import vismol.utils.mesh_smoothing as mesh_smoothing
 from gui.widgets.custom_widgets  import FileChooser
 from gui.widgets.custom_widgets  import get_colorful_square_pixel_buffer
 from gui.widgets.custom_widgets  import ReactionCoordinateBox
@@ -831,6 +832,55 @@ class TreeViewMenu:
         hbox_decimate.pack_start ( btn_decimate, False, False, 0 )
         vbox.pack_start ( hbox_decimate, False, False, 0 )
         vbox.pack_start ( label_decimate_status, False, False, 0 )
+
+        vbox.pack_start ( Gtk.Separator ( orientation = Gtk.Orientation.HORIZONTAL ), False, False, 4 )
+
+        # --- suavizacao (Taubin -- ver vismol/utils/mesh_smoothing.pyx) ---
+        # Suaviza o aspecto "escada" do marching cubes sem encolher a
+        # superficie (ao contrario de um Laplacian puro). Aplicado direto
+        # em vismol_object.surface_trajectory (todos os frames/lobulos),
+        # substituindo a malha original -- assim como a decimacao, gerar a
+        # superficie de novo desfaz.
+        label_smooth = Gtk.Label ( label = "Smooth (Taubin) -- iterations:" )
+        label_smooth.set_xalign ( 0 )
+        vbox.pack_start ( label_smooth, False, False, 0 )
+
+        hbox_smooth = Gtk.Box ( orientation = Gtk.Orientation.HORIZONTAL, spacing = 6 )
+        entry_smooth_iters = Gtk.Entry ( )
+        entry_smooth_iters.set_placeholder_text ( "e.g. 15" )
+        entry_smooth_iters.set_width_chars ( 8 )
+        btn_smooth = Gtk.Button ( label = "Apply" )
+        label_smooth_status = Gtk.Label ( label = "" )
+        label_smooth_status.set_xalign ( 0 )
+
+        def on_smooth_clicked ( w ):
+            text = entry_smooth_iters.get_text ( ).strip ( ).replace ( ',', '.' )
+            try:
+                n_iterations = int ( float ( text ) )
+                if n_iterations <= 0:
+                    raise ValueError ( "iterations deve ser positivo" )
+            except ValueError:
+                label_smooth_status.set_text ( "Invalid iteration count." )
+                return
+            traj = getattr ( vismol_object, "surface_trajectory", None )
+            if not traj:
+                label_smooth_status.set_text ( "No surface data to smooth." )
+                return
+            try:
+                vismol_object.surface_trajectory = mesh_smoothing.smooth_surface_trajectory (
+                    traj, iterations = n_iterations
+                )
+            except Exception as e:
+                label_smooth_status.set_text ( "Smoothing failed: {}".format ( e ) )
+                return
+            label_smooth_status.set_text ( "Smoothed ({} iterations).".format ( n_iterations ) )
+            vm_glcore.queue_draw ( )
+
+        btn_smooth.connect ( "clicked", on_smooth_clicked )
+        hbox_smooth.pack_start ( entry_smooth_iters, False, False, 0 )
+        hbox_smooth.pack_start ( btn_smooth, False, False, 0 )
+        vbox.pack_start ( hbox_smooth, False, False, 0 )
+        vbox.pack_start ( label_smooth_status, False, False, 0 )
 
         # --- controles especificos do tipo ---
         if surface_type in ( "orbital", "density", "potential" ):
