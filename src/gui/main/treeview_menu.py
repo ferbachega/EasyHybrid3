@@ -38,6 +38,7 @@ from gi.repository import GdkPixbuf
 
 
 from gui.widgets.custom_widgets  import VismolSelectionTypeBox
+import vismol.utils.mesh_decimation as mesh_decimation
 from gui.widgets.custom_widgets  import FileChooser
 from gui.widgets.custom_widgets  import get_colorful_square_pixel_buffer
 from gui.widgets.custom_widgets  import ReactionCoordinateBox
@@ -767,6 +768,69 @@ class TreeViewMenu:
             vm_glcore.queue_draw ( )
         chk_smooth.connect ( "toggled", on_smooth_toggled )
         vbox.pack_start ( chk_smooth, False, False, 0 )
+
+        vbox.pack_start ( Gtk.Separator ( orientation = Gtk.Orientation.HORIZONTAL ), False, False, 4 )
+
+        # --- decimacao (Vertex Clustering -- ver vismol/utils/mesh_decimation.pyx) ---
+        # Simplifica a malha agrupando vertices dentro de uma grade espacial
+        # de tamanho 'cell_size' (mesma unidade da molecula, tipicamente
+        # Angstrom). Aplicado direto em vismol_object.surface_trajectory
+        # (todos os frames/lobulos), substituindo a malha original -- gerar
+        # a superficie de novo (menu do sistema QC/analysis) desfaz, ja que
+        # a malha "cheia" original nao e' mantida em paralelo.
+        label_decimate = Gtk.Label ( label = "Decimate (merge vertices within, in \u00c5):" )
+        label_decimate.set_xalign ( 0 )
+        vbox.pack_start ( label_decimate, False, False, 0 )
+
+        hbox_decimate = Gtk.Box ( orientation = Gtk.Orientation.HORIZONTAL, spacing = 6 )
+        entry_cell_size = Gtk.Entry ( )
+        entry_cell_size.set_placeholder_text ( "e.g. 0.3" )
+        entry_cell_size.set_width_chars ( 8 )
+        btn_decimate = Gtk.Button ( label = "Apply" )
+        label_decimate_status = Gtk.Label ( label = "" )
+        label_decimate_status.set_xalign ( 0 )
+
+        def on_decimate_clicked ( w ):
+            text = entry_cell_size.get_text ( ).strip ( ).replace ( ',', '.' )
+            try:
+                cell_size = float ( text )
+                if cell_size <= 0.0:
+                    raise ValueError ( "cell_size deve ser positivo" )
+            except ValueError:
+                label_decimate_status.set_text ( "Invalid cell size." )
+                return
+            traj = getattr ( vismol_object, "surface_trajectory", None )
+            if not traj:
+                label_decimate_status.set_text ( "No surface data to decimate." )
+                return
+            tris_before = sum (
+                len ( frame_data[name][2] ) // 3
+                for frame_data in traj for name in frame_data.keys ( )
+            )
+            try:
+                vismol_object.surface_trajectory = mesh_decimation.decimate_surface_trajectory (
+                    traj, cell_size
+                )
+            except Exception as e:
+                label_decimate_status.set_text ( "Decimation failed: {}".format ( e ) )
+                return
+            tris_after = sum (
+                len ( frame_data[name][2] ) // 3
+                for frame_data in vismol_object.surface_trajectory for name in frame_data.keys ( )
+            )
+            label_decimate_status.set_text (
+                "Triangles: {} -> {} ({:.0f}% reduction)".format (
+                    tris_before, tris_after,
+                    100.0 * ( 1.0 - tris_after / tris_before ) if tris_before else 0.0
+                )
+            )
+            vm_glcore.queue_draw ( )
+
+        btn_decimate.connect ( "clicked", on_decimate_clicked )
+        hbox_decimate.pack_start ( entry_cell_size, False, False, 0 )
+        hbox_decimate.pack_start ( btn_decimate, False, False, 0 )
+        vbox.pack_start ( hbox_decimate, False, False, 0 )
+        vbox.pack_start ( label_decimate_status, False, False, 0 )
 
         # --- controles especificos do tipo ---
         if surface_type in ( "orbital", "density", "potential" ):
