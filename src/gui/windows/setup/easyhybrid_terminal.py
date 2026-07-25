@@ -54,6 +54,27 @@
 #     zoom dir=in                  zoom in (in) or out (out)
 #     zoom dir=out steps=10        several steps at once
 #
+#  Builder -- bonds (pick 2 atoms as pk1/pk2 with the measurement
+#  picking tool -- same pk1..pk4 used for distances/angles/dihedrals --
+#  or address atoms directly by obj=/atom1=/atom2=, no picking needed)
+#     bond                         bonds pk1-pk2 (single bond)
+#     bond order=2                 bonds pk1-pk2 as a double bond
+#     bond order=3                 bonds pk1-pk2 as a triple bond
+#     bond obj=0 atom1=3 atom2=7 order=2   bonds by atom_id directly
+#     unbond                       removes the bond between pk1-pk2
+#     unbond obj=0 atom1=3 atom2=7         removes by atom_id directly
+#
+#  Builder -- Dynamic Bonds (same 'bond'/'unbond', add frame=...):
+#     bond order=2 frame=true      edits ONLY the current frame
+#     bond order=2 frame=12        edits ONLY frame 12
+#     bond order=2 frame=1:20      edits frames 1 through 20 (inclusive)
+#     bond order=1 frame=all       edits every frame
+#     unbond frame=true/12/1:20/all   same frame= forms, for removing
+#     *** frame=... is REPRESENTATION-ONLY: it changes what is drawn for
+#     the selected frame(s), NOT a real chemical bond -- it does NOT
+#     touch the pDynamo system's topology/force field/force constants.
+#     See 'help bond' for the full explanation.
+#
 #  Scene / file
 #     axes show=true | false
 #     load file=/path/system.pdb
@@ -65,6 +86,10 @@
 #  API in scripts (same logic, without the DSL string):
 #     cmd.show(rep="sticks", obj=1, chain="A")
 #     cmd.select(obj=0, resi="10-30")
+#     cmd.bond(order=2)                       # bonds pk1-pk2, double bond
+#     cmd.bond(obj=0, atom1=3, atom2=7, order=2)
+#     cmd.bond(order=2, frame="1:20")         # Dynamic Bonds, frames 1-20
+#     cmd.unbond()                            # unbonds pk1-pk2
 #     for i in range(0, 2000, 100): cmd.frame(n=i)
 # ============================================================================
 import gi
@@ -973,22 +998,177 @@ class Command:
             return str(e)
         return "Builder tool = '{}'.".format(name)
 
-    def cmd_bond(self, obj=None, atom1=None, atom2=None, **_):
-        """ Adds a bond. Two ways to use:
-              bond                          -- bonds the 2 CURRENTLY SELECTED
-                                                atoms (same as pressing 'b';
-                                                needs shift-click or 'select'
-                                                first to pick exactly 2 atoms).
-              bond obj=<indice> atom1=<id> atom2=<id>
+    def cmd_bond(self, obj=None, atom1=None, atom2=None, order=1, frame=None, **_):
+        """ Adds a bond, or updates an existing one's order, at a chosen
+        bond order. Two ways to use, tried in this order:
+              bond obj=<indice> atom1=<id> atom2=<id> order=1
                                             -- bonds two atoms directly by
-                                               atom_id, no selection/mouse
-                                               needed (handy for terminal-only
+                                               atom_id, no picking needed
+                                               (handy for terminal-only
                                                use).
+              bond                          -- bonds the 2 atoms currently
+                                                marked pk1/pk2 in the
+                                                MEASUREMENT PICKING tool
+                                                (the same pk1..pk4 used for
+                                                on-screen distances/angles/
+                                                dihedrals). This is the
+                                                default when obj/atom1/
+                                                atom2 aren't given.
 
-        Adjusts both atoms' hydrogens afterwards and syncs the linked
-        pDynamo system -- same steps every GUI bond-creating interaction
-        already goes through (see gui/windows/builder/atom_ops.
-        adjust_hydrogens() / empty_object.sync_pdynamo_system()).
+        order : 1 (single, default), 2 (double) or 3 (triple) -- the
+                bond's persisted order (see atom_ops.set_bond_order()'s
+                own docstring).
+
+        frame : NOT GIVEN (default) -> edits the object's STATIC
+                topology (vismol_object.bonds), exactly as described
+                above -- valid for every frame, this is what gets
+                saved/exported.
+                GIVEN -> edits the DYNAMIC BONDS representation instead
+                (the per-frame connectivity used by the Dynamic Bonds
+                display, typically the QC region of a QM/MM trajectory),
+                for the frame(s) selected by the value:
+                  frame=true            current frame only
+                  frame=12              frame 12 only
+                  frame=1:20            frames 1 through 20, INCLUSIVE
+                  frame=all             every frame
+
+                *** WARNING / READ BEFORE USING frame=...: this ONLY
+                changes what is DRAWN on screen for the selected
+                frame(s) -- it does NOT create a real chemical bond, and
+                does NOT touch the linked pDynamo system's topology,
+                force field, bond force constants, charges, or anything
+                else used for an actual QM/MM calculation. It is meant
+                for visually inspecting/correcting the Dynamic Bonds
+                display (e.g. forcing a bond the automatic distance-based
+                detection missed on one particular frame) -- NOT for
+                defining the chemistry of the system. To create a real
+                bond with proper force-field parameters, the pDynamo
+                system's topology needs to be edited through other means.
+
+        [EN] BUG FIX: previously used atom_ops.add_bond(), same as the
+        Builder's own 'b' keyboard shortcut. Confirmed via live testing
+        that this is WRONG here: add_bond() is built around the Builder
+        canvas's own design (vismol_object.manual_bonds as the ONLY
+        source of truth for connectivity -- see add_atom()'s docstring),
+        which works for an empty object grown atom-by-atom, but silently
+        DROPS every other bond when used on a normally-loaded structure
+        (e.g. a PDB file), since those bonds were never registered in
+        manual_bonds. Switched to atom_ops.set_bond_order(), which edits
+        only the one pair involved (adds it if missing, or just updates
+        its order if it already exists) and leaves every other bond
+        exactly as it was, regardless of where it originally came from.
+        Also no longer auto-adjusts hydrogens (that was a Builder-canvas
+        convenience, not appropriate for editing bond order on an
+        already-complete loaded structure) -- see set_bond_order()'s own
+        docstring in atom_ops.py for the full explanation.
+
+        Syncs the linked pDynamo system afterwards (static path only --
+        frame=... is representation-only, see the warning above).
+
+        Examples:
+          bond
+          bond order=2
+          bond obj=0 atom1=3 atom2=7 order=2
+          bond order=2 frame=true
+          bond obj=0 atom1=3 atom2=7 order=2 frame=12
+          bond order=2 frame=1:20
+          bond order=1 frame=all
+        """
+        if self.vm_session is None:
+            return "Session unavailable."
+        try:
+            order = int(order)
+        except (TypeError, ValueError):
+            return "order must be 1 (single), 2 (double) or 3 (triple)."
+        if order not in (1, 2, 3):
+            return "order must be 1 (single), 2 (double) or 3 (triple)."
+
+        if obj is not None and atom1 is not None and atom2 is not None:
+            try:
+                vobj = self.vm_session.vm_objects_dic[int(obj)]
+            except (KeyError, ValueError):
+                return "Object '{}' not found. Use 'list' to see the indices.".format(obj)
+
+            from gui.windows.builder.atom_ops import resolve_frame_arg
+            try:
+                frames = resolve_frame_arg(vobj, frame)
+            except ValueError as e:
+                return str(e)
+
+            if frames is not None:
+                from gui.windows.builder.atom_ops import set_dynamic_bond_order, push_undo_snapshot
+                push_undo_snapshot(vobj)
+                try:
+                    n_created = set_dynamic_bond_order(vobj, int(atom1), int(atom2),
+                                                        bond_order=order, frames=frames)
+                except ValueError as e:
+                    return str(e)
+                frame_desc = "frame {}".format(frames[0]) if len(frames) == 1 else "{} frames".format(len(frames))
+                return ("[Dynamic Bonds] Bond order between atom {} and atom {} set to {} for {} "
+                        "({} new pair(s) added). NOTE: representation-only, does not change the "
+                        "pDynamo system's real topology.".format(atom1, atom2, order, frame_desc, n_created))
+
+            from gui.windows.builder.atom_ops import set_bond_order, push_undo_snapshot
+            push_undo_snapshot(vobj)
+            try:
+                created = set_bond_order(vobj, int(atom1), int(atom2), bond_order=order)
+            except ValueError as e:
+                return str(e)
+            from gui.windows.builder.empty_object import sync_pdynamo_system
+            sync_pdynamo_system(vobj)
+            return ("Bond created between atom {} and atom {} (order={}).".format(atom1, atom2, order) if created
+                    else "Bond order between atom {} and atom {} set to {}.".format(atom1, atom2, order))
+
+        from gui.windows.builder.click_mode import handle_bond_picking
+        return handle_bond_picking(self.vm_session, bond_order=order, frame=frame)
+
+    def cmd_unbond(self, obj=None, atom1=None, atom2=None, frame=None, **_):
+        """ Removes a bond. Two ways to use, tried in this order:
+              unbond obj=<indice> atom1=<id> atom2=<id>
+                                            -- removes the bond between two
+                                               atoms directly by atom_id,
+                                               no picking needed.
+              unbond                        -- removes the bond between
+                                                the 2 atoms currently
+                                                marked pk1/pk2 in the
+                                                MEASUREMENT PICKING tool
+                                                (same pk1..pk4 used for
+                                                on-screen distances/
+                                                angles/dihedrals). This is
+                                                the default when obj/
+                                                atom1/atom2 aren't given.
+
+        frame : NOT GIVEN (default) -> edits the object's STATIC topology,
+                exactly as described above.
+                GIVEN -> removes the pair from the DYNAMIC BONDS
+                representation instead, for the frame(s) selected by the
+                value -- same accepted forms as 'bond' (true/N/'A:B'/'all').
+
+        *** SAME WARNING AS 'bond': frame=... only changes what is drawn
+        for the selected frame(s) -- it does NOT change the pDynamo
+        system's real topology/force field. See 'bond's own docstring for
+        the full explanation.
+
+        [EN] BUG FIX: previously used atom_ops.remove_bond(). Same problem
+        as 'bond' above, worse: remove_bond() refuses to touch any bond
+        not explicitly recorded in manual_bonds AND resets
+        vismol_object.index_bonds = None before rebuilding purely from
+        manual_bonds -- confirmed via live testing that this drops every
+        OTHER bond in a normally-loaded structure, not just fails to
+        remove the intended one. Switched to atom_ops.unset_bond(), which
+        works on any bond present in vismol_object.bonds regardless of
+        its origin, and leaves everything else untouched.
+
+        Syncs the linked pDynamo system afterwards, if a bond was removed
+        (static path only -- frame=... is representation-only).
+
+        Examples:
+          unbond
+          unbond obj=0 atom1=3 atom2=7
+          unbond frame=true
+          unbond obj=0 atom1=3 atom2=7 frame=12
+          unbond frame=1:20
+          unbond frame=all
         """
         if self.vm_session is None:
             return "Session unavailable."
@@ -997,20 +1177,33 @@ class Command:
                 vobj = self.vm_session.vm_objects_dic[int(obj)]
             except (KeyError, ValueError):
                 return "Object '{}' not found. Use 'list' to see the indices.".format(obj)
-            from gui.windows.builder.atom_ops import add_bond, adjust_hydrogens, push_undo_snapshot
-            push_undo_snapshot(vobj)
+
+            from gui.windows.builder.atom_ops import resolve_frame_arg
             try:
-                created = add_bond(vobj, int(atom1), int(atom2))
+                frames = resolve_frame_arg(vobj, frame)
             except ValueError as e:
                 return str(e)
-            adjust_hydrogens(vobj, int(atom1))
-            adjust_hydrogens(vobj, int(atom2))
-            from gui.windows.builder.empty_object import sync_pdynamo_system
-            sync_pdynamo_system(vobj)
-            return ("Bond created between atom {} and atom {}.".format(atom1, atom2) if created
-                    else "A bond between these 2 atoms already existed.")
-        from gui.windows.builder.click_mode import handle_bond_shortcut
-        return handle_bond_shortcut(self.vm_session)
+
+            if frames is not None:
+                from gui.windows.builder.atom_ops import unset_dynamic_bond, push_undo_snapshot
+                push_undo_snapshot(vobj)
+                n_removed = unset_dynamic_bond(vobj, int(atom1), int(atom2), frames=frames)
+                frame_desc = "frame {}".format(frames[0]) if len(frames) == 1 else "{} frames".format(len(frames))
+                return ("[Dynamic Bonds] Bond removed between atom {} and atom {} in {} of {} requested. "
+                        "NOTE: representation-only, does not change the pDynamo system's real "
+                        "topology.".format(atom1, atom2, n_removed, frame_desc))
+
+            from gui.windows.builder.atom_ops import unset_bond, push_undo_snapshot
+            push_undo_snapshot(vobj)
+            removed = unset_bond(vobj, int(atom1), int(atom2))
+            if removed:
+                from gui.windows.builder.empty_object import sync_pdynamo_system
+                sync_pdynamo_system(vobj)
+            return ("Bond removed between atom {} and atom {}.".format(atom1, atom2) if removed
+                    else "No bond existed between these 2 atoms (nothing removed).")
+
+        from gui.windows.builder.click_mode import handle_unbond_picking
+        return handle_unbond_picking(self.vm_session, frame=frame)
 
     def cmd_add(self, obj=None, symbol="C", x=0.0, y=0.0, z=0.0, **_):
         """ Adds one atom to a Builder object, at an explicit position
@@ -1135,6 +1328,10 @@ class Command:
         return self.cmd_center(obj=obj, chain=chain, resi=resi, resn=resn, name=name)
     def zoom(self, dir="in", steps=5):      return self.cmd_zoom(dir=dir, steps=steps)
     def frame(self, n=None):                return self.cmd_frame(n=n)
+    def bond(self, obj=None, atom1=None, atom2=None, order=1, frame=None):
+        return self.cmd_bond(obj=obj, atom1=atom1, atom2=atom2, order=order, frame=frame)
+    def unbond(self, obj=None, atom1=None, atom2=None, frame=None):
+        return self.cmd_unbond(obj=obj, atom1=atom1, atom2=atom2, frame=frame)
     def list(self):                         return self.cmd_list()
 
 

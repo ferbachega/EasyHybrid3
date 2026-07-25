@@ -646,22 +646,49 @@ def _reapply_manual_bonds ( vismol_object ):
     # [EN] Aligns with _bonds_from_pair_of_indexes_list()'s own
     # "Convention B": external_orders[k] must be the order of the k-th
     # bond that SURVIVES that method's own exclude_list filter (default
-    # [['H','H']]) -- not the k-th raw pair. Replicated here (rather than
-    # just passing one order per pair in `sorted(merged_pairs)`) so a
-    # manually-set order (see click_mode.cycle_bond_order()) actually
-    # lands on the bond it was meant for, instead of silently shifting
-    # onto the wrong one whenever an H-H pair happens to sit before it in
-    # sorted order.
+    # [['H','H']]) -- not the k-th raw pair.
+    #
+    # [EN] BUG FIX: this used to build external_orders with
+    # manual_bond_orders.get((i,j), 1) -- i.e. DEFAULT TO A PLAIN SINGLE
+    # BOND for every pair the user hadn't explicitly cycled/set an order
+    # for. Combined with _bonds_from_pair_of_indexes_list() ALSO ignoring
+    # external_orders entirely (separately fixed there -- see that
+    # method's own updated comment), the net effect used to be "always
+    # auto-perceive, manual overrides silently discarded". Fixing ONLY
+    # the other method without fixing this default would have flipped
+    # the bug the other way: "always plain single bonds, auto-perception
+    # (aromatic/conjugated rings etc. -- see perceive_bond_order_for_pairs)
+    # never runs for anything drawn in the Builder". Fixed by computing a
+    # BASELINE via the same automatic perception used everywhere else
+    # (perceive_bond_order_for_pairs -- exact maximum-matching heuristic,
+    # handles conjugated rings correctly, see that method's own docstring
+    # for the full history), then overriding ONLY the specific pairs the
+    # user explicitly set in manual_bond_orders (via 'bond order=N' or
+    # Ctrl+click cycle_bond_order()) on top of that baseline -- matching
+    # cycle_bond_order()'s own stated intent ("persist the new order...
+    # REQUIRED... without persisting it... cycling a bond's order here
+    # would get silently overwritten back to the default").
     manual_bond_orders = getattr ( vismol_object, "manual_bond_orders", None ) or { }
     exclude_list = [ [ 'H', 'H' ] ]
-    external_orders = [ ]
+
+    surviving_pairs = [ ]
     for i, j in sorted ( merged_pairs ):
         symbol_i = vismol_object.atoms[i].symbol
         symbol_j = vismol_object.atoms[j].symbol
         is_excluded = any ( symbol_i in pair and symbol_j in pair for pair in exclude_list )
         if is_excluded:
             continue
-        external_orders.append ( manual_bond_orders.get ( ( i, j ), 1 ) )
+        surviving_pairs.append ( ( i, j ) )
+
+    if surviving_pairs:
+        flat_pairs = [ idx for pair in surviving_pairs for idx in pair ]
+        baseline_orders = vismol_object.perceive_bond_order_for_pairs ( flat_pairs ).tolist ( )
+    else:
+        baseline_orders = [ ]
+
+    external_orders = [ ]
+    for k, ( i, j ) in enumerate ( surviving_pairs ):
+        external_orders.append ( manual_bond_orders.get ( ( i, j ), baseline_orders[k] ) )
 
     vismol_object._bonds_from_pair_of_indexes_list ( external_orders = external_orders )
     vismol_object._get_non_bonded_from_bonded_list ( )
@@ -698,12 +725,32 @@ def add_bond ( vismol_object, atom_id_a, atom_id_b, bond_order = 1 ):
     context -- confirmed via live testing to have actually been hit by
     the Builder's click-and-drag-to-create-a-bonded-atom feature: a
     SECOND drag's add_atom() call was silently erasing the FIRST drag's
-    bond). """
+    bond).
+
+    [EN] BUG FIX: bond_order used to be accepted as a parameter here but
+    was NEVER ACTUALLY USED anywhere in this function's body -- calling
+    add_bond(..., bond_order=2) silently produced a plain single bond
+    every time, exactly the same class of dead-parameter bug already
+    found and fixed once in click_mode.cycle_bond_order() (see that
+    function's own docstring: "_bonds_from_pair_of_indexes_list()'s
+    external_orders parameter already existed but its actual assignment
+    ... was commented out"). Fixed the same way cycle_bond_order()
+    already does it: persist the requested order in
+    vismol_object.manual_bond_orders (keyed by the normalized (min,max)
+    pair), which _reapply_manual_bonds() below feeds into
+    _bonds_from_pair_of_indexes_list() as external_orders -- required,
+    not optional, since bonds get rebuilt FROM SCRATCH (fresh Bond()
+    objects) on every structural edit, so anything not persisted there
+    is silently lost on the very next add_atom()/remove_atom()/add_bond()
+    call. """
     if atom_id_a == atom_id_b:
         raise ValueError ( "add_bond: cannot bond an atom to itself." )
     if atom_id_a not in vismol_object.atoms or atom_id_b not in vismol_object.atoms:
         raise ValueError ( "add_bond: atom_id_a={} or atom_id_b={} does not exist in this object.".format (
                             atom_id_a, atom_id_b ) )
+    if bond_order not in ( 1, 2, 3 ):
+        raise ValueError ( "add_bond: bond_order must be 1 (single), 2 (double) or 3 (triple), got {!r}.".format (
+                            bond_order ) )
 
     pair = ( min ( atom_id_a, atom_id_b ), max ( atom_id_a, atom_id_b ) )
 
@@ -711,12 +758,15 @@ def add_bond ( vismol_object, atom_id_a, atom_id_b, bond_order = 1 ):
         vismol_object.manual_bonds = set ( )
     vismol_object.manual_bonds.add ( pair )
 
+    if not hasattr ( vismol_object, "manual_bond_orders" ) or vismol_object.manual_bond_orders is None:
+        vismol_object.manual_bond_orders = { }
+    vismol_object.manual_bond_orders[pair] = int ( bond_order )
+
     changed = _reapply_manual_bonds ( vismol_object )
     if not changed:
         return False   # objeto sem nenhuma ligacao (nem essa nova, nem nenhuma outra) -- nada a fazer (caso raro/defensivo)
 
-    vismol_object.create_representation ( rep_type = "lines" )
-    vismol_object.create_representation ( rep_type = "nonbonded" )
+    _refresh_bond_dependent_representations ( vismol_object )
     vismol_object.core_representations["picking_dots"] = None
     vismol_object.core_representations["picking_text"] = None
 
@@ -762,8 +812,7 @@ def remove_bond ( vismol_object, atom_id_a, atom_id_b ):
     vismol_object.non_bonded_atoms = None
     _reapply_manual_bonds ( vismol_object )
 
-    vismol_object.create_representation ( rep_type = "lines" )
-    vismol_object.create_representation ( rep_type = "nonbonded" )
+    _refresh_bond_dependent_representations ( vismol_object )
     vismol_object.core_representations["picking_dots"] = None
     vismol_object.core_representations["picking_text"] = None
 
@@ -772,6 +821,478 @@ def remove_bond ( vismol_object, atom_id_a, atom_id_b ):
         vm_session.vm_glcore.queue_draw ( )
 
     return True
+
+
+def _refresh_bond_dependent_representations ( vismol_object ):
+    """ [EN] Recreates every bond-dependent representation that is
+    CURRENTLY PRESENT on this object (i.e. was created at some point --
+    not necessarily the one the user happens to be looking at right now,
+    but any that exist), preserving each one's active/inactive state.
+
+    [EN] BUG FIX (found via live testing): set_bond_order()/unset_bond()
+    below (and, before them, add_bond()/remove_bond()) only ever called
+    vismol_object.create_representation() for rep_type='lines' and
+    'nonbonded' -- NEVER 'sticks', even though 'sticks' is the ONLY
+    representation that actually draws double/triple bonds distinctly
+    (see representations.py's SticksRepresentation._get_bond_order_per_
+    bond() / the geometry shader's u_bond_order_tbo). Confirmed live:
+    'unbond' correctly removed the bond from vismol_object.bonds (a
+    second 'unbond' on the same pair correctly reported "no bond
+    existed"), but the on-screen STICKS view kept showing the old bond --
+    because that representation object's OWN self.indexes (its private
+    copy of the atom-pair list actually used for the GPU element buffer,
+    set once at creation time by define_new_indexes_to_vbo()) was never
+    refreshed; only vismol_object.index_bonds itself was updated, and
+    nothing told the existing SticksRepresentation object to rebuild from
+    it. 'lines' was fine only because it happened to be the one
+    representation type these functions did already recreate.
+
+    Only rep_types that are NOT None in vismol_object.representations get
+    touched (i.e. only ones actually in use for this object) -- creating
+    'sticks' from scratch for an object that never had it would silently
+    turn sticks rendering ON for something the user never asked to see in
+    that style. metal_dash refreshes as a side effect of recreating
+    'lines'/'sticks' (see create_representation()'s own _ensure_metal_
+    dash() calls), so it doesn't need its own entry here. """
+    reps = getattr ( vismol_object, "representations", None ) or { }
+    for rep_type in ( "lines", "sticks", "nonbonded" ):
+        rep = reps.get ( rep_type )
+        if rep is None:
+            continue
+        was_active = getattr ( rep, "active", True )
+        vismol_object.create_representation ( rep_type = rep_type )
+        new_rep = vismol_object.representations.get ( rep_type )
+        if new_rep is not None:
+            new_rep.active = was_active
+
+
+def _sync_index_bonds_and_order_list_from_bonds_dict ( vismol_object ):
+    """ [EN] Small helper shared by set_bond_order()/unset_bond() below:
+    regenerates vismol_object.index_bonds and vismol_object.bond_order_list
+    DIRECTLY from vismol_object.bonds (the dict, iterated in its current
+    order -- Python dicts preserve insertion order, so this stays stable
+    across repeated calls). Both arrays end up paired 1:1, same index k in
+    both. Does NOT touch self.bonds itself, self.atoms[*].bonds, manual_
+    bonds, topology, non_bonded_atoms, or anything else -- purely a
+    flatten of whatever self.bonds already is. """
+    flat = [ ]
+    orders = [ ]
+    for ( i, j ), bond in vismol_object.bonds.items ( ):
+        flat.append ( i )
+        flat.append ( j )
+        orders.append ( int ( bond.bond_order ) )
+    vismol_object.index_bonds = np.array ( flat, dtype = np.int64 )
+    vismol_object.bond_order_list = orders
+
+
+def set_bond_order ( vismol_object, atom_id_a, atom_id_b, bond_order = 1 ):
+    """ [EN] Adds a bond between atom_id_a/atom_id_b if none exists yet,
+
+    or updates its order if one already does -- WITHOUT rebuilding the
+    object's entire bond set from scratch, unlike add_bond()/
+    _reapply_manual_bonds().
+
+    WHY THIS EXISTS (found via live testing, not just reading): add_bond()
+    /_reapply_manual_bonds() are built around the BUILDER's specific
+    design, where vismol_object.manual_bonds is meant to be the ONLY
+    source of truth for connectivity (see add_atom()'s own docstring:
+    "distance-based auto-detection is off... Bonds now live ENTIRELY in
+    vismol_object.manual_bonds"). That design is correct FOR THE BUILDER
+    (an empty object grown one atom/bond at a time, where every bond really
+    did come from an explicit add_bond() call) -- but breaks badly on a
+    NORMALLY LOADED structure (e.g. a PDB file read via
+    find_bonded_and_nonbonded_atoms()): those bonds live in self.bonds/
+    self.index_bonds from distance-based auto-detection and were NEVER
+    registered in self.manual_bonds. Calling add_bond() there merges
+    self.index_bonds (which, AT THAT MOMENT, still has everything) with
+    manual_bonds and rebuilds via _reapply_manual_bonds() -- confirmed
+    live to end up DROPPING every other bond in the structure, keeping
+    only the just-added one. (remove_bond() is worse: it explicitly resets
+    index_bonds = None BEFORE rebuilding, so uses ONLY manual_bonds --
+    guaranteed to drop everything not explicitly added via add_bond() in
+    the current session.)
+
+    This function sidesteps all of that: it mutates vismol_object.bonds
+    (the actual dict everything else already reads from -- get_bond(),
+    representations.py's _get_bond_order_per_bond(), etc.) directly, for
+    ONLY the one pair involved, then regenerates index_bonds/
+    bond_order_list FROM that dict (see
+    _sync_index_bonds_and_order_list_from_bonds_dict() above) -- every
+    OTHER bond, wherever it originally came from, is left completely
+    untouched.
+
+    Also keeps manual_bonds/manual_bond_orders in sync (adds this pair)
+    purely so this bond SURVIVES if the Builder's own add_atom()/
+    remove_atom()/add_bond() run later on this same object -- without that,
+    a bond created this way would vanish the next time any of those does
+    its own from-scratch, manual_bonds-only rebuild.
+
+    Returns True if a NEW bond was created, False if an existing bond's
+    order was updated (or left the same -- still returns False, since no
+    NEW bond was created either way). """
+    if atom_id_a == atom_id_b:
+        raise ValueError ( "set_bond_order: cannot bond an atom to itself." )
+    if atom_id_a not in vismol_object.atoms or atom_id_b not in vismol_object.atoms:
+        raise ValueError ( "set_bond_order: atom_id_a={} or atom_id_b={} does not exist in this object.".format (
+                            atom_id_a, atom_id_b ) )
+    if bond_order not in ( 1, 2, 3 ):
+        raise ValueError ( "set_bond_order: bond_order must be 1 (single), 2 (double) or 3 (triple), got {!r}.".format (
+                            bond_order ) )
+
+    if vismol_object.bonds is None:
+        vismol_object.bonds = { }
+
+    key = ( min ( atom_id_a, atom_id_b ), max ( atom_id_a, atom_id_b ) )
+    existing = vismol_object.bonds.get ( key )
+
+    if existing is not None:
+        existing.bond_order = int ( bond_order )
+        created = False
+    else:
+        from vismol.model.bond import Bond
+        atom_a = vismol_object.atoms[atom_id_a]
+        atom_b = vismol_object.atoms[atom_id_b]
+        bond = Bond ( atom_i = atom_a, atom_index_i = atom_id_a,
+                       atom_j = atom_b, atom_index_j = atom_id_b )
+        bond.bond_order = int ( bond_order )
+        vismol_object.bonds[key] = bond
+        atom_a.bonds.append ( bond )
+        atom_b.bonds.append ( bond )
+        atom_a.nbonds = len ( atom_a.bonds )
+        atom_b.nbonds = len ( atom_b.bonds )
+        created = True
+
+    _sync_index_bonds_and_order_list_from_bonds_dict ( vismol_object )
+
+    if not hasattr ( vismol_object, "manual_bonds" ) or vismol_object.manual_bonds is None:
+        vismol_object.manual_bonds = set ( )
+    vismol_object.manual_bonds.add ( key )
+    if not hasattr ( vismol_object, "manual_bond_orders" ) or vismol_object.manual_bond_orders is None:
+        vismol_object.manual_bond_orders = { }
+    vismol_object.manual_bond_orders[key] = int ( bond_order )
+
+    if created:
+        # Topologia/non-bonded/moleculas so' precisam ser refeitas quando a
+        # CONECTIVIDADE muda (bond novo) -- uma simples troca de ordem numa
+        # ligacao que ja existia nao afeta nenhuma dessas (grafo identico).
+        vismol_object.non_bonded_atoms = None
+        vismol_object._get_non_bonded_from_bonded_list ( )
+        vismol_object._generate_topology_from_index_bonds ( )
+        vismol_object.define_molecules ( )
+        vismol_object.define_Calpha_backbone ( )
+
+    _refresh_bond_dependent_representations ( vismol_object )
+    vismol_object.core_representations["picking_dots"] = None
+    vismol_object.core_representations["picking_text"] = None
+
+    vm_session = vismol_object.vm_session
+    if getattr ( vm_session, "vm_glcore", None ) is not None:
+        vm_session.vm_glcore.queue_draw ( )
+
+    return created
+
+
+def unset_bond ( vismol_object, atom_id_a, atom_id_b ):
+    """ [EN] Companion to set_bond_order() above, for REMOVAL -- same
+    reasoning as that function's own docstring for why this exists
+    instead of reusing remove_bond() (which is Builder/manual_bonds-only
+    and, per that function's own docstring, drops every bond not
+    explicitly added via add_bond() when called on a normally-loaded
+    structure).
+
+    Works on ANY bond present in vismol_object.bonds, regardless of
+    whether it came from automatic distance-based detection (a loaded
+    file) or was added explicitly (add_bond()/set_bond_order() above) --
+    removes it directly from that dict and from both atoms' own .bonds
+    lists, then regenerates index_bonds/bond_order_list from what
+    remains. No other bond is touched.
+
+    Returns True if a bond was actually removed, False if that pair
+    wasn't bonded to begin with. """
+    if vismol_object.bonds is None:
+        return False
+
+    key = ( min ( atom_id_a, atom_id_b ), max ( atom_id_a, atom_id_b ) )
+    bond = vismol_object.bonds.get ( key )
+    if bond is None:
+        return False
+
+    del vismol_object.bonds[key]
+
+    atom_a = vismol_object.atoms.get ( atom_id_a )
+    atom_b = vismol_object.atoms.get ( atom_id_b )
+    if atom_a is not None and bond in atom_a.bonds:
+        atom_a.bonds.remove ( bond )
+        atom_a.nbonds = len ( atom_a.bonds )
+    if atom_b is not None and bond in atom_b.bonds:
+        atom_b.bonds.remove ( bond )
+        atom_b.nbonds = len ( atom_b.bonds )
+
+    manual_bonds = getattr ( vismol_object, "manual_bonds", None )
+    if manual_bonds:
+        manual_bonds.discard ( key )
+    manual_bond_orders = getattr ( vismol_object, "manual_bond_orders", None )
+    if manual_bond_orders:
+        manual_bond_orders.pop ( key, None )
+
+    _sync_index_bonds_and_order_list_from_bonds_dict ( vismol_object )
+
+    vismol_object.non_bonded_atoms = None
+    vismol_object._get_non_bonded_from_bonded_list ( )
+    vismol_object._generate_topology_from_index_bonds ( )
+    vismol_object.define_molecules ( )
+    vismol_object.define_Calpha_backbone ( )
+
+    _refresh_bond_dependent_representations ( vismol_object )
+    vismol_object.core_representations["picking_dots"] = None
+    vismol_object.core_representations["picking_text"] = None
+
+    vm_session = vismol_object.vm_session
+    if getattr ( vm_session, "vm_glcore", None ) is not None:
+        vm_session.vm_glcore.queue_draw ( )
+
+    return True
+
+
+# =====================================================================================
+#   Dynamic Bonds (representacao POR FRAME) -- 'bond'/'unbond' com frame=...
+#   ------------------------------------------------------------------------------
+#   Tudo acima (set_bond_order/unset_bond) edita a TOPOLOGIA ESTATICA do
+#   objeto (vismol_object.bonds/index_bonds) -- vale para TODOS os frames e
+#   e' o que fica gravado se o objeto for salvo/exportado.
+#
+#   As funcoes abaixo, em vez disso, editam vismol_object.dynamic_bonds[f]
+#   -- a lista de pares POR FRAME usada pela representacao "Dynamic Bonds"
+#   (tipicamente a regiao QC de uma trajetoria QM/MM, recalculada
+#   automaticamente por distancia a cada frame -- ver VismolSession.
+#   define_dynamic_bonds() / VismolObject.find_bonded_and_nonbonded_atoms()).
+#
+#   *** AVISO IMPORTANTE, repetido no docstring de cmd_bond/cmd_unbond no
+#   terminal: usar frame=... aqui NAO cria uma ligacao quimica de verdade.
+#   E' PURAMENTE uma edicao da REPRESENTACAO/VISUALIZACAO para aquele(s)
+#   frame(s) -- nao mexe em nada do sistema pDynamo (topologia, campo de
+#   forca, constantes de forca de ligacao, cargas, etc.). Para criar uma
+#   ligacao real (com parametros de campo de forca), a topologia do
+#   sistema pDynamo precisa ser editada por outros meios -- isso aqui e'
+#   so' para ajustar o que aparece na tela enquanto se inspeciona/prepara
+#   uma trajetoria (ex.: forcar visualmente uma ligacao que a deteccao
+#   automatica por distancia deixou passar batido num frame especifico).
+# =====================================================================================
+
+def resolve_frame_arg ( vismol_object, frame ):
+    """ [EN] Converts the 'frame' argument accepted by 'bond'/'unbond'
+    (terminal cmd_bond/cmd_unbond, or the picking-based equivalents in
+    click_mode.py) into either:
+      - None, meaning "no frame given -- edit the STATIC topology
+        (vismol_object.bonds) via set_bond_order()/unset_bond() above,
+        NOT Dynamic Bonds". This is the default or when frame= is simply
+        not part of the command -- keeps existing 'bond'/'unbond' usage
+        completely unchanged.
+      - a sorted list of int frame indices to apply a Dynamic Bonds edit
+        to (set_dynamic_bond_order()/unset_dynamic_bond() below).
+
+    Accepted forms for `frame` (already run through the terminal DSL's
+    own type coercion -- see Command._coerce() in easyhybrid_terminal.py):
+      None                            -> None (static topology path)
+      True (from 'frame=true'/'yes'/'on') -> [current frame only]
+      5 (int, from 'frame=5')         -> [5]
+      'all' (any case, 'frame=all')   -> every frame in vismol_object.frames
+      '1:5' (str, 'frame=1:5')        -> frames 1..5 INCLUSIVE (both ends
+                                          kept -- matches this codebase's
+                                          existing 'resi=10-20' filter
+                                          convention elsewhere, also
+                                          inclusive; note the SEPARATOR
+                                          here is ':' not '-', to avoid
+                                          colliding with negative frame
+                                          indices/typos)
+      '7' (plain digit string, in case DSL coercion didn't catch it)
+                                       -> [7]
+    """
+    if frame is None:
+        return None
+
+    vm_session = getattr ( vismol_object, "vm_session", None )
+    frames_arr = getattr ( vismol_object, "frames", None )
+    n_frames = int ( frames_arr.shape[0] ) if frames_arr is not None else 0
+
+    if isinstance ( frame, bool ):
+        current_frame = int ( vm_session.get_frame ( ) ) if ( vm_session is not None
+                              and hasattr ( vm_session, "get_frame" ) ) else 0
+        return [ current_frame ]
+
+    if isinstance ( frame, ( int, float ) ):
+        return [ int ( frame ) ]
+
+    if isinstance ( frame, str ):
+        s = frame.strip ( ).lower ( )
+        if s in ( "all", "*" ):
+            return list ( range ( n_frames ) )
+        if ":" in s:
+            a_str, b_str = s.split ( ":", 1 )
+            try:
+                a = int ( a_str.strip ( ) )
+                b = int ( b_str.strip ( ) )
+            except ValueError:
+                raise ValueError ( "frame: intervalo invalido {!r} (use algo como '1:5').".format ( frame ) )
+            if a > b:
+                a, b = b, a
+            return list ( range ( a, b + 1 ) )
+        try:
+            return [ int ( s ) ]
+        except ValueError:
+            raise ValueError ( "frame: valor invalido {!r} (use um inteiro, 'A:B' ou 'all').".format ( frame ) )
+
+    raise ValueError ( "frame: tipo invalido {!r} (use um inteiro, 'A:B' ou 'all').".format ( frame ) )
+
+
+def _refresh_dynamic_bond_representations ( vismol_object, affected_frames ):
+    """ [EN] Marks any 'is_dynamic' representation (the Dynamic Bonds
+    sticks/lines, see representations.py's Representation.__init__
+    is_dynamic flag) as needing its index buffer reloaded, so a Dynamic
+    Bonds edit made by set_dynamic_bond_order()/unset_dynamic_bond()
+    below becomes visible immediately on screen -- WITHOUT this, the
+    change is still correctly stored in vismol_object.dynamic_bonds[f]
+    (and would show up correctly if the user steps away to another frame
+    and back), but wouldn't redraw right away for a frame that's already
+    on screen.
+
+    Only bothers marking anything if the CURRENTLY DISPLAYED frame is
+    among affected_frames -- editing frame 500 while looking at frame 0
+    doesn't need an immediate redraw; that frame's geometry gets rebuilt
+    naturally, the same way normal frame-stepping already does, whenever
+    the user actually navigates there (is_dynamic representations always
+    read vismol_object.dynamic_bonds[f] fresh when their index buffer is
+    reloaded -- see representations.py's _load_ind_vbo()). """
+    vm_session = getattr ( vismol_object, "vm_session", None )
+    if vm_session is None or not hasattr ( vm_session, "get_frame" ):
+        return
+    current_frame = int ( vm_session.get_frame ( ) )
+    if current_frame not in affected_frames:
+        return
+    for rep in ( getattr ( vismol_object, "representations", None ) or { } ).values ( ):
+        if rep is not None and getattr ( rep, "is_dynamic", False ):
+            rep.was_rep_ind_modified = True
+    vm_glcore = getattr ( vm_session, "vm_glcore", None )
+    if vm_glcore is not None:
+        vm_glcore.queue_draw ( )
+
+
+def set_dynamic_bond_order ( vismol_object, atom_id_a, atom_id_b, bond_order = 1, frames = None ):
+    """ [EN] Dynamic Bonds equivalent of set_bond_order() above -- adds
+    the pair to vismol_object.dynamic_bonds[f] (if not already present)
+    and/or forces its order via vismol_object.dynamic_manual_bond_orders
+    (see get_dynamic_bond_order_for_frame()'s own updated docstring),
+    for every frame index in `frames`.
+
+    *** Purely a REPRESENTATION edit -- see this section's own banner
+    comment above. Does NOT touch vismol_object.bonds, the pDynamo
+    system's topology, force-field parameters, or anything used for an
+    actual QM/MM calculation.
+
+    frames: iterable of int frame indices (already resolved -- see
+    resolve_frame_arg() above; None is NOT accepted here, the caller is
+    responsible for routing to set_bond_order() instead when frame=None).
+
+    Returns the number of frames where a NEW pair had to be added (as
+    opposed to a pair that already existed there and just had its order
+    updated/confirmed). """
+    if atom_id_a == atom_id_b:
+        raise ValueError ( "set_dynamic_bond_order: cannot bond an atom to itself." )
+    if atom_id_a not in vismol_object.atoms or atom_id_b not in vismol_object.atoms:
+        raise ValueError ( "set_dynamic_bond_order: atom_id_a={} or atom_id_b={} does not exist in this object.".format (
+                            atom_id_a, atom_id_b ) )
+    if bond_order not in ( 1, 2, 3 ):
+        raise ValueError ( "set_dynamic_bond_order: bond_order must be 1 (single), 2 (double) or 3 (triple), got {!r}.".format (
+                            bond_order ) )
+    if vismol_object.dynamic_bonds is None or len ( vismol_object.dynamic_bonds ) == 0:
+        raise ValueError ( "set_dynamic_bond_order: this object has no Dynamic Bonds defined yet "
+                            "(define a Dynamic Bonds selection first)." )
+    if not frames:
+        raise ValueError ( "set_dynamic_bond_order: no frame(s) given." )
+
+    key = ( min ( atom_id_a, atom_id_b ), max ( atom_id_a, atom_id_b ) )
+
+    if not hasattr ( vismol_object, "dynamic_manual_bond_orders" ) or vismol_object.dynamic_manual_bond_orders is None:
+        vismol_object.dynamic_manual_bond_orders = { }
+
+    n_created = 0
+    touched = [ ]
+    for f in frames:
+        if f < 0 or f >= len ( vismol_object.dynamic_bonds ):
+            continue
+        flat = list ( np.asarray ( vismol_object.dynamic_bonds[f] ).ravel ( ).tolist ( ) )
+        pairs_in_frame = { ( min ( flat[k], flat[k + 1] ), max ( flat[k], flat[k + 1] ) )
+                            for k in range ( 0, len ( flat ), 2 ) }
+        if key not in pairs_in_frame:
+            flat.append ( key[0] )
+            flat.append ( key[1] )
+            vismol_object.dynamic_bonds[f] = flat
+            n_created += 1
+
+        vismol_object.dynamic_manual_bond_orders.setdefault ( f, { } )[key] = int ( bond_order )
+
+        if vismol_object.dynamic_bond_orders is not None and f < len ( vismol_object.dynamic_bond_orders ):
+            vismol_object.dynamic_bond_orders[f] = None  # invalida o cache -- ver get_dynamic_bond_order_for_frame
+
+        touched.append ( f )
+
+    _refresh_dynamic_bond_representations ( vismol_object, touched )
+
+    return n_created
+
+
+def unset_dynamic_bond ( vismol_object, atom_id_a, atom_id_b, frames = None ):
+    """ [EN] Dynamic Bonds equivalent of unset_bond() above -- removes the
+    pair from vismol_object.dynamic_bonds[f] (if present) and forgets any
+    forced order for it, for every frame index in `frames`.
+
+    *** Purely a REPRESENTATION edit -- see this section's own banner
+    comment above.
+
+    frames: iterable of int frame indices (already resolved -- see
+    resolve_frame_arg() above; None is NOT accepted here).
+
+    Returns the number of frames where the pair was actually present (and
+    got removed). """
+    if vismol_object.dynamic_bonds is None or len ( vismol_object.dynamic_bonds ) == 0:
+        return 0
+    if not frames:
+        return 0
+
+    key = ( min ( atom_id_a, atom_id_b ), max ( atom_id_a, atom_id_b ) )
+    dmb = getattr ( vismol_object, "dynamic_manual_bond_orders", None )
+
+    n_removed = 0
+    touched = [ ]
+    for f in frames:
+        if f < 0 or f >= len ( vismol_object.dynamic_bonds ):
+            continue
+        flat = list ( np.asarray ( vismol_object.dynamic_bonds[f] ).ravel ( ).tolist ( ) )
+        new_flat = [ ]
+        removed_here = False
+        for k in range ( 0, len ( flat ), 2 ):
+            pair = ( min ( flat[k], flat[k + 1] ), max ( flat[k], flat[k + 1] ) )
+            if pair == key and not removed_here:
+                removed_here = True
+                continue
+            new_flat.append ( flat[k] )
+            new_flat.append ( flat[k + 1] )
+
+        if removed_here:
+            vismol_object.dynamic_bonds[f] = new_flat
+            n_removed += 1
+
+        if dmb and f in dmb:
+            dmb[f].pop ( key, None )
+
+        if vismol_object.dynamic_bond_orders is not None and f < len ( vismol_object.dynamic_bond_orders ):
+            vismol_object.dynamic_bond_orders[f] = None  # invalida o cache
+
+        touched.append ( f )
+
+    _refresh_dynamic_bond_representations ( vismol_object, touched )
+
+    return n_removed
 
 
 # =====================================================================================

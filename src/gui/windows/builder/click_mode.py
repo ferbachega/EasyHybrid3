@@ -144,7 +144,7 @@ def set_tool ( vm_session, tool ):
     vm_session.builder_tool = tool
 
 
-def handle_bond_shortcut ( vm_session ):
+def handle_bond_shortcut ( vm_session, bond_order = 1 ):
     """ [EN] Called by the 'b' keyboard shortcut (VismolGTKWidget._pressed_b).
     NOT a persistent tool/mode -- a one-shot ACTION: looks at whatever is
     CURRENTLY selected (vm_session.selections[vm_session.current_selection]
@@ -163,6 +163,13 @@ def handle_bond_shortcut ( vm_session ):
     unexpected there would be worse than just refusing with a clear
     message.
 
+    bond_order: 1 (default), 2 or 3 -- forwarded to add_bond(). The 'b'
+    key itself always calls this with the default (single bond); the
+    terminal's 'bond' command (easyhybrid_terminal.py's cmd_bond) can
+    request 2 or 3 through this same path when it falls back here (no
+    pk1/pk2 picked -- see handle_bond_picking() below for the picking-
+    based equivalent, which shares this same order-handling convention).
+
     Returns a short status string (meant to be logged/printed by the
     caller), rather than raising, for the common "not exactly 2 atoms
     selected yet" case -- that's an expected, frequent state while the
@@ -179,7 +186,10 @@ def handle_bond_shortcut ( vm_session ):
 
     from gui.windows.builder.atom_ops import add_bond, adjust_hydrogens, push_undo_snapshot
     push_undo_snapshot ( atom_a.vm_object )
-    created = add_bond ( atom_a.vm_object, atom_a.atom_id, atom_b.atom_id )
+    try:
+        created = add_bond ( atom_a.vm_object, atom_a.atom_id, atom_b.atom_id, bond_order = bond_order )
+    except ValueError as e:
+        return str ( e )
     adjust_hydrogens ( atom_a.vm_object, atom_a.atom_id )
     adjust_hydrogens ( atom_a.vm_object, atom_b.atom_id )
 
@@ -192,6 +202,237 @@ def handle_bond_shortcut ( vm_session ):
         return "Bond created between atom {} and atom {}.".format ( atom_a.atom_id, atom_b.atom_id )
     else:
         return "A bond between these 2 atoms already existed."
+
+
+def _clear_pk_pair ( vm_session ):
+    """ [EN] Small helper shared by handle_bond_picking()/
+    handle_unbond_picking() below: clears the measurement picking tool
+    (vm_session.picking_selections -- VismolPickingSelection in
+    vismol_selections.py, the same pk1..pk4 used for distances/angles/
+    dihedrals and the Reaction Coordinate widget) after a successful
+    bond/unbond, mirroring the "clear the selection afterwards on
+    success, so the next two clicks start a fresh pair" convenience
+    handle_bond_shortcut() already does for the OTHER (viewing)
+    selection mechanism.
+
+    Deliberately reuses selection_function_picking(None) -- the SAME
+    method the picking tool itself already calls to reset -- rather than
+    poking picking_selections_list directly. An earlier version of this
+    helper cleared just picking_selections_list[0]/[1] "by hand" to
+    leave pk3/pk4 untouched, but selection_function_picking() also drives
+    the on-screen picking-sphere markers and pk1pk2/pk2pk3/pk3pk4 dash-
+    line representations (see its own body in vismol_selections.py) --
+    clearing the list directly left those stale markers on screen for
+    the just-bonded pair. Clearing all 4 slots avoids that at the cost
+    of also dropping any in-progress pk3/pk4 angle/dihedral picking,
+    which is the safer trade-off (a visible stale marker is a worse bug
+    than having to re-pick pk3/pk4). """
+    ps = getattr ( vm_session, "picking_selections", None )
+    if ps is None:
+        return
+    ps.selection_function_picking ( None )
+
+
+def handle_bond_picking ( vm_session, bond_order = 1, frame = None ):
+    """ [EN] Picking-based equivalent of handle_bond_shortcut() above --
+    but uses atom_ops.set_bond_order(), NOT add_bond() -- reads the two
+    atoms from pk1/pk2 of the MEASUREMENT picking tool
+    (vm_session.picking_selections.picking_selections_list -- the same
+    pk1..pk4 used for on-screen distances/angles/dihedrals and for the
+    Reaction Coordinate widget, see VismolPickingSelection in
+    vismol_selections.py) instead of the Builder's own multi-select
+    (vm_session.selections[...].selected_atoms, which is what
+    handle_bond_shortcut()/the 'b' key use). Lets someone who is already
+    clicking pk1/pk2 to measure a distance turn that same pair into an
+    explicit bond -- at a chosen bond order -- without switching
+    selection modes. This is what easyhybrid_terminal.py's 'bond'
+    command (cmd_bond) uses by default (no obj=/atom1=/atom2= given).
+
+    [EN] BUG FIX: this originally called add_bond() here, same as
+    handle_bond_shortcut() above. Confirmed via live testing that this is
+    WRONG for this picking-based path specifically: unlike
+    handle_bond_shortcut() (which only ever runs from the ground-up
+    Builder canvas, where add_bond()'s manual_bonds-only rebuild design is
+    correct -- see add_atom()'s own docstring), this picking-based command
+    is meant to work on ANY object, including a normally-LOADED structure
+    (e.g. a PDB file). On those, add_bond() was observed to silently drop
+    every OTHER bond in the structure, keeping only the just-added one
+    (see set_bond_order()'s own docstring in atom_ops.py for the full
+    explanation of why). Switched to set_bond_order(), which mutates only
+    the one pair involved and leaves everything else untouched regardless
+    of where those other bonds originally came from.
+
+    Also deliberately does NOT call adjust_hydrogens() here (unlike
+    handle_bond_shortcut()) -- that is a Builder-canvas convenience
+    (auto-filling remaining valence with hydrogens while sketching a
+    molecule from scratch), not something a bond-order edit on an
+    already-complete, loaded structure should trigger as a side effect
+    (it would add/remove atoms nobody asked for, on top of whatever
+    problem the person was actually trying to fix/visualize).
+
+    bond_order: 1 (default), 2 or 3 -- becomes the bond's persisted
+    order (see atom_ops.set_bond_order()'s own docstring).
+
+    frame: None (default) -> edits the STATIC topology (vismol_object.
+    bonds), exactly as before. Anything else (an int, 'A:B', 'all', or
+    True meaning "current frame") -> edits the DYNAMIC BONDS
+    representation instead, for the resolved frame(s) -- see atom_ops.
+    resolve_frame_arg()/set_dynamic_bond_order() for exactly what values
+    are accepted and, IMPORTANTLY, that this path is REPRESENTATION-ONLY
+    (does not touch the pDynamo system's real topology/force-field).
+
+    Deliberately requires the SAME object for pk1/pk2, same reasoning as
+    handle_bond_shortcut() above.
+
+    Returns a short status string (never raises) -- same contract as
+    handle_bond_shortcut(). """
+    ps = getattr ( vm_session, "picking_selections", None )
+    if ps is None:
+        return "Picking selections unavailable."
+
+    atom_a = ps.picking_selections_list[0] if len ( ps.picking_selections_list ) > 0 else None
+    atom_b = ps.picking_selections_list[1] if len ( ps.picking_selections_list ) > 1 else None
+
+    if atom_a is None or atom_b is None:
+        return "Pick 2 atoms first (pk1, pk2) before bonding."
+    if atom_a is atom_b:
+        return "pk1 and pk2 must be two different atoms."
+    if atom_a.vm_object is not atom_b.vm_object:
+        return "pk1 and pk2 must belong to the same object."
+
+    vismol_object = atom_a.vm_object
+
+    from gui.windows.builder.atom_ops import resolve_frame_arg
+    try:
+        frames = resolve_frame_arg ( vismol_object, frame )
+    except ValueError as e:
+        return str ( e )
+
+    order_word = { 1: "single", 2: "double", 3: "triple" }[int ( bond_order )]
+
+    if frames is not None:
+        # --- caminho Dynamic Bonds (representacao POR FRAME) ----------------
+        from gui.windows.builder.atom_ops import set_dynamic_bond_order, push_undo_snapshot
+        push_undo_snapshot ( vismol_object )
+        try:
+            n_created = set_dynamic_bond_order ( vismol_object, atom_a.atom_id, atom_b.atom_id,
+                                                  bond_order = bond_order, frames = frames )
+        except ValueError as e:
+            return str ( e )
+        _clear_pk_pair ( vm_session )
+        frame_desc = "frame {}".format ( frames[0] ) if len ( frames ) == 1 else "{} frames".format ( len ( frames ) )
+        return ( "[Dynamic Bonds] Bond order between atom {} and atom {} set to {} ({}) "
+                 "for {} ({} new pair(s) added). NOTE: representation-only, does not "
+                 "change the pDynamo system's real topology.".format (
+                 atom_a.atom_id, atom_b.atom_id, bond_order, order_word, frame_desc, n_created ) )
+
+    # --- caminho normal: topologia estatica -----------------------------
+    from gui.windows.builder.atom_ops import set_bond_order, push_undo_snapshot
+    push_undo_snapshot ( vismol_object )
+    try:
+        created = set_bond_order ( vismol_object, atom_a.atom_id, atom_b.atom_id, bond_order = bond_order )
+    except ValueError as e:
+        return str ( e )
+
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( vismol_object )
+
+    _clear_pk_pair ( vm_session )   # limpa pk1..pk4 para o proximo par
+
+    if created:
+        return "Bond created between atom {} and atom {} (order={}, {}).".format (
+                atom_a.atom_id, atom_b.atom_id, bond_order, order_word )
+    else:
+        return "Bond order between atom {} and atom {} set to {} ({}).".format (
+                atom_a.atom_id, atom_b.atom_id, bond_order, order_word )
+
+
+def handle_unbond_picking ( vm_session, frame = None ):
+    """ [EN] Picking-based companion to handle_bond_picking() above, for
+    REMOVING a bond instead of adding one -- reads pk1/pk2 the same way,
+    then calls atom_ops.unset_bond(). This is what easyhybrid_terminal.
+    py's 'unbond' command (cmd_unbond) uses by default (no obj=/atom1=/
+    atom2= given).
+
+    [EN] BUG FIX: this originally called remove_bond() here. Same problem
+    as handle_bond_picking()'s own bug-fix note above, just worse:
+    remove_bond() is Builder/manual_bonds-only BY DESIGN (see its own
+    docstring) -- it refuses to remove any bond not explicitly recorded in
+    manual_bonds, AND explicitly resets vismol_object.index_bonds = None
+    before rebuilding purely from manual_bonds. Confirmed via live testing
+    that calling it here, on a normally-loaded structure, does not just
+    fail to remove the intended bond -- it drops every OTHER bond in the
+    object too (see set_bond_order()'s docstring in atom_ops.py for the
+    full explanation). Switched to unset_bond(), which works on ANY bond
+    present in vismol_object.bonds regardless of where it came from, and
+    leaves every other bond completely untouched.
+
+    Also deliberately does NOT call adjust_hydrogens() here, for the same
+    reason handle_bond_picking() no longer does -- see that function's own
+    updated docstring.
+
+    frame: None (default) -> edits the STATIC topology, exactly as
+    before. Anything else -> removes the pair from the DYNAMIC BONDS
+    representation instead, for the resolved frame(s) -- see atom_ops.
+    resolve_frame_arg()/unset_dynamic_bond(); representation-only, same
+    caveat as handle_bond_picking()'s own frame= documentation.
+
+    There is currently no keyboard-shortcut/viewing-selection equivalent
+    for unbonding the way handle_bond_shortcut() is for bonding -- the
+    only other way to remove a bond today is right-clicking directly on
+    its line in the 3D view (Avogadro-style, see remove_bond()'s own
+    docstring, still used by that gesture). This picking-based path is
+    the terminal/API way to do the same thing by atom pair instead of by
+    clicking the line.
+
+    Returns a short status string (never raises). """
+    ps = getattr ( vm_session, "picking_selections", None )
+    if ps is None:
+        return "Picking selections unavailable."
+
+    atom_a = ps.picking_selections_list[0] if len ( ps.picking_selections_list ) > 0 else None
+    atom_b = ps.picking_selections_list[1] if len ( ps.picking_selections_list ) > 1 else None
+
+    if atom_a is None or atom_b is None:
+        return "Pick 2 atoms first (pk1, pk2) before unbonding."
+    if atom_a is atom_b:
+        return "pk1 and pk2 must be two different atoms."
+    if atom_a.vm_object is not atom_b.vm_object:
+        return "pk1 and pk2 must belong to the same object."
+
+    vismol_object = atom_a.vm_object
+
+    from gui.windows.builder.atom_ops import resolve_frame_arg
+    try:
+        frames = resolve_frame_arg ( vismol_object, frame )
+    except ValueError as e:
+        return str ( e )
+
+    if frames is not None:
+        from gui.windows.builder.atom_ops import unset_dynamic_bond, push_undo_snapshot
+        push_undo_snapshot ( vismol_object )
+        n_removed = unset_dynamic_bond ( vismol_object, atom_a.atom_id, atom_b.atom_id, frames = frames )
+        _clear_pk_pair ( vm_session )
+        frame_desc = "frame {}".format ( frames[0] ) if len ( frames ) == 1 else "{} frames".format ( len ( frames ) )
+        return ( "[Dynamic Bonds] Bond removed between atom {} and atom {} in {} of {} "
+                 "requested. NOTE: representation-only, does not change the pDynamo "
+                 "system's real topology.".format (
+                 atom_a.atom_id, atom_b.atom_id, n_removed, frame_desc ) )
+
+    from gui.windows.builder.atom_ops import unset_bond, push_undo_snapshot
+    push_undo_snapshot ( vismol_object )
+    removed = unset_bond ( vismol_object, atom_a.atom_id, atom_b.atom_id )
+    if removed:
+        from gui.windows.builder.empty_object import sync_pdynamo_system
+        sync_pdynamo_system ( vismol_object )
+
+    _clear_pk_pair ( vm_session )   # limpa pk1..pk4 para o proximo par
+
+    if removed:
+        return "Bond removed between atom {} and atom {}.".format ( atom_a.atom_id, atom_b.atom_id )
+    else:
+        return "No bond existed between atom {} and atom {} (nothing removed).".format (
+                atom_a.atom_id, atom_b.atom_id )
 
 
 def handle_click_to_delete_atom ( vm_glcore ):
