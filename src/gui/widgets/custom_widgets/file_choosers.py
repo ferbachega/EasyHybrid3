@@ -38,6 +38,7 @@ import os
 
 import threading
 import time
+from util.debug import dprint
 
 from util.geometric_analysis            import get_distance 
 from util.geometric_analysis            import get_dihedral 
@@ -92,7 +93,7 @@ class FolderChooserButton:
             self.folder = os.environ.get('HOME')
         else:
             self.folder = folder
-        print( self.folder)
+        dprint( self.folder)
         name = os.path.basename(self.folder )
         #print( name)
         self.label.set_text(name)
@@ -159,7 +160,7 @@ class FolderChooserButton:
 
         
         elif response == Gtk.ResponseType.CANCEL:
-            print("Cancel clicked")
+            dprint("Cancel clicked")
 
         dialog.destroy()
        

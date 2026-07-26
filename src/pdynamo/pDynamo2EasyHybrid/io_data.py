@@ -158,7 +158,7 @@ class LoadAndSaveData:
         try:
             self.save_easyhybrid_session(filename=self.main.session_filename, tmp=True)
         except Exception as e:
-            print('Autosave failed:', e)
+            logger.warning('Autosave failed: %s', e)
         self.autosave_change_counter = 0
 
     def save_easyhybrid_session (self, filename = 'session.easy', tmp = False):

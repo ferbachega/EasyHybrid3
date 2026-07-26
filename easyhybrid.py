@@ -35,6 +35,7 @@
 EASYHYBRID_VERSION = '3.0.3'
 
 import os, sys, time, re
+import logging
 
 # --- Fix: engasgo de rotacao em GPUs integradas Intel (driver Mesa/GLX) ---
 # Em GPUs integradas Intel com driver Mesa, um frame que atrasa levemente
@@ -139,15 +140,15 @@ try:
     from paths import PDYNAMO_HOME
     shell_scripts = os.path.join(PDYNAMO_HOME, 'installation/shellScripts/environment_bash.com')
     parse_bash_env_file(shell_scripts)
-    print('importing evironment variables from:', shell_scripts)
-except:
-    print ('paths not found')
+    logging.info('Importing environment variables from: %s', shell_scripts)
+except Exception as e:
+    logging.warning('paths.py / PDYNAMO_HOME not found -- pDynamo3 environment '
+                     'variables were not imported (%s).', e)
 
 
 
 
 
-import logging
 import gi 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
@@ -198,12 +199,13 @@ class SplashScreen(Gtk.Window):
 
             image = Gtk.Image.new_from_pixbuf(pixbuf)
             self.add(image)
-        except:
-            print('splash.png file not found!')
+        except Exception as e:
+            logging.warning('splash.png could not be loaded (%s) -- '
+                             'showing an empty splash window instead.', e)
 
 def load_modules(callback_final):
     def _load():
-        print("Starting module loading...")
+        logging.info("Starting module loading...")
         time.sleep(1.5)   
         GLib.idle_add(callback_final)  #Call the finalize function in the main loop
     threading.Thread(target=_load).start()

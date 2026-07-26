@@ -38,6 +38,7 @@ import os
 
 import threading
 import time
+from util.debug import dprint
 
 from util.geometric_analysis            import get_distance 
 from util.geometric_analysis            import get_dihedral 
@@ -124,7 +125,7 @@ class VismolSelectionTypeBox(Gtk.Box):
             for key in keys:
                 selected_atom_names_list.append(key.strip())
             
-            print ('entry_atom_names', self.vm_session.selections[self.vm_session.current_selection].selected_atom_names_list)
+            dprint ('entry_atom_names', self.vm_session.selections[self.vm_session.current_selection].selected_atom_names_list)
         
         
         
@@ -136,7 +137,7 @@ class VismolSelectionTypeBox(Gtk.Box):
             for key in keys:
                 selected_element_list.append(key.strip())
             
-            print ('entry_elements', self.vm_session.selections[self.vm_session.current_selection].selected_element_list)
+            dprint ('entry_elements', self.vm_session.selections[self.vm_session.current_selection].selected_element_list)
 
         
         else: 
@@ -258,4 +259,4 @@ class VismolSelectionTypeBox(Gtk.Box):
 
     def update (self):
         """ Function doc """
-        print('VismolSelectionTypeBox update')
+        dprint('VismolSelectionTypeBox update')

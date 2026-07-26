@@ -29,6 +29,8 @@
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
+from logging import getLogger
+logger = getLogger(__name__)
 import os, sys, time
 import gi 
 import signal
@@ -1959,7 +1961,7 @@ class MainWindow:
         try:
             self.vm_session.vm_config.save_easyhybrid_config()
         except Exception as e:
-            print('Could not save preferences on exit:', e)
+            logger.warning('Could not save preferences on exit: %s', e)
 
     def on_delete_event(self, widget, event):
         if self.p_session.changed:

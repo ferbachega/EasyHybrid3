@@ -38,6 +38,7 @@ import os
 
 import threading
 import time
+from util.debug import dprint
 
 from util.geometric_analysis            import get_distance 
 from util.geometric_analysis            import get_dihedral 
@@ -82,16 +83,16 @@ def compute_sigma_a1_a3 (vobject = None,
     mass1 = periodic_table.get_atomic_mass(symbol1)
     mass3 = periodic_table.get_atomic_mass(symbol3)
     
-    print(atom1.name, symbol1, mass1)
-    print(atom3.name, symbol3, mass3)
+    dprint(atom1.name, symbol1, mass1)
+    dprint(atom3.name, symbol3, mass3)
 
     sigma_pk1_pk3 =  mass1/(mass1+mass3)
-    print ("sigma_pk1_pk3: ",sigma_pk1_pk3)
+    dprint ("sigma_pk1_pk3: ",sigma_pk1_pk3)
     #
     sigma_pk3_pk1 =  mass3/(mass1+mass3)
     sigma_pk3_pk1 = sigma_pk3_pk1*-1
     #
-    print ("sigma_pk3_pk1: ", sigma_pk3_pk1)
+    dprint ("sigma_pk3_pk1: ", sigma_pk3_pk1)
     return(sigma_pk1_pk3, sigma_pk3_pk1)
 
 
@@ -1067,12 +1068,12 @@ class ReactionCoordinateBox(Gtk.Box):
         if atom1:
             self.builder.get_object('entry_atom1_index_coord1').set_text(str(atom1.index-1) )
             self.builder.get_object('entry_atom1_name_coord1' ).set_text(str(atom1.name) )
-        else: print('use picking selection to chose the central atom')            
+        else: dprint('use picking selection to chose the central atom')            
         #-------
         if atom2:
             self.builder.get_object('entry_atom2_index_coord1').set_text(str(atom2.index-1) )
             self.builder.get_object('entry_atom2_name_coord1' ).set_text(str(atom2.name) )
-        else: print('use picking selection to chose the central atom')
+        else: dprint('use picking selection to chose the central atom')
         #-------
         if atom3:
             self.builder.get_object('entry_atom3_index_coord1').set_text(str(atom3.index-1) )
@@ -1083,12 +1084,12 @@ class ReactionCoordinateBox(Gtk.Box):
             else:
                 self.builder.get_object('mass_restraints1').set_active(True)
             
-        else: print('use picking selection to chose the central atom')
+        else: dprint('use picking selection to chose the central atom')
          #-------
         if atom4:
             self.builder.get_object('entry_atom4_index_coord1').set_text(str(atom4.index-1) )
             self.builder.get_object('entry_atom4_name_coord1' ).set_text(str(atom4.name) )
-        else: print('use picking selection to chose the central atom')
+        else: dprint('use picking selection to chose the central atom')
             
         self.refresh_dmininum( coord1 =  True)
                 
@@ -1161,8 +1162,8 @@ class ReactionCoordinateBox(Gtk.Box):
             try:
                 self.refresh_dmininum ( coord1 = True)
             except:
-                print(texto_d1)
-                print(texto_d2d1)
+                dprint(texto_d1)
+                dprint(texto_d2d1)
     
     def set_rc_type (self, rc_type = 0):
         """ Chenges the type -  simple distance is default """
