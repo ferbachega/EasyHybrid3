@@ -70,3 +70,20 @@ src/util/topol.py
 src/util/traj.xyz
 trash/
 workspace/
+
+examples/LIGACOES.xyz
+examples/LIGACOES.mol2
+code_tree.txt
+examples/NoName.mol2
+examples/diels_alder.mol2
+examples/orbital_energies.txt
+examples/pdb1ubq.pdb
+gen_code_tree.py
+requirements_PH.txt
+src/gui/icons/icon_cell3.png
+src/gui/main/main.zip
+src/roteiros e dados/
+
+
+
+

@@ -1,0 +1,78 @@
+cff-version: 1.2.0
+message: >-
+  If you use EasyHybrid in your work, please cite the software using the
+  metadata in this file, and cite the associated paper listed under
+  "preferred-citation" below.
+title: EasyHybrid
+version: "3.0.3"
+type: software
+repository-code: "https://github.com/ferbachega/EasyHybrid3"
+url: "https://sites.google.com/view/easyhybrid/home"
+license: GPL-3.0-or-later
+keywords:
+  - QM/MM
+  - hybrid quantum mechanics/molecular mechanics
+  - molecular dynamics
+  - computational chemistry
+  - molecular visualization
+  - pDynamo
+  - reaction path
+authors:
+  - family-names: Bachega
+    given-names: "Jose Fernando R."
+    affiliation: >-
+      Federal University of Health Sciences of Porto Alegre (UFCSPA);
+      Federal University of Rio Grande do Sul (UFRGS)
+    email: ferbachega@gmail.com
+  - family-names: Hagen
+    given-names: Gustavo
+  - family-names: Sequeiros-Borja
+    given-names: Carlos
+  - family-names: Nikklas
+    given-names: Kai
+  - family-names: Chahine
+    given-names: Jorge
+  - family-names: Timmers
+    given-names: "Luis Fernando M. S."
+  - family-names: Field
+    given-names: "Martin J."
+preferred-citation:
+  type: article
+  title: >-
+    EasyHybrid: An Interactive Graphical Environment for Quantum,
+    Classical and Hybrid Simulations with pDynamo3
+  journal: "Journal of Chemical Information and Modeling"
+  year: 2025
+  volume: 66
+  issue: 3
+  doi: "10.1021/acs.jcim.5c02047"
+  url: "https://pubs.acs.org/doi/10.1021/acs.jcim.5c02047"
+  authors:
+    - family-names: Bachega
+      given-names: "Jose Fernando R."
+    - family-names: Hagen
+      given-names: Gustavo
+    - family-names: Sequeiros-Borja
+      given-names: Carlos
+    - family-names: Nikklas
+      given-names: Kai
+    - family-names: Chahine
+      given-names: Jorge
+    - family-names: Timmers
+      given-names: "Luis Fernando M. S."
+    - family-names: Field
+      given-names: "Martin J."
+references:
+  - type: article
+    title: "PDynamo3 Molecular Modeling and Simulation Program"
+    authors:
+      - family-names: Field
+        given-names: "Martin J."
+    journal: "Journal of Chemical Information and Modeling"
+    year: 2022
+    volume: 62
+    issue: 23
+    start: 5849
+    end: 5854
+    doi: "10.1021/acs.jcim.2c01239"
+
