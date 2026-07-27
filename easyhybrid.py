@@ -32,7 +32,7 @@
 #gc.disable()          # teste de diagnostico: desliga o coletor de lixo automatico
 #gc.set_threshold(0)   # garante que nao ha coleta automatica por contagem
 
-EASYHYBRID_VERSION = '3.0.3'
+from _version import EASYHYBRID_VERSION
 
 import os, sys, time, re
 import logging

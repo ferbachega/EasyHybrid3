@@ -903,7 +903,23 @@ class ImagePlot(Canvas):
 
         cr.restore ( )
 
-    def on_draw(self, widget, cr, ):
+    def on_draw(self, widget, cr, export_scale=1):
+        """ [EN] export_scale: usado SO' pela exportacao em alta
+        resolucao (ver util/easyplot/export_utils.export_plot_to_png()) --
+        1 (default) para o desenho normal na tela.
+
+        Por que isso precisa entrar aqui, e nao so' um cr.scale() de fora:
+        este metodo desenha tudo numa superficie RASTER interna
+        (self.temp_surface, criada logo abaixo) do tamanho exato de
+        self.width/self.height, e so' no final "cola" (blit) essa
+        superficie no cr recebido -- um cr.scale() aplicado de fora,
+        sem tocar aqui dentro, so' ampliaria essa superficie ja' pronta
+        (borrado, tipo dar zoom numa foto pequena), sem redesenhar nada
+        em resolucao maior de verdade. Aplicando export_scale AQUI (na
+        criacao de temp_surface e no proprio temp_cr), a grade de dados,
+        as fontes e as margens sao desenhadas de novo, todas maiores
+        proporcionalmente juntas -- exatamente como ficariam numa tela
+        export_scale vezes maior, so' que nitido. """
         self.cr =  cr
         self.width = widget.get_allocated_width()   #widget dimentions
         self.height = widget.get_allocated_height() #widget dimentions   
@@ -947,8 +963,16 @@ class ImagePlot(Canvas):
         '''
         
         # Criar uma superfície de imagem temporária
-        self.temp_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.width, self.height)
+        self.temp_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32,
+                                                int(self.width * export_scale),
+                                                int(self.height * export_scale))
         self.temp_cr = cairo.Context(self.temp_surface)
+        if export_scale != 1:
+            # tudo abaixo continua desenhando em coordenadas logicas
+            # normais (self.width/self.height inalterados) -- so' o
+            # temp_cr (e portanto o temp_surface, fisicamente maior)
+            # recebe a escala, entao margens/fontes/grade crescem juntos.
+            self.temp_cr.scale(export_scale, export_scale)
         
         #print(np.min(self.norm_data), np.max(self.norm_data) )
         

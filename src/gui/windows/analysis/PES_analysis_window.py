@@ -35,7 +35,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 import gc
 import os
-from util.easyplot import ImagePlot, XYPlot
+from util.easyplot import ImagePlot, XYPlot, export_plot_to_png
 from util.colormaps import COLOR_MAPS  
 
 #import math
@@ -141,13 +141,15 @@ class PotentialEnergyAnalysisWindow:
 
             self.window = self.builder.get_object('window')
             self.window.set_title('PES Analysis Window')
-            #self.window.set_keep_above(True)            
-            self.window.set_default_size(700, 450)
             
-            
-            self.grid = self.builder.get_object('grid_setup')
+            self.window.set_keep_above(True)
+            #self.window.set_default_size(950, 520)
+            self.window.set_default_size(660, 830)
+
             self.hbox = self.builder.get_object('hbox_plotting')
-            
+            self.plot2d_pane = self.builder.get_object('plot2d_pane')
+            self.plot1d_pane = self.builder.get_object('plot1d_pane')
+
             self.checkbox_smooth = self.builder.get_object('checkbox_smooth')
             self.checkbox_smooth.connect('toggled', self.on_checkbox_smooth_toggle)
 
@@ -160,15 +162,15 @@ class PotentialEnergyAnalysisWindow:
             self.spinbtn_max_x_labels = self.builder.get_object('spinbtn_max_x_labels')
             self.spinbtn_max_x_labels.set_value(self.max_x_labels)
             self.spinbtn_max_x_labels.connect('value-changed', self.on_spinbtn_max_x_labels_changed)
-            
-            self.cmap_box = self.builder.get_object('cmap_box')          
+
+            self.cmap_box = self.builder.get_object('cmap_box')
             self.cmap_combobox = Gtk.ComboBox.new_with_model(self.cmap_store)
             renderer_text = Gtk.CellRendererText()
             self.cmap_combobox.pack_start(renderer_text, True)
-            self.cmap_combobox.add_attribute(renderer_text, "text", 0)            
+            self.cmap_combobox.add_attribute(renderer_text, "text", 0)
             self.cmap_box.add(self.cmap_combobox)
             self.cmap_combobox.connect('changed', self.on_cmap_combobox_change)
-            
+
             '''-------------------------------------------------------------'''
             self.RC_label = self.builder.get_object('RC1_RC2_label')
 
@@ -176,15 +178,23 @@ class PotentialEnergyAnalysisWindow:
             self.plot.RC_label = self.RC_label
             #t = np.linspace(0, 2 * np.pi, 40)
             #data2d = np.sin(t)[:, np.newaxis] * np.cos(t)[np.newaxis, :]
-            self.hbox.pack_start(self.plot, True, True, 0)
+            self.plot2d_pane.pack_start(self.plot, True, True, 0)
+            # . self.RC_label (o readout "i | j | rc1 | rc2 | E") ja' e'
+            #   filho do plot2d_pane vindo do .glade (abaixo da legenda
+            #   "2D energy surface") -- pack_start() sempre ANEXA no
+            #   final, entao sem isso self.plot apareceria DEPOIS do
+            #   readout em vez de entre a legenda e ele. reorder_child()
+            #   garante a ordem visual correta (legenda, grafico, readout)
+            #   independente da ordem de empacotamento.
+            self.plot2d_pane.reorder_child(self.plot, 1)
             #self.plot.data = data2d
             self.plot.connect("button_press_event", self.on_mouse_button_press)
-            
-            self.RC_type_box = self.builder.get_object('RC_type_box')          
+
+            self.RC_type_box = self.builder.get_object('RC_type_box')
             self.RC_type_combobox = Gtk.ComboBox.new_with_model(self.RC_type_store)
             renderer_text = Gtk.CellRendererText()
             self.RC_type_combobox.pack_start(renderer_text, True)
-            self.RC_type_combobox.add_attribute(renderer_text, "text", 0)            
+            self.RC_type_combobox.add_attribute(renderer_text, "text", 0)
             self.RC_type_box.add(self.RC_type_combobox)
             self.RC_type_combobox.connect('changed', self.on_RC_type_combobox)
             self.RC_type_combobox.set_active(0)
@@ -192,9 +202,9 @@ class PotentialEnergyAnalysisWindow:
 
 
             '''-------------------------------------------------------------'''
-            self.plot2 = XYPlot(bg_color  = [1,1,1], 
-                                pl_color  = [0,0,0], 
-                                sel_color = [1,0,0], 
+            self.plot2 = XYPlot(bg_color  = [1,1,1],
+                                pl_color  = [0,0,0],
+                                sel_color = [1,0,0],
                                 bl_color  = [0.7,0.7,0.7],
                                 )
 
@@ -203,22 +213,56 @@ class PotentialEnergyAnalysisWindow:
             self.plot2.y_minor_ticks = 6
             self.plot2.y_major_ticks = 5
             self.plot2.decimal = 0
-            self.hbox.pack_start(self.plot2, True, True, 0)
+            self.plot1d_pane.pack_start(self.plot2, True, True, 0)
+            # mesmo motivo do reorder_child do plot2d_pane acima: o
+            # plot1d_pane ja' tem a legenda "1D energy profile" (posicao 0)
+            # E a caixa do scale bar/energia (posicao 2, vinda do .glade)
+            # como filhos reais -- sem isso o grafico apareceria DEPOIS
+            # do scale bar em vez de entre a legenda e ele.
+            self.plot1d_pane.reorder_child(self.plot2, 1)
             '''-------------------------------------------------------------'''
             #self.plot2.connect("button_press_event", self.on_mouse_button_press)
 
             self.coordinates_combobox = CoordinatesComboBox(coordinates_liststore = self.vobject_liststore)
             self.coordinates_combobox.connect('changed', self.on_coordinates_combobox_change)
-            self.grid.attach (self.coordinates_combobox, 1, 0, 1, 1)
-            
+            self.builder.get_object('coordinates_combobox_box').add(self.coordinates_combobox)
+
             self.refresh_vobject_liststore ()
 
+            # Frames com checkbox no titulo: liga/desliga TODO o grupo de
+            # ferramentas (2D ou 1D) de uma vez, deixando os controles
+            # insensiveis em vez de escondidos -- eles continuam visiveis
+            # (para nao mudar o tamanho/posicao do resto da barra lateral
+            # toda vez que o usuario alterna), so' ficam acinzentados.
+            self.builder.get_object('checkbox_2d_tools_enable').connect(
+                'toggled', self.on_2d_tools_enable_toggle)
+            self.builder.get_object('checkbox_1d_tools_enable').connect(
+                'toggled', self.on_1d_tools_enable_toggle)
 
-            
+            # Alternador de layout (lado a lado / empilhado): so' muda a
+            # orientacao do hbox_plotting -- como ele e' 'homogeneous', os
+            # dois paineis continuam sempre do mesmo tamanho nas duas
+            # orientacoes.
+            self.builder.get_object('radio_layout_side_by_side').connect(
+                'toggled', self.on_layout_toggle_changed)
+            self.builder.get_object('radio_layout_stacked').connect(
+                'toggled', self.on_layout_toggle_changed)
+            self.builder.get_object('radio_layout_stacked').set_active(True)
 
+            # Botao "Hide tools": esconde a barra lateral inteira (+ o
+            # separador ao lado dela) pra dar mais espaco pros graficos.
+            # Fica FORA da barra lateral de proposito -- se estivesse
+            # dentro dela, escondida a barra o botao desapareceria junto
+            # e nao teria como trazer ela de volta.
+            self.builder.get_object('toggle_sidebar_button').connect(
+                'toggled', self.on_toggle_sidebar_button_toggled)
 
-
-
+            # Nota: button_export_2d_png/button_export_1d_png ja' sao
+            # conectados via <signal clicked=.../> no .glade + o
+            # self.builder.connect_signals(self) la' em cima -- mesmo
+            # padrao que button_export/on_button_export_trajectory ja'
+            # usava. Nao conectar de novo aqui (dispararia o handler
+            # duas vezes por clique).
 
             #------------------------------------------------------------------------------------
             self.data_combobox = Gtk.ComboBox()
@@ -227,7 +271,8 @@ class PotentialEnergyAnalysisWindow:
             self.data_combobox.add_attribute(renderer_text, "text", 0)
             self.data_combobox.set_model(self.data_liststore)
             self.data_combobox.connect('changed', self.on_data_combobox_change)
-            self.grid.attach (self.data_combobox, 3, 0, 1, 1)
+            self.builder.get_object('data_combobox_box').add(self.data_combobox)
+            #------------------------------------------------------------------------------------
             #------------------------------------------------------------------------------------
 
 
@@ -357,7 +402,120 @@ class PotentialEnergyAnalysisWindow:
         self.plot.set_cmap (cmap = self.cmap_ref_dict[self.cmap_id])
         
         self.on_threshold_entry_activate (None)
+
+    def on_2d_tools_enable_toggle (self, widget):
+        """ Checkbox no titulo do frame "2D surface tools" -- liga/desliga
+        TODOS os controles daquele grupo de uma vez (color map, threshold,
+        smooth, contours+levels, RC label type, interpolate clicks),
+        deixando-os insensiveis em vez de escondidos. Nao afeta o grafico
+        em si (o que ja estava desenhado continua do jeito que estava). """
+        self.builder.get_object('box_2d_tools_content').set_sensitive(widget.get_active())
         
+        if widget.get_active():
+            self.builder.get_object('plot2d_pane').show()
+        else:
+            self.builder.get_object('plot2d_pane').hide()
+            
+    def on_1d_tools_enable_toggle (self, widget):
+        """ Mesma ideia de on_2d_tools_enable_toggle(), para o grupo
+        "1D profile tools" (hoje so' o spinbutton de x labels). """
+        self.builder.get_object('box_1d_tools_content').set_sensitive(widget.get_active())
+        if widget.get_active():
+            self.builder.get_object('plot1d_pane').show()
+        else:
+            self.builder.get_object('plot1d_pane').hide()
+
+
+    def on_layout_toggle_changed (self, widget):
+        """ Alterna hbox_plotting entre lado-a-lado (horizontal) e
+        empilhado (vertical, 2D acima do 1D). Como hbox_plotting e'
+        'homogeneous' (ver .glade), os dois paineis continuam sempre do
+        mesmo tamanho em qualquer uma das duas orientacoes.
+
+        GtkRadioButton dispara 'toggled' tanto para quem FICOU ativo
+        quanto para quem deixou de ser -- so' agimos na chamada onde
+        get_active() e' True, senao o orientation seria setado duas vezes
+        seguidas (uma errada, uma certa) a cada clique. """
+        if not widget.get_active():
+            return
+        if widget is self.builder.get_object('radio_layout_stacked'):
+            self.hbox.set_orientation(Gtk.Orientation.VERTICAL)
+        else:
+            self.hbox.set_orientation(Gtk.Orientation.HORIZONTAL)
+
+    def on_toggle_sidebar_button_toggled (self, widget):
+        """ Esconde/mostra a barra lateral inteira (+ o separador vertical
+        ao lado dela), pra dar mais espaco pros graficos temporariamente.
+        O proprio botao fica FORA da barra lateral (na barra de topo da
+        area principal) de proposito -- se estivesse dentro dela, ao
+        escondê-la o botao sumiria junto e nao teria como trazer a barra
+        de volta. """
+        hidden = widget.get_active()
+        self.builder.get_object('sidebar_box').set_visible(not hidden)
+        self.builder.get_object('sidebar_separator').set_visible(not hidden)
+        widget.set_label('\u25b6 Show tools' if hidden else '\u25c0 Hide tools')
+
+    def _export_plot_dialog (self, plot_widget, default_filename, scale=4):
+        """ Helper compartilhado por on_button_export_2d_png_clicked() e
+        on_button_export_1d_png_clicked(): abre um dialogo "Salvar como"
+        nativo do GTK, e se o usuario confirmar, chama
+        util.easyplot.export_utils.export_plot_to_png() -- que REDESENHA
+        o grafico via Cairo na resolucao pedida (nao e' um screenshot da
+        tela, entao o resultado fica nitido mesmo bem maior que o que
+        aparece na janela).
+
+        scale=4: ver o docstring de export_plot_to_png() para o que esse
+        numero significa -- 4x costuma bastar para slides/relatorios; um
+        valor maior (6-8) e' melhor para figuras de publicacao/impressao.
+        """
+        dialog = Gtk.FileChooserDialog(
+            title="Export figure as PNG",
+            transient_for=self.window,
+            action=Gtk.FileChooserAction.SAVE,
+        )
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_SAVE, Gtk.ResponseType.OK,
+        )
+        dialog.set_do_overwrite_confirmation(True)
+        dialog.set_current_name(default_filename)
+
+        filter_png = Gtk.FileFilter()
+        filter_png.set_name("PNG image (*.png)")
+        filter_png.add_pattern("*.png")
+        dialog.add_filter(filter_png)
+
+        response = dialog.run()
+        filepath = None
+        if response == Gtk.ResponseType.OK:
+            filepath = dialog.get_filename()
+            if not filepath.lower().endswith('.png'):
+                filepath += '.png'
+        dialog.destroy()
+
+        if filepath is None:
+            return
+
+        try:
+            export_plot_to_png(plot_widget, filepath, scale=scale)
+        except Exception as e:
+            error_dialog = Gtk.MessageDialog(
+                transient_for=self.window,
+                flags=0,
+                message_type=Gtk.MessageType.ERROR,
+                buttons=Gtk.ButtonsType.OK,
+                text="Could not export figure",
+            )
+            error_dialog.format_secondary_text(str(e))
+            error_dialog.run()
+            error_dialog.destroy()
+
+    def on_button_export_2d_png_clicked (self, widget):
+        self._export_plot_dialog(self.plot, "pes_2d_energy_surface.png")
+
+    def on_button_export_1d_png_clicked (self, widget):
+        self._export_plot_dialog(self.plot2, "pes_1d_energy_profile.png")
+
     def on_coordinates_combobox_change (self, widget):
         """ Function doc """
         try:

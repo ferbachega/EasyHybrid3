@@ -50,7 +50,7 @@ import subprocess
 import importlib
 from pathlib import Path
 
-EASYHYBRID_VERSION = "3.0.3"
+from _version import EASYHYBRID_VERSION
 
 # ---------------------------------------------------------------------
 # Terminal colors

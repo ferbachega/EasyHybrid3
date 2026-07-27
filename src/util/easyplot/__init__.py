@@ -39,9 +39,13 @@
 #      +-- canvas.py               Canvas (base, Gtk.DrawingArea)
 #      +-- image_plot.py           ImagePlot(Canvas)
 #      +-- xy_plots.py             XYPlot, XYScatterPlot
+#      +-- export_utils.py         export_plot_to_png -- exportacao em alta
+#                                  resolucao (redesenha via Cairo, nao e'
+#                                  screenshot) para qualquer plot acima
 # -----------------------------------------------------------------------------
 
 from util.easyplot.color_utils import (interpolate_color, get_color, bilinear_interpolation, expand_array_size, ColorSquareBilinearInterpolation)
 from util.easyplot.canvas import Canvas
 from util.easyplot.image_plot import ImagePlot
 from util.easyplot.xy_plots import XYPlot, XYScatterPlot
+from util.easyplot.export_utils import export_plot_to_png

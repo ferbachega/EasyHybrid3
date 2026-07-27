@@ -409,10 +409,20 @@ class XYPlot(Gtk.DrawingArea):
         cr.stroke ()
         #---------------------------------------------------------------------------------------------------
         
-    def on_draw(self, widget, cr):
+    def on_draw(self, widget, cr, export_scale=1):
+        """ [EN] export_scale: usado SO' pela exportacao em alta resolucao
+        (ver util/easyplot/export_utils.export_plot_to_png()) -- 1
+        (default) para o desenho normal na tela. Diferente de ImagePlot.
+        on_draw(), este metodo desenha DIRETO no cr recebido (sem
+        superficie raster intermediaria), entao aplicar cr.scale() aqui
+        e' suficiente para reescalar tudo (linhas, fontes, eixos) de
+        forma nitida e proporcional -- nao ha' nenhum "temp_surface" de
+        resolucao fixa no meio do caminho para atrapalhar. """
         self.cr =  cr
         self.width = widget.get_allocated_width()
         self.height = widget.get_allocated_height()
+        if export_scale != 1:
+            cr.scale(export_scale, export_scale)
 
         line_color = self.line_color
         bg_color   = self.bg_color  
