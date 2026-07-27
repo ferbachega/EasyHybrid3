@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -314,7 +315,7 @@ class RestraintListWindow(Gtk.Window):
                 self.treeview_menu.open_menu(iter, system_id)
 
         if event.button == 1:
-            print ('event.button == 1:')
+            dprint ('event.button == 1:')
 
 
 
@@ -349,7 +350,7 @@ class TreeViewMenu:
             self.key      = model.get_value(iter, 0)
             sys           = model.get_value(iter, 1)
             
-            print(self.key, self.e_id)
+            dprint(self.key, self.e_id)
             self.window = Gtk.Window()
             self.window.connect('destroy', self.destroy)
             self.window.set_keep_above(True)
@@ -359,11 +360,11 @@ class TreeViewMenu:
             self.window.add(self.entry)
             self.rename_window_visible = True
             self.window.show_all()
-            print(menu_item)
+            dprint(menu_item)
 
     def rename (self, menu_item):
         """ Function doc """
-        print(self.entry.get_text())
+        dprint(self.entry.get_text())
         new_name = self.entry.get_text()
         pass
         

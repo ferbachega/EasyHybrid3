@@ -1,3 +1,4 @@
+from util.debug import dprint
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, cairo
@@ -50,14 +51,14 @@ class MyWindow(Gtk.Window):
             self.X.append(i/10)
             self.data.append(math.sin(i/10))
             #print(math.sin(i/50))
-            print (i/10, math.sin(i/10))
+            dprint (i/10, math.sin(i/10))
         '''
         for i in range(-550, 550, 50 ):
             self.X.append(i/10)
             #self.data.append(math.sin(i/10))
             self.data.append(i**3/10)
             #print(math.sin(i/50))
-            print (i/10, math.sin(i/10))
+            dprint (i/10, math.sin(i/10))
         
  
         self.x = 700
@@ -91,15 +92,15 @@ class MyWindow(Gtk.Window):
 
         
         if int(x_on_plot) < 0 or int(x_on_plot) >= self.size_x :
-            print('canvas')
+            dprint('canvas')
             self.points = []
         elif int(y_on_plot) < 0 or int(y_on_plot) >= self.size_y :
-            print('canvas')
+            dprint('canvas')
             self.points = []
         else:
             self.points.append((x, y))
         
-        print("Mouse clicker at:",  x, y, int(x_on_plot), int(y_on_plot), 
+        dprint("Mouse clicker at:",  x, y, int(x_on_plot), int(y_on_plot), 
                                     (x-self.bx)/self.factor_x, #/(self.x_final-self.bx), 
                                     (y-self.by)/self.factor_y) #/(self.y_final-self.by) ) #, x - self.x_final , y - self.y_final , self.x_final ,  self.y_final ,   (x-self.bx) /self.factor_x ,    (y-self.by)/self.factor_y )
         
@@ -111,7 +112,7 @@ class MyWindow(Gtk.Window):
     def on_motion(self, widget, event):
         (x, y) = int(event.x), int(event.y)
         #x, y = device.get_position(widget)
-        print("Mouse moved to:", x, y)
+        dprint("Mouse moved to:", x, y)
 
 
 
@@ -226,7 +227,7 @@ class MyWindow(Gtk.Window):
         self.new_data = [x*self.Yfactor for x in self.data]
         self.new_X    = [x*self.Xfactor for x in self.X]
         
-        print(
+        dprint(
         '\n self.size_x :', self.size_x ,
         '\n self.size_y :', self.size_y ,
         

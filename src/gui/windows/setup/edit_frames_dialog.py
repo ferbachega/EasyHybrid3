@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -94,7 +95,7 @@ class EditFrameDialog():
     def apply (self, widget):
         """ Function doc """
         text = self.entry_delete_frames.get_text()
-        print(text,  self.vobj_id )
+        dprint(text,  self.vobj_id )
         vobject = self.main_session.vm_session.vm_objects_dic[self.vobj_id]
         frames  = vobject.frames
         
@@ -151,7 +152,7 @@ class EditFrameDialog():
             #reverser (invert order)
             coords_inverted = coords[::-1]
             vobject.frames = coords_inverted
-            print('do reverse')
+            dprint('do reverse')
         
         
         # Apply fixed representation to the VisMol object
@@ -173,14 +174,14 @@ class EditFrameDialog():
     def apply_old (self, widget):
         """ Function doc """
         #text = self.entry_delete_frames.get_text()
-        print(text,  self.vobj_id )
+        dprint(text,  self.vobj_id )
         vobject = self.main_session.vm_session.vm_objects_dic[self.vobj_id]
         frames  = vobject.frames
 
         
         atom_qtty = len(vobject.atoms.items())
         size = len(vobject.frames)
-        print(atom_qtty, size)
+        dprint(atom_qtty, size)
         #coords
         
         
@@ -194,7 +195,7 @@ class EditFrameDialog():
             new_traje[0][j][1] = init_frame[j][1]
             new_traje[0][j][2] = init_frame[j][2]
         
-        print('adding:', 0)
+        dprint('adding:', 0)
         
         for i in range(0, len(frames)-1):
             frame1 = frames[i]

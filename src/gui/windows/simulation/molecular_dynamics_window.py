@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 from pprint import pprint
 gi.require_version("Gtk", "3.0")
@@ -396,7 +397,7 @@ class MolecularDynamicsWindow:
             parameters = self.last_parameters
 
         if not parameters:
-            print("No previous parameters available to rerun.")
+            dprint("No previous parameters available to rerun.")
             return
         
         

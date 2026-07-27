@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -164,7 +165,7 @@ class ReimagingTrajectoryWindow:
     def on_combobox_coord_changed (self, widget):
         """ Function doc """
         cb_id = widget.get_system_id()
-        print('cb',cb_id )
+        dprint('cb',cb_id )
 
     def refresh_coordinates_liststore(self, system_id = None):
         """ Function doc """
@@ -197,7 +198,7 @@ class ReimagingTrajectoryWindow:
         
         bb  = self.coordinates_combobox.get_active()
         
-        print(' vobject_id', vobject_id, 
+        dprint(' vobject_id', vobject_id, 
                '\n system_id',  system_id,
                '\n get_active', bb)
         #print(self.main.vm_session.vm_objects_dic.keys())
@@ -369,7 +370,7 @@ def get_subset (vismol_object, _type = 0, ignore_H = True, selections = None):
             if atom.residue.is_protein:
                 if atom.name in  ["CA", 'C', 'O', 'N']:
                     subset.append(atom.index -1)
-                    print(atom.name)
+                    dprint(atom.name)
 
     
     if _type == 2:
@@ -377,7 +378,7 @@ def get_subset (vismol_object, _type = 0, ignore_H = True, selections = None):
             if atom.residue.is_protein:
                 if atom.name in  ["CA", 'C', 'N']:
                     subset.append(atom.index -1)
-                    print(atom.name)
+                    dprint(atom.name)
 
 
 

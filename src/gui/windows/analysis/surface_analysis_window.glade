@@ -138,13 +138,13 @@
                 </child>
               </object>
               <packing>
-                <property name="expand">False</property>
+                <property name="expand">True</property>
                 <property name="fill">True</property>
                 <property name="position">0</property>
               </packing>
             </child>
             <child>
-              <object class="GtkScrolledWindow">
+              <object class="GtkScrolledWindow" id="orbital_scrolled_window">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="vexpand">True</property>
@@ -153,6 +153,7 @@
                   <object class="GtkTreeView" id="selection_treeview">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
+                    <property name="vexpand">True</property>
                     <child internal-child="selection">
                       <object class="GtkTreeSelection"/>
                     </child>
@@ -223,7 +224,7 @@
                             <property name="can-focus">False</property>
                             <property name="orientation">vertical</property>
                             <child>
-                              <object class="GtkColorButton" id="btn_color_minus">
+                              <object class="GtkColorButton" id="btn_color_plus">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">True</property>
@@ -279,7 +280,7 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkLabel">
+                          <object class="GtkLabel" id="label_color_minus">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="halign">end</property>
@@ -291,7 +292,7 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkLabel">
+                          <object class="GtkLabel" id="label_color_plus">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="halign">end</property>
@@ -303,7 +304,7 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkColorButton" id="btn_color_plus">
+                          <object class="GtkColorButton" id="btn_color_minus">
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
                             <property name="receives-default">True</property>

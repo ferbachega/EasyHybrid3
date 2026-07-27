@@ -29,6 +29,7 @@
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
 
+from util.debug import dprint
 import logging
 import gi, sys, os
 gi.require_version("Gtk", "3.0")
@@ -42,6 +43,7 @@ import string
 
 from gui.windows.setup.windows_and_dialogs import EasyHybridDialogPrune
 from gui.windows.setup.windows_and_dialogs import AddHarmonicRestraintDialog
+from gui.windows.setup.windows_and_dialogs import AddPositionHarmonicRestraintDialog
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
 
 from vismol.core.vismol_selections import VismolViewingSelection as VMSele
@@ -122,12 +124,12 @@ class CommandLine:
         text = 'here is list'
         if args == [] or args == ['']:
             for e_id, system in self.vm_session.main.p_session.psystem.items():
-                print('system: {} - {}'.format(e_id, system.label))               
+                dprint('system: {} - {}'.format(e_id, system.label))               
                 
                 text += '\nsystem: {} - {}'.format(e_id, system.label)
                 for index,  vobject in self.vm_session.vm_objects_dic.items():
                     if vobject.e_id == e_id:
-                        print('          {} - {}'.format(index, vobject.name))
+                        dprint('          {} - {}'.format(index, vobject.name))
                         text += '\n         {} - {}'.format(index, vobject.name)
         else:
             pass
@@ -147,11 +149,11 @@ class CommandLine:
         else:
             for e_id, system in self.vm_session.main.p_session.psystem.items():
                 
-                print('system {} {}:'.format(e_id, system.label))
+                dprint('system {} {}:'.format(e_id, system.label))
                 
                 for index,  vobject in self.vm_session.vm_objects_dic.items():
                     if vobject.e_id == e_id:
-                        print('     {} {}:'.format(index, vobject.name))
+                        dprint('     {} {}:'.format(index, vobject.name))
         '''
 
 
@@ -171,7 +173,7 @@ class CommandLine:
         show type = lines, sele = sel01 
         
         """
-        print('print show', args)
+        dprint('print show', args)
         
 
     def clear (self, args = None):
@@ -295,9 +297,7 @@ class GLMenu:
             def menu_hide_label (_):
                 """Hide all labels for the selected atoms."""
                 selection = self.show_or_hide( rep_type = 'labels', show = False)
-            
-            
-            
+
             def menu_show_dynamic_bonds (_):
                 """Show dynamic bond representations."""
                 #print('dynamic_test')
@@ -313,7 +313,6 @@ class GLMenu:
                 self.show_or_hide( rep_type = 'ribbons', show = True)
                 self.show_or_hide( rep_type = 'ribbon_sphere', show = True)
                 #print('ribbon_sphere')
-            
             def menu_hide_ribbons (_):
                 """Hide ribbon and ribbon-sphere representations."""
                 self.show_or_hide( rep_type = 'ribbons', show = False)
@@ -654,6 +653,37 @@ class GLMenu:
                                 self.vm_glcore.queue_draw()
            
             
+            
+            def add_position_restraint (_):
+                """ Function doc """
+                
+                pdmsys_active = self.main.p_session.active_id
+                system = self.main.p_session.psystem[pdmsys_active]
+                
+                sel_list, sel_resi_table = self.build_index_list_from_atom_selection()
+                
+                if not sel_list:
+                    return None
+
+                add_position_restraint_dialog = AddPositionHarmonicRestraintDialog(
+                    self.main, atomlist=sel_list)
+
+                if not add_position_restraint_dialog.ok:
+                    return None
+
+                parameters = {}
+
+                parameters['atomlist']       = sel_list
+                parameters['reference']      = None
+                parameters['force_constant'] = float(add_position_restraint_dialog.force)
+                parameters['color']          = add_position_restraint_dialog.color
+                parameters['system']         = system
+                
+                #print(parameters)
+                #if atom2 and atom1:
+                self.main.p_session.add_new_harmonic_restraint (parameters, _type = 'position')
+                self.main.selection_list_window.update_window (selections = False, restraints = True)
+            
             def add_selection_to_sel_list (_):
                 """Add the currently selected atoms to the selection list of the active system."""
                 sel_list, sel_resi_table = self.build_index_list_from_atom_selection()
@@ -786,10 +816,16 @@ class GLMenu:
                         'Set as Free Atoms': ['MenuItem', set_as_free_atoms],
 
                         'separator5': ['separator', None],
+                        'Set as Free Atoms': ['MenuItem', set_as_free_atoms],
 
-                        'Prune to Selection': ['MenuItem', prune_atoms],
-
+                        
                         'separator6': ['separator', None],
+                        'Add Restraint': ['MenuItem', add_position_restraint],
+
+                        
+                        'separator7': ['separator', None],
+                        'Prune to Selection': ['MenuItem', prune_atoms],
+                    
                     }
       
         
@@ -938,7 +974,7 @@ class GLMenu:
             
             def add_harmonic_restraint(_):
                 """ Function doc """
-                print('add_harmonic_restraint')
+                dprint('add_harmonic_restraint')
                 atom1 = self.picking_selections.picking_selections_list[0]
                 atom2 = self.picking_selections.picking_selections_list[1]
                 atom3 = self.picking_selections.picking_selections_list[2]
@@ -950,12 +986,12 @@ class GLMenu:
                 
                 #--------------------------------------------------------------
                 if atom1:
-                    print(str(atom1.index-1),str(atom1.name) )
-                else: print('use picking selection to chose the central atom')            
+                    dprint(str(atom1.index-1),str(atom1.name) )
+                else: dprint('use picking selection to chose the central atom')            
                 #--------------------------------------------------------------
                 if atom2:
-                    print(str(atom2.index-1),str(atom2.name) )
-                else: print('use picking selection to chose the central atom')            
+                    dprint(str(atom2.index-1),str(atom2.name) )
+                else: dprint('use picking selection to chose the central atom')            
                 #--------------------------------------------------------------
                 if atom2 and atom1:
                     parameters = {}
@@ -1088,10 +1124,12 @@ class EasyHybridSession(VismolSession, GLMenu):
                     try:
                         dialog = SimpleDialog(self.main_session)
                         yes_or_no = dialog.question(msg)
-                    except Exception:
+                    except Exception as e:
                         # If the dialog fails for any reason, fallback to original file
                         dialog = SimpleDialog(self.main_session)
                         dialog.error("Failed to display question dialog. Loading original file.")
+                        mensagem = str(e)
+                        dprint("Error:", mensagem)
                         yes_or_no = False
 
                     target_file = temp_file if yes_or_no else filename
@@ -1101,7 +1139,9 @@ class EasyHybridSession(VismolSession, GLMenu):
                         self.main_session.p_session.load_easyhybrid_serialization_file(
                             target_file, tmp=yes_or_no
                         )
-                    except Exception:
+                    except Exception as e:
+                        mensagem = str(e)
+                        dprint("Error:", mensagem)
                         dialog = SimpleDialog(self.main_session)
                         dialog.error(f"Failed to load project file: {target_file}")
 
@@ -1109,7 +1149,9 @@ class EasyHybridSession(VismolSession, GLMenu):
                     # No temp file, load normally
                     try:
                         self.main_session.p_session.load_easyhybrid_serialization_file(filename)
-                    except Exception:
+                    except Exception as e:
+                        mensagem = str(e)
+                        dprint("Error:", mensagem)
                         dialog = SimpleDialog(self.main_session)
                         dialog.error(f"Failed to load project file: {filename}")
 
@@ -1117,7 +1159,9 @@ class EasyHybridSession(VismolSession, GLMenu):
             elif filename.endswith(".easy~"):
                 try:
                     self.main_session.p_session.load_easyhybrid_serialization_file(filename)
-                except Exception:
+                except Exception as e:
+                    mensagem = str(e)
+                    dprint("Error:", mensagem)
                     dialog = SimpleDialog(self.main_session)
                     dialog.error(f"Failed to load temporary project file: {filename}")
 
@@ -1127,12 +1171,16 @@ class EasyHybridSession(VismolSession, GLMenu):
                 systemtype = 3  # Hardcoded system type (could be parameterized later)
                 try:
                     self.main_session.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
-                except Exception:
+                except Exception as e:
+                    mensagem = str(e)
+                    dprint("Error:", mensagem)
                     dialog = SimpleDialog(self.main_session)
                     dialog.error(f"Failed to load system file: {filename}")
 
-        except Exception:
+        except Exception as e:
             # Catch any unexpected error that was not handled above
+            mensagem = str(e)
+            dprint("Error:", mensagem)
             dialog = SimpleDialog(self.main_session)
             dialog.error(f"An unexpected error occurred while loading: {filename}")
 
@@ -1473,6 +1521,7 @@ class EasyHybridSession(VismolSession, GLMenu):
         if show_molecule:
             vismol_object.create_representation(rep_type="lines")
             vismol_object.create_representation(rep_type="nonbonded")
+            #vismol_object.create_representation(rep_type="dash")
 
             # Update restraints and custom colors
             self.main.p_session.update_restaint_representation(vismol_object.e_id)
@@ -1483,7 +1532,7 @@ class EasyHybridSession(VismolSession, GLMenu):
                 self.vm_glcore.center_on_coordinates(vismol_object, vismol_object.mass_center)
             else:
                 self.vm_glcore.queue_draw()
-        print(vismol_object.name,vismol_object.e_id, vismol_object.key6 )
+        dprint(vismol_object.name,vismol_object.e_id, vismol_object.key6 )
         return vismol_object
         
     def build_index_list_from_atom_selection(self, return_vobject=False):
@@ -1590,6 +1639,12 @@ button position in the main treeview (active column).""".format(name,self.main.p
             pass
         for rep  in vobject.representations.keys():
             if vobject.representations[rep]:
+                # Representacoes com cor FIXA (ex: OneColorDotsRepresentation
+                # das restricoes de posicao) nao devem seguir a cor por-atomo
+                # do objeto -- pular, ou a cor escolhida pelo usuario e
+                # sobrescrita pela cor padrao do atomo.
+                if getattr(vobject.representations[rep], 'uses_uniform_color', False):
+                    continue
                 #try:
                 try:
                     vobject.representations[rep]._load_color_vbo(vobject.colors)
@@ -1690,7 +1745,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
         for vobj_id, vobject in self.vm_objects_dic.items():
             for index, atom in vobject.atoms.items():
                 for bond in atom.bonds:
-                    print(index-1, atom.name, bond.get_indexes() )
+                    dprint(index-1, atom.name, bond.get_indexes() )
         '''
   
         
@@ -1750,7 +1805,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
             Example: {vobject_index: [atom_index_1, atom_index_2, ...]}
 
         """
-        print ('Defining the selection inner box')
+        dprint ('Defining the selection inner box')
         i = []
         j = []
         k = []
@@ -1789,7 +1844,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
                     selected_indexes_dict[vobject.index].append(atom.index-1)
 
             else:
-                print('invalid selection list')
+                dprint('invalid selection list')
                 return False
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         # Compute the min and max coordinates for the inner box
@@ -1849,7 +1904,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
         
         """
         
-        print ('Defining the selectable indexes')
+        dprint ('Defining the selectable indexes')
         
         selectable_indexes = set()
         grid = {}
@@ -1904,12 +1959,16 @@ button position in the main treeview (active column).""".format(name,self.main.p
             #print('vobject.c_alpha_bonds', vobject.c_alpha_bonds )
             #print('vobject.c_alpha_atoms', vobject.c_alpha_atoms )
     
-            
+            #<class 'set'> <class 'set'> <class 'numpy.ndarray'> <class 'float'>
+            #selected_indexes   = <class 'set'> 
+            #selectable_indexes = <class 'set'>
+            #coordinates        = <class 'numpy.ndarray'>
+            #radius             = <class 'float'>
             try:
                 coordinates = vobject.frames[self.frame]
             except:
                 coordinates = vobject.frames[-1]
-            
+            dprint(type(selected_indexes),type(selectable_indexes),type(coordinates),type(radius))
             new_selected_indexes, selectable_indexes = selectors.selection_spherical_expansion( 
                                                                                             selected_indexes, 
                                                                                             selectable_indexes, 
@@ -2012,7 +2071,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
         else:
             if vismol_object.cell_parameters:
                 from vismol.libgl.representations import CellLineRepresentation
-                print (vismol_object.cell_parameters)
+                dprint (vismol_object.cell_parameters)
                 vismol_object.representations["cell_lines"] =  CellLineRepresentation(vismol_object, self.vm_glcore,name  = 'lines', active=True, indexes = vismol_object.cell_bonds)
         self.vm_glcore.queue_draw()
    
@@ -2138,7 +2197,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
             self.set_frame(frame)
             #self.picking_selections.update_pki_pkj_rep_coordinates()
             #self.vm_widget.queue_draw()
-            print(value)
+            dprint(value)
     
     def set_dihedral (self):
         """ Function doc """

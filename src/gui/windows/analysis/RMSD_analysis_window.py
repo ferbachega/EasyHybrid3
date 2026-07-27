@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -336,7 +337,7 @@ class RMSDAnalysisWindow:
         data2 = model.get_value(iter, 2)
         data1 = model.get_value(iter, 1)
         data0 = model.get_value(iter, 0)
-        print (data0,data1,data2)
+        dprint (data0,data1,data2)
 
 
     def on_treeview_mouse_button_release_event (self, tree, event):
@@ -354,7 +355,7 @@ class RMSDAnalysisWindow:
         
         if event.button == 3:
             #self.treeview_menu.open_menu(self.system_e_id, self.vm_object_index)
-            print('button == 3')
+            dprint('button == 3')
         if event.button == 2:
             #print('event.button 2',self.vm_object_index)
             #if self.vm_object_index == -1:
@@ -363,9 +364,9 @@ class RMSDAnalysisWindow:
             #else:
             #    vismol_object = self.main.vm_session.vm_objects_dic[self.vm_object_index]
             #    self.main.vm_session.vm_glcore.center_on_coordinates(vismol_object, vismol_object.mass_center)
-            print('button == 2')
+            dprint('button == 2')
         if event.button == 1:
-            print('button == 1')
+            dprint('button == 1')
 
 
     def on_btn_clear (self, widget, event ):
@@ -387,7 +388,7 @@ class RMSDAnalysisWindow:
                 
                 self.parameters.pop(deleted_line)
                 
-                print(f"Selected line to be deleted: {path.get_indices()[0]}")
+                dprint(f"Selected line to be deleted: {path.get_indices()[0]}")
                 model.remove(treeiter)  # Remove the selected line
 
 
@@ -450,7 +451,7 @@ class RMSDAnalysisWindow:
                 #print(coords)
             
             n+=1
-        print(frame_average)
+        dprint(frame_average)
 
         for coords in frame_average:
             coords[0] = coords[0]/n
@@ -484,7 +485,7 @@ class RMSDAnalysisWindow:
             dialog.run()
             dialog.destroy()
             
-            print('RMSD calculation failed: invalid atom selection! Please select the desired group of atoms from a single VObject only.')
+            dprint('RMSD calculation failed: invalid atom selection! Please select the desired group of atoms from a single VObject only.')
             return False
         
         #.2 redefining the range of frames and step size
@@ -502,7 +503,7 @@ class RMSDAnalysisWindow:
             try:
                 ref_frame = int(self.builder.get_object('entry_ref_frame').get_text())
             except:
-                print('fail ref_frame')
+                dprint('fail ref_frame')
                 return False
             ref_frame = vismol_object.frames[ref_frame]
         
@@ -529,7 +530,7 @@ class RMSDAnalysisWindow:
         
         if f_last == -1:
             traj_size = vismol_object.frames.shape
-            print(traj_size)
+            dprint(traj_size)
             traj_size = traj_size[0]
             f_last = traj_size
 
@@ -569,9 +570,9 @@ class RMSDAnalysisWindow:
         min_value = min(RMSD_list)
         max_value = max(RMSD_list)
         
-        print('average:   ', average)
-        print('min_value: ', min_value)
-        print('max_value: ', max_value)
+        dprint('average:   ', average)
+        dprint('min_value: ', min_value)
+        dprint('max_value: ', max_value)
         
         textwindow = TextWindow(text)
         
@@ -593,5 +594,5 @@ class RMSDAnalysisWindow:
             window.set_default_size(600, 500)
             window.show_all()
         else:
-            print('chk_plot_off')
+            dprint('chk_plot_off')
             

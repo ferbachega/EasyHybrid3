@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -57,7 +58,7 @@ HOME        = os.environ.get('HOME')
 
 
 ##====================================================================================
-class UmbrellaSamplingWindow_new(Gtk.Window):
+class UmbrellaSamplingWindow(Gtk.Window):
     """ Class doc """
     
     def __init__(self, main = None ):
@@ -337,7 +338,7 @@ class UmbrellaSamplingWindow_new(Gtk.Window):
             self.RC_box2.refresh_dmininum()
 
     def on_row_deleted(self, model, path):
-        print("Linha removida em:", path)
+        dprint("Row removed at:", path)
         if model is  self.rc_liststore1:
             #print("Linha inserida em:", path)  
             self.RC_box1.refresh_dmininum()
@@ -917,7 +918,7 @@ class UmbrellaSamplingWindow_new(Gtk.Window):
             self.spinbutton.set_value(parameters['NmaxThreads'])
 
 
-class UmbrellaSamplingWindow(Gtk.Window):
+class UmbrellaSamplingWindow_old(Gtk.Window):
     """ Class doc """
     
     def __init__(self, main = None ):

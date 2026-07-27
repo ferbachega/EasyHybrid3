@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -197,7 +198,7 @@ class SelectionListWindow(Gtk.Window):
 
     def _on_rest_types_changed (self, widget):
         """ Function doc """
-        print(self.comobobox_restraints.get_active())
+        dprint(self.comobobox_restraints.get_active())
 
     def _coordinates_model_update (self, e_id):
         """ Function doc """
@@ -231,7 +232,7 @@ class SelectionListWindow(Gtk.Window):
         iterador = modelo.get_iter(path)
         nome = modelo.get_value(iterador, 0)
         id_valor = modelo.get_value(iterador, 1)
-        print(f"Duplo clique na linha: {nome} (ID={id_valor})")
+        dprint(f"Double click on row: {nome} (ID={id_valor})")
 
     def _on_cell_visible_toggled (self, widget, path):
         """ 
@@ -245,12 +246,12 @@ class SelectionListWindow(Gtk.Window):
         ##print(list(path))
         self.restraint_liststore[path][0] = not self.restraint_liststore[path][0]
         
-        print(list(self.restraint_liststore[path]))
+        dprint(list(self.restraint_liststore[path]))
         e_id = self.restraint_liststore[path][6]
         name = self.restraint_liststore[path][1]
         system = self.main_session.p_session.psystem[e_id]
         system.e_restraints_dict[name][0] =  self.restraint_liststore[path][0]
-        print(system.e_restraints_dict)
+        dprint(system.e_restraints_dict)
         self.p_session.update_restaint_representation(e_id)
 
     def update_window (self, system_names = True, coordinates = False,  selections = True, restraints = True):
@@ -284,8 +285,13 @@ class SelectionListWindow(Gtk.Window):
             name  = restraint[1]
             _type = restraint[2]
             if _type == 'distance':
-                atons = '{} / {}'.format(restraint[3][0],restraint[3][1]) 
-            dist_or_angle = '{:.4f}'.format(restraint[4])
+                atons = '{} / {}'.format(restraint[3][0],restraint[3][1])
+                dist_or_angle = '{:.4f}'.format(restraint[4])
+            
+            elif _type == 'position':
+                atons = '{}'.format(len(restraint[3]))
+                dist_or_angle = '{}'.format('dynamic')
+            
             force_const   = str(restraint[5])
             e_id          =  restraint[6] 
                                            #(bool,  str,   str,   str,          str,       str    , int    )
@@ -422,7 +428,7 @@ class SelectionListWindow(Gtk.Window):
                 self.treeview_menu.open_menu(iter, system_id)
 
         if event.button == 1:
-            print ('event.button == 1:')
+            dprint ('event.button == 1:')
 
 
 
@@ -512,7 +518,7 @@ class RestraintTreeViewMenu:
         """ Function doc """
         
         self.p_session.psystem[self.system_id].e_restraints_dict.pop(self.restraint_id)
-        print(self.p_session.psystem[self.system_id].e_restraints_dict)
+        dprint(self.p_session.psystem[self.system_id].e_restraints_dict)
         self.sele_window.refresh_restraint_liststore ( system_id = self.system_id)
         #print('delete')
 
@@ -547,7 +553,7 @@ class TreeViewMenu:
             self.key      = model.get_value(iter, 0)
             sys           = model.get_value(iter, 1)
             
-            print(self.key, self.e_id)
+            dprint(self.key, self.e_id)
             self.window = Gtk.Window()
             self.window.connect('destroy', self.destroy)
             self.window.set_keep_above(True)
@@ -557,11 +563,11 @@ class TreeViewMenu:
             self.window.add(self.entry)
             self.rename_window_visible = True
             self.window.show_all()
-            print(menu_item)
+            dprint(menu_item)
 
     def rename (self, menu_item):
         """ Function doc """
-        print(self.entry.get_text())
+        dprint(self.entry.get_text())
         new_name = self.entry.get_text()
         pass
         

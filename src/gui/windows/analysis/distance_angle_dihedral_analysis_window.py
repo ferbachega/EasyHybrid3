@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -315,7 +316,7 @@ class DistanceAngleDihedralAnalysisWindow:
         data2 = model.get_value(iter, 2)
         data1 = model.get_value(iter, 1)
         data0 = model.get_value(iter, 0)
-        print (data0,data1,data2)
+        dprint (data0,data1,data2)
 
 
     def on_treeview_mouse_button_release_event (self, tree, event):
@@ -333,7 +334,7 @@ class DistanceAngleDihedralAnalysisWindow:
         
         if event.button == 3:
             #self.treeview_menu.open_menu(self.system_e_id, self.vm_object_index)
-            print('button == 3')
+            dprint('button == 3')
         if event.button == 2:
             #print('event.button 2',self.vm_object_index)
             #if self.vm_object_index == -1:
@@ -342,9 +343,9 @@ class DistanceAngleDihedralAnalysisWindow:
             #else:
             #    vismol_object = self.main.vm_session.vm_objects_dic[self.vm_object_index]
             #    self.main.vm_session.vm_glcore.center_on_coordinates(vismol_object, vismol_object.mass_center)
-            print('button == 2')
+            dprint('button == 2')
         if event.button == 1:
-            print('button == 1')
+            dprint('button == 1')
 
 
     def on_btn_clear (self, widget, event ):
@@ -366,7 +367,7 @@ class DistanceAngleDihedralAnalysisWindow:
                 
                 self.parameters.pop(deleted_line)
                 
-                print(f"Selected line to be deleted: {path.get_indices()[0]}")
+                dprint(f"Selected line to be deleted: {path.get_indices()[0]}")
                 model.remove(treeiter)  # Remove the selected line
 
 
@@ -375,7 +376,7 @@ class DistanceAngleDihedralAnalysisWindow:
 
         measures = []
         jobsize   = len(self.parameters)
-        print('\n\n')
+        dprint('\n\n')
         
         for job in self.parameters:
             
@@ -426,7 +427,7 @@ class DistanceAngleDihedralAnalysisWindow:
             
             text += '\n' 
         
-        print(text)
+        dprint(text)
         textwindow = TextWindow(text)
 
     

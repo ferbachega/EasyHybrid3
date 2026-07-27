@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -419,7 +420,7 @@ class NormalModesAnalysisWindow(Gtk.Window):
                 for i, data in vobject.normal_modes_dict.items():
                     self.liststore.append([False, str(i), data[0]])
             except:
-                print('vobject has no Normal Modes data')
+                dprint('vobject has no Normal Modes data')
                 pass
             
             #self.coordinates_liststore = Gtk.ListStore(str, int, int) 
@@ -516,7 +517,7 @@ class NormalModesAnalysisWindow(Gtk.Window):
                 self.treeview_menu.open_menu(iter, system_id)
 
         if event.button == 1:
-            print ('event.button == 1')
+            dprint ('event.button == 1')
 
 
     def play (self, button):
@@ -602,7 +603,7 @@ class TreeViewMenu:
             self.key      = model.get_value(iter, 0)
             sys           = model.get_value(iter, 1)
             
-            print('key: ', self.key, 'e_id: ',self.e_id)
+            dprint('key: ', self.key, 'e_id: ',self.e_id)
             self.window = Gtk.Window()
             self.window.connect('destroy', self.destroy)
             self.window.set_keep_above(True)
@@ -616,7 +617,7 @@ class TreeViewMenu:
 
     def rename (self, menu_item):
         """ Function doc """
-        print('New name: ', self.entry.get_text())
+        dprint('New name: ', self.entry.get_text())
         new_name = self.entry.get_text()
         pass
         

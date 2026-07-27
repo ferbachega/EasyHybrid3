@@ -28,9 +28,48 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
-EASYHYBRID_VERSION = '3.0.2'
+#import gc
+#gc.disable()          # teste de diagnostico: desliga o coletor de lixo automatico
+#gc.set_threshold(0)   # garante que nao ha coleta automatica por contagem
+
+from _version import EASYHYBRID_VERSION
 
 import os, sys, time, re
+import logging
+
+# --- Fix: engasgo de rotacao em GPUs integradas Intel (driver Mesa/GLX) ---
+# Em GPUs integradas Intel com driver Mesa, um frame que atrasa levemente
+# (jitter normal do loop do GTK/Python) perde a janela de vblank e o
+# driver trava o frame seguinte ate o PROXIMO vblank, dobrando a latencia
+# daquele frame. Isso aparece como engasgo aleatorio durante rotacao/pan/
+# zoom do mouse, mesmo com o custo de render() baixo e estavel (medido e
+# confirmado em testes). Desligar o vsync (vblank_mode=0) resolve, mas so
+# fazemos isso quando detectamos uma GPU Intel: em GPUs NVIDIA o problema
+# nao ocorre, entao nao vale a pena aceitar o tearing la sem necessidade.
+# CRITICO: essa variavel de ambiente so tem efeito se for definida ANTES
+# do contexto GL ser criado pelo Mesa - por isso essa deteccao roda aqui,
+# no topo do arquivo, antes de qualquer import do GTK/OpenGL.
+def _maybe_disable_vsync_for_intel_igpu():
+    if "vblank_mode" in os.environ:
+        return  # usuario ou launcher ja definiu explicitamente; respeita
+    if sys.platform != "linux":
+        return
+    try:
+        import glob
+        card_pattern = re.compile(r"^card\d+$")
+        for vendor_path in glob.glob("/sys/class/drm/card*/device/vendor"):
+            card_name = vendor_path.split("/")[-3]
+            if not card_pattern.match(card_name):
+                continue
+            with open(vendor_path) as f:
+                vendor_id = f.read().strip()
+            if vendor_id == "0x8086":  # Intel
+                os.environ["vblank_mode"] = "0"
+                return
+    except OSError:
+        pass  # falha na deteccao nao deve impedir o programa de iniciar
+
+_maybe_disable_vsync_for_intel_igpu()
 
 '''
 O módulo re é nativo do Python (faz parte da biblioteca padrão).  
@@ -101,15 +140,15 @@ try:
     from paths import PDYNAMO_HOME
     shell_scripts = os.path.join(PDYNAMO_HOME, 'installation/shellScripts/environment_bash.com')
     parse_bash_env_file(shell_scripts)
-    print('importing evironment variables from:', shell_scripts)
-except:
-    print ('paths not found')
+    logging.info('Importing environment variables from: %s', shell_scripts)
+except Exception as e:
+    logging.warning('paths.py / PDYNAMO_HOME not found -- pDynamo3 environment '
+                     'variables were not imported (%s).', e)
 
 
 
 
 
-import logging
 import gi 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
@@ -160,12 +199,13 @@ class SplashScreen(Gtk.Window):
 
             image = Gtk.Image.new_from_pixbuf(pixbuf)
             self.add(image)
-        except:
-            print('splash.png file not found!')
+        except Exception as e:
+            logging.warning('splash.png could not be loaded (%s) -- '
+                             'showing an empty splash window instead.', e)
 
 def load_modules(callback_final):
     def _load():
-        print("Starting module loading...")
+        logging.info("Starting module loading...")
         time.sleep(1.5)   
         GLib.idle_add(callback_final)  #Call the finalize function in the main loop
     threading.Thread(target=_load).start()
@@ -180,6 +220,15 @@ def main():
                             datefmt="%Y-%m-%d:%H:%M:%S", level=logging.DEBUG)
 
         vconfig = VismolConfig(home = EASYHYBRID_HOME)
+        # [REVERTIDO] Uma chamada explicita a vconfig.load_easyhybrid_config(...)
+        # foi adicionada aqui numa correcao anterior, mas era redundante: o
+        # proprio __init__ do VismolConfig ja chama _check_config_file()
+        # (que carrega o .config.json salvo) seguido de _check_startup_path()
+        # (que valida/corrige o startup_path). Chamar load_easyhybrid_config
+        # de novo DEPOIS disso fazia merge com o conteudo BRUTO do arquivo
+        # salvo, desfazendo a correcao que _check_startup_path() ja tinha
+        # aplicado -- causa direta de um AttributeError/TypeError com
+        # startup_path=None mais adiante, em EasyHybridPreferencesWindow.
         
         
         vm_session = EasyHybridSession(vm_config = vconfig)
@@ -193,11 +242,17 @@ def main():
         
         
         # do now show these itens:
-        main_window.builder.get_object('toolbutton_monte_carlo').hide()
         
-        #main_window.builder.get_object('button_test')           .hide()
+        #main_window.builder.get_object('toolbutton_export_img').hide()
+        #main_window.builder.get_object('button_task_list')           .hide()
         
         main_window.builder.get_object('test_item')             .hide() # IR spectrum
+        
+        #This is the editor
+        main_window.builder.get_object('_show_cell')             .hide() # IR spectrum
+        
+        
+        
         
         #main_window.builder.get_object('toolbutton_terminal')   .hide()
         #main_window.builder.get_object('menuitem_reimaging')   .hide()

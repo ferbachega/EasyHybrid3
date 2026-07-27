@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 import os
 gi.require_version("Gtk", "3.0")
@@ -150,7 +151,7 @@ class SinglePointWindow:
         parameters["filename"]  = self.builder.get_object('entry_logfile_name').get_text()
         parameters['obj1_key6'] = vobject.key6
         parameters['logfile']   = os.path.join(parameters["folder"], parameters["filename"]+'.log')
-        print ('\n\n\Parameters:' , parameters)
+        dprint ('\n\n\Parameters:' , parameters)
         #------------------------------------------------------------------#
         #                      RUN ENERGY CALCULATION                      #
         #------------------------------------------------------------------#

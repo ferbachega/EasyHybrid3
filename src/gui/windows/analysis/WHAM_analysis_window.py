@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -241,7 +242,7 @@ class WHAMWindow(Gtk.Window):
         if parameters["folder"]:
             pass
         else:
-            print('folder: ', parameters["folder"] )
+            dprint('folder: ', parameters["folder"] )
         #----------------------------------------------------------------------
         
         #----------------------------------------------------------------------

@@ -1,3 +1,4 @@
+from util.debug import dprint
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, cairo
@@ -298,7 +299,7 @@ class XYPlot(Gtk.DrawingArea):
         self.draw_XY_axes(cr, line_width = 3.0 , color = [1, 1, 1] )
         
         
-        print(
+        dprint(
         '\nself.Ymax     ', self.Ymax      ,
         '\nself.Ymin     ', self.Ymin      ,
         '\nself.Xmax     ', self.Xmax      ,
@@ -373,7 +374,7 @@ class XYPlot(Gtk.DrawingArea):
         
         (x, y) = int(event.x), int(event.y)
         
-        print("Mouse moved to:", 
+        dprint("Mouse moved to:", 
                x, y,  
                x-self.bx, y-self.by, 
                
@@ -537,12 +538,12 @@ class MyWindow2(Gtk.Window):
         #self.data.append(x)
         #self.X.append(x)
         
-        print (self.raw_X)
-        print (self.raw_data)
+        dprint (self.raw_X)
+        dprint (self.raw_data)
         self.raw_X   .append(self.counter )
         self.raw_data.append(self.counter**3 )
-        print (self.raw_X)
-        print (self.raw_data)
+        dprint (self.raw_X)
+        dprint (self.raw_data)
         self.counter +=1
         
         
@@ -572,7 +573,7 @@ class MyWindow2(Gtk.Window):
         
         (x, y) = int(event.x), int(event.y)
         
-        print("Mouse moved to:", 
+        dprint("Mouse moved to:", 
                x, y,  
                x-self.bx, y-self.by, 
                
@@ -790,7 +791,7 @@ class MyWindow2(Gtk.Window):
         
 
         #----------------------------------------------------------------------
-        print(
+        dprint(
         '\nself.Ymax     ', self.Ymax      ,
         '\nself.Ymin     ', self.Ymin      ,
         '\nself.Xmax     ', self.Xmax      ,
@@ -815,7 +816,7 @@ class MyWindow2(Gtk.Window):
 
 
 
-        print(
+        dprint(
         '\nself.Ymax     ', self.Ymax      ,
         '\nself.Ymin     ', self.Ymin      ,
         '\nself.Xmax     ', self.Xmax      ,

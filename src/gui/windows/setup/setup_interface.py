@@ -28,6 +28,7 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -162,7 +163,7 @@ class EasyHybridPreferencesWindow():
         #self.BackUpWindowData()
         self.window.destroy()
         self.visible    =  False
-        print('self.visible',self.visible)
+        dprint('self.visible',self.visible)
     
     def get_color_pixbuf(self, rgb_values):
         rgb = rgb_values
@@ -304,7 +305,7 @@ class EasyHybridPreferencesWindow():
         not used anymore       
         """
         color = widget.get_rgba()
-        print("Selected color: ", list(color))
+        dprint("Selected color: ", list(color))
         color = list(color)
         
         #-----------------------------------------------------------------------
@@ -334,7 +335,7 @@ class EasyHybridPreferencesWindow():
             pass
         
         elif widget == self.color_btn_pk_dist_lines:
-            print(color)
+            dprint(color)
             self.vm_session.vm_config.gl_parameters["dashed_dist_lines_color"] = color
             #self.vm_session.vm_glcore.vm_font_dist.vao = None
             pass
@@ -367,6 +368,23 @@ class EasyHybridPreferencesWindow():
         
         self.tmp_autosave            .set_active(a)
         self.ask_autosave_and_unsaved.set_active(b)
+        
+        # Criterio de autosave (timer em minutos + contador de eventos --
+        # dispara pelo que vier primeiro. Ver MainWindow._restart_autosave_
+        # timer e pDynamoSession.register_change_and_maybe_autosave).
+        self.entry_autosave_interval    = self.builder.get_object('entry_autosave_interval')
+        self.entry_autosave_event_count = self.builder.get_object('entry_autosave_event_count')
+        interval = self.vm_session.vm_config.gl_parameters.get('autosave_interval_minutes', 5)
+        count    = self.vm_session.vm_config.gl_parameters.get('autosave_event_count', 20)
+        self.entry_autosave_interval   .set_text(str(interval))
+        self.entry_autosave_event_count.set_text(str(count))
+        
+        # "Save window size" -- ja existia no glade, era lido em __apply_
+        # interface_general_parameters mas o valor nunca era usado (nem
+        # setado aqui na abertura). Ver gl_parameters['save_window_size'].
+        self.checkbox_save_window_size = self.builder.get_object('checkbox_save_window_size')
+        save_window_size = self.vm_session.vm_config.gl_parameters.get('save_window_size', True)
+        self.checkbox_save_window_size.set_active(bool(save_window_size))
         pass
     
     def set_general_parameters (self):
@@ -510,6 +528,15 @@ class EasyHybridPreferencesWindow():
         
         self.entry_dbond_radius.set_text(str(sticks_radius))
         self.entry_dbond_type  .set_text(str(sticks_type))
+        
+        # Liga/desliga a representacao de ligacoes duplas/triplas nos sticks
+        # (gl_parameters['multiple_bonds'] -- ver SticksRepresentation._get_
+        # bond_order_per_bond em representations.py). Quando desligado, todas
+        # as ligacoes sao desenhadas como simples, independente da ordem
+        # percebida.
+        self.checkbox_multiple_bonds = self.builder.get_object('checkbox_multiple_bonds')
+        multiple_bonds = self.vm_session.vm_config.gl_parameters.get('multiple_bonds', True)
+        self.checkbox_multiple_bonds.set_active(bool(multiple_bonds))
 
     def set_light_parameters (self):
         """ Function doc """
@@ -590,7 +617,7 @@ class EasyHybridPreferencesWindow():
             if os.path.isdir(parameters['tmp_path']):
                 pass
             else:
-                print('Folder not found:', parameters['tmp_path'])
+                dprint('Folder not found:', parameters['tmp_path'])
                 PDYNAMO3_SCRATCH = os.environ.get('PDYNAMO3_SCRATCH')
                 parameters['tmp_path'] = PDYNAMO3_SCRATCH
         else:            
@@ -602,7 +629,7 @@ class EasyHybridPreferencesWindow():
             if os.path.isdir(parameters['workspace_path']):
                 pass
             else:
-                print('Folder not found:', parameters['workspace_path'])
+                dprint('Folder not found:', parameters['workspace_path'])
                 workspace_path = os.path.join(self.home, 'workspace')
                 parameters['workspace_path'] = workspace_path
         else:
@@ -614,7 +641,7 @@ class EasyHybridPreferencesWindow():
             if os.path.isdir(parameters['startup_path']):
                 pass
             else:
-                print('Folder not found:', parameters['startup_path'])
+                dprint('Folder not found:', parameters['startup_path'])
                 parameters['startup_path'] = self.home
         else:
             parameters['startup_path'] = self.home
@@ -691,6 +718,14 @@ class EasyHybridPreferencesWindow():
         
         self.gl_parameters['sticks_radius'] = stick_radius
         self.gl_parameters['sticks_type']   = stick_type  
+        
+        # Liga/desliga ligacoes duplas/triplas nos sticks. Nao precisa
+        # reconstruir nenhuma representacao: SticksRepresentation._get_bond_
+        # order_per_bond le' este valor de gl_parameters a cada frame (ver
+        # _refresh_bond_order_tbo), entao o efeito aparece no proximo redraw
+        # (ja disparado por __apply_all_changes logo apos todos os
+        # __apply_*_parameters, via vm_glcore.queue_draw()).
+        self.gl_parameters['multiple_bonds'] = self.checkbox_multiple_bonds.get_active()
 
     def __apply_lines_parameters (self):
         lines_with            = float(self.entry_lines_with           .get_text())
@@ -833,7 +868,7 @@ class EasyHybridPreferencesWindow():
         path = self.entry_startup_path.get_text()
         if os.path.isdir(path):
             self.vm_session.vm_config.gl_parameters['startup_path'] = path
-            print('Defining New Startup Path:', path)
+            dprint('Defining New Startup Path:', path)
 
         else:
             dialog = Gtk.MessageDialog(
@@ -857,7 +892,7 @@ class EasyHybridPreferencesWindow():
         workspace_path = self.builder.get_object('entry_workspace_path').get_text()
         if os.path.isdir(workspace_path):
             self.vm_session.vm_config.gl_parameters['workspace_path'] = workspace_path
-            print('Defining workspace path:', workspace_path)
+            dprint('Defining workspace path:', workspace_path)
         else:
             dialog = Gtk.MessageDialog(
                                 flags=0,
@@ -878,7 +913,7 @@ class EasyHybridPreferencesWindow():
         tmp_path       = self.builder.get_object('entry_tmp_path').get_text()
         if os.path.isdir(tmp_path):
             self.vm_session.vm_config.gl_parameters['tmp_path'] = tmp_path
-            print('Defining temporary path:', tmp_path)
+            dprint('Defining temporary path:', tmp_path)
         else:
             dialog = Gtk.MessageDialog(
                                 flags=0,
@@ -901,7 +936,34 @@ class EasyHybridPreferencesWindow():
 
         self.vm_session.vm_config.gl_parameters['autosave']      = a
         self.vm_session.vm_config.gl_parameters['askSaveUnsave'] = b
-        print(a,b)
+        # [BUG FIX] 'c' era lido mas nunca usado -- o checkbox "Save window
+        # size" nao tinha efeito nenhum. Agora liga/desliga a persistencia
+        # de dimensoes da janela (ver MainWindow.__init__/window_resize/
+        # on_delete_event).
+        self.vm_session.vm_config.gl_parameters['save_window_size'] = c
+        dprint(a,b,c)
+        
+        # Criterio de autosave (timer em minutos + contador de eventos).
+        # Aceita virgula OU ponto decimal; cai pro valor atual em caso de
+        # entrada invalida, em vez de quebrar o Apply inteiro.
+        try:
+            interval = float(self.entry_autosave_interval.get_text().replace(',', '.'))
+            self.vm_session.vm_config.gl_parameters['autosave_interval_minutes'] = interval
+        except ValueError:
+            dprint('Invalid autosave interval, keeping previous value.')
+        try:
+            count = int(float(self.entry_autosave_event_count.get_text().replace(',', '.')))
+            self.vm_session.vm_config.gl_parameters['autosave_event_count'] = count
+        except ValueError:
+            dprint('Invalid autosave event count, keeping previous value.')
+        
+        # O intervalo pode ter mudado: reinicia o timer periodico de
+        # autosave da janela principal com o novo valor. self.main_session
+        # e' a propria instancia de MainWindow (ver EasyHybridPreferencesWindow.
+        # __init__: self.main_session = main).
+        restart_timer = getattr(self.main_session, '_restart_autosave_timer', None)
+        if restart_timer is not None:
+            restart_timer()
         
         
         '''

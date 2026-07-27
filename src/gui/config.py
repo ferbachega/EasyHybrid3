@@ -29,6 +29,7 @@
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
 
+from util.debug import dprint
 import os
 import json
 
@@ -69,7 +70,7 @@ class VismolConfig                       :
                                       #"sticks_radius"             : 2.5,
                                       
                                       "sticks_radius"              : 0.16, # not being used (defined in the shader)
-                                      
+                                      "multiple_bonds"             : False,
                                       "sticks_color"               : 0,
                                       "sticks_type"                : 0,
                                       "antialias"                  : True,
@@ -99,8 +100,42 @@ class VismolConfig                       :
                                       'startup_path'               : None,
                                       'tmp_files'                  : None,
                                       'autosave'     : True, 
+                                      # Criterio de autosave: dispara pelo que
+                                      # vier primeiro -- a cada N minutos
+                                      # (timer, ver MainWindow._restart_
+                                      # autosave_timer) OU a cada N mudancas
+                                      # registradas (contador, ver
+                                      # pDynamoSession.register_change_and_
+                                      # maybe_autosave). Grava em
+                                      # <arquivo_da_sessao>~ (ou um arquivo
+                                      # temporario se a sessao ainda nao foi
+                                      # salva nenhuma vez).
+                                      'autosave_interval_minutes' : 5,
+                                      'autosave_event_count'      : 20,
                                       'askSaveUnsave': True, 
                                       #'askSaveUnsave': True, 
+                                      # Dimensoes da janela principal, salvas
+                                      # ao fechar o EasyHybrid e restauradas
+                                      # na proxima abertura (ver MainWindow.
+                                      # __init__ / window_resize / on_delete_
+                                      # event em main_window.py).
+                                      'main_window_width'  : 1200,
+                                      'main_window_height' : 600,
+                                      # Posicao do divisor paned_V (area 3D/
+                                      # treeview vs. notebook de baixo -- Status/
+                                      # Annotations/Sequence), como PROPORCAO da
+                                      # altura da janela (nao pixels fixos), pra
+                                      # acompanhar o tamanho da janela quando ela
+                                      # muda. Default 400/600 (posicao antiga
+                                      # fixa / altura default). Ver main_window.py:
+                                      # window_resize / on_paned_v_position_changed.
+                                      'main_window_paned_v_ratio' : 400.0/600.0,
+                                      # Liga/desliga salvar/restaurar as dimensoes
+                                      # da janela principal entre sessoes (checkbox
+                                      # ja existia no glade -- "Save window size" --
+                                      # mas o valor nunca era usado). Ver MainWindow.
+                                      # __init__ / window_resize / on_delete_event.
+                                      'save_window_size'   : True,
                                       }
                               
         self.n_proc = 2
@@ -110,8 +145,26 @@ class VismolConfig                       :
         #                                   "picking_dots"}
         
         #.Rep list - Don't change this list
-        self.representations_available = {"dots", "lines", "nonbonded", "impostor",'dash', #"cartoon",
-                                          "sticks", "spheres", 'ribbons',#'ribbon_sphere', 
+        # [EN] "cartoon" re-added (was only in the commented-out version
+        # above). THIS is the file actually used at runtime -- easyhybrid.py
+        # (the real entry point) does "from gui.config import VismolConfig"
+        # and passes an instance of THIS class explicitly to
+        # EasyHybridSession(vm_config=vconfig), which overrides the
+        # submodule's own default vismol/core/vismol_config.py entirely
+        # (see VismolSession.__init__: "if vm_config: self.vm_config =
+        # vm_config"). An earlier fix mistakenly edited the submodule's
+        # vismol_config.py instead -- same class name (VismolConfig),
+        # same near-identical content, different file, never actually
+        # instantiated by the real app. Without "cartoon" here,
+        # vm_glcore.initialize()'s shader-compile loop
+        # (for rep in self.vm_config.representations_available: ...)
+        # simply never attempts "cartoon" at all -- no error at startup
+        # (nothing failed, it just never got tried), and
+        # shader_programs["cartoon"] stays unset until the first
+        # attempt to actually draw a Cartoon representation, which is
+        # exactly where the KeyError shows up.
+        self.representations_available = {"dots", "lines", "nonbonded", "impostor",'dash', "posdot_type",
+                                          "sticks", "spheres", 'ribbons', 'cartoon', #'ribbon_sphere', 
                                           'dynamic','vdw_spheres', 
                                           'picking_spheres','static_freetype', 'surface'}
     
@@ -170,7 +223,7 @@ class VismolConfig                       :
             if os.path.exists(config):
                 
                 try:
-                    print("Loading EasyHybrid config file.")
+                    dprint("Loading EasyHybrid config file.")
                     with open(config, 'r', encoding='utf-8') as f:
                         self.gl_parameters = json.load(f)
                 
@@ -178,14 +231,24 @@ class VismolConfig                       :
                             if key in self.gl_parameters.keys():
                                 pass
                             else:
-                                self.gl_parameters[key] = self.gl_parameters_default[keys]
+                                # [BUG FIX] Era 'self.gl_parameters_default[keys]'
+                                # -- 'keys' nao existe (typo de 'key', a variavel
+                                # do loop). Isso disparava NameError toda vez que
+                                # uma chave nova em gl_parameters_default (ex.:
+                                # as que acabamos de adicionar: autosave_interval_
+                                # minutes, main_window_width, etc.) nao existia
+                                # ainda no .config.json salvo -- capturado pelo
+                                # 'except' abaixo, que resetava TODAS as
+                                # preferencias salvas (nao so' a chave faltante)
+                                # de volta pro default, silenciosamente.
+                                self.gl_parameters[key] = self.gl_parameters_default[key]
                                 
                 except:
-                    print("Failed to open EasyHybrid configuration file. Loading default settings.")
+                    dprint("Failed to open EasyHybrid configuration file. Loading default settings.")
                     self.gl_parameters = self.gl_parameters_default
                 
             else:
-                print("Configuration file not found. Creating a new file from default settings.")
+                dprint("Configuration file not found. Creating a new file from default settings.")
                 with open(config, 'w', encoding='utf-8') as f:
                     json.dump(self.gl_parameters_default, f, ensure_ascii=False, indent=4)
                     self.gl_parameters = self.gl_parameters_default
@@ -221,21 +284,49 @@ class VismolConfig                       :
         if self.easyhybrid_home is not None:
             config = os.path.join ( self.easyhybrid_home,'.config.json')
             
-            print("Saving configuration file.")
+            dprint("Saving configuration file.")
             
             with open(config, 'w', encoding='utf-8') as f:
                 json.dump(self.gl_parameters, f, ensure_ascii=False, indent=4)        
 
 
     
-    def load_easyhybrid_config(self, config_path)                       :
-        """ Function doc """
-        if not os.path.isfile(config_path)                       :
-          config_path = os.path.join(os.environ["HOME"], ".VisMol", "VismolConfig.json")
-        with open(config_path, "r") as config_file                       :
-            self.gl_parameters = json.load(config_file)
-    
+    def load_easyhybrid_config(self, config_path):
+        """ Carrega preferencias salvas (.config.json) por cima dos defaults.
 
+            [BUG FIX] Esta funcao existia mas nunca era chamada em lugar
+            nenhum do codigo -- ou seja, o botao "Apply and Save Changes"
+            da janela de Preferences escrevia o arquivo (save_easyhybrid_
+            config), mas nada NUNCA lia esse arquivo de volta. Toda
+            preferencia salva era perdida a cada reinicio do EasyHybrid.
+            Ver chamada em easyhybrid.py, logo apos criar o VismolConfig.
+
+            [BUG FIX] Antes fazia 'self.gl_parameters = json.load(...)',
+            substituindo o dict inteiro. Isso e' perigoso: se uma versao
+            nova do EasyHybrid adicionar uma chave nova em gl_parameters_
+            default (ex.: 'multiple_bonds', 'main_window_width'), carregar
+            um .config.json salvo por uma versao ANTIGA (sem essa chave)
+            apagaria a chave nova inteira, e qualquer codigo que espera
+            gl_parameters['chave_nova'] quebraria com KeyError. Agora faz
+            .update(...) por cima do dict default: chaves salvas sobre-
+            escrevem o default, chaves novas que nunca foram salvas
+            mantem o valor default.
+        """
+        if not os.path.isfile(config_path):
+            config_path = os.path.join(os.environ["HOME"], ".VisMol", "VismolConfig.json")
+        if not os.path.isfile(config_path):
+            # Primeira execucao (ou arquivo apagado): mantem os defaults,
+            # sem erro.
+            return False
+        try:
+            with open(config_path, "r") as config_file:
+                loaded = json.load(config_file)
+        except Exception as e:
+            dprint("Could not load saved preferences (%s): %s" % (config_path, e))
+            return False
+        self.gl_parameters.update(loaded)
+        return True
+    
 
 
 

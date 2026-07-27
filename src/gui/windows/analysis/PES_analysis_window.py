@@ -28,13 +28,14 @@
 #      Provides functions for selecting atoms and residues in pDynamo systems
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
+from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 import gc
 import os
-from util.easyplot import ImagePlot, XYPlot
+from util.easyplot import ImagePlot, XYPlot, export_plot_to_png
 from util.colormaps import COLOR_MAPS  
 
 #import math
@@ -59,6 +60,13 @@ class PotentialEnergyAnalysisWindow:
         self.Visible             =  False  
         
         self.cmap_id = 0
+
+        # . Caps how many major tick/labels the 1D energy profile plot
+        #   (self.plot2) shows on its x-axis. Without this, the plot used
+        #   to get one tick per data point (one per frame/picked state),
+        #   which overlapped into unreadable clutter whenever many frames
+        #   were involved. See _set_plot2_x_ticks().
+        self.max_x_labels = 15
         
         self.vobject_liststore = Gtk.ListStore(str,              # name
                                                int,              # vobj_id
@@ -133,24 +141,36 @@ class PotentialEnergyAnalysisWindow:
 
             self.window = self.builder.get_object('window')
             self.window.set_title('PES Analysis Window')
-            #self.window.set_keep_above(True)            
-            self.window.set_default_size(700, 450)
             
-            
-            self.grid = self.builder.get_object('grid_setup')
+            self.window.set_keep_above(True)
+            #self.window.set_default_size(950, 520)
+            self.window.set_default_size(660, 830)
+
             self.hbox = self.builder.get_object('hbox_plotting')
-            
+            self.plot2d_pane = self.builder.get_object('plot2d_pane')
+            self.plot1d_pane = self.builder.get_object('plot1d_pane')
+
             self.checkbox_smooth = self.builder.get_object('checkbox_smooth')
             self.checkbox_smooth.connect('toggled', self.on_checkbox_smooth_toggle)
-            
-            self.cmap_box = self.builder.get_object('cmap_box')          
+
+            self.checkbox_contours = self.builder.get_object('checkbox_contours')
+            self.checkbox_contours.connect('toggled', self.on_checkbox_contours_toggle)
+
+            self.spinbtn_contour_levels = self.builder.get_object('spinbtn_contour_levels')
+            self.spinbtn_contour_levels.connect('value-changed', self.on_spinbtn_contour_levels_changed)
+
+            self.spinbtn_max_x_labels = self.builder.get_object('spinbtn_max_x_labels')
+            self.spinbtn_max_x_labels.set_value(self.max_x_labels)
+            self.spinbtn_max_x_labels.connect('value-changed', self.on_spinbtn_max_x_labels_changed)
+
+            self.cmap_box = self.builder.get_object('cmap_box')
             self.cmap_combobox = Gtk.ComboBox.new_with_model(self.cmap_store)
             renderer_text = Gtk.CellRendererText()
             self.cmap_combobox.pack_start(renderer_text, True)
-            self.cmap_combobox.add_attribute(renderer_text, "text", 0)            
+            self.cmap_combobox.add_attribute(renderer_text, "text", 0)
             self.cmap_box.add(self.cmap_combobox)
             self.cmap_combobox.connect('changed', self.on_cmap_combobox_change)
-            
+
             '''-------------------------------------------------------------'''
             self.RC_label = self.builder.get_object('RC1_RC2_label')
 
@@ -158,15 +178,23 @@ class PotentialEnergyAnalysisWindow:
             self.plot.RC_label = self.RC_label
             #t = np.linspace(0, 2 * np.pi, 40)
             #data2d = np.sin(t)[:, np.newaxis] * np.cos(t)[np.newaxis, :]
-            self.hbox.pack_start(self.plot, True, True, 0)
+            self.plot2d_pane.pack_start(self.plot, True, True, 0)
+            # . self.RC_label (o readout "i | j | rc1 | rc2 | E") ja' e'
+            #   filho do plot2d_pane vindo do .glade (abaixo da legenda
+            #   "2D energy surface") -- pack_start() sempre ANEXA no
+            #   final, entao sem isso self.plot apareceria DEPOIS do
+            #   readout em vez de entre a legenda e ele. reorder_child()
+            #   garante a ordem visual correta (legenda, grafico, readout)
+            #   independente da ordem de empacotamento.
+            self.plot2d_pane.reorder_child(self.plot, 1)
             #self.plot.data = data2d
             self.plot.connect("button_press_event", self.on_mouse_button_press)
-            
-            self.RC_type_box = self.builder.get_object('RC_type_box')          
+
+            self.RC_type_box = self.builder.get_object('RC_type_box')
             self.RC_type_combobox = Gtk.ComboBox.new_with_model(self.RC_type_store)
             renderer_text = Gtk.CellRendererText()
             self.RC_type_combobox.pack_start(renderer_text, True)
-            self.RC_type_combobox.add_attribute(renderer_text, "text", 0)            
+            self.RC_type_combobox.add_attribute(renderer_text, "text", 0)
             self.RC_type_box.add(self.RC_type_combobox)
             self.RC_type_combobox.connect('changed', self.on_RC_type_combobox)
             self.RC_type_combobox.set_active(0)
@@ -174,9 +202,9 @@ class PotentialEnergyAnalysisWindow:
 
 
             '''-------------------------------------------------------------'''
-            self.plot2 = XYPlot(bg_color  = [1,1,1], 
-                                pl_color  = [0,0,0], 
-                                sel_color = [1,0,0], 
+            self.plot2 = XYPlot(bg_color  = [1,1,1],
+                                pl_color  = [0,0,0],
+                                sel_color = [1,0,0],
                                 bl_color  = [0.7,0.7,0.7],
                                 )
 
@@ -185,22 +213,56 @@ class PotentialEnergyAnalysisWindow:
             self.plot2.y_minor_ticks = 6
             self.plot2.y_major_ticks = 5
             self.plot2.decimal = 0
-            self.hbox.pack_start(self.plot2, True, True, 0)
+            self.plot1d_pane.pack_start(self.plot2, True, True, 0)
+            # mesmo motivo do reorder_child do plot2d_pane acima: o
+            # plot1d_pane ja' tem a legenda "1D energy profile" (posicao 0)
+            # E a caixa do scale bar/energia (posicao 2, vinda do .glade)
+            # como filhos reais -- sem isso o grafico apareceria DEPOIS
+            # do scale bar em vez de entre a legenda e ele.
+            self.plot1d_pane.reorder_child(self.plot2, 1)
             '''-------------------------------------------------------------'''
             #self.plot2.connect("button_press_event", self.on_mouse_button_press)
 
             self.coordinates_combobox = CoordinatesComboBox(coordinates_liststore = self.vobject_liststore)
             self.coordinates_combobox.connect('changed', self.on_coordinates_combobox_change)
-            self.grid.attach (self.coordinates_combobox, 1, 0, 1, 1)
-            
+            self.builder.get_object('coordinates_combobox_box').add(self.coordinates_combobox)
+
             self.refresh_vobject_liststore ()
 
+            # Frames com checkbox no titulo: liga/desliga TODO o grupo de
+            # ferramentas (2D ou 1D) de uma vez, deixando os controles
+            # insensiveis em vez de escondidos -- eles continuam visiveis
+            # (para nao mudar o tamanho/posicao do resto da barra lateral
+            # toda vez que o usuario alterna), so' ficam acinzentados.
+            self.builder.get_object('checkbox_2d_tools_enable').connect(
+                'toggled', self.on_2d_tools_enable_toggle)
+            self.builder.get_object('checkbox_1d_tools_enable').connect(
+                'toggled', self.on_1d_tools_enable_toggle)
 
-            
+            # Alternador de layout (lado a lado / empilhado): so' muda a
+            # orientacao do hbox_plotting -- como ele e' 'homogeneous', os
+            # dois paineis continuam sempre do mesmo tamanho nas duas
+            # orientacoes.
+            self.builder.get_object('radio_layout_side_by_side').connect(
+                'toggled', self.on_layout_toggle_changed)
+            self.builder.get_object('radio_layout_stacked').connect(
+                'toggled', self.on_layout_toggle_changed)
+            self.builder.get_object('radio_layout_stacked').set_active(True)
 
+            # Botao "Hide tools": esconde a barra lateral inteira (+ o
+            # separador ao lado dela) pra dar mais espaco pros graficos.
+            # Fica FORA da barra lateral de proposito -- se estivesse
+            # dentro dela, escondida a barra o botao desapareceria junto
+            # e nao teria como trazer ela de volta.
+            self.builder.get_object('toggle_sidebar_button').connect(
+                'toggled', self.on_toggle_sidebar_button_toggled)
 
-
-
+            # Nota: button_export_2d_png/button_export_1d_png ja' sao
+            # conectados via <signal clicked=.../> no .glade + o
+            # self.builder.connect_signals(self) la' em cima -- mesmo
+            # padrao que button_export/on_button_export_trajectory ja'
+            # usava. Nao conectar de novo aqui (dispararia o handler
+            # duas vezes por clique).
 
             #------------------------------------------------------------------------------------
             self.data_combobox = Gtk.ComboBox()
@@ -209,7 +271,8 @@ class PotentialEnergyAnalysisWindow:
             self.data_combobox.add_attribute(renderer_text, "text", 0)
             self.data_combobox.set_model(self.data_liststore)
             self.data_combobox.connect('changed', self.on_data_combobox_change)
-            self.grid.attach (self.data_combobox, 3, 0, 1, 1)
+            self.builder.get_object('data_combobox_box').add(self.data_combobox)
+            #------------------------------------------------------------------------------------
             #------------------------------------------------------------------------------------
 
 
@@ -239,11 +302,19 @@ class PotentialEnergyAnalysisWindow:
             self.window.show_all()
             self.Visible  = True
             self.coordinates_combobox.set_active(0)
+        else:
+            # . Window already open -- just bring it to the front instead of
+            #   silently doing nothing (which used to be confusing when the
+            #   user picked "Energy Analysis" again from the menu).
+            self.window.present()
+            if vobject is not None:
+                self.vobject = vobject
 
 
-
-    def close_window (self, button, data  = None):
+    def close_window (self, button = None, data  = None):
         """ Function doc """
+        if not self.Visible:
+            return
         self.window.destroy()
         self.Visible    =  False
         
@@ -270,8 +341,8 @@ class PotentialEnergyAnalysisWindow:
                                                         vobject_id  , 
                                                         system_id   , 
                                                         pixbuf     ])
-                    except:
-                        print('Log data not found!')
+                    except Exception:
+                        dprint('Log data not found!')
             else:
                 pass
 
@@ -281,7 +352,7 @@ class PotentialEnergyAnalysisWindow:
             new_threshold = float(self.threshold_entry.get_text())
             self.plot.set_threshold_color ( _min = 0, _max = new_threshold)
             self.plot.queue_draw()
-        except:
+        except Exception:
             pass
    
     def on_checkbox_smooth_toggle (self, widget):
@@ -293,21 +364,158 @@ class PotentialEnergyAnalysisWindow:
         self.plot.queue_draw()
         #self.builder.get_object('checkbox_interpolate').get_active()
 
+    def on_checkbox_contours_toggle (self, widget):
+        """ Function doc """
+        self.plot.show_contours = widget.get_active()
+        self.plot.queue_draw()
+
+    def on_spinbtn_contour_levels_changed (self, widget):
+        """ Function doc """
+        self.plot.num_contour_levels = widget.get_value_as_int()
+        if self.plot.show_contours:
+            self.plot.queue_draw()
+
+    def on_spinbtn_max_x_labels_changed (self, widget):
+        """ Function doc """
+        self.max_x_labels = widget.get_value_as_int()
+        # . Re-apply immediately to whatever is currently plotted, instead
+        #   of only taking effect the next time points are picked/optimized.
+        #   self.plot2.data[0] is always the actual energy profile -- data
+        #   added after it (see on_scaler_frame_value_changed) is just a
+        #   1-point marker for the currently selected frame, and must not
+        #   be used to compute the number of labels.
+        if self.plot2.data:
+            self._set_plot2_x_ticks (len(self.plot2.data[0]['X']))
+            self.plot2.queue_draw()
+
     def on_RC_type_combobox (self, widget):
         self.RC_type = widget.get_active()
-        print(self.RC_type)
+        dprint(self.RC_type)
         self.plot.set_label_mode(mode = self.RC_type)
         self.plot.queue_draw()
 
     def on_cmap_combobox_change (self, widget):
         """ Function doc """
         self.cmap_id = widget.get_active()
-        print(self.cmap_id, self.cmap_ref_dict[self.cmap_id])
+        dprint(self.cmap_id, self.cmap_ref_dict[self.cmap_id])
         self.plot.cmap = self.cmap_ref_dict[self.cmap_id]
         self.plot.set_cmap (cmap = self.cmap_ref_dict[self.cmap_id])
         
         self.on_threshold_entry_activate (None)
+
+    def on_2d_tools_enable_toggle (self, widget):
+        """ Checkbox no titulo do frame "2D surface tools" -- liga/desliga
+        TODOS os controles daquele grupo de uma vez (color map, threshold,
+        smooth, contours+levels, RC label type, interpolate clicks),
+        deixando-os insensiveis em vez de escondidos. Nao afeta o grafico
+        em si (o que ja estava desenhado continua do jeito que estava). """
+        self.builder.get_object('box_2d_tools_content').set_sensitive(widget.get_active())
         
+        if widget.get_active():
+            self.builder.get_object('plot2d_pane').show()
+        else:
+            self.builder.get_object('plot2d_pane').hide()
+            
+    def on_1d_tools_enable_toggle (self, widget):
+        """ Mesma ideia de on_2d_tools_enable_toggle(), para o grupo
+        "1D profile tools" (hoje so' o spinbutton de x labels). """
+        self.builder.get_object('box_1d_tools_content').set_sensitive(widget.get_active())
+        if widget.get_active():
+            self.builder.get_object('plot1d_pane').show()
+        else:
+            self.builder.get_object('plot1d_pane').hide()
+
+
+    def on_layout_toggle_changed (self, widget):
+        """ Alterna hbox_plotting entre lado-a-lado (horizontal) e
+        empilhado (vertical, 2D acima do 1D). Como hbox_plotting e'
+        'homogeneous' (ver .glade), os dois paineis continuam sempre do
+        mesmo tamanho em qualquer uma das duas orientacoes.
+
+        GtkRadioButton dispara 'toggled' tanto para quem FICOU ativo
+        quanto para quem deixou de ser -- so' agimos na chamada onde
+        get_active() e' True, senao o orientation seria setado duas vezes
+        seguidas (uma errada, uma certa) a cada clique. """
+        if not widget.get_active():
+            return
+        if widget is self.builder.get_object('radio_layout_stacked'):
+            self.hbox.set_orientation(Gtk.Orientation.VERTICAL)
+        else:
+            self.hbox.set_orientation(Gtk.Orientation.HORIZONTAL)
+
+    def on_toggle_sidebar_button_toggled (self, widget):
+        """ Esconde/mostra a barra lateral inteira (+ o separador vertical
+        ao lado dela), pra dar mais espaco pros graficos temporariamente.
+        O proprio botao fica FORA da barra lateral (na barra de topo da
+        area principal) de proposito -- se estivesse dentro dela, ao
+        escondê-la o botao sumiria junto e nao teria como trazer a barra
+        de volta. """
+        hidden = widget.get_active()
+        self.builder.get_object('sidebar_box').set_visible(not hidden)
+        self.builder.get_object('sidebar_separator').set_visible(not hidden)
+        widget.set_label('\u25b6 Show tools' if hidden else '\u25c0 Hide tools')
+
+    def _export_plot_dialog (self, plot_widget, default_filename, scale=4):
+        """ Helper compartilhado por on_button_export_2d_png_clicked() e
+        on_button_export_1d_png_clicked(): abre um dialogo "Salvar como"
+        nativo do GTK, e se o usuario confirmar, chama
+        util.easyplot.export_utils.export_plot_to_png() -- que REDESENHA
+        o grafico via Cairo na resolucao pedida (nao e' um screenshot da
+        tela, entao o resultado fica nitido mesmo bem maior que o que
+        aparece na janela).
+
+        scale=4: ver o docstring de export_plot_to_png() para o que esse
+        numero significa -- 4x costuma bastar para slides/relatorios; um
+        valor maior (6-8) e' melhor para figuras de publicacao/impressao.
+        """
+        dialog = Gtk.FileChooserDialog(
+            title="Export figure as PNG",
+            transient_for=self.window,
+            action=Gtk.FileChooserAction.SAVE,
+        )
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_SAVE, Gtk.ResponseType.OK,
+        )
+        dialog.set_do_overwrite_confirmation(True)
+        dialog.set_current_name(default_filename)
+
+        filter_png = Gtk.FileFilter()
+        filter_png.set_name("PNG image (*.png)")
+        filter_png.add_pattern("*.png")
+        dialog.add_filter(filter_png)
+
+        response = dialog.run()
+        filepath = None
+        if response == Gtk.ResponseType.OK:
+            filepath = dialog.get_filename()
+            if not filepath.lower().endswith('.png'):
+                filepath += '.png'
+        dialog.destroy()
+
+        if filepath is None:
+            return
+
+        try:
+            export_plot_to_png(plot_widget, filepath, scale=scale)
+        except Exception as e:
+            error_dialog = Gtk.MessageDialog(
+                transient_for=self.window,
+                flags=0,
+                message_type=Gtk.MessageType.ERROR,
+                buttons=Gtk.ButtonsType.OK,
+                text="Could not export figure",
+            )
+            error_dialog.format_secondary_text(str(e))
+            error_dialog.run()
+            error_dialog.destroy()
+
+    def on_button_export_2d_png_clicked (self, widget):
+        self._export_plot_dialog(self.plot, "pes_2d_energy_surface.png")
+
+    def on_button_export_1d_png_clicked (self, widget):
+        self._export_plot_dialog(self.plot2, "pes_1d_energy_profile.png")
+
     def on_coordinates_combobox_change (self, widget):
         """ Function doc """
         try:
@@ -322,15 +530,15 @@ class PotentialEnergyAnalysisWindow:
             
             try:
                 self.plot2.queue_draw()
-            except:
+            except Exception:
                 pass
             
             try:
                 self.plot.queue_draw()
-            except:
+            except Exception:
                 pass
         
-        except:
+        except Exception:
             pass
         #print( self.vobject.idx_2D_xy)
     
@@ -386,7 +594,7 @@ class PotentialEnergyAnalysisWindow:
                 minlist.append(min(line))
             
             _min = min(minlist)
-            print(self.data)
+            dprint(self.data)
             for i in range(0, len(self.data['Z'])):
                 for j in range(0, len(self.data['Z'][i])):
                     self.data['Z'][i][j] = self.data['Z'][i][j]-_min 
@@ -460,16 +668,10 @@ class PotentialEnergyAnalysisWindow:
                 
                 self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [0,0,1], line = 'solid', line_color = [0,0,0] )
                 
-                
-                
-                if len(x)-1 == 0:
-                    self.plot2.x_major_ticks = 1
-                else:
-                    x_major_ticks = len(x)-1  
-                    self.plot2.x_major_ticks = x_major_ticks
+                self._set_plot2_x_ticks (len(x))
                 self.plot2.Xmax   = 10 
                 #self.plot2.x_major_ticks = 10
-                print("Mouse clicker at:",  x, y, 
+                dprint("Mouse clicker at:",  x, y, 
                                             int(i_on_plot), int(j_on_plot), 
                                             widget.data[int(i_on_plot)][int(j_on_plot)] )
             
@@ -480,6 +682,17 @@ class PotentialEnergyAnalysisWindow:
         if event.button ==3:
             self.menu.popup(None, None, None, None, 0, 3)
             
+    def _set_plot2_x_ticks (self, num_points):
+        """ Limits the number of major x-axis ticks/labels shown on the 1D
+        energy profile plot (self.plot2) to at most self.max_x_labels,
+        evenly spaced across the data range -- instead of one tick per
+        data point (num_points - 1), which is unreadable once there are
+        more than a handful of frames/picked states. """
+        if num_points <= 1:
+            self.plot2.x_major_ticks = 1
+        else:
+            self.plot2.x_major_ticks = min ( num_points - 1, max ( 1, self.max_x_labels ) )
+
     def scale_traj_new_definitions(self, set_range = None ):
         #self.scale_traj
         if set_range:
@@ -512,13 +725,18 @@ class PotentialEnergyAnalysisWindow:
                 self.builder.get_object('label_energy').set_text(text)
 
                 #frame = self.vobject.idx_2D_xy[( xy[0],xy[1])]
-                frame = self.vobject.idx_2D_xy[( xy[1],xy[0])]
+                if getattr(self.vobject, 'idx_2D_xy', False):
+                    frame = self.vobject.idx_2D_xy[( xy[1],xy[0])]
+                else:
+                    # vobject nao veio de uma varredura 2D (sem grade x,y):
+                    # cai no indice linear do ponto selecionado.
+                    frame = int(value)
             else:
                 pass
         else:
             x = [int(value)]
             y = [self.data['Z'][int(value)]]
-            print(x,y)
+            dprint(x,y)
             text = 'E = {:<15.6f}'.format(y[0])
             self.builder.get_object('label_energy').set_text(str(y[0]))
             
@@ -534,7 +752,7 @@ class PotentialEnergyAnalysisWindow:
         try:
             self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = True, sym_color = [1,0,0], line = 'solid', line_color = [0,0,0] )
             self.plot2.queue_draw()
-        except:
+        except Exception:
             pass
             
         self.plot.queue_draw()
@@ -554,7 +772,7 @@ class PotentialEnergyAnalysisWindow:
         self.ax2.plot(range(0, len(self.zdata)), self.zdata, '-ob')
         self.ax3.plot( [int(value)], [self.zdata[int(value)]], '-or')
         
-        if self.vobject:
+        if getattr(self.vobject, 'idx_2D_xy', False):
             frame = self.vobject.idx_2D_xy[(xy[0], xy[1])]
             self.main.vm_session.frame = int(frame)
             #self.main.vm_session.set_frame(int(frame)) 
@@ -565,17 +783,29 @@ class PotentialEnergyAnalysisWindow:
         '''
 
 
+    def on_button_actions_clicked (self, widget):
+        """ Shows the same "Optimize Pathway / Export Incomplete Matrix /
+        Delete" menu available via right-click on the plot, but from a
+        normal, discoverable button click. """
+        self.menu.popup_at_widget(widget, Gdk.Gravity.SOUTH_WEST, Gdk.Gravity.NORTH_WEST, None)
+
     def on_button_export_trajectory (self, widget):
         """ Function doc 
             RC1 and RC2 refer to the coordinates of reactions 1 and 2, respectively, defined to obtain the PES. In the case of a simple reaction coordinate, the RC is simply the value of the distance between atoms 1 and 2 defined. In the case of the multiple distance based reaction coordinate defined by three (3) atoms, the RC is defined as the distance between atoms 1 and 2 minus the distance between atoms 2 and 3.
         
         """
+        # Esta exportacao depende da grade 2D (idx_2D_xy), que so existe para
+        # objetos vindos de uma varredura PES 2D. Sem ela, aborta com aviso em
+        # vez de estourar AttributeError no loop abaixo.
+        if not getattr(self.vobject, 'idx_2D_xy', False):
+            dprint("[PES] trajectory export unavailable: object has no 2D grid (idx_2D_xy).")
+            return
 
         active_id = self.main.p_session.active_id
         
         new_vismol_object = self.main.p_session.generate_new_empty_vismol_object(system_id = self.vobject.e_id , 
                                                                                  name      = 'new_coordinates' )
-        print('\n\n')
+        dprint('\n\n')
         
         text = ''
 #The RC1 and RC2 refer to the reaction coordinates I and II, respectively. In case of RC is a  
@@ -595,8 +825,8 @@ class PotentialEnergyAnalysisWindow:
             
             text += '\n {:3d}   {:3d}    {:3.4f}    {:3.4f}    {:3.6f}'.format(xy[1], xy[0], self.data['RC1'][xy[0]][xy[1]],self.data['RC2'][xy[0]][xy[1]], self.data['Z'][xy[0]][xy[1]] )
             #print(text)
-        print (text)
-        print('\n\n')
+        dprint (text)
+        dprint('\n\n')
 
         self.main.p_session._apply_fixed_representation_to_vobject(system_id = None, vismol_object = new_vismol_object)
         self.main.p_session._apply_QC_representation_to_vobject   (system_id = None, vismol_object = new_vismol_object) 
@@ -652,7 +882,7 @@ class PotentialEnergyAnalysisWindow:
 
     def _menu_opt_pathway            (self, widget):
         """ Function doc """
-        print('Here - _menu_opt_pathway')
+        dprint('Here - _menu_opt_pathway')
         
         input_coord = self.plot.points
         e_matrix    = self.plot.data
@@ -676,11 +906,7 @@ class PotentialEnergyAnalysisWindow:
         
         self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [1,1,1], line = 'solid', line_color = [0,0,0] )
 
-        if len(x)-1 == 0:
-            self.plot2.x_major_ticks = 1
-        else:
-            x_major_ticks = len(x)-1  
-            self.plot2.x_major_ticks = x_major_ticks
+        self._set_plot2_x_ticks (len(x))
         self.plot2.Xmax   = 10 
 
 
@@ -736,7 +962,7 @@ class PotentialEnergyAnalysisWindow:
         #y_disp = self.sbtn_disp_y.get_value_as_int()
         folder = self.folder_chooser_button.get_folder()
         name  = self.builder2.get_object('entry_folder_name').get_text()
-        print(folder,name)
+        dprint(folder,name)
         #self.refresh_addtional_frame_list(x_disp, y_disp)
         #self.plot.queue_draw()
         self._export_incomplete_data(folder = folder, name = name)
@@ -780,7 +1006,7 @@ class PotentialEnergyAnalysisWindow:
                     if [x,y] in self.plot.extra_points:
                         pass
                     else:
-                        if (y,x) in self.vobject.idx_2D_xy.keys():
+                        if (y,x) in (getattr(self.vobject, 'idx_2D_xy', None) or {}).keys():
                             self.plot.extra_points.append([x,y])
                         else:
                             pass
@@ -836,7 +1062,7 @@ class PotentialEnergyAnalysisWindow:
                 filename = 'frame{}_{}.pkl'.format(y, x)
                 self.main.p_session.export_pdynamo_system_coordinates( folder, filename, system)
                 #Pickle( os.path.join ( folder, filename), system.coordinates3 )
-            except:
+            except Exception:
                 pass
         #'''
     
@@ -844,7 +1070,33 @@ class PotentialEnergyAnalysisWindow:
         """ Function doc """
 
     def _menu_delete_system          (self, widget):
-        """ Function doc """
+        """
+        Deletes the object currently shown in this window (i.e. the one
+        selected in the "Coordinates" combobox) from the session -- this
+        removes its trajectory/vismol object plus the PES/energy data
+        associated with it, exactly like deleting it from the main
+        treeview would. Asks for confirmation first, since it can't be
+        undone.
+        """
+        if self.vobject is None:
+            self.main.simple_dialog.info(msg = 'Nothing selected to delete.')
+            return
+
+        confirmed = self.main.simple_dialog.question(
+            'Delete "{}" and its associated energy/PES data?\n'
+            'This cannot be undone.'.format(self.vobject.name))
+
+        if not confirmed:
+            return
+
+        self.main.delete_vm_object(vm_object_index = self.vobject.index)
+
+        self.vobject = None
+        self.data_liststore.clear()
+        self.refresh_vobject_liststore()
+        self.coordinates_combobox.set_active(0)
+        self.plot.queue_draw()
+        self.plot2.queue_draw()
 
 
 
@@ -908,7 +1160,7 @@ def build_chain_of_states( input_coord):
                     #print counter, counter+1, midpoint, input_coord
                     input_coord.insert(counter+1, 0 )
                     input_coord[counter+1] = midpoint
-            except:
+            except Exception:
                 a = True
                 #print input_coord
     return input_coord 
@@ -940,6 +1192,46 @@ def get_gradient_from_matrix_line (matrix_line, position):
     return 0
 
 
+def _spring_energy (pos_before, pos_candidate, pos_after, k):
+    """ Harmonic "spring" energy tying a chain point at "pos_candidate" to
+    its two neighbours along one axis -- a simple discrete NEB-like
+    restraint that keeps the chain from bunching up or tearing apart. """
+    return k * (pos_candidate - pos_before) ** 2 + k * (pos_after - pos_candidate) ** 2
+
+
+def _choose_step (before, middle, after, k, matrix_row, axis_size):
+    """
+    Decides whether a chain point should stay, step back, or step forward
+    by one grid point along one axis (x or y), by comparing the combined
+    (spring + surface) energy of the up-to-three candidate positions, and
+    picking whichever is lowest.
+
+    "matrix_row" is a callable returning the surface energy for a
+    candidate position along this axis (the other axis is already fixed
+    by the caller); "axis_size" is the number of grid points along this
+    axis, so that candidates that would fall outside the energy matrix
+    are simply not considered -- instead of silently wrapping around via
+    Python's negative indexing (e.g. matrix[-1]) or crashing with an
+    IndexError once a chain point reaches the edge of the grid.
+
+    Returns (step, energy_change): step is one of -1, 0, +1, and
+    energy_change is the (spring + surface) energy of the chosen move
+    relative to staying in place (0.0 if the point doesn't move) -- used
+    by the caller only to monitor convergence.
+    """
+    candidates = { 0: middle }
+    if middle - 1 >= 0:
+        candidates[-1] = middle - 1
+    if middle + 1 < axis_size:
+        candidates[+1] = middle + 1
+
+    energies = { step: _spring_energy ( before, pos, after, k ) + matrix_row ( pos )
+                 for step, pos in candidates.items ( ) }
+
+    best_step = min ( energies, key = energies.get )
+    return best_step, energies[best_step] - energies[0]
+
+
 def run_surface_NEB (input_coord = None, e_matrix = None, k = 1.5  ):
     """ Function doc """
     
@@ -960,18 +1252,18 @@ def run_surface_NEB (input_coord = None, e_matrix = None, k = 1.5  ):
     #Initial_positions = [reac, ts,  prod]
     '''
     
-    print ('Matrix size:', len(e_matrix[0]), len(e_matrix))
+    dprint ('Matrix size:', len(e_matrix[0]), len(e_matrix))
     
     initial_size = len(input_coord)
     xy_surface_positions   = build_chain_of_states(input_coord)
     final_size   = len(xy_surface_positions)
 
     #------------------------------------------------------------------
-    print ("\n\nInitial chain of states: \n")
+    dprint ("\n\nInitial chain of states: \n")
     for xy_coord in xy_surface_positions:
         x = xy_coord[0]
         y = xy_coord[1]
-        print (x, y, e_matrix[x][y])
+        dprint (x, y, e_matrix[x][y])
     #------------------------------------------------------------------
 
     #------------------------------------------------------------------
@@ -999,8 +1291,7 @@ def run_surface_NEB (input_coord = None, e_matrix = None, k = 1.5  ):
 
             total_sum_grad = 0
             
-            for xy_coord in xy_surface_positions:
-                index       = xy_surface_positions.index(xy_coord)
+            for index, xy_coord in enumerate(xy_surface_positions):
                 final_index = len(xy_surface_positions)
             
                 if index == 0 or index  == final_index-1:
@@ -1020,99 +1311,52 @@ def run_surface_NEB (input_coord = None, e_matrix = None, k = 1.5  ):
                     y_after    = xy_coord_after[1]
 
 
-                    #----------------------- X   perturbations  ---------------------------------------
-                    energy_left  = k*( (x_midpoint-1) - x_before )**2 + k*( x_after - (x_midpoint-1) )**2
-                    energy_midle = k*(  x_midpoint    - x_before )**2 + k*( x_after -  x_midpoint    )**2
-                    energy_right = k*( (x_midpoint+1) - x_before )**2 + k*( x_after - (x_midpoint+1) )**2
-                
-                    print(  x_before, x_midpoint, x_after, energy_left, energy_midle , energy_right )
-                    energy_left__from_matrix = e_matrix[x_midpoint-1][y_midpoint]
-                    energy_midle_from_matrix = e_matrix[x_midpoint  ][y_midpoint]
-                    energy_right_from_matrix = e_matrix[x_midpoint+1][y_midpoint]
-                    
-                    sum_l = energy_left  + energy_left__from_matrix
-                    sum_m = energy_midle + energy_midle_from_matrix
-                    sum_r = energy_right + energy_right_from_matrix
-                    
-                    #klinh = 1
-                    #sum_l = klinh  + energy_left__from_matrix
-                    #sum_m =       energy_midle_from_matrix
-                    #sum_r = klinh + energy_right_from_matrix
-                    
-                    d1 = sum_l - sum_m
-                    d2 = sum_r - sum_m  
-
-                    if d2 < 0:
-                        asn = 1 
-                        total_sum_grad += d1
-
-                    if d1 < 0: 
-                        asn = -1 	
-                        total_sum_grad += d2
-
-                    if d1  > 0  and d2 > 0:
-                        asn = 0
-                    
-                    xy_surface_positions[index][0] += asn
+                    #----------------------- X   perturbation  ---------------------------------------
+                    step_x, grad_x = _choose_step (
+                        before     = x_before,
+                        middle     = x_midpoint,
+                        after      = x_after,
+                        k          = k,
+                        matrix_row = lambda pos: e_matrix[pos][y_midpoint],
+                        axis_size  = len(e_matrix),
+                    )
+                    xy_surface_positions[index][0] += step_x
+                    total_sum_grad                 += grad_x
                     #-------------------------------------------------------------------------------------
-            
 
-                    #-----------------------   Y    perturbations  ---------------------------------------
-                    energy_left  = k*( (y_midpoint-1) - y_before )**2 + k*( y_after - (y_midpoint-1) )**2
-                    energy_midle = k*(  y_midpoint    - y_before )**2 + k*( y_after -  y_midpoint    )**2
-                    energy_right = k*( (y_midpoint+1) - y_before )**2 + k*( y_after - (y_midpoint+1) )**2
-                
-                    
-                    energy_left__from_matrix = e_matrix[x_midpoint][y_midpoint-1]
-                    energy_midle_from_matrix = e_matrix[x_midpoint][y_midpoint  ]
-                    energy_right_from_matrix = e_matrix[x_midpoint][y_midpoint+1]
-                    
-                    sum_l = energy_left  + energy_left__from_matrix
-                    sum_m = energy_midle + energy_midle_from_matrix
-                    sum_r = energy_right + energy_right_from_matrix
-                    
-                    #sum_l = klinh  + energy_left__from_matrix
-                    #sum_m =       energy_midle_from_matrix
-                    #sum_r = klinh + energy_right_from_matrix
-                    
-                    
-                    d1 = sum_l - sum_m
-                    d2 = sum_r - sum_m  
-
-                    if d2 < 0:
-                        asn = 1 
-                        total_sum_grad += d1
-
-                    if d1 < 0: 
-                        asn = -1 
-                        total_sum_grad += d2
-
-                    if d1  > 0  and d2 > 0:
-                        asn = 0
-                    
-                    xy_surface_positions[index][1] += asn
+                    #-----------------------   Y    perturbation  ---------------------------------------
+                    step_y, grad_y = _choose_step (
+                        before     = y_before,
+                        middle     = y_midpoint,
+                        after      = y_after,
+                        k          = k,
+                        matrix_row = lambda pos: e_matrix[x_midpoint][pos],
+                        axis_size  = len(e_matrix[0]),
+                    )
+                    xy_surface_positions[index][1] += step_y
+                    total_sum_grad                 += grad_y
                     #-------------------------------------------------------------------------------------
 
             delta = total_sum_grad_ateriror - total_sum_grad
             total_sum_grad_ateriror = total_sum_grad
-            print('delta: ' , delta)
+            dprint('delta: ' , delta)
 
-            old = None
+            # . Collapse consecutive duplicate points (chain points that
+            #   converged onto the same grid coordinate). Rebuilding the
+            #   list instead of popping from it while iterating avoids the
+            #   classic bug of skipping the element that shifts into the
+            #   just-removed slot.
+            deduped_positions = []
+            previous_xy_coord = None
             for xy_coord in xy_surface_positions:
-                #                    X     Y
-                index  = xy_surface_positions.index(xy_coord)
-                
-                if xy_coord == old:
-                    xy_surface_positions.pop(index)
-                
-                else:
-                    x = xy_coord[0]
-                    y = xy_coord[1]
-                old = xy_coord
+                if xy_coord != previous_xy_coord:
+                    deduped_positions.append(xy_coord)
+                previous_xy_coord = xy_coord
+            xy_surface_positions = deduped_positions
             
             chain_of_states_perturbation_counter += 1
             
-            if chain_of_states_perturbation_counter == chain_of_states_convergence_max_interactions:
+            if chain_of_states_perturbation_counter == chain_of_states_perturbation_max_interactions:
                 delta =  0
                 
         chain_of_states_convergence_counter += 1
@@ -1134,12 +1378,12 @@ def run_surface_NEB (input_coord = None, e_matrix = None, k = 1.5  ):
                 
                 
     #print xy_surface_positions
-    print ("\n\nOptimized chain of states: \n")
+    dprint ("\n\nOptimized chain of states: \n")
     for xy_coord in xy_surface_positions:
         #                    X     Y
         x = xy_coord[0]
         y = xy_coord[1]
-        print (x, y, e_matrix[x][y])                
+        dprint (x, y, e_matrix[x][y])                
     #"""
     return xy_surface_positions
         
