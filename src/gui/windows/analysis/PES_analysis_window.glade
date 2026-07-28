@@ -482,7 +482,7 @@
                 <property name="can-focus">False</property>
                 <child>
                   <object class="GtkToggleButton" id="toggle_sidebar_button">
-                    <property name="label" translatable="yes">&#9664; Hide tools</property>
+                    <property name="label" translatable="yes">◀ Hide tools</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">False</property>

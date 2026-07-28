@@ -530,8 +530,11 @@ class PotentialEnergyAnalysisWindow:
             
             try:
                 self.plot2.queue_draw()
+                #print("aceito")
             except Exception:
-                pass
+                #self.builder.get_object('checkbox_2d_tools_enable').set_active(False)
+                #print("negado")
+                pass                       
             
             try:
                 self.plot.queue_draw()
@@ -555,6 +558,7 @@ class PotentialEnergyAnalysisWindow:
         #print('data: ', self.data)
         
         if self.data['type'] == 'plot1D':
+            self.builder.get_object('checkbox_2d_tools_enable').set_active(False)
             pass
             self.plot2.data = []
 
@@ -588,7 +592,7 @@ class PotentialEnergyAnalysisWindow:
             self.scale_traj_new_definitions(set_range = len(self.data['Z']))
         
         elif self.data['type'] == 'plot2D':
-        
+            self.builder.get_object('checkbox_2d_tools_enable').set_active(True)
             minlist = []
             for line in self.data['Z']:
                 minlist.append(min(line))
@@ -738,7 +742,8 @@ class PotentialEnergyAnalysisWindow:
             y = [self.data['Z'][int(value)]]
             dprint(x,y)
             text = 'E = {:<15.6f}'.format(y[0])
-            self.builder.get_object('label_energy').set_text(str(y[0]))
+            #self.builder.get_object('label_energy').set_text(str(y[0]))
+            self.builder.get_object('label_energy').set_text(text)
             
             frame = int(value)
         
