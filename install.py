@@ -422,6 +422,7 @@ To load them manually, run:
 # alongside genuinely-external packages was misleading.
 PYTHON_LIBRARIES = {
     "numpy":    "numpy",
+    "scipy":    "scipy",
     "OpenGL":   "PyOpenGL",
     "freetype": "freetype-py",
     "cairo":    "pycairo",

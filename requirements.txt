@@ -24,6 +24,7 @@
 # anything, is missing.
 
 numpy>=1.20.0
+scipy>=1.7.0
 PyOpenGL>=3.1.0
 Cython>=0.29.12
 freetype-py>=2.3.0

@@ -1161,9 +1161,16 @@ class ReactionCoordinateBox(Gtk.Box):
         if self.scan:
             try:
                 self.refresh_dmininum ( coord1 = True)
-            except:
-                dprint(texto_d1)
-                dprint(texto_d2d1)
+            except Exception as e:
+                # [EN] BUG FIX: este except tentava usar texto_d1/
+                # texto_d2d1, duas variaveis que nunca existiram nesta
+                # funcao -- se refresh_dmininum() alguma vez levantasse
+                # uma excecao de verdade, este handler quebraria de novo
+                # (NameError), mascarando o erro original. Tambem era um
+                # 'except:' pelado (pega ate Ctrl+C/SystemExit) -- trocado
+                # por 'except Exception', e logando a excecao real em vez
+                # de referenciar nomes que nao existem.
+                dprint("refresh_dmininum failed:", e)
     
     def set_rc_type (self, rc_type = 0):
         """ Chenges the type -  simple distance is default """

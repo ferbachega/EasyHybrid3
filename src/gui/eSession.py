@@ -55,7 +55,7 @@ from util.geometric_analysis            import get_distance
 from util.geometric_analysis            import get_dihedral 
 from util.geometric_analysis            import get_simple_dihedral 
 from util.geometric_analysis            import get_angle 
-#from util.geometric_analysis            import find_subgroup 
+from util.geometric_analysis            import find_subgroup 
 from util.geometric_analysis            import rotate_bond 
 
 class CommandLine:

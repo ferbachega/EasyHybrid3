@@ -217,21 +217,21 @@ class MOL2FileReader ( TextFileReader ):
         if len ( items ) > 1: self.numberOfBonds = items[1]
 
     @classmethod
-    def PathToAtomNames ( selfClass, log = logFile ):
+    def PathToAtomNames ( selfClass, path, log = logFile ):
         """Return the coordinates from a file."""
         inFile = selfClass.FromPath ( path )
         inFile.Parse ( log = log )
         return inFile.ToAtomNames ( )
 
     @classmethod
-    def PathToCharges ( selfClass, log = logFile ):
+    def PathToCharges ( selfClass, path, log = logFile ):
         """Return the coordinates from a file."""
         inFile = selfClass.FromPath ( path )
         inFile.Parse ( log = log )
         return inFile.ToCharges ( )
 
     @classmethod
-    def PathToCoordinates3 ( selfClass, log = logFile ):
+    def PathToCoordinates3 ( selfClass, path, log = logFile ):
         """Return the coordinates from a file."""
         inFile = selfClass.FromPath ( path )
         inFile.Parse ( log = log )

@@ -684,7 +684,24 @@ class PotentialEnergyAnalysisWindow:
             widget.queue_draw()
         
         if event.button ==3:
-            self.menu.popup(None, None, None, None, 0, 3)
+            # [EN] BUG FIX: isto usava a API antiga e ja' depreciada
+            # Gtk.Menu.popup(None, None, None, None, 0, 3) -- os
+            # argumentos de botao/tempo (0, 3) eram valores fixos, nao
+            # vindos do evento de clique real. Isso bagunca o "grab"
+            # implicito que o GTK usa para saber quando fechar o menu:
+            # em vez de ficar aberto ate' um proximo clique (dentro ou
+            # fora dele, ou escolhendo um item -- o comportamento normal
+            # de qualquer menu de contexto), o menu se fechava assim que
+            # o botao direito fisico era solto, entao so' ficava visivel
+            # enquanto o botao estava pressionado.
+            #
+            # popup_at_pointer(event) e' a API moderna (GTK 3.22+, ja'
+            # usada em outro lugar deste mesmo arquivo -- ver
+            # on_button_actions_clicked()/popup_at_widget()): ela usa o
+            # proprio evento que disparou o menu para posicionar E para
+            # estabelecer o grab corretamente, corrigindo os dois
+            # problemas de uma vez.
+            self.menu.popup_at_pointer(event)
             
     def _set_plot2_x_ticks (self, num_points):
         """ Limits the number of major x-axis ticks/labels shown on the 1D

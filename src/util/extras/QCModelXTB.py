@@ -370,9 +370,14 @@ class QCModelXTB ( QCModel ):
                 #print(line)
                 if line == "Chelpg Charges":
                     data = Array.WithExtent ( n )
-                    line = next ( outFile )
+                    # [EN] BUG FIX: usava 'outFile', que nunca foi aberto
+                    # neste metodo (so' 'atFile' existe) -- quebrava com
+                    # NameError sempre que o output do XTB tivesse uma
+                    # secao "Chelpg Charges" (o ramo elif logo abaixo, para
+                    # 'Mulliken/CM5', ja usava atFile corretamente).
+                    line = next ( atFile )
                     for i in range ( n ):
-                        words   = next ( outFile ).split ( ":", 1 )
+                        words   = next ( atFile ).split ( ":", 1 )
                         data[i] = float ( words[-1] )
                     scratch["CHELPG Charges"] = data
                 
