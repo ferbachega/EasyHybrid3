@@ -83,6 +83,13 @@ class ImagePlot(Canvas):
         self.selected_dot = None #it is the i and j coordinates at the energey matrix
         self.sel_dot_rgb  = [1,0,0]
 
+        # [NOVO] Cor unica para eixos, marcas de escala, rotulos (x/y e da
+        # barra de cores) e a moldura ao redor da matriz -- antes cada um
+        # desses tinha [0,0,0] fixo espalhado em lugares diferentes
+        # (draw_scale, draw_color_bar, a chamada de draw_image_box em
+        # on_draw), sem nenhuma forma de mudar tudo de uma vez so'.
+        self.axis_color = [0, 0, 0]
+
         # --- contour lines (isolines) -------------------------------------
         self.show_contours       = False
         self.num_contour_levels  = 8
@@ -213,7 +220,7 @@ class ImagePlot(Canvas):
         
         
         
-        cr.set_source_rgb(0,0,0)
+        cr.set_source_rgb(*self.axis_color)
         _min = self.data_min
         _max = self.data_max
         factor2 = (_max - _min)/(num_labels-1)
@@ -534,6 +541,14 @@ class ImagePlot(Canvas):
             #--------------------------------------------------------------------------------------------
             # marcacoes em x
             #print(self.bx+ i*self.factor_x + (self.factor_x)/2.0 , self.bx+ i*self.factor_x + (self.factor_x)/2.0)
+            # [EN] BUG FIX: antes esta linha de marcacao nao definia sua
+            # propria cor -- so' "funcionava" (saia preta) porque
+            # draw_image_box() (chamada logo antes, em on_draw) tambem
+            # deixava a cor preta fixa no cr. Agora que axis_color e'
+            # configuravel, cada desenho precisa definir sua propria cor
+            # explicitamente, sem depender de estado deixado por quem
+            # desenhou antes.
+            cr.set_source_rgb(*self.axis_color)
             cr.move_to (self.bx+ i*self.factor_x + (self.factor_x)/2.0      , self.by )
             cr.line_to (self.bx+ i*self.factor_x + (self.factor_x)/2.0      , self.by -10 ) 
             #--------------------------------------------------------------------------------------------
@@ -541,7 +556,7 @@ class ImagePlot(Canvas):
             
             
             #--------------------------------------------------------------------------------------------
-            cr.set_source_rgb(0, 0, 0)
+            cr.set_source_rgb(*self.axis_color)
             cr.set_font_size(font_size)
             
             if self.label_mode == 0:
@@ -566,6 +581,7 @@ class ImagePlot(Canvas):
         for j in range(0,self.size_y, y_major_ticks):
             #--------------------------------------------------------------------------------------------
             # marcacoes em y
+            cr.set_source_rgb(*self.axis_color)
             cr.move_to (self.bx      , self.by + j*self.factor_y + (self.factor_y)/2.0 )
             cr.line_to (self.bx -10  , self.by + j*self.factor_y + (self.factor_y)/2.0 ) 
             #--------------------------------------------------------------------------------------------
@@ -574,7 +590,7 @@ class ImagePlot(Canvas):
             
             #--------------------------------------------------------------------------------------------
             # texto em y
-            cr.set_source_rgb(0, 0, 0)
+            cr.set_source_rgb(*self.axis_color)
             cr.set_font_size(font_size)
 
             if self.label_mode == 0:
@@ -987,7 +1003,7 @@ class ImagePlot(Canvas):
             self.draw_contours (self.temp_cr, levels = levels, label_gaps = label_gaps)
             self.draw_contour_labels (self.temp_cr, labels)
 
-        self.draw_image_box (self.temp_cr, line_width = 1, color = [0,0,0])#(cr, line_width = 1, color = [0,0,0])
+        self.draw_image_box (self.temp_cr, line_width = 1, color = self.axis_color)#(cr, line_width = 1, color = [0,0,0])
 
         self.draw_scale(self.temp_cr)#(cr)
         

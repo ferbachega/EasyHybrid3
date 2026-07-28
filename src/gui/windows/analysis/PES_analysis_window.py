@@ -76,11 +76,17 @@ class PotentialEnergyAnalysisWindow:
         self.data_liststore    = Gtk.ListStore(str, int)
         
         #.colors
-        self.xy_bg_color     = [0,0,0]
-        self.matrix_bg_color = [1,1,1]
-        
-        self.line_plot_color = [0,0,0] 
-        self.line_data_color = [0,0,0]
+        # [EN] BUG FIX: xy_bg_color/matrix_bg_color/line_plot_color/
+        # line_data_color existiam aqui, mas nunca eram lidas em NENHUM
+        # outro lugar deste arquivo -- so' ficavam sentadas com um valor
+        # fixo, desconectadas das cores de verdade usadas ao desenhar
+        # (self.plot.*, self.plot2.line_color etc). Isso e' exatamente o
+        # que causou o bug relatado: on_mouse_button_press() (e outros
+        # 2 lugares) usavam "[0,0,0]" hardcoded (ou, no caso de
+        # on_data_combobox_change(), essa mesma self.line_data_color
+        # morta) em vez de respeitar a cor que o usuario escolhe no
+        # dialogo "Colors..." (self.plot2.line_color) -- removidas para
+        # nao confundir de novo qual e' a fonte de verdade.
         
         # plotting attributes
         self.interpolate = True
@@ -516,6 +522,107 @@ class PotentialEnergyAnalysisWindow:
     def on_button_export_1d_png_clicked (self, widget):
         self._export_plot_dialog(self.plot2, "pes_1d_energy_profile.png")
 
+    def on_button_plot1d_colors_clicked (self, widget):
+        """ Abre um dialogo pequeno com 3 seletores de cor (fundo, linhas
+        de grade, linha do grafico) para o perfil de energia 1D
+        (self.plot2). Usa Gtk.ColorButton -- ele mesmo ja abre o seletor
+        de cor nativo do sistema ao ser clicado, entao nao precisa de um
+        .glade proprio so' para isso. """
+        dialog = Gtk.Dialog(title="1D Plot Colors", transient_for=self.window, modal=True)
+        dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                            Gtk.STOCK_OK, Gtk.ResponseType.OK)
+
+        content = dialog.get_content_area()
+        content.set_border_width(10)
+        content.set_spacing(8)
+
+        grid = Gtk.Grid(row_spacing=8, column_spacing=12)
+        content.add(grid)
+
+        def make_color_button(rgb):
+            rgba = Gdk.RGBA()
+            rgba.red, rgba.green, rgba.blue, rgba.alpha = rgb[0], rgb[1], rgb[2], 1.0
+            return Gtk.ColorButton.new_with_rgba(rgba)
+
+        # [nome exibido, cor atual, atributo em self.plot2 que ela controla]
+        rows = [
+            ("Background", self.plot2.bg_color,       "bg_color"),
+            ("Grid lines", self.plot2.bglines_color,   "bglines_color"),
+            ("Plot line",  self.plot2.line_color,      "line_color"),
+        ]
+        color_buttons = []
+        for row_index, (label_text, current_rgb, _attr) in enumerate(rows):
+            label = Gtk.Label(label=label_text, xalign=0)
+            btn = make_color_button(current_rgb)
+            grid.attach(label, 0, row_index, 1, 1)
+            grid.attach(btn, 1, row_index, 1, 1)
+            color_buttons.append(btn)
+
+        dialog.show_all()
+        response = dialog.run()
+
+        if response == Gtk.ResponseType.OK:
+            for (_label, _current_rgb, attr), btn in zip(rows, color_buttons):
+                rgba = btn.get_rgba()
+                setattr(self.plot2, attr, [rgba.red, rgba.green, rgba.blue])
+
+            # Se ja' existe um perfil desenhado (usuario ja' selecionou
+            # pontos na matriz 2D), atualiza tambem a cor de linha da(s)
+            # serie(s) ja' adicionadas -- senao a mudanca so' valeria
+            # para o PROXIMO perfil, nao para o que ja' esta' na tela.
+            new_line_color = self.plot2.line_color
+            for series in self.plot2.data:
+                series['line_color'] = new_line_color
+
+            self.plot2.queue_draw()
+
+        dialog.destroy()
+
+    def on_button_plot2d_colors_clicked (self, widget):
+        """ Mesma ideia de on_button_plot1d_colors_clicked(), para a
+        superficie 2D (self.plot): fundo (self.plot.bg_color) e a cor
+        unica de eixos/marcas/rotulos/moldura (self.plot.axis_color,
+        ver image_plot.py -- antes tinha [0,0,0] fixo espalhado em 3
+        lugares diferentes, sem nenhuma forma de mudar tudo junto). """
+        dialog = Gtk.Dialog(title="2D Plot Colors", transient_for=self.window, modal=True)
+        dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                            Gtk.STOCK_OK, Gtk.ResponseType.OK)
+
+        content = dialog.get_content_area()
+        content.set_border_width(10)
+        content.set_spacing(8)
+
+        grid = Gtk.Grid(row_spacing=8, column_spacing=12)
+        content.add(grid)
+
+        def make_color_button(rgb):
+            rgba = Gdk.RGBA()
+            rgba.red, rgba.green, rgba.blue, rgba.alpha = rgb[0], rgb[1], rgb[2], 1.0
+            return Gtk.ColorButton.new_with_rgba(rgba)
+
+        rows = [
+            ("Background",      self.plot.bg_color,   "bg_color"),
+            ("Axis / labels",   self.plot.axis_color, "axis_color"),
+        ]
+        color_buttons = []
+        for row_index, (label_text, current_rgb, _attr) in enumerate(rows):
+            label = Gtk.Label(label=label_text, xalign=0)
+            btn = make_color_button(current_rgb)
+            grid.attach(label, 0, row_index, 1, 1)
+            grid.attach(btn, 1, row_index, 1, 1)
+            color_buttons.append(btn)
+
+        dialog.show_all()
+        response = dialog.run()
+
+        if response == Gtk.ResponseType.OK:
+            for (_label, _current_rgb, attr), btn in zip(rows, color_buttons):
+                rgba = btn.get_rgba()
+                setattr(self.plot, attr, [rgba.red, rgba.green, rgba.blue])
+            self.plot.queue_draw()
+
+        dialog.destroy()
+
     def on_coordinates_combobox_change (self, widget):
         """ Function doc """
         try:
@@ -587,7 +694,7 @@ class PotentialEnergyAnalysisWindow:
                             sym_fill = False, 
                             #sym_color = [1,1,1], 
                             line = 'solid', 
-                            line_color = self.line_data_color )
+                            line_color = self.plot2.line_color )
             self.plot.hide()
             self.scale_traj_new_definitions(set_range = len(self.data['Z']))
         
@@ -670,11 +777,19 @@ class PotentialEnergyAnalysisWindow:
                     x.append(i)
                     y.append(widget.data[point[0]][point[1]])
                 
-                self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [0,0,1], line = 'solid', line_color = [0,0,0] )
+                self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [0,0,1], line = 'solid', line_color = self.plot2.line_color )
                 
                 self._set_plot2_x_ticks (len(x))
-                self.plot2.Xmax   = 10 
-                #self.plot2.x_major_ticks = 10
+                # [EN] BUG FIX: havia um "self.plot2.Xmax = 10" fixo aqui,
+                # logo depois de add() ja ter calculado o Xmax CERTO a
+                # partir dos pontos reais (define_xy_limits(), chamado
+                # internamente por add()). Esse valor fixo sobrescrevia o
+                # calculo correto toda vez -- sempre que o numero de
+                # pontos selecionados na matriz 2D fosse diferente de 10,
+                # a grade/rotulos do eixo X do grafico 1D ficavam
+                # baseados num intervalo 0-10 que nao correspondia aos
+                # dados de verdade (grade "nao atualizando" ao selecionar
+                # pontos, exatamente o sintoma relatado).
                 dprint("Mouse clicker at:",  x, y, 
                                             int(i_on_plot), int(j_on_plot), 
                                             widget.data[int(i_on_plot)][int(j_on_plot)] )
@@ -772,7 +887,7 @@ class PotentialEnergyAnalysisWindow:
         
         
         try:
-            self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = True, sym_color = [1,0,0], line = 'solid', line_color = [0,0,0] )
+            self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = True, sym_color = [1,0,0], line = 'solid', line_color = self.plot2.line_color )
             self.plot2.queue_draw()
         except Exception:
             pass
@@ -926,10 +1041,14 @@ class PotentialEnergyAnalysisWindow:
             x.append(i)
             y.append(self.plot.data[point[0]][point[1]])
         
-        self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [1,1,1], line = 'solid', line_color = [0,0,0] )
+        self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [1,1,1], line = 'solid', line_color = self.plot2.line_color )
 
         self._set_plot2_x_ticks (len(x))
-        self.plot2.Xmax   = 10 
+        # [EN] BUG FIX: mesmo problema de on_mouse_button_press() (ver o
+        # comentario la') -- "self.plot2.Xmax = 10" fixo sobrescrevia o
+        # valor real calculado por add(), quebrando a grade do eixo X
+        # sempre que o caminho otimizado (NEB) tivesse um numero de
+        # pontos diferente de 10.
 
 
         
