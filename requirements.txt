@@ -30,3 +30,7 @@ Cython>=0.29.12
 freetype-py>=2.3.0
 pycairo>=1.20.0
 PyGObject>=3.40.0
+# Process Manager's "Abort" feature -- finds/signals every descendant
+# of a job's process cross-platform (see install.py's PYTHON_LIBRARIES
+# for the fuller explanation of why).
+psutil>=5.9.0

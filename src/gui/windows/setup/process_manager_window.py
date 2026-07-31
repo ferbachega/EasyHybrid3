@@ -37,18 +37,27 @@ from gui.widgets.custom_widgets  import get_colorful_square_pixel_buffer
 from gui.windows.setup.windows_and_dialogs import TextWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
 import os, sys, time, signal
+import psutil
 from pprint import pprint
 
 
 def _get_descendant_pids ( pid ):
-    """ [EN] Returns every descendant PID (children, grandchildren, ...)
-    of `pid`, walking /proc/<pid>/task/<tid>/children recursively --
-    Linux-specific (available since kernel 3.5), deliberately NOT using
-    psutil: it isn't used anywhere else in this codebase and isn't
-    guaranteed to be installed on every user's machine -- avoids adding
-    that as a hard new dependency just for this one feature, on an app
-    that's Linux-only in practice already (pDynamo3's own install paths,
-    GTK, etc.).
+    """ [EN] BUG FIX (real-world report: this used /proc/<pid>/task/
+    <tid>/children -- Linux-specific, does not exist at all on macOS,
+    which has no /proc filesystem by default). Confirmed while checking
+    macOS portability: this was the ONE genuinely OS-specific piece of
+    code in the whole project (grepped for "/proc/" across the entire
+    source tree -- this was the only hit). Every OTHER piece of this
+    Abort feature (os.kill, signal.SIGTERM/SIGKILL below) is plain
+    POSIX, already identical on Linux and macOS -- only the "find every
+    descendant" step needed a real fix, not a full rewrite.
+
+    Now uses psutil (a new dependency -- see install.py's own
+    PYTHON_LIBRARIES table, updated to match), whose children(
+    recursive=True) is implemented per-platform (via /proc on Linux, via
+    sysctl/libproc on macOS, via a different mechanism again on Windows)
+    behind the exact same API -- so this function itself no longer needs
+    ANY platform-specific code at all; psutil already did that work.
 
     Needed because multiprocessing.Process.terminate() only sends
     SIGTERM to the ONE direct child process it tracks -- confirmed by
@@ -58,22 +67,27 @@ def _get_descendant_pids ( pid ):
     like ORCA/XTB) INSIDE that child process, which terminate() has no
     idea about and never signals -- aborting a job used to report
     success while those grandchildren kept running, orphaned, still
-    consuming CPU. """
-    descendants = [ ]
-    to_visit = [ pid ]
-    while to_visit:
-        current = to_visit.pop ( )
-        try:
-            with open ( '/proc/{}/task/{}/children'.format ( current, current ) ) as f:
-                children_str = f.read ( ).strip ( )
-        except ( FileNotFoundError, ProcessLookupError, NotADirectoryError ):
-            continue
-        if not children_str:
-            continue
-        children = [ int ( p ) for p in children_str.split ( ) ]
-        descendants.extend ( children )
-        to_visit.extend ( children )
-    return descendants
+    consuming CPU.
+
+    Returns a plain list of ints (pids), matching the previous /proc-
+    based version's return type exactly, so every caller below
+    (_terminate_process_tree(), _force_kill_pids()) needed no changes at
+    all beyond this one function. """
+    try:
+        proc = psutil.Process ( pid )
+    except psutil.NoSuchProcess:
+        return [ ]
+    try:
+        return [ child.pid for child in proc.children ( recursive = True ) ]
+    except psutil.NoSuchProcess:
+        # [EN] the process tree can legitimately change WHILE we're
+        # walking it (a grandchild finishing on its own, mid-walk) --
+        # psutil raises NoSuchProcess for THAT specific vanished process
+        # rather than silently skipping it the way the old /proc-based
+        # try/except per-node did; treating it as "no descendants found"
+        # here is the same practical outcome (whatever already finished
+        # doesn't need signalling anyway).
+        return [ ]
 
 
 def _pid_alive ( pid ):

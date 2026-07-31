@@ -428,6 +428,16 @@ PYTHON_LIBRARIES = {
     "cairo":    "pycairo",
     "gi":       "PyGObject",
     "Cython":   "Cython",
+    # [EN] Added for the Process Manager's "Abort" feature -- needs to
+    # find and signal every DESCENDANT of a running job's process (its
+    # own multiprocessing.Pool workers, or external QM programs it
+    # shelled out to), not just the one direct child multiprocessing.
+    # Process.terminate() already knows about. Cross-platform by
+    # construction (implemented per-OS internally by psutil itself --
+    # /proc on Linux, sysctl/libproc on macOS, a different mechanism
+    # again on Windows), unlike an earlier version of this feature that
+    # read /proc directly and consequently never worked on macOS at all.
+    "psutil":   "psutil",
 }
 
 

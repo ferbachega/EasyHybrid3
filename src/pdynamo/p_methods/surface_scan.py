@@ -150,9 +150,9 @@ class AdvancedRelaxedSurfaceScan:
                 text = text + "\nATOM                   =%15i  ATOM NAME              =%15s"     % ( int(rc2[1]), str(rc2[0]) )
                 text = text + "\nATOM                   =%15i  ATOM NAME              =%15s"     % ( int(rc2[3]), str(rc2[2]) )
                 text = text + "\nSigma                  =%15.5f"                                 % ( float(rc2[4]) )
-            text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']  , parameters['RC1']['force_constant'] )
-            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum'], parameters['maximumIterations']         )
-            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']  , parameters['rmsGradientTolerance']           )
+            text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']  , parameters['RC2']['force_constant'] )
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum'], parameters['maximumIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']  , parameters['rmsGradientTolerance']           )
             text = text + "\n--------------------------------------------------------------------------------"
 
 
