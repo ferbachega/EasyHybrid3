@@ -129,6 +129,9 @@ class EasyHybridPreferencesWindow():
             self.set_bond_parameters()
             
             self.set_stick_parameters()
+
+            # [NOVO] estado inicial dos controles de cor unica das dynamic bonds
+            self.set_dynamic_bonds_parameters()
             
             self.set_sphere_parameters()
             
@@ -360,6 +363,91 @@ class EasyHybridPreferencesWindow():
         #-------------------------------------------------------------------------
         
         return color
+
+    # ----------------------------------------------------------------------- #
+    #  [NOVO] Dynamic bonds: cor unica opcional                                 #
+    # ----------------------------------------------------------------------- #
+    # ----------------------------------------------------------------------- #
+    #  [NOVO] Dynamic bonds: cor unica opcional                                 #
+    # ----------------------------------------------------------------------- #
+    def set_dynamic_bonds_parameters(self):
+        """Configura os controles de cor unica das dynamic bonds na abertura.
+
+        Le as preferencias atuais e reflete nos widgets do Glade:
+          - checkbox_dynamic_bonds_single_color (GtkCheckButton)
+          - colorbutton_dynamic_bonds          (GtkColorButton)
+        Se os widgets nao existirem no glade (ainda nao adicionados), sai sem erro.
+        """
+        try:
+            from gi.repository import Gdk
+            gp = self.vm_session.vm_config.gl_parameters
+
+            self.checkbox_dynamic_bonds_single_color = self.builder.get_object(
+                'checkbox_dbond_unique_color')
+            self.colorbutton_dynamic_bonds = self.builder.get_object(
+                'btn_dbond_unique_color')
+
+            if self.checkbox_dynamic_bonds_single_color is not None:
+                self.checkbox_dynamic_bonds_single_color.set_active(
+                    gp.get("dynamic_bonds_single_color", False))
+                self.checkbox_dynamic_bonds_single_color.connect(
+                    'toggled', self.on_dynamic_bonds_single_color_toggled)
+
+            if self.colorbutton_dynamic_bonds is not None:
+                c = gp.get("dynamic_bonds_color", [1.0, 1.0, 1.0, 1.0])
+                rgba = Gdk.RGBA()
+                rgba.red, rgba.green, rgba.blue = c[0], c[1], c[2]
+                rgba.alpha = c[3] if len(c) > 3 else 1.0
+                self.colorbutton_dynamic_bonds.set_rgba(rgba)
+                self.colorbutton_dynamic_bonds.connect(
+                    'color-set', self.on_dynamic_bonds_color_set)
+        except Exception as e:
+            dprint("set_dynamic_bonds_parameters skipped:", e)
+
+    def on_dynamic_bonds_single_color_toggled(self, widget):
+        """Liga/desliga o uso de cor unica para as ligacoes dinamicas (QC).
+
+        Conectar no Glade ao 'toggled' de um GtkCheckButton chamado
+        'checkbox_dynamic_bonds_single_color'. Ao mudar, atualiza a preferencia
+        e reconstroi a representacao 'dynamic' dos objetos para refletir na tela.
+        """
+        active = widget.get_active()
+        self.vm_session.vm_config.gl_parameters["dynamic_bonds_single_color"] = active
+        self._refresh_dynamic_bonds_representation()
+
+    def on_dynamic_bonds_color_set(self, widget):
+        """Define a cor unica das ligacoes dinamicas.
+
+        Conectar no Glade ao 'color-set' de um GtkColorButton chamado
+        'colorbutton_dynamic_bonds'. Guarda a cor (RGBA em [0,1]) e, se a opcao
+        de cor unica estiver ligada, atualiza a representacao imediatamente.
+        """
+        color = list(widget.get_rgba())  # [r, g, b, a] em [0,1]
+        self.vm_session.vm_config.gl_parameters["dynamic_bonds_color"] = color
+        if self.vm_session.vm_config.gl_parameters.get("dynamic_bonds_single_color", False):
+            self._refresh_dynamic_bonds_representation()
+
+    def _refresh_dynamic_bonds_representation(self):
+        """Reconstroi a representacao 'dynamic' de todos os objetos visuais.
+
+        Zera a representacao 'dynamic' existente para que ela seja recriada
+        (create_representation lera as preferencias novas e aplicara/limpara a
+        cor unica), e redesenha a cena.
+        """
+        try:
+            for vm_object in self.vm_session.vm_objects_dic.values():
+                if "dynamic" in vm_object.representations and \
+                   vm_object.representations["dynamic"] is not None:
+                    # Aplica a mudanca na representacao ja existente, sem recriar:
+                    rep = vm_object.representations["dynamic"]
+                    gp = self.vm_session.vm_config.gl_parameters
+                    if gp.get("dynamic_bonds_single_color", False):
+                        rep.set_uniform_color(gp.get("dynamic_bonds_color", [1.0, 1.0, 1.0, 1.0]))
+                    else:
+                        rep.clear_uniform_color()
+            self.vm_session.vm_glcore.queue_draw()
+        except Exception as e:
+            dprint("dynamic bonds color refresh failed:", e)
 
     def set_interface_startup_shutdown_paramters (self):
         """ Function doc """

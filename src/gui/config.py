@@ -94,6 +94,14 @@ class VismolConfig                       :
                                       "pk_label_color"             : [1.0, 1.0, 1.0, 1.0],
                                       "pk_dist_label_color"        : [1.0, 1.0, 1.0, 1.0],
                                       "dashed_dist_lines_color"    : [0.1, 0.1, 0.1, 1.0],
+
+                                      # [NOVO] Dynamic bonds (regiao QC): opcao de
+                                      # desenhar as ligacoes dinamicas numa cor
+                                      # unica, em vez da cor por atomo. Desligado
+                                      # por padrao (mantem a representacao atual).
+                                      # A cor padrao e' branco.
+                                      "dynamic_bonds_single_color" : False,
+                                      "dynamic_bonds_color"        : [1.0, 1.0, 1.0, 1.0],
                                       
                                       #"pk_label_size"              : [1.0, 1.0, 1.0, 1.0],
                                       

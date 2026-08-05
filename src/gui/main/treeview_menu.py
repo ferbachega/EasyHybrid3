@@ -215,6 +215,18 @@ class TreeViewMenu:
                                 #'Edit Frames'           : self.call_editframe_window,
                                 'Go To Atom'            : self._menu_go_to_atom ,
                                 '_separator'            : ''      ,
+                                # [NOVO] Mostrar/esconder a parte MM (tudo que
+                                # nao esta' na lista QC). Util para focar na
+                                # regiao QC sem perder o resto do sistema.
+                                
+                                
+                                #'MM region': {
+                                #        'Hide MM atoms': self._menu_hide_mm,
+                                #        'Show MM atoms': self._menu_show_mm,
+                                #        },
+                                #'_separator'            : ''      ,
+                                
+                                
                                 # [EN] User request: link a simulation's
                                 # log file to the vismol_object IT
                                 # created, right here in the main
@@ -644,6 +656,70 @@ class TreeViewMenu:
         #self._show_lines(vobject = self.vobjects[0], indices = [0,1,2,3,4] )
         self.treeview.main.go_to_atom_window.open_window()
         #self.treeview.vm_session.go_to_atom_window.open_window()
+
+    # ----------------------------------------------------------------------- #
+    #  [NOVO] Mostrar / esconder a regiao MM (tudo que nao esta' na lista QC)   #
+    # ----------------------------------------------------------------------- #
+    def _get_mm_indexes(self, vismol_object, system):
+        """Indices dos atomos da regiao MM = todos os atomos do objeto que NAO
+        estao na lista QC (system.qcState.pureQCAtoms / e_qc_table).
+
+        Retorna [] se o sistema nao tem modelo QC (nesse caso 'MM vs QC' nao
+        se aplica -- tudo e' MM)."""
+        try:
+            if getattr(system, "qcModel", None):
+                qc_table = set(system.qcState.pureQCAtoms)
+            else:
+                qc_table = set()
+        except Exception:
+            qc_table = set()
+        all_indexes = list(vismol_object.atoms.keys())
+        return [i for i in all_indexes if i not in qc_table]
+
+    def _menu_set_mm_visibility(self, show):
+        """Mostra (show=True) ou esconde (show=False) os atomos da regiao MM do
+        objeto que foi clicado com o botao direito na treeview.
+
+        Usa o mesmo mecanismo de representacao por selecao usado no resto do
+        codigo (create_new_selection -> selecting_by_indexes -> show_or_hide).
+        A regiao QC nao e' tocada.
+        """
+        try:
+            main = self.treeview.main
+            vobject_index = getattr(self, "vobject_index", None)
+            if vobject_index is None or vobject_index == -1:
+                return
+            vismol_object = main.vm_session.vm_objects_dic[vobject_index]
+            system = main.p_session.psystem[vismol_object.e_id]
+
+            mm_indexes = self._get_mm_indexes(vismol_object, system)
+            if not mm_indexes:
+                return  # nada a fazer (sem regiao MM distinta)
+
+            selection = main.vm_session.create_new_selection()
+            selection.selecting_by_indexes(vismol_object, mm_indexes, clear=True)
+
+            # Aplica a mesma visibilidade as representacoes de "corpo" tipicas
+            # da parte MM. 'lines' e 'sticks' cobrem o caso comum; se alguma
+            # nao existir para o objeto, show_or_hide simplesmente ignora.
+            for rep in ("lines"):#, "sticks", "nonbonded", "dots"):
+                try:
+                    main.vm_session.show_or_hide(rep_type=rep, selection=selection, show=show)
+                except Exception:
+                    pass
+
+            main.vm_session.vm_glcore.queue_draw()
+        except Exception as e:
+            print("MM visibility toggle failed:", e)
+
+    def _menu_hide_mm(self, vobject = None):
+        """Esconde os atomos da parte MM (mantem so' a regiao QC visivel)."""
+        self._menu_set_mm_visibility(show=False)
+
+    def _menu_show_mm(self, vobject = None):
+        """Mostra novamente os atomos da parte MM (QC + MM)."""
+        self._menu_set_mm_visibility(show=True)
+    
     def f3 (self, vobject = None):
         """ Function doc """
         

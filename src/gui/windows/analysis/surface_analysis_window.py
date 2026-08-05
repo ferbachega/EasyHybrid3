@@ -2054,13 +2054,13 @@ class SurfaceAnalysisWindow(Gtk.Window):
 
         orbitals_matrix, center_function_pointers, atom_symbols = frame_data[3], frame_data[4], frame_data[5]
         if orbitals_matrix is None or center_function_pointers is None or atom_symbols is None:
-            dprint ( "LCAO data not available for this frame (see the error message from the wavefunction import)." )
+            print ( "LCAO data not available for this frame (see the error message from the wavefunction import)." )
             return
 
         coeffs = orbitals_matrix[:, orbital_index]
 
-        dprint ( )
-        dprint ( "=== LCAO do orbital {} ({}, frame {}, energia = {:.6f} Hartree) ===".format (
+        print ( )
+        print ( "=== LCAO do orbital {} ({}, frame {}, energia = {:.6f} Hartree) ===".format (
                  orbital_index, orbital_label, frame, orbital_energy ) )
         for atom_idx, symbol in enumerate ( atom_symbols ):
             start = int ( center_function_pointers[atom_idx] )
@@ -2068,9 +2068,9 @@ class SurfaceAnalysisWindow(Gtk.Window):
             atom_coeffs = coeffs[start:end]
             rough_weight = float ( np.sum ( atom_coeffs ** 2 ) )
             coeffs_str = ", ".join ( "{:+.4f}".format ( c ) for c in atom_coeffs )
-            dprint ( "  Atom {:3d} ({:>2s})  weight~{:6.2%}  coefficients = [{}]".format (
+            print ( "  Atom {:3d} ({:>2s})  weight~{:6.2%}  coefficients = [{}]".format (
                      atom_idx, symbol, rough_weight, coeffs_str ) )
-        dprint ( "  (weight = sum of squared coefficients per atom -- this is NOT a real "
+        print ( "  (weight = sum of squared coefficients per atom -- this is NOT a real "
                  "Mulliken population, which would also need the overlap matrix; "
                  "it is just a quick indicator of which atoms contribute the most.)" )
 
