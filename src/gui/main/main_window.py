@@ -659,7 +659,13 @@ class MainWindow:
         """ Function doc """
         if button  == self.builder.get_object('toolbutton_new_system'):
             self.NewSystemWindow.open_window()
-        
+            '''
+            from gui.windows.setup.xtb_fragment_charges_window import XtbFragmentChargesWindow
+            system = self.p_session.psystem[self.p_session.active_id]
+            
+            win = XtbFragmentChargesWindow(main=self.window, system=system)
+            win.open_window()
+            #'''        
         if button  == self.builder.get_object('toolbutton_save'):
             
             if self.session_filename == None:
@@ -1113,6 +1119,14 @@ class MainWindow:
 
 
 
+        elif menuitem == self.builder.get_object('menuitem_fragment_charges'):
+            from gui.windows.setup.xtb_fragment_charges_window import XtbFragmentChargesWindow
+            system = self.p_session.psystem[self.p_session.active_id]
+            
+            win = XtbFragmentChargesWindow(main=self, system=system)
+            win.open_window()
+            
+            
         elif menuitem == self.builder.get_object('menuitem_charge_inspection'): 
             TrueFalse, msg = self.p_session.check_for_fragmented_charges()
             #if true_or_false:
