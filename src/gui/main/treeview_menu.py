@@ -62,7 +62,7 @@ from gui.windows.setup.windows_and_dialogs import InfoWindow
 from gui.windows.setup.windows_and_dialogs import MergeSystemWindow
 from gui.windows.setup.windows_and_dialogs import SolvateSystemWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
-from gui.windows.setup.windows_and_dialogs import TextWindow
+from gui.windows.setup.windows_and_dialogs import TextWindow, TabbedLogWindow
 from gui.windows.setup.edit_frames_dialog import EditFrameDialog
 
 from gui.windows.setup.easyhybrid_terminal    import TerminalWindow
@@ -1172,15 +1172,95 @@ class TreeViewMenu:
                     "(it may have been moved or deleted):\n\n{}".format(vismol_object.name, logfile))
             return
 
+        # ---- pDynamo log ----
         try:
             with open(logfile, 'r') as f:
-                data = f.read()
+                pdynamo_text = f.read()
         except Exception as exc:
             self.main.simple_dialog.error(
                 msg="Could not read the log file:\n\n{}\n\nError: {}".format(logfile, exc))
             return
 
-        textwindow = TextWindow(data, logfile)
+        # ---- QC program log (ORCA / xTB), if present ----
+        # The QC log is copied to a permanent folder by the simulation
+        # (backup_orca_files/backup_xtb_files in p_methods/_common.py), with the
+        # SAME basename as the pDynamo log. We match by name + by the system's
+        # actual QC model so we never show an ORCA log for an xTB job (or pick up
+        # an unrelated log left in the folder by a previous run).
+        system = None
+        try:
+            system = self.main.p_session.psystem[vismol_object.e_id]
+        except Exception:
+            system = None
+        qc_label, qc_text = self._find_qc_log(logfile, system)
+
+        tabs = [("pDynamo", pdynamo_text)]
+        if qc_text:
+            tabs.append((qc_label, qc_text))
+
+        TabbedLogWindow(tabs, title="Log: {}".format(vismol_object.name))
+
+    def _find_qc_log(self, pdynamo_logfile, system=None):
+        """Locate and read the QC-program log that belongs to THIS job.
+
+        Robust matching (avoids picking up an unrelated ORCA/xTB log left in the
+        same folder by a previous run):
+          1. by NAME: the QC log has the same basename as the pDynamo log, only
+             swapping '.log' for '.orca.log'/'.xtb.log' (see backup_*_files).
+          2. by QC MODEL: if the by-name match fails, scan the folder but only
+             for the program the system's qcModel actually is -- never return an
+             ORCA log for an xTB job.
+
+        Returns (label, text); text is None when nothing suitable is found.
+        """
+        import glob
+        folder = os.path.dirname(pdynamo_logfile)
+        base = os.path.basename(pdynamo_logfile)
+        if base.endswith(".log"):
+            base = base[:-4]
+
+        engine = None
+        try:
+            if system is not None and getattr(system, "qcModel", None):
+                tag = system.qcModel.SummaryItems()[0][0]
+                if "ORCA" in tag.upper():
+                    engine = "ORCA"
+                elif "XTB" in tag.upper():
+                    engine = "XTB"
+        except Exception:
+            engine = None
+
+        # 1) exact name match
+        name_candidates = []
+        if engine == "ORCA" or engine is None:
+            name_candidates.append((os.path.join(folder, base + ".orca.log"), "ORCA"))
+        if engine == "XTB" or engine is None:
+            name_candidates.append((os.path.join(folder, base + ".xtb.log"), "xTB"))
+        for path, label in name_candidates:
+            if os.path.isfile(path):
+                text = self._read_text(path)
+                if text is not None:
+                    return label, text
+
+        # 2) fallback: scan folder, restricted to the engine this job used
+        if folder and os.path.isdir(folder) and engine is not None:
+            pattern = "*.orca.log" if engine == "ORCA" else "*.xtb.log"
+            label = "ORCA" if engine == "ORCA" else "xTB"
+            for path in sorted(glob.glob(os.path.join(folder, pattern))):
+                if path == pdynamo_logfile:
+                    continue
+                text = self._read_text(path)
+                if text is not None:
+                    return label, text
+
+        return "QC", None
+
+    def _read_text(self, path):
+        try:
+            with open(path, 'r', errors='replace') as f:
+                return f.read()
+        except Exception:
+            return None
 
     def _menu_delete_system (self, widget):
         """ Function doc """

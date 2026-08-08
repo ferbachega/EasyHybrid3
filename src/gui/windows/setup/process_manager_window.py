@@ -34,7 +34,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 from gi.repository import GdkPixbuf
 from gui.widgets.custom_widgets  import get_colorful_square_pixel_buffer
-from gui.windows.setup.windows_and_dialogs import TextWindow
+from gui.windows.setup.windows_and_dialogs import TextWindow, TabbedLogWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
 import os, sys, time, signal
 import psutil
@@ -520,7 +520,81 @@ class ProcessManagerWindow(Gtk.Window):
                 msg="Could not read the log file:\n\n{}\n\nError: {}".format(logfile, exc))
             return
 
-        textwindow = TextWindow(data, logfile)
+        # Look for a QC-program (ORCA/xTB) log in the same folder as the pDynamo
+        # log and, if found, show both in tabs. The QC log is written there by
+        # backup_qc_files() (see p_methods/_common.py). This matters especially
+        # for Single Point, which does not create a vobject, so its logs are only
+        # reachable here (the Process Manager), not via the vobject 'View Log'.
+        qc_label, qc_text = self._find_qc_log(logfile, system)
+        tabs = [("pDynamo", data)]
+        if qc_text:
+            tabs.append((qc_label, qc_text))
+        TabbedLogWindow(tabs, title=logfile)
+
+    def _find_qc_log(self, pdynamo_logfile, system=None):
+        """Locate and read the QC-program log that belongs to THIS job.
+
+        Robust matching (avoids picking up an unrelated ORCA/xTB log left in the
+        same folder by a previous run):
+          1. by NAME: the backup step writes the QC log with the same basename
+             as the pDynamo log, only swapping '.log' for '.orca.log'/'.xtb.log'
+             (see backup_orca_files/backup_xtb_files). So we look for exactly
+             '<base>.orca.log' and '<base>.xtb.log' first.
+          2. by QC MODEL: if the by-name match fails, fall back to scanning the
+             folder, but restrict the search to the program the system's qcModel
+             actually is (ORCA vs xTB) -- never return an ORCA log for an xTB job.
+
+        Returns (label, text); text is None when nothing suitable is found.
+        """
+        import glob
+        folder = os.path.dirname(pdynamo_logfile)
+        base = os.path.basename(pdynamo_logfile)
+        if base.endswith(".log"):
+            base = base[:-4]
+
+        # which program did THIS job use? ('ORCA' / 'XTB' / None)
+        engine = None
+        try:
+            if system is not None and getattr(system, "qcModel", None):
+                tag = system.qcModel.SummaryItems()[0][0]  # 'ORCA QC Model'/'XTB QC Model'
+                if "ORCA" in tag.upper():
+                    engine = "ORCA"
+                elif "XTB" in tag.upper():
+                    engine = "XTB"
+        except Exception:
+            engine = None
+
+        # 1) exact name match (most reliable)
+        name_candidates = []
+        if engine == "ORCA" or engine is None:
+            name_candidates.append((os.path.join(folder, base + ".orca.log"), "ORCA"))
+        if engine == "XTB" or engine is None:
+            name_candidates.append((os.path.join(folder, base + ".xtb.log"), "xTB"))
+        for path, label in name_candidates:
+            if os.path.isfile(path):
+                text = self._read_text(path)
+                if text is not None:
+                    return label, text
+
+        # 2) fallback: scan folder, but only for the engine this job used
+        if folder and os.path.isdir(folder) and engine is not None:
+            pattern = "*.orca.log" if engine == "ORCA" else "*.xtb.log"
+            label = "ORCA" if engine == "ORCA" else "xTB"
+            for path in sorted(glob.glob(os.path.join(folder, pattern))):
+                if path == pdynamo_logfile:
+                    continue
+                text = self._read_text(path)
+                if text is not None:
+                    return label, text
+
+        return "QC", None
+
+    def _read_text(self, path):
+        try:
+            with open(path, 'r', errors='replace') as f:
+                return f.read()
+        except Exception:
+            return None
 
 
     def rerun_job(self, widget):

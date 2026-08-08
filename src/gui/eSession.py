@@ -1044,25 +1044,20 @@ class GLMenu:
 
                 push_undo_snapshot(vismol_object)
 
-                # 1) static topology (single bond)
+                # 1) static bonds representation (vismol_object.bonds)
                 created_static = False
                 try:
                     created_static = set_bond_order(vismol_object, atom1.atom_id,
                                                     atom2.atom_id, bond_order=1)
-                    # Only rebuild the linked pDynamo system for Builder-created
-                    # objects. For file-LOADED systems, sync_pdynamo_system()
-                    # rebuilds the pDynamo System from scratch out of the vismol
-                    # geometry, which DISCARDS the force field / MM charges / QC
-                    # setup of the real system and leaves the main treeview's
-                    # radiobutton pointing at a corrupted (null) system. Editing
-                    # the vismol bond is enough for visualization on loaded
-                    # systems; the real topology change would need a proper
-                    # pDynamo-side edit, not a full rebuild.
-                    if getattr(vismol_object, "is_builder_only", False):
-                        from gui.windows.builder.empty_object import sync_pdynamo_system
-                        sync_pdynamo_system(vismol_object)
                 except ValueError as e:
                     dprint("bond (static) failed:", e)
+                # NOTE: representation-only by design. We deliberately do NOT call
+                # sync_pdynamo_system() here: bond/unbond must change only what is
+                # DRAWN (the vismol object's static bonds and the dynamic bonds
+                # below), never the linked pDynamo system's real topology / force
+                # field / MM charges. Rebuilding the pDynamo system from the vismol
+                # geometry used to corrupt loaded systems (null system on the main
+                # treeview radiobutton).
 
                 # 2) dynamic bonds, in every frame
                 n_dyn = 0
@@ -1112,16 +1107,11 @@ class GLMenu:
 
                 push_undo_snapshot(vismol_object)
 
-                # 1) static topology
+                # 1) static bonds representation (vismol_object.bonds)
                 removed_static = unset_bond(vismol_object, atom1.atom_id, atom2.atom_id)
-                if removed_static:
-                    # Same guard as bond_from_picking: only rebuild the linked
-                    # pDynamo system for Builder objects. On file-loaded systems,
-                    # a full rebuild from vismol geometry corrupts the real system
-                    # (force field / charges / QC) and nulls the treeview row.
-                    if getattr(vismol_object, "is_builder_only", False):
-                        from gui.windows.builder.empty_object import sync_pdynamo_system
-                        sync_pdynamo_system(vismol_object)
+                # NOTE: representation-only by design (same as bond_from_picking):
+                # no sync_pdynamo_system() call -- we only change what is drawn,
+                # never the linked pDynamo system's real topology.
 
                 # 2) dynamic bonds, in every frame
                 n_dyn = 0
@@ -1152,12 +1142,10 @@ class GLMenu:
                     'Add Harmonic Restraint'  :['MenuItem', add_harmonic_restraint],
                     
                     'separator2'              :['separator', None],
-                    
                     'Bond'                    :['MenuItem', bond_from_picking],
                     'Unbond'                  :['MenuItem', unbond_from_picking],
                     
                     'separator3'              :['separator', None],
-                    
                     'Show'   : [
                                 'submenu' ,{
                                             
