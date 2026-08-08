@@ -1013,8 +1013,136 @@ class GLMenu:
                         #if atom2 and atom1:
                         self.main.p_session.add_new_harmonic_restraint(parameters)
                         self.main.selection_list_window.update_window (selections = False, restraints = True)
-            
-            
+
+            def bond_from_picking(_):
+                """Create a bond between the pk1 and pk2 atoms (picking mode).
+
+                Creates it in BOTH the static topology (and syncs the pDynamo
+                system) AND the Dynamic Bonds representation (all frames), the
+                symmetric counterpart of unbond_from_picking. Reads pk1/pk2 once
+                and calls the same low-level helpers used by the terminal 'bond'
+                command (set_bond_order / set_dynamic_bond_order). Bond order is
+                single (1); edit the order afterwards with the terminal 'bond
+                order=...' command if needed.
+                """
+                atom1 = self.picking_selections.picking_selections_list[0]
+                atom2 = self.picking_selections.picking_selections_list[1]
+                if not atom1 or not atom2:
+                    dprint("bond: pick 2 atoms first (pk1, pk2).")
+                    return None
+                if atom1 is atom2:
+                    dprint("bond: pk1 and pk2 must be two different atoms.")
+                    return None
+                if atom1.vm_object is not atom2.vm_object:
+                    dprint("bond: pk1 and pk2 must belong to the same object.")
+                    return None
+
+                vismol_object = atom1.vm_object
+                from gui.windows.builder.atom_ops import (
+                    set_bond_order, set_dynamic_bond_order, resolve_frame_arg,
+                    push_undo_snapshot)
+
+                push_undo_snapshot(vismol_object)
+
+                # 1) static topology (single bond)
+                created_static = False
+                try:
+                    created_static = set_bond_order(vismol_object, atom1.atom_id,
+                                                    atom2.atom_id, bond_order=1)
+                    # Only rebuild the linked pDynamo system for Builder-created
+                    # objects. For file-LOADED systems, sync_pdynamo_system()
+                    # rebuilds the pDynamo System from scratch out of the vismol
+                    # geometry, which DISCARDS the force field / MM charges / QC
+                    # setup of the real system and leaves the main treeview's
+                    # radiobutton pointing at a corrupted (null) system. Editing
+                    # the vismol bond is enough for visualization on loaded
+                    # systems; the real topology change would need a proper
+                    # pDynamo-side edit, not a full rebuild.
+                    if getattr(vismol_object, "is_builder_only", False):
+                        from gui.windows.builder.empty_object import sync_pdynamo_system
+                        sync_pdynamo_system(vismol_object)
+                except ValueError as e:
+                    dprint("bond (static) failed:", e)
+
+                # 2) dynamic bonds, in every frame
+                n_dyn = 0
+                try:
+                    frames_all = resolve_frame_arg(vismol_object, "all")
+                    if frames_all:
+                        n_dyn = set_dynamic_bond_order(vismol_object, atom1.atom_id,
+                                                       atom2.atom_id, bond_order=1,
+                                                       frames=frames_all)
+                except Exception as e:
+                    dprint("bond (dynamic) failed:", e)
+
+                # clears pk1..pk4 for the next pair
+                try:
+                    self.picking_selections.picking_selections_list = [None] * 4
+                except Exception:
+                    pass
+
+                self.vm_session.vm_glcore.queue_draw()
+                dprint("bond: static={} dynamic_pairs={}".format(created_static, n_dyn))
+
+            def unbond_from_picking(_):
+                """Remove the bond between the pk1 and pk2 atoms (picking mode).
+
+                Removes it from BOTH the static topology (and syncs the pDynamo
+                system) AND the Dynamic Bonds representation (all frames), so the
+                bond disappears completely. Reads pk1/pk2 once and calls the same
+                low-level helpers used by the terminal 'unbond' command
+                (unset_bond / unset_dynamic_bond).
+                """
+                atom1 = self.picking_selections.picking_selections_list[0]
+                atom2 = self.picking_selections.picking_selections_list[1]
+                if not atom1 or not atom2:
+                    dprint("unbond: pick 2 atoms first (pk1, pk2).")
+                    return None
+                if atom1 is atom2:
+                    dprint("unbond: pk1 and pk2 must be two different atoms.")
+                    return None
+                if atom1.vm_object is not atom2.vm_object:
+                    dprint("unbond: pk1 and pk2 must belong to the same object.")
+                    return None
+
+                vismol_object = atom1.vm_object
+                from gui.windows.builder.atom_ops import (
+                    unset_bond, unset_dynamic_bond, resolve_frame_arg,
+                    push_undo_snapshot)
+
+                push_undo_snapshot(vismol_object)
+
+                # 1) static topology
+                removed_static = unset_bond(vismol_object, atom1.atom_id, atom2.atom_id)
+                if removed_static:
+                    # Same guard as bond_from_picking: only rebuild the linked
+                    # pDynamo system for Builder objects. On file-loaded systems,
+                    # a full rebuild from vismol geometry corrupts the real system
+                    # (force field / charges / QC) and nulls the treeview row.
+                    if getattr(vismol_object, "is_builder_only", False):
+                        from gui.windows.builder.empty_object import sync_pdynamo_system
+                        sync_pdynamo_system(vismol_object)
+
+                # 2) dynamic bonds, in every frame
+                n_dyn = 0
+                try:
+                    frames_all = resolve_frame_arg(vismol_object, "all")
+                    if frames_all:
+                        n_dyn = unset_dynamic_bond(vismol_object, atom1.atom_id,
+                                                   atom2.atom_id, frames=frames_all)
+                except Exception as e:
+                    dprint("unbond (dynamic) failed:", e)
+
+                # clears pk1..pk4 for the next pair
+                try:
+                    self.picking_selections.picking_selections_list = [None] * 4
+                except Exception:
+                    pass
+
+                self.vm_session.vm_glcore.queue_draw()
+                dprint("unbond: static={} dynamic_pairs={}".format(removed_static, n_dyn))
+
+
             pick_menu = { 
                     'header' : ['MenuItem', None],
                     
@@ -1023,7 +1151,14 @@ class GLMenu:
                     'separator1'              :['separator', None],
                     'Add Harmonic Restraint'  :['MenuItem', add_harmonic_restraint],
                     
-                    'show'   : [
+                    'separator2'              :['separator', None],
+                    
+                    'Bond'                    :['MenuItem', bond_from_picking],
+                    'Unbond'                  :['MenuItem', unbond_from_picking],
+                    
+                    'separator3'              :['separator', None],
+                    
+                    'Show'   : [
                                 'submenu' ,{
                                             
                                             'lines'         : ['MenuItem', menu_show_lines],
@@ -1037,7 +1172,7 @@ class GLMenu:
                                ],
                     
                     
-                    'hide'   : [
+                    'Hide'   : [
                                 'submenu',  {
                                             'lines'    : ['MenuItem', menu_hide_lines],
                                             'sticks'   : ['MenuItem', menu_hide_sticks],
@@ -1049,7 +1184,7 @@ class GLMenu:
                                 ],
                     
                     
-                    'separator2':['separator', None],
+                    'separator4':['separator', None],
 
                     }
 

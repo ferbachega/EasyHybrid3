@@ -10,22 +10,21 @@
 xtb_fragment_charges_window
 ===========================
 
-Janela GTK (Fase 2) para a ferramenta de cargas MM auto-consistentes por
-fragmento (motor em util/xtb_fragment_charges.py).
+GTK window (Phase 2) for the self-consistent fragment-based MM charge tool
+(engine in util/xtb_fragment_charges.py).
 
-Fluxo de uso:
-  1. escolher o nivel (residuo/segmento/cadeia) -> "Build fragments" popula a
-     treeview com carga formal e multiplicidade SUGERIDAS;
-  2. o usuario pode editar carga/multiplicidade de cada fragmento na treeview
-     (a treeview e' a fonte da verdade antes de rodar);
-  3. escolher metodo (GFN0/1/2), tipo de carga (CM5/Mulliken), tolerancia,
-     modo de fronteira, path do xTB e nº de processos;
-  4. "Run" -> roda o loop auto-consistente em THREAD separada (cada fragmento
-     e' um processo, via multiprocessing.Pool); a barra de progresso atualiza
-     por ciclo;
-  5. "Apply to system" -> grava as cargas finais em system.mmState.charges.
+Usage flow:
+  1. choose the level (residue/segment/chain) -> "Build fragments" populates the
+     treeview with SUGGESTED formal charge and multiplicity;
+  2. the user can edit charge/multiplicity of each fragment in the treeview
+     (the treeview is the source of truth before running);
+  3. choose method (GFN0/1/2), charge model (CM5/Mulliken), tolerance,
+     boundary mode, xTB path and number of processes;
+  4. "Run" -> runs the self-consistent loop in a separate THREAD (each fragment
+     is a process, via multiprocessing.Pool); the progress bar updates per cycle;
+  5. "Apply to system" -> writes the final charges into system.mmState.charges.
 
-Integracao: instanciar com (main, system) e chamar open_window(). Ex.:
+Integration: instantiate with (main, system) and call open_window(). E.g.:
     win = XtbFragmentChargesWindow(main=self.main, system=active_system)
     win.open_window()
 """
@@ -41,10 +40,10 @@ from util import xtb_fragment_charges as xfc
 
 
 # --------------------------------------------------------------------------- #
-#  Paleta de cores Clustal X (por tipo de aminoacido), em RGB 0-255.           #
-#  Versao simplificada "por residuo" (sem as regras dependentes de coluna de   #
-#  alinhamento): cada grupo de residuos recebe uma cor fixa.                    #
-#  [VERIFY: confira se estas sao as cores Clustal que voce quer no paper]       #
+#  Clustal X color palette (by amino-acid type), RGB 0-255.                    #
+#  Simplified "per-residue" version (without the column-dependent alignment    #
+#  rules): each residue group gets a fixed color.                              #
+#  [VERIFY: confirm these are the Clustal colors you want for the paper]        #
 # --------------------------------------------------------------------------- #
 CLUSTAL_COLORS = {
     # hydrophobic / blue
@@ -65,22 +64,22 @@ CLUSTAL_COLORS = {
     # cyan
     "H": (21, 164, 164), "Y": (21, 164, 164),
 }
-DEFAULT_RESIDUE_COLOR = (200, 200, 200)  # cinza para o que nao casar
+DEFAULT_RESIDUE_COLOR = (200, 200, 200)  # gray for anything that does not match
 
-# codigo 3-letras -> 1-letra (para casar com a paleta a partir do nome do residuo)
+# 3-letter -> 1-letter code (to match the palette from the residue name)
 _THREE_TO_ONE = {
     "ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q",
     "GLU": "E", "GLY": "G", "HIS": "H", "ILE": "I", "LEU": "L", "LYS": "K",
     "MET": "M", "PHE": "F", "PRO": "P", "SER": "S", "THR": "T", "TRP": "W",
     "TYR": "Y", "VAL": "V",
-    # variantes de protonacao comuns -> mesmo residuo base
+    # common protonation variants -> same base residue
     "HID": "H", "HIE": "H", "HIP": "H", "CYX": "C", "CYM": "C",
     "ASH": "D", "GLH": "E", "LYN": "K",
 }
 
 
 def _residue_one_letter(fragment_key):
-    """Extrai o codigo de 1 letra do residuo a partir da chave 'CHAIN/RESNAME/SEQ'."""
+    """Extract the 1-letter residue code from the 'CHAIN/RESNAME/SEQ' key."""
     try:
         resname = fragment_key.split("/")[1].upper()
     except Exception:
@@ -91,13 +90,13 @@ def _residue_one_letter(fragment_key):
 
 
 def clustal_rgb(fragment_key):
-    """Cor RGB (0-255) Clustal para a chave de fragmento; cinza se desconhecido."""
+    """Clustal RGB color (0-255) for the fragment key; gray if unknown."""
     one = _residue_one_letter(fragment_key)
     return CLUSTAL_COLORS.get(one, DEFAULT_RESIDUE_COLOR)
 
 
 def make_color_swatch(rgb, width=18, height=18):
-    """Cria um GdkPixbuf.Pixbuf preenchido com a cor rgb (0-255)."""
+    """Create a GdkPixbuf.Pixbuf filled with the rgb color (0-255)."""
     from gi.repository import GdkPixbuf
     r, g, b = int(rgb[0]), int(rgb[1]), int(rgb[2])
     a = 255
@@ -112,7 +111,7 @@ COL_COLOR, COL_INCLUDE, COL_KEY, COL_NAT, COL_CHG, COL_MULT, COL_STATUS = range(
 
 
 class XtbFragmentChargesWindow:
-    """Janela da ferramenta de cargas por fragmento (xTB)."""
+    """Window for the fragment-based charge tool (xTB)."""
 
     def __init__(self, main=None, system=None):
         self.main = main.window
@@ -120,13 +119,68 @@ class XtbFragmentChargesWindow:
         self.system = system
         self.window = None
         self.fragments = []          # lista de xfc.Fragment
-        self.result = None           # dict devolvido pelo motor
+        self.result = None           # dict returned by the engine
         self._running = False
         self._selection_counter = 0  # numera os fragmentos importados de selecao
 
     # ------------------------------------------------------------------ #
     #  Construcao da UI                                                    #
     # ------------------------------------------------------------------ #
+    def _on_choose_tmpdir(self, _button):
+        """Open a FOLDER chooser for the xTB temporary files."""
+        dialog = Gtk.FileChooserDialog(
+            title="Select temporary folder",
+            transient_for=self.window,
+            action=Gtk.FileChooserAction.SELECT_FOLDER)
+        dialog.add_buttons(
+            "Cancel", Gtk.ResponseType.CANCEL,
+            "Select", Gtk.ResponseType.OK)
+        if dialog.run() == Gtk.ResponseType.OK:
+            self.entry_tmpdir.set_text(dialog.get_filename())
+        dialog.destroy()
+
+    def _system_color_swatch(self):
+        """Pixbuf of the small color square that identifies the system.
+
+        Reuses the SAME function as the main window
+        (get_colorful_square_pixel_buffer), so the square matches exactly the one
+        shown in the main treeview. The color comes from system.e_color_palette['C'].
+        Returns None if not possible (import failed or system without palette),
+        in which case the window shows text only.
+        """
+        if self.system is None:
+            return None
+        try:
+            from gui.windows.setup.setup_interface import get_colorful_square_pixel_buffer
+            return get_colorful_square_pixel_buffer(self.system)
+        except Exception:
+            # fallback: build directly from the palette, without relying on the import
+            try:
+                from gi.repository import GdkPixbuf
+                color = self.system.e_color_palette["C"]
+                r, g, b = (int(color[0] * 255), int(color[1] * 255), int(color[2] * 255))
+                sw = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 20, 20)
+                sw.fill((r << 24) | (g << 16) | (b << 8) | 255)
+                return sw
+            except Exception:
+                return None
+
+    def _system_name(self):
+        """Name/identification of the active system, shown at the top of the window.
+
+        Uses system.label (the system name in EasyHybrid); adds e_tag when
+        available. Falls back to a generic text if nothing exists.
+        """
+        if self.system is None:
+            return "(no system)"
+        label = getattr(self.system, "label", None)
+        tag = getattr(self.system, "e_tag", None)
+        if label and tag:
+            return "{} ({})".format(label, tag)
+        if label:
+            return str(label)
+        return "(unnamed system)"
+
     def open_window(self):
         if self.window is not None:
             self.window.present()
@@ -140,7 +194,23 @@ class XtbFragmentChargesWindow:
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self.window.add(vbox)
 
-        # ---- linha 1: nivel + build / import selection ----
+        # ---- active system identification (color swatch + name) ----
+        # shows which system is being worked on, with the SAME small color
+        # square used in the main-window treeview, for quick visual
+        # recognition when several systems are loaded.
+        row_sys = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        swatch = self._system_color_swatch()
+        if swatch is not None:
+            self.img_system = Gtk.Image.new_from_pixbuf(swatch)
+            row_sys.pack_start(self.img_system, False, False, 0)
+        self.label_system = Gtk.Label()
+        self.label_system.set_xalign(0.0)
+        self.label_system.set_markup(
+            "<b>System:</b> {}".format(self._system_name()))
+        row_sys.pack_start(self.label_system, False, False, 0)
+        vbox.pack_start(row_sys, False, False, 0)
+
+        # ---- row 1: level + build / import selection ----
         row1 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         row1.pack_start(Gtk.Label(label="Fragment level:"), False, False, 0)
         self.combo_level = Gtk.ComboBoxText()
@@ -154,20 +224,20 @@ class XtbFragmentChargesWindow:
         self.btn_build.connect("clicked", self.on_build_fragments)
         row1.pack_start(self.btn_build, False, False, 0)
 
-        # botao para importar a selecao atual do vismol como um fragmento
-        # (visivel apenas no modo 'selection')
+        # button to import the current vismol selection as a fragment
+        # (visible only in 'selection' mode)
         self.btn_import_sel = Gtk.Button(label="Import selection fragment")
         self.btn_import_sel.connect("clicked", self.on_import_selection)
         row1.pack_start(self.btn_import_sel, False, False, 0)
         vbox.pack_start(row1, False, False, 0)
 
-        # ---- treeview de fragmentos (editavel) ----
+        # ---- fragment treeview (editable) ----
         # store: color(pixbuf), include(bool), key, natoms, charge, mult, status
         from gi.repository import GdkPixbuf
         self.store = Gtk.ListStore(GdkPixbuf.Pixbuf, bool, str, int, int, int, str)
         self.treeview = Gtk.TreeView(model=self.store)
 
-        # coluna 0: swatch de cor (Clustal)
+        # column 0: color swatch (Clustal)
         renderer_color = Gtk.CellRendererPixbuf()
         col_color = Gtk.TreeViewColumn("", renderer_color, pixbuf=COL_COLOR)
         self.treeview.append_column(col_color)
@@ -189,10 +259,10 @@ class XtbFragmentChargesWindow:
         scroll.add(self.treeview)
         vbox.pack_start(scroll, True, True, 0)
 
-        # menu de contexto (clique direito) para (de)selecionar todos
+        # context menu (right-click) to (de)select all
         self.treeview.connect("button-press-event", self._on_treeview_button_press)
 
-        # ---- opcoes de calculo ----
+        # ---- calculation options ----
         grid = Gtk.Grid(column_spacing=8, row_spacing=6)
 
         grid.attach(Gtk.Label(label="Method:"), 0, 0, 1, 1)
@@ -246,16 +316,36 @@ class XtbFragmentChargesWindow:
         self.entry_xtb.set_text("xtb")
         self.entry_xtb.set_hexpand(True)
         grid.attach(self.entry_xtb, 1, 4, 3, 1)
+        
+        try:
+            _XTBCommand = "PDYNAMO3_XTBCOMMAND"
+            command = os.getenv ( _XTBCommand )
+            self.entry_xtb.set_text(command)
+        except:
+            pass
+
+        # ---- temporary files folder ----
+        # where each fragment's xTB inputs/outputs are written.
+        # Empty => use a system temporary folder (tempfile).
+        grid.attach(Gtk.Label(label="Temp folder:"), 0, 5, 1, 1)
+        self.entry_tmpdir = Gtk.Entry()
+        self.entry_tmpdir.set_placeholder_text("(default: system temp)")
+        self.entry_tmpdir.set_hexpand(True)
+        grid.attach(self.entry_tmpdir, 1, 5, 2, 1)
+
+        self.btn_tmpdir = Gtk.Button(label="Browse...")
+        self.btn_tmpdir.connect("clicked", self._on_choose_tmpdir)
+        grid.attach(self.btn_tmpdir, 3, 5, 1, 1)
 
         vbox.pack_start(grid, False, False, 0)
 
-        # ---- barra de progresso ----
+        # ---- progress bar ----
         self.progress = Gtk.ProgressBar()
         self.progress.set_show_text(True)
         self.progress.set_text("idle")
         vbox.pack_start(self.progress, False, False, 0)
 
-        # ---- botoes ----
+        # ---- buttons ----
         row_btn = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.btn_run = Gtk.Button(label="Run")
         self.btn_run.connect("clicked", self.on_run)
@@ -277,11 +367,11 @@ class XtbFragmentChargesWindow:
         self._on_level_changed(self.combo_level)  # ajusta visibilidade inicial
 
     def _on_level_changed(self, combo):
-        """Mostra 'Build fragments' para residue/segment/chain e
-        'Import selection fragment' para o modo 'selection'."""
+        """Show 'Build fragments' for residue/segment/chain and
+        'Import selection fragment' for 'selection' mode."""
         level = combo.get_active_text()
         is_sel = (level == "selection")
-        # no modo selection: some o Build, aparece o Import
+        # in selection mode: hide Build, show Import
         self.btn_build.set_visible(not is_sel)
         self.btn_import_sel.set_visible(is_sel)
 
@@ -300,7 +390,7 @@ class XtbFragmentChargesWindow:
     def on_build_fragments(self, _button):
         level = self.combo_level.get_active_text()
         if level == "selection":
-            # no modo selection os fragmentos vem de "Import selection fragment"
+            # in selection mode fragments come from "Import selection fragment"
             return
         try:
             self.fragments = xfc.build_fragments(self.system, level=level)
@@ -318,14 +408,14 @@ class XtbFragmentChargesWindow:
         self.progress.set_text("{} fragments".format(len(self.fragments)))
 
     def _on_include_toggled(self, _renderer, path):
-        """Alterna incluir/ignorar o fragmento no calculo."""
+        """Toggle include/ignore the fragment in the calculation."""
         self.store[path][COL_INCLUDE] = not self.store[path][COL_INCLUDE]
 
     # ------------------------------------------------------------------ #
-    #  Menu de contexto: (de)selecionar todos                             #
+    #  Context menu: (de)select all                                       #
     # ------------------------------------------------------------------ #
     def _on_treeview_button_press(self, _widget, event):
-        # botao direito (3) abre o menu
+        # right button (3) opens the menu
         if event.button == 3:
             menu = Gtk.Menu()
             for label, cb in (("Select all", self._select_all),
@@ -352,13 +442,13 @@ class XtbFragmentChargesWindow:
             row[COL_INCLUDE] = not row[COL_INCLUDE]
 
     # ------------------------------------------------------------------ #
-    #  Importar a selecao atual do vismol como um fragmento               #
+    #  Import the current vismol selection as a fragment                  #
     # ------------------------------------------------------------------ #
     def on_import_selection(self, _button):
-        """Adiciona a selecao atual do vismol como um novo fragmento na treeview.
+        """Add the current vismol selection as a new fragment in the treeview.
 
-        Pode ser chamado varias vezes: cada chamada adiciona uma nova selecao
-        como um fragmento independente (carga/multiplicidade editaveis).
+        Can be called multiple times: each call adds a new selection as an
+        independent fragment (editable charge/multiplicity).
         """
         indexes = self._get_current_selection_indexes()
         if not indexes:
@@ -369,31 +459,31 @@ class XtbFragmentChargesWindow:
         key = "SEL/{}".format(self._selection_counter)
         frag = xfc.Fragment(key, indexes)
 
-        # carga formal sugerida = soma das cargas MM da selecao, arredondada
+        # suggested formal charge = rounded sum of the selection's MM charges
         acc = xfc.SystemAccessor(self.system)
         qsum = sum(acc.mm_charge(i) for i in indexes)
         frag.formal_charge = int(round(qsum))
         frag.multiplicity = 1
         self.fragments.append(frag)
 
-        swatch = make_color_swatch(DEFAULT_RESIDUE_COLOR)  # selecao custom: cinza
+        swatch = make_color_swatch(DEFAULT_RESIDUE_COLOR)  # custom selection: gray
         self.store.append([swatch, True, key, len(indexes),
                            frag.formal_charge, frag.multiplicity, ""])
         self.btn_run.set_sensitive(True)
         self.progress.set_text("{} fragment(s)".format(len(self.fragments)))
 
     def _get_current_selection_indexes(self):
-        """Indices GLOBAIS (base-0) dos atomos atualmente selecionados no vismol.
+        """GLOBAL indices (0-based) of the atoms currently selected in vismol.
 
-        ATENCAO: o atom do vismol tem .index base-1; o motor usa base-0. Aqui
-        convertemos (index - 1). Ajuste se o seu mapeamento for diferente.
+        NOTE: the vismol atom has a 1-based .index; the engine uses 0-based. Here
+        we convert (index - 1). Adjust if your mapping is different.
         """
         try:
             vm = self.easy_session.vm_session
             sel = vm.selections[vm.current_selection]
             indexes = []
             for atom in sel.selected_atoms:
-                # atom.index e' base-1 no vismol -> base-0 para o motor/pDynamo
+                # atom.index is 1-based in vismol -> 0-based for the engine/pDynamo
                 indexes.append(atom.index - 1)
             return sorted(set(indexes))
         except Exception as e:
@@ -401,7 +491,7 @@ class XtbFragmentChargesWindow:
             return []
 
     def _on_cell_edited(self, _renderer, path, new_text, col):
-        # valida inteiro; a treeview e' a fonte da verdade antes de rodar
+        # validate integer; the treeview is the source of truth before running
         try:
             value = int(new_text)
         except ValueError:
@@ -412,7 +502,7 @@ class XtbFragmentChargesWindow:
     def on_run(self, _button):
         if self._running:
             return
-        # transfere carga/mult/include da treeview para os fragmentos (fonte da verdade)
+        # transfer charge/mult/include from the treeview to the fragments (source of truth)
         for i, frag in enumerate(self.fragments):
             frag.formal_charge = int(self.store[i][COL_CHG])
             frag.multiplicity = int(self.store[i][COL_MULT])
@@ -423,6 +513,7 @@ class XtbFragmentChargesWindow:
             return
 
         try:
+            tmpdir = self.entry_tmpdir.get_text().strip()
             params = {
                 "method": self.combo_method.get_active_text(),
                 "charge_model": self.combo_charge.get_active_text(),
@@ -431,10 +522,21 @@ class XtbFragmentChargesWindow:
                 "nprocs": int(self.entry_nproc.get_text()),
                 "max_cycles": int(self.entry_maxcyc.get_text()),
                 "xtb_path": self.entry_xtb.get_text().strip(),
+                # temp folder: None => the engine uses the default tempfile
+                "workroot": tmpdir if tmpdir else None,
             }
         except ValueError as e:
             self._error("Invalid option: {}".format(e))
             return
+
+        # validate the temp folder, if provided
+        if params["workroot"]:
+            if not os.path.isdir(params["workroot"]):
+                try:
+                    os.makedirs(params["workroot"], exist_ok=True)
+                except Exception as e:
+                    self._error("Cannot create temp folder: {}".format(e))
+                    return
 
         self._running = True
         self.btn_run.set_sensitive(False)
@@ -447,7 +549,7 @@ class XtbFragmentChargesWindow:
         thread.start()
 
     def _run_worker(self, params):
-        """Roda o motor em thread separada; atualiza a UI via GLib.idle_add."""
+        """Run the engine in a separate thread; update the UI via GLib.idle_add."""
         def cycle_cb(cycle, max_dq):
             frac = min(cycle / float(params["max_cycles"]), 1.0)
             GLib.idle_add(self._update_progress, frac,
@@ -459,7 +561,8 @@ class XtbFragmentChargesWindow:
                 method=params["method"], charge_model=params["charge_model"],
                 boundary_mode=params["boundary_mode"],
                 tolerance=params["tolerance"], max_cycles=params["max_cycles"],
-                nprocs=params["nprocs"], verbose=False, cycle_cb=cycle_cb)
+                nprocs=params["nprocs"], workroot=params["workroot"],
+                verbose=False, cycle_cb=cycle_cb)
             GLib.idle_add(self._run_done, result, None)
         except Exception as e:
             GLib.idle_add(self._run_done, None, str(e))
