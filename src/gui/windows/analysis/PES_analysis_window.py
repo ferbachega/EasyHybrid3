@@ -1024,6 +1024,19 @@ class PotentialEnergyAnalysisWindow:
         input_coord = self.plot.points
         e_matrix    = self.plot.data
 
+        # A pathway optimization (NEB) needs at least two selected points
+        # (a start and an end) to define a path. With zero or one point there
+        # is nothing to optimize; warn the user and stop instead of running the
+        # optimizer on an empty/degenerate input.
+        if not input_coord or len(input_coord) < 2:
+            try:
+                self.main.simple_dialog.info(
+                    msg="Select at least two points on the 2D plot to "
+                        "optimize a pathway.")
+            except Exception:
+                dprint("Optimize Pathway: select at least two points first.")
+            return
+
         self.plot.points = run_surface_NEB (input_coord = input_coord, e_matrix = e_matrix )
         
         
