@@ -96,10 +96,10 @@ class VismolConfig                       :
                                       "dashed_dist_lines_color"    : [0.1, 0.1, 0.1, 1.0],
 
                                       # [NOVO] Dynamic bonds (regiao QC): opcao de
-                                      # desenhar as ligacoes dinamicas numa cor
-                                      # unica, em vez da cor por atomo. Desligado
-                                      # por padrao (mantem a representacao atual).
-                                      # A cor padrao e' branco.
+                                      # draw the dynamic bonds in a single
+                                      # color, instead of per-atom color. Off
+                                      # by default (keeps the current representation).
+                                      # The default color is white.
                                       "dynamic_bonds_single_color" : False,
                                       "dynamic_bonds_color"        : [1.0, 1.0, 1.0, 1.0],
                                       
@@ -115,14 +115,14 @@ class VismolConfig                       :
                                       # registradas (contador, ver
                                       # pDynamoSession.register_change_and_
                                       # maybe_autosave). Grava em
-                                      # <arquivo_da_sessao>~ (ou um arquivo
-                                      # temporario se a sessao ainda nao foi
+                                      # <session_file>~ (or a temporary
+                                      # file if the session has not been
                                       # salva nenhuma vez).
                                       'autosave_interval_minutes' : 5,
                                       'autosave_event_count'      : 20,
                                       'askSaveUnsave': True, 
                                       #'askSaveUnsave': True, 
-                                      # Dimensoes da janela principal, salvas
+                                      # Main window dimensions, saved
                                       # ao fechar o EasyHybrid e restauradas
                                       # na proxima abertura (ver MainWindow.
                                       # __init__ / window_resize / on_delete_
@@ -132,16 +132,16 @@ class VismolConfig                       :
                                       # Posicao do divisor paned_V (area 3D/
                                       # treeview vs. notebook de baixo -- Status/
                                       # Annotations/Sequence), como PROPORCAO da
-                                      # altura da janela (nao pixels fixos), pra
-                                      # acompanhar o tamanho da janela quando ela
+                                      # window height (not fixed pixels), to
+                                      # follow the window size when it
                                       # muda. Default 400/600 (posicao antiga
                                       # fixa / altura default). Ver main_window.py:
                                       # window_resize / on_paned_v_position_changed.
                                       'main_window_paned_v_ratio' : 400.0/600.0,
                                       # Liga/desliga salvar/restaurar as dimensoes
-                                      # da janela principal entre sessoes (checkbox
+                                      # of the main window between sessions (checkbox
                                       # ja existia no glade -- "Save window size" --
-                                      # mas o valor nunca era usado). Ver MainWindow.
+                                      # but the value was never used). See MainWindow.
                                       # __init__ / window_resize / on_delete_event.
                                       'save_window_size'   : True,
                                       }
@@ -240,14 +240,14 @@ class VismolConfig                       :
                                 pass
                             else:
                                 # [BUG FIX] Era 'self.gl_parameters_default[keys]'
-                                # -- 'keys' nao existe (typo de 'key', a variavel
+                                # -- 'keys' does not exist (typo of 'key', the variable
                                 # do loop). Isso disparava NameError toda vez que
                                 # uma chave nova em gl_parameters_default (ex.:
                                 # as que acabamos de adicionar: autosave_interval_
-                                # minutes, main_window_width, etc.) nao existia
+                                # minutes, main_window_width, etc.) did not exist
                                 # ainda no .config.json salvo -- capturado pelo
                                 # 'except' abaixo, que resetava TODAS as
-                                # preferencias salvas (nao so' a chave faltante)
+                                # saved preferences (not just the missing key)
                                 # de volta pro default, silenciosamente.
                                 self.gl_parameters[key] = self.gl_parameters_default[key]
                                 
@@ -323,7 +323,7 @@ class VismolConfig                       :
         if not os.path.isfile(config_path):
             config_path = os.path.join(os.environ["HOME"], ".VisMol", "VismolConfig.json")
         if not os.path.isfile(config_path):
-            # Primeira execucao (ou arquivo apagado): mantem os defaults,
+            # First run (or deleted file): keeps the defaults,
             # sem erro.
             return False
         try:

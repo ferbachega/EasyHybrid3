@@ -607,7 +607,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             #'''--------------------------------------------------------------------------------------------'''
 
 
-            #                       RENDER MODE (superficie preenchida vs wireframe)
+            #                       RENDER MODE (filled surface vs wireframe)
             #'''--------------------------------------------------------------------------------------------'''
             self.chk_surface_wireframe = Gtk.CheckButton(label="Wireframe")
             self.chk_surface_wireframe.connect("toggled", self.on_surface_wireframe_toggled)
@@ -615,7 +615,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             #'''--------------------------------------------------------------------------------------------'''
 
 
-            #                       OPACIDADE (transparencia da superficie)
+            #                       OPACITY (surface transparency)
             #'''--------------------------------------------------------------------------------------------'''
             self.label_surface_opacity = Gtk.Label(label="Opacity:")
             self.scale_surface_opacity = Gtk.Scale.new_with_range ( Gtk.Orientation.HORIZONTAL, 0, 100, 1 )
@@ -709,7 +709,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             #'''--------------------------------------------------------------------------------------------'''
 
 
-            #                       MEP POTENTIAL GRID SPACING (opcional -- desacopla do espacamento da densidade)
+            #                       MEP POTENTIAL GRID SPACING (optional -- decouples from the density spacing)
             #'''--------------------------------------------------------------------------------------------'''
             # [EN] See changelog item 14: generator.GridPotential() was
             # measured (live, in the user's environment) to take ~180x
@@ -826,7 +826,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             self.btn_color_plus  = self.builder.get_object('btn_color_plus')
             self.btn_color_minus = self.builder.get_object('btn_color_minus')
             #self.btn_color_density = self.builder.get_object('btn_color_density')
-            # Definindo uma cor específica (por exemplo, vermelho)
+            # Setting a specific color (for example, red)
             rgba = Gdk.RGBA()
             
             rgba.parse("blue")  # ou "rgb(255,0,0)", ou "#FF0000"
@@ -886,9 +886,9 @@ class SurfaceAnalysisWindow(Gtk.Window):
 
             # so agora, com TODOS os widgets acima ja criados, e que ativamos o
             # item 0 do combobox -- set_active() dispara "changed" (chama
-            # surface_combobox_change) IMEDIATAMENTE e de forma sincrona, entao
-            # precisa vir depois de tudo que esse handler pode tentar
-            # mostrar/esconder (senao da AttributeError: widget ainda nao existe).
+            # surface_combobox_change) IMMEDIATELY and synchronously, so it
+            # must come after everything this handler may try to
+            # show/hide (otherwise AttributeError: widget does not exist yet).
             self.cbx_surface_type.set_active(0)
 
             self.builder.get_object('btn_external_file').hide()
@@ -1603,7 +1603,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
             #-----------------------------------------------------------------------
             # iso_color aqui e so um placeholder: a cor de verdade ja vem
             # por vertice dentro de surface_trajectory (calculada pelo
-            # mep_colormap em generate_grid_parallel), nao usada por
+            # mep_colormap in generate_grid_parallel), not used by
             # SurfaceRepresentation.__init__ (self.iso_color nunca e
             # armazenado -- ver representations.py).
             vobject_tmp.representations["surface1"] =  SurfaceRepresentation(vismol_object = vobject_tmp             ,
@@ -1667,10 +1667,10 @@ class SurfaceAnalysisWindow(Gtk.Window):
             'mep_cmap_name' : _mep_cmap_name,
             }
 
-            # cubo externo e um arquivo estatico -- sem system/coords/QC
-            # nenhum envolvido, so leitura de arquivo + marching cubes.
+            # an external cube is a static file -- no system/coords/QC
+            # involved at all, just file reading + marching cubes.
             # Roda direto (sem multiprocessing.Pool: e so I/O + um
-            # algoritmo compilado, nao ha calculo QC pesado a paralelizar
+            # compiled algorithm, there is no heavy QC calculation to parallelize
             # aqui, e cada mudanca de aba abriria um Pool novo a toa).
             try:
                 single_result = generate_grid_parallel ( [ 0, None, None, parameters ] )
@@ -1679,10 +1679,10 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 return False
 
             # replica o mesmo resultado pra todos os "frames" do objeto
-            # pai, so por seguranca (surface_trajectory[frame] nao pode
+            # parent, just for safety (surface_trajectory[frame] cannot
             # dar index error se o usuario tiver uma trajetoria carregada
             # e trocar de frame -- o cubo externo e sempre a mesma
-            # malha estatica, nao muda por frame).
+            # static mesh, does not change per frame).
             results = [ single_result ] * max ( 1, vismol_object.frames.shape[0] )
 
             try:
@@ -2314,7 +2314,7 @@ def cube_to_pdynamo_surface ( cube_grid, isovalue ):
     # cube_grid.values ja esta na ordem (nx,ny,nz) com Z mais rapido
     # (ver cube_reader.py) -- mesma convencao de reshape que
     # QCGridProperty.Isosurface() usa internamente pro grid do proprio
-    # pDynamo, entao um reshape simples em ordem C basta.
+    # pDynamo, so a simple C-order reshape is enough.
     flat_values = cube_grid.values.reshape ( -1 ).tolist ( )
     flat_array  = Array.FromIterable ( flat_values )
     dataND      = Reshape ( flat_array, ( nx, ny, nz ), resultClass = RealArrayND )
@@ -2513,7 +2513,7 @@ def _compute_valid_polygon_mask ( polygons, vertices, size_factor = 8.0 ):
 
     typical = np.median ( max_edge )
     if typical == 0.0:
-        typical = 1e-9   # malha degenerada por completo -- evita divisao por zero adiante, sem quebrar
+        typical = 1e-9   # fully degenerate mesh -- avoids division by zero later, without breaking
     threshold = size_factor * typical
     mask = max_edge <= threshold
     n_discarded = int ( n_tri - mask.sum ( ) )
@@ -2556,7 +2556,7 @@ def surface_parser ( surface, iso_color):
     n_valid_tri = polygons_np.shape[0]
     colors_out  = np.tile ( np.asarray ( iso_color, dtype = np.float32 ), n_valid_tri * 3 )
 
-    # um indice por vertice (nao por componente/float) -- a versao antiga
+    # one index per vertex (not per component/float) -- the old version
     # gerava indexes com 3x mais entradas do que vertices de verdade
     # existem no buffer (passava despercebido, mas era um out-of-bounds
     # read em potencial na GPU -- ver nota no README).
@@ -2644,8 +2644,8 @@ def mep_colormap ( values, vmin = None, vmax = None, cmap_name = 'coolwarm', rev
     # t = 0.5 no zero, 0.0 no -limit, 1.0 no +limit -- simetrico em torno
     # do centro (o lado "mais estreito" da faixa so nunca chega a atingir
     # t = 0 ou t = 1 exatos, o que e o comportamento correto). Valores
-    # além de +-limit (os outliers cortados pelo percentil) sao
-    # grampeados em t=0 ou t=1 pelo np.clip -- ficam saturados, nao
+    # beyond +-limit (the outliers cut by the percentile) are
+    # clamped to t=0 or t=1 by np.clip -- they stay saturated, not
     # quebram a escala.
     t = 0.5 + 0.5 * np.clip ( values / limit, -1.0, 1.0 )
 
@@ -2659,7 +2659,7 @@ def mep_colormap ( values, vmin = None, vmax = None, cmap_name = 'coolwarm', rev
 #  Cheap recolouring, WITHOUT touching pDynamo/marching cubes/multiprocessing
 # ============================================================================
 # [EN] Both functions below exist to answer the user's original question
-# directly ("quais informacoes podemos salvar no vobject para nao precisar
+# directly ("what information can we store in the vobject so we do not need
 # fazer todos o calculo de superficies novamente?"): the mesh geometry
 # (vertices/indexes/normals) for a given surface never needs to change
 # just because its DISPLAY colour does. VismolObject.surface_trajectory
@@ -2818,7 +2818,7 @@ def _reconstruct_regular_grid ( pts, vals ):
     zs_u = np.unique ( np.round ( pts[:,2], 6 ) )
     nx, ny, nz = len ( xs_u ), len ( ys_u ), len ( zs_u )
     if nx * ny * nz != len ( pts ):
-        return None   # nao e uma caixa regular completa -- caller usa o fallback
+        return None   # not a complete regular box -- caller uses the fallback
 
     ox, oy, oz = xs_u[0], ys_u[0], zs_u[0]
     dx = ( xs_u[-1] - xs_u[0] ) / ( nx - 1 ) if nx > 1 else 1.0
@@ -2865,7 +2865,7 @@ def _nearest_neighbor_lookup ( pts, vals, query_points, max_chunk_bytes = 64 * 1
         end = min ( start + chunk_size, m )
         chunk = query_points[start:end]
         chunk_sq = np.einsum ( 'ij,ij->i', chunk, chunk )   # |a|^2, (c,)
-        d2 = chunk_sq[:, None] + pts_sq[None, :] - 2.0 * ( chunk @ pts.T )   # (c, n) -- matriz 2D, nao tensor 3D
+        d2 = chunk_sq[:, None] + pts_sq[None, :] - 2.0 * ( chunk @ pts.T )   # (c, n) -- 2D matrix, not 3D tensor
         idx = np.argmin ( d2, axis = 1 )
         out[start:end] = vals[idx]
     return out
@@ -2937,7 +2937,7 @@ def surface_parser_mep ( surface, vertex_colors ):
     normals_out  = tri_norms.reshape ( -1 ).astype ( np.float32 )
     colors_out   = tri_colors.reshape ( -1 ).astype ( np.float32 )
 
-    # um indice por vertice (nao por componente/float) -- ao contrario do
+    # one index per vertex (not per component/float) -- unlike the
     # surface_parser original, que gera indexes com 3x mais entradas do
     # que vertices de verdade existem no buffer (ver nota no README).
     indexes_out = np.arange ( vertices_out.shape[0] // 3, dtype = np.uint32 )
@@ -2988,7 +2988,7 @@ def _generate_external_cube_surface ( parameters ):
 
     if potential_path:
         # colore por potencial eletrostatico interpolado (MEP), igual ao
-        # branch 'mep' -- so que os dois cubos (densidade e potencial)
+        # branch 'mep' -- except that the two cubes (density and potential)
         # vem de arquivos externos em vez do grid do pDynamo.
         potential_cube     = read_cube_file ( potential_path )
         evaluate_potential = build_potential_interpolator_from_cube ( potential_cube )
@@ -3033,7 +3033,7 @@ def generate_grid_parallel (job):
             }
     '''
     _type = parameters['type']
-    _t_start = time.perf_counter ( )   # DEBUG TEMPORARIO -- ver print no final da funcao
+    _t_start = time.perf_counter ( )   # TEMPORARY DEBUG -- see print at the end of the function
 
     # [EN] Early-return guard, added for the "External" cube-import surface
     # type (changelog item 9). Every other branch below unconditionally
@@ -3044,11 +3044,11 @@ def generate_grid_parallel (job):
     # simply None in that job tuple). Must return BEFORE that setup code
     # runs, not after.
     if _type == 'external_cube':
-        # cubo externo (.cube, ex: ORCA via orca_plot) -- nao precisa de
+        # external cube (.cube, e.g. ORCA via orca_plot) -- does not need
         # system/coords/QCGridPropertyGenerator nenhum, so leitura de
-        # arquivo. Desvia ANTES do setup de sistema QC logo abaixo, que
+        # file. Branches BEFORE the QC system setup just below, which
         # exigiria um "system" de verdade (None aqui, ja que essa entrada
-        # nao vem de um calculo QC do pDynamo).
+        # does not come from a pDynamo QC calculation).
         return _generate_external_cube_surface ( parameters )
 
     _GridSpacing   = parameters['_GridSpacing']
@@ -3118,9 +3118,9 @@ def generate_grid_parallel (job):
         orbital_iso['obital_minus'] = [vertices, colors, indexes, normals]
     
     elif _type == 'mep':
-        # 1. Geometria da malha a partir da isosuperficie de DENSIDADE
-        #    (o isovalor do campo entry_isovalue passa a significar
-        #    "isovalor de densidade" nesse modo -- ~0.002-0.02 u.a. costuma
+        # 1. Mesh geometry from the DENSITY isosurface
+        #    (the isovalue in the entry_isovalue field now means
+        #    "density isovalue" in this mode -- ~0.002-0.02 a.u. is usually
         #    aproximar bem o contorno de van der Waals).
         _t = time.perf_counter ( )   # DEBUG TEMPORARIO
         generator.GridDensity ( tag = 'density_mep' )

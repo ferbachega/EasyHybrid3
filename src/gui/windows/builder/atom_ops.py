@@ -138,7 +138,7 @@ def add_atom ( vismol_object, symbol, x, y, z, name = None,
         chain.residues[resi] = Residue ( vismol_object, name = resn, index = resi, chain = chain )
     residue = chain.residues[resi]
 
-    atom_id = len ( vismol_object.atoms )   # proximo indice livre, sequencial
+    atom_id = len ( vismol_object.atoms )   # next free index, sequential
 
     atom = Atom (
         vismol_object = vismol_object,
@@ -171,11 +171,11 @@ def add_atom ( vismol_object, symbol, x, y, z, name = None,
     residue.atoms[atom_id]        = atom
     vismol_object.atoms[atom_id]  = atom
 
-    # --- cresce vismol_object.frames em +1 atomo, para TODOS os frames ja
-    # existentes (o novo atomo entra com a MESMA posicao (x,y,z) em cada
+    # --- grows vismol_object.frames by +1 atom, for ALL frames already
+    # existing (the new atom enters with the SAME position (x,y,z) in each
     # frame -- coerente pra um objeto builder, que tipicamente tem so 1
     # frame mesmo; se este objeto ja tiver uma trajetoria de verdade, isso
-    # ainda funciona, so que o atomo novo fica "parado" em todos os
+    # still works, except the new atom stays "still" across all
     # frames ate que algo mais sofisticado seja implementado). ---
     n_frames = vismol_object.frames.shape[0]
     new_frames = np.zeros ( (n_frames, atom_id + 1, 3), dtype = np.float32 )
@@ -187,9 +187,9 @@ def add_atom ( vismol_object, symbol, x, y, z, name = None,
     vismol_object.mass_center = np.mean ( vismol_object.frames[0], axis = 0 )
 
     # recalcula cores/vdw/tamanhos de ponto pra TODOS os atomos -- simples
-    # e correto; o parametro colors_id_start nao e sequer usado dentro do
-    # metodo (conferido lendo o codigo-fonte), entao o valor exato passado
-    # aqui nao importa.
+    # is correct; the colors_id_start parameter is not even used inside the
+    # method (checked by reading the source), so the exact value passed
+    # here does not matter.
     vismol_object._generate_color_vectors ( vm_session.atom_id_counter )
 
     # [EN] Register any explicitly-requested bond(s) for this new atom --
@@ -440,12 +440,12 @@ def remove_atom ( vismol_object, atom_id ):
     removed_atom = vismol_object.atoms[atom_id]
 
     # tira do dicionario global de picking (senao fica uma referencia
-    # pendurada apontando pra um Atom que nao existe mais no objeto)
+    # dangling pointing to an Atom that no longer exists in the object)
     if removed_atom.unique_id in vm_session.atom_dic_id:
         del vm_session.atom_dic_id[removed_atom.unique_id]
 
-    # tira de qualquer selecao ativa (senao um add_bond() subsequente
-    # poderia incluir por engano um atomo que acabou de ser apagado)
+    # removes it from any active selection (otherwise a subsequent add_bond()
+    # could mistakenly include an atom that was just deleted)
     for sel in vm_session.selections.values ( ):
         sel.selected_atoms.discard ( removed_atom )
 
@@ -455,7 +455,7 @@ def remove_atom ( vismol_object, atom_id ):
 
     del vismol_object.atoms[atom_id]
 
-    # remove a linha correspondente de TODOS os frames (axis=1 = eixo dos atomos)
+    # removes the corresponding row from ALL frames (axis=1 = atoms axis)
     vismol_object.frames = np.delete ( vismol_object.frames, atom_id, axis = 1 )
 
     # renumera atom_id de todo mundo com atom_id > removido, subtraindo 1 --
@@ -510,7 +510,7 @@ def remove_atom ( vismol_object, atom_id ):
                                   else np.zeros ( 3, dtype = np.float32 ) )
     vismol_object._generate_color_vectors ( vm_session.atom_id_counter )
 
-    # bonds/topologia agora vem inteiramente de vismol_object.manual_bonds
+    # bonds/topology now come entirely from vismol_object.manual_bonds
     # (ja remapeado acima) -- ver nota no docstring sobre deteccao por
     # distancia ter sido desligada.
     vismol_object.cov_radii_array = None
@@ -764,7 +764,7 @@ def add_bond ( vismol_object, atom_id_a, atom_id_b, bond_order = 1 ):
 
     changed = _reapply_manual_bonds ( vismol_object )
     if not changed:
-        return False   # objeto sem nenhuma ligacao (nem essa nova, nem nenhuma outra) -- nada a fazer (caso raro/defensivo)
+        return False   # object with no bonds at all (neither this new one nor any other) -- nothing to do (rare/defensive case)
 
     _refresh_bond_dependent_representations ( vismol_object )
     vismol_object.core_representations["picking_dots"] = None
@@ -973,8 +973,8 @@ def set_bond_order ( vismol_object, atom_id_a, atom_id_b, bond_order = 1 ):
 
     if created:
         # Topologia/non-bonded/moleculas so' precisam ser refeitas quando a
-        # CONECTIVIDADE muda (bond novo) -- uma simples troca de ordem numa
-        # ligacao que ja existia nao afeta nenhuma dessas (grafo identico).
+        # CONNECTIVITY changes (new bond) -- a simple bond-order change on an
+        # already existing bond does not affect any of these (identical graph).
         vismol_object.non_bonded_atoms = None
         vismol_object._get_non_bonded_from_bonded_list ( )
         vismol_object._generate_topology_from_index_bonds ( )
@@ -1058,7 +1058,7 @@ def unset_bond ( vismol_object, atom_id_a, atom_id_b ):
 #   Dynamic Bonds (representacao POR FRAME) -- 'bond'/'unbond' com frame=...
 #   ------------------------------------------------------------------------------
 #   Tudo acima (set_bond_order/unset_bond) edita a TOPOLOGIA ESTATICA do
-#   objeto (vismol_object.bonds/index_bonds) -- vale para TODOS os frames e
+#   object (vismol_object.bonds/index_bonds) -- applies to ALL frames and
 #   e' o que fica gravado se o objeto for salvo/exportado.
 #
 #   As funcoes abaixo, em vez disso, editam vismol_object.dynamic_bonds[f]
@@ -1068,15 +1068,15 @@ def unset_bond ( vismol_object, atom_id_a, atom_id_b ):
 #   define_dynamic_bonds() / VismolObject.find_bonded_and_nonbonded_atoms()).
 #
 #   *** AVISO IMPORTANTE, repetido no docstring de cmd_bond/cmd_unbond no
-#   terminal: usar frame=... aqui NAO cria uma ligacao quimica de verdade.
+#   terminal: using frame=... here does NOT create a real chemical bond.
 #   E' PURAMENTE uma edicao da REPRESENTACAO/VISUALIZACAO para aquele(s)
-#   frame(s) -- nao mexe em nada do sistema pDynamo (topologia, campo de
-#   forca, constantes de forca de ligacao, cargas, etc.). Para criar uma
-#   ligacao real (com parametros de campo de forca), a topologia do
+#   frame(s) -- does not touch anything in the pDynamo system (topology, force
+#   field, bond force constants, charges, etc.). To create a
+#   real bond (with force-field parameters), the system's
 #   sistema pDynamo precisa ser editada por outros meios -- isso aqui e'
 #   so' para ajustar o que aparece na tela enquanto se inspeciona/prepara
-#   uma trajetoria (ex.: forcar visualmente uma ligacao que a deteccao
-#   automatica por distancia deixou passar batido num frame especifico).
+#   a trajectory (e.g. visually forcing a bond that the automatic
+#   distance-based detection missed in a specific frame).
 # =====================================================================================
 
 def resolve_frame_arg ( vismol_object, frame ):
@@ -1453,13 +1453,13 @@ def undo ( vismol_object ):
 #   called on and why).
 # =====================================================================================
 
-# Valencia padrao (soma maxima de ordem de ligacao) por elemento -- os
+# Default valence (maximum sum of bond order) per element -- the
 # poucos elementos que este primeiro conjunto de ferramentas do Builder
 # realmente produz ate agora (C/N/O/H, mais alguns halogenios/S/P comuns
-# para nao deixar na mao assim que o seletor de elemento crescer). Elementos
-# fora desta tabela simplesmente nao tem os hidrogenios ajustados (ver
+# so as not to leave it manual once the element selector grows). Elements
+# outside this table simply do not get their hydrogens adjusted (see
 # adjust_hydrogens() -- retorna sem fazer nada nesse caso, em vez de
-# adivinhar uma valencia errada).
+# guessing a wrong valence).
 STANDARD_VALENCE = {
     'H' : 1,
     'C' : 4,
@@ -1567,7 +1567,7 @@ def _new_hydrogen_directions ( vismol_object, atom_id, n_needed, bond_length = 1
         perp = np.cross ( avg_dir, np.array ( [ 0.0, 1.0, 0.0 ], dtype = np.float32 ) )
     perp = ( perp / np.linalg.norm ( perp ) ).astype ( np.float32 )
 
-    spread_angle = np.deg2rad ( 50.0 )   # angulo arbitrario, mas razoavel, entre H's adicionados
+    spread_angle = np.deg2rad ( 50.0 )   # arbitrary but reasonable angle between added H's
     directions = [ ]
     for k in range ( n_needed ):
         offset = ( k - ( n_needed - 1 ) / 2.0 ) * spread_angle
@@ -1654,8 +1654,8 @@ def adjust_hydrogens ( vismol_object, atom_id ):
 # =====================================================================================
 
 # Fator de encurtamento aplicado a soma dos raios covalentes conforme a
-# ordem da ligacao -- valores aproximados, so para dar uma geometria
-# razoavel (nao says pretende reproduzir literatura com precisao).
+# bond order -- approximate values, just to give a reasonable
+# geometry (does not intend to reproduce the literature precisely).
 _BOND_ORDER_LENGTH_FACTOR = { 1: 1.00, 2: 0.87, 3: 0.78 }
 
 
@@ -1699,7 +1699,7 @@ def _ideal_angle_for_atom ( vismol_object, atom_id ):
         if max_order >= 2:                          # trigonal plana -- ex.: alceno, carbonila
             return 120.0
         else:
-            return 109.5                             # aproximacao razoavel (ex.: amina simples)
+            return 109.5                             # reasonable approximation (e.g. simple amine)
     else:   # n == 4
         return 109.5
 
@@ -1793,7 +1793,7 @@ def clean_up_structure ( vismol_object, atom_ids = None, n_iterations = 40, step
         displacement = { aid: np.zeros ( 3, dtype = np.float64 ) for aid in movable_ids }
         contributions = { aid: 0 for aid in movable_ids }
 
-        # --- termo de distancia (uma correcao por ligacao) ---
+        # --- distance term (one correction per bond) ---
         for bond in vismol_object.bonds.values ( ):
             i, j = bond.atom_index_i, bond.atom_index_j
             movable_i = i in movable_ids
@@ -1818,7 +1818,7 @@ def clean_up_structure ( vismol_object, atom_ids = None, n_iterations = 40, step
             else:
                 displacement[i] += -delta ; contributions[i] += 1
 
-        # --- termo de angulo (uma correcao por par de vizinhos de cada atomo) ---
+        # --- angle term (one correction per pair of each atom's neighbors) ---
         for atom_id in vismol_object.atoms.keys ( ):
             ideal_angle = _ideal_angle_for_atom ( vismol_object, atom_id )
             if ideal_angle is None:

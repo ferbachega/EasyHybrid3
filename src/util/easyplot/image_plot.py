@@ -340,7 +340,7 @@ class ImagePlot(Canvas):
         x0 ,y05 = square[3] # is tuple of two coordinates
         
         pattern = cairo.MeshPattern()
-        # Começa a definição do patch de padrão de malha
+        # Start defining the mesh-pattern patch
         pattern.begin_patch()
         pattern.move_to(x0 , y0)
         pattern.line_to(x05, y0)
@@ -352,7 +352,7 @@ class ImagePlot(Canvas):
         color3 = colors[2]
         color4 = colors[3]
         
-        ### Define os vértices do patch
+        ### Define the patch vertices
         ##pattern.move_to(i,     j)
         ##pattern.line_to(i+100, j)
         ##pattern.line_to(i+100, j+100)
@@ -368,7 +368,7 @@ class ImagePlot(Canvas):
         pattern.set_corner_color_rgb(2, color3[0], color3[1], color3[2]) 
         pattern.set_corner_color_rgb(3, color4[0], color4[1], color4[2]) 
         
-        # Finaliza a definição do patch de padrão de malha
+        # Finish defining the mesh-pattern patch
         #cr.scale(1, 1)
         pattern.end_patch()
         cr.set_source(pattern)
@@ -541,11 +541,11 @@ class ImagePlot(Canvas):
             #--------------------------------------------------------------------------------------------
             # marcacoes em x
             #print(self.bx+ i*self.factor_x + (self.factor_x)/2.0 , self.bx+ i*self.factor_x + (self.factor_x)/2.0)
-            # [EN] BUG FIX: antes esta linha de marcacao nao definia sua
-            # propria cor -- so' "funcionava" (saia preta) porque
+            # [EN] BUG FIX: this marker line used not to set its
+            # own color -- it only "worked" (came out black) because
             # draw_image_box() (chamada logo antes, em on_draw) tambem
-            # deixava a cor preta fixa no cr. Agora que axis_color e'
-            # configuravel, cada desenho precisa definir sua propria cor
+            # it left black fixed in cr. Now that axis_color is
+            # configurable, each drawing must set its own color
             # explicitamente, sem depender de estado deixado por quem
             # desenhou antes.
             cr.set_source_rgb(*self.axis_color)
@@ -920,22 +920,30 @@ class ImagePlot(Canvas):
         cr.restore ( )
 
     def on_draw(self, widget, cr, export_scale=1):
-        """ [EN] export_scale: usado SO' pela exportacao em alta
-        resolucao (ver util/easyplot/export_utils.export_plot_to_png()) --
-        1 (default) para o desenho normal na tela.
+        """ [EN] export_scale: used ONLY for high-resolution export
+        (see util/easyplot/export_utils.export_plot_to_png()) --
+        1 (default) for normal on-screen rendering.
 
-        Por que isso precisa entrar aqui, e nao so' um cr.scale() de fora:
-        este metodo desenha tudo numa superficie RASTER interna
-        (self.temp_surface, criada logo abaixo) do tamanho exato de
-        self.width/self.height, e so' no final "cola" (blit) essa
-        superficie no cr recebido -- um cr.scale() aplicado de fora,
-        sem tocar aqui dentro, so' ampliaria essa superficie ja' pronta
-        (borrado, tipo dar zoom numa foto pequena), sem redesenhar nada
-        em resolucao maior de verdade. Aplicando export_scale AQUI (na
-        criacao de temp_surface e no proprio temp_cr), a grade de dados,
-        as fontes e as margens sao desenhadas de novo, todas maiores
-        proporcionalmente juntas -- exatamente como ficariam numa tela
-        export_scale vezes maior, so' que nitido. """
+
+            Why does this need to be handled here instead of simply
+            applying a cr.scale() externally?
+
+            This method draws everything onto an internal RASTER surface
+            (self.temp_surface, created below) with exactly the size of
+            self.width/self.height, and only at the end "blits" this
+            surface onto the received cr -- an external cr.scale(),
+            without changing anything here internally, would only enlarge
+            the already-rendered surface (blurry, like zooming in on a
+            small image), without actually redrawing anything at a higher
+            resolution.
+
+            By applying export_scale HERE (when creating temp_surface and
+            on temp_cr itself), the data grid, fonts, and margins are
+            redrawn proportionally larger together -- exactly as they
+            would appear on a screen export_scale times larger, but
+            remaining sharp.
+
+        """
         self.cr =  cr
         self.width = widget.get_allocated_width()   #widget dimentions
         self.height = widget.get_allocated_height() #widget dimentions   
@@ -978,7 +986,7 @@ class ImagePlot(Canvas):
         self.set_threshold_color ( _min = 0, _max = 200)
         '''
         
-        # Criar uma superfície de imagem temporária
+        # Create a temporary image surface
         self.temp_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32,
                                                 int(self.width * export_scale),
                                                 int(self.height * export_scale))
@@ -987,7 +995,7 @@ class ImagePlot(Canvas):
             # tudo abaixo continua desenhando em coordenadas logicas
             # normais (self.width/self.height inalterados) -- so' o
             # temp_cr (e portanto o temp_surface, fisicamente maior)
-            # recebe a escala, entao margens/fontes/grade crescem juntos.
+            # receives the scale, so margins/fonts/grid grow together.
             self.temp_cr.scale(export_scale, export_scale)
         
         #print(np.min(self.norm_data), np.max(self.norm_data) )
@@ -1053,19 +1061,19 @@ class ImagePlot(Canvas):
 
 
     def get_pixel_rgb_from_surface(self, surface, x, y):
-        """Lê o valor RGB de um pixel dentro de uma cairo.ImageSurface."""
+        """Read the RGB value of a pixel inside a cairo.ImageSurface."""
         
-        # Pega os dados da superfície de Cairo
+        # Get the Cairo surface data
         buf = surface.get_data()
 
         # Converte os dados em uma array numpy (ARGB formato, 4 bytes por pixel)
         array = np.frombuffer(buf, dtype=np.uint8)
         array = array.reshape((surface.get_height(), surface.get_width(), 4))
 
-        # Pega o valor do pixel na posição especificada (x, y) (formato ARGB)
+        # Get the pixel value at the specified position (x, y) (ARGB format)
         pixel = array[y, x]
 
-        # Extraímos os valores de Red, Green e Blue
+        # We extract the Red, Green and Blue values
         r, g, b = pixel[1], pixel[2], pixel[3]
 
         return (r, g, b)

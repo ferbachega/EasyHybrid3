@@ -78,15 +78,15 @@ class PotentialEnergyAnalysisWindow:
         #.colors
         # [EN] BUG FIX: xy_bg_color/matrix_bg_color/line_plot_color/
         # line_data_color existiam aqui, mas nunca eram lidas em NENHUM
-        # outro lugar deste arquivo -- so' ficavam sentadas com um valor
+        # elsewhere in this file -- they just sat there with a value
         # fixo, desconectadas das cores de verdade usadas ao desenhar
         # (self.plot.*, self.plot2.line_color etc). Isso e' exatamente o
         # que causou o bug relatado: on_mouse_button_press() (e outros
         # 2 lugares) usavam "[0,0,0]" hardcoded (ou, no caso de
         # on_data_combobox_change(), essa mesma self.line_data_color
-        # morta) em vez de respeitar a cor que o usuario escolhe no
+        # dead) instead of respecting the color the user chooses in
         # dialogo "Colors..." (self.plot2.line_color) -- removidas para
-        # nao confundir de novo qual e' a fonte de verdade.
+        # not to confuse again which is the source of truth.
         
         # plotting attributes
         self.interpolate = True
@@ -188,9 +188,9 @@ class PotentialEnergyAnalysisWindow:
             # . self.RC_label (o readout "i | j | rc1 | rc2 | E") ja' e'
             #   filho do plot2d_pane vindo do .glade (abaixo da legenda
             #   "2D energy surface") -- pack_start() sempre ANEXA no
-            #   final, entao sem isso self.plot apareceria DEPOIS do
+            #   end, so without this self.plot would appear AFTER the
             #   readout em vez de entre a legenda e ele. reorder_child()
-            #   garante a ordem visual correta (legenda, grafico, readout)
+            #   ensures the correct visual order (legend, chart, readout)
             #   independente da ordem de empacotamento.
             self.plot2d_pane.reorder_child(self.plot, 1)
             #self.plot.data = data2d
@@ -223,7 +223,7 @@ class PotentialEnergyAnalysisWindow:
             # mesmo motivo do reorder_child do plot2d_pane acima: o
             # plot1d_pane ja' tem a legenda "1D energy profile" (posicao 0)
             # E a caixa do scale bar/energia (posicao 2, vinda do .glade)
-            # como filhos reais -- sem isso o grafico apareceria DEPOIS
+            # as real children -- without this the chart would appear AFTER
             # do scale bar em vez de entre a legenda e ele.
             self.plot1d_pane.reorder_child(self.plot2, 1)
             '''-------------------------------------------------------------'''
@@ -238,7 +238,7 @@ class PotentialEnergyAnalysisWindow:
             # Frames com checkbox no titulo: liga/desliga TODO o grupo de
             # ferramentas (2D ou 1D) de uma vez, deixando os controles
             # insensiveis em vez de escondidos -- eles continuam visiveis
-            # (para nao mudar o tamanho/posicao do resto da barra lateral
+            # (so as not to change the size/position of the rest of the sidebar
             # toda vez que o usuario alterna), so' ficam acinzentados.
             self.builder.get_object('checkbox_2d_tools_enable').connect(
                 'toggled', self.on_2d_tools_enable_toggle)
@@ -247,7 +247,7 @@ class PotentialEnergyAnalysisWindow:
 
             # Alternador de layout (lado a lado / empilhado): so' muda a
             # orientacao do hbox_plotting -- como ele e' 'homogeneous', os
-            # dois paineis continuam sempre do mesmo tamanho nas duas
+            # two panels always stay the same size in both
             # orientacoes.
             self.builder.get_object('radio_layout_side_by_side').connect(
                 'toggled', self.on_layout_toggle_changed)
@@ -255,11 +255,11 @@ class PotentialEnergyAnalysisWindow:
                 'toggled', self.on_layout_toggle_changed)
             self.builder.get_object('radio_layout_stacked').set_active(True)
 
-            # Botao "Hide tools": esconde a barra lateral inteira (+ o
+            # "Hide tools" button: hides the whole sidebar (+ the
             # separador ao lado dela) pra dar mais espaco pros graficos.
-            # Fica FORA da barra lateral de proposito -- se estivesse
-            # dentro dela, escondida a barra o botao desapareceria junto
-            # e nao teria como trazer ela de volta.
+            # Kept OUTSIDE the sidebar on purpose -- if it were
+            # inside it, hiding the sidebar would hide the button too
+            # and there would be no way to bring it back.
             self.builder.get_object('toggle_sidebar_button').connect(
                 'toggled', self.on_toggle_sidebar_button_toggled)
 
@@ -454,7 +454,7 @@ class PotentialEnergyAnalysisWindow:
         ao lado dela), pra dar mais espaco pros graficos temporariamente.
         O proprio botao fica FORA da barra lateral (na barra de topo da
         area principal) de proposito -- se estivesse dentro dela, ao
-        escondê-la o botao sumiria junto e nao teria como trazer a barra
+        hiding it the button would vanish too and there would be no way to bring the sidebar
         de volta. """
         hidden = widget.get_active()
         self.builder.get_object('sidebar_box').set_visible(not hidden)
@@ -544,7 +544,7 @@ class PotentialEnergyAnalysisWindow:
             rgba.red, rgba.green, rgba.blue, rgba.alpha = rgb[0], rgb[1], rgb[2], 1.0
             return Gtk.ColorButton.new_with_rgba(rgba)
 
-        # [nome exibido, cor atual, atributo em self.plot2 que ela controla]
+        # [displayed name, current color, attribute in self.plot2 it controls]
         rows = [
             ("Background", self.plot2.bg_color,       "bg_color"),
             ("Grid lines", self.plot2.bglines_color,   "bglines_color"),
@@ -567,9 +567,9 @@ class PotentialEnergyAnalysisWindow:
                 setattr(self.plot2, attr, [rgba.red, rgba.green, rgba.blue])
 
             # Se ja' existe um perfil desenhado (usuario ja' selecionou
-            # pontos na matriz 2D), atualiza tambem a cor de linha da(s)
+            # points in the 2D matrix), also updates the line color of the
             # serie(s) ja' adicionadas -- senao a mudanca so' valeria
-            # para o PROXIMO perfil, nao para o que ja' esta' na tela.
+            # for the NEXT profile, not for the one already on screen.
             new_line_color = self.plot2.line_color
             for series in self.plot2.data:
                 series['line_color'] = new_line_color
@@ -783,12 +783,12 @@ class PotentialEnergyAnalysisWindow:
                 # [EN] BUG FIX: havia um "self.plot2.Xmax = 10" fixo aqui,
                 # logo depois de add() ja ter calculado o Xmax CERTO a
                 # partir dos pontos reais (define_xy_limits(), chamado
-                # internamente por add()). Esse valor fixo sobrescrevia o
+                # internally by add()). This fixed value overwrote the
                 # calculo correto toda vez -- sempre que o numero de
                 # pontos selecionados na matriz 2D fosse diferente de 10,
-                # a grade/rotulos do eixo X do grafico 1D ficavam
-                # baseados num intervalo 0-10 que nao correspondia aos
-                # dados de verdade (grade "nao atualizando" ao selecionar
+                # the grid/labels of the 1D chart's X axis were
+                # based on a 0-10 range that did not correspond to the
+                # real data (grid "not updating" when selecting
                 # pontos, exatamente o sintoma relatado).
                 dprint("Mouse clicker at:",  x, y, 
                                             int(i_on_plot), int(j_on_plot), 
@@ -801,14 +801,14 @@ class PotentialEnergyAnalysisWindow:
         if event.button ==3:
             # [EN] BUG FIX: isto usava a API antiga e ja' depreciada
             # Gtk.Menu.popup(None, None, None, None, 0, 3) -- os
-            # argumentos de botao/tempo (0, 3) eram valores fixos, nao
+            # button/time arguments (0, 3) were fixed values, not
             # vindos do evento de clique real. Isso bagunca o "grab"
             # implicito que o GTK usa para saber quando fechar o menu:
             # em vez de ficar aberto ate' um proximo clique (dentro ou
             # fora dele, ou escolhendo um item -- o comportamento normal
             # de qualquer menu de contexto), o menu se fechava assim que
-            # o botao direito fisico era solto, entao so' ficava visivel
-            # enquanto o botao estava pressionado.
+            # the physical right button was released, so it was only visible
+            # while the button was pressed.
             #
             # popup_at_pointer(event) e' a API moderna (GTK 3.22+, ja'
             # usada em outro lugar deste mesmo arquivo -- ver
@@ -864,7 +864,7 @@ class PotentialEnergyAnalysisWindow:
                 if getattr(self.vobject, 'idx_2D_xy', False):
                     frame = self.vobject.idx_2D_xy[( xy[1],xy[0])]
                 else:
-                    # vobject nao veio de uma varredura 2D (sem grade x,y):
+                    # vobject did not come from a 2D scan (no x,y grid):
                     # cai no indice linear do ponto selecionado.
                     frame = int(value)
             else:
@@ -1050,14 +1050,6 @@ class PotentialEnergyAnalysisWindow:
         # sempre que o caminho otimizado (NEB) tivesse um numero de
         # pontos diferente de 10.
 
-
-        
-        
-        
-        
-        
-        
-        
         self.scale_traj_new_definitions()
         self.plot.queue_draw()
         self.plot2.queue_draw()
@@ -1279,7 +1271,10 @@ def build_chain_of_states( input_coord):
  
     #print (input_coord)
     inset_point = True
-
+    
+    if input_coord == [] or len(input_coord) == 1:
+        inset_point = False
+    
 
     while inset_point == True:
         a = 0

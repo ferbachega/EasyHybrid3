@@ -2186,6 +2186,15 @@ button position in the main treeview (active column).""".format(name,self.main.p
 
     def show_cell (self, vismol_object):
         """ Function doc """
+        
+        if vismol_object.cell_parameters:
+            from vismol.libgl.representations import CellLineRepresentation
+            dprint (vismol_object.cell_parameters)
+            vismol_object.representations["cell_lines"] =  CellLineRepresentation(vismol_object, self.vm_glcore,name  = 'lines', active=True, indexes = vismol_object.cell_bonds)
+        self.vm_glcore.queue_draw()
+        
+        
+        '''
         rep_labels = vismol_object.representations.keys()
         
         if  "cell_lines" in rep_labels:
@@ -2197,7 +2206,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
                 dprint (vismol_object.cell_parameters)
                 vismol_object.representations["cell_lines"] =  CellLineRepresentation(vismol_object, self.vm_glcore,name  = 'lines', active=True, indexes = vismol_object.cell_bonds)
         self.vm_glcore.queue_draw()
-   
+        #'''
     
     def hide_cell (self, vismol_object):
         if  "cell_lines" in  vismol_object.representations.keys():
