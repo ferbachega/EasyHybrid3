@@ -140,7 +140,7 @@ class TreeViewMenu:
         #        "Como PNG": self._menu_rename,
         #        "Como JPG": self._menu_rename,
         #        "_separator": None,
-        #        "Avançado": {
+        #        "Advanced": {
         #            "Alta Qualidade": self._menu_rename,
         #            "Baixa Qualidade": self._menu_rename,
         #        }
@@ -216,7 +216,7 @@ class TreeViewMenu:
                                 'Go To Atom'            : self._menu_go_to_atom ,
                                 '_separator'            : ''      ,
                                 # [NOVO] Mostrar/esconder a parte MM (tudo que
-                                # nao esta' na lista QC). Util para focar na
+                                # not in the QC list). Useful to focus on
                                 # regiao QC sem perder o resto do sistema.
                                 
                                 
@@ -281,7 +281,7 @@ class TreeViewMenu:
                                 #'test'  : self.f1 ,
                                 #'f1'    : self.f1 ,
                                 #'f2'    : self.f2 ,
-                                #'gordão': self.f3 ,
+                                #'gordao': self.f3 ,
                                 #'delete': self.f3 ,
                                 }
                     
@@ -402,7 +402,7 @@ class TreeViewMenu:
         atom_qtty = len(vobject.atoms.items())
         size = len(vobject.frames)
         dprint(atom_qtty, size)
-        dprint('Interpolating, wait a second…')
+        dprint('Interpolating, wait a second...')
         
         #coords
         
@@ -658,7 +658,7 @@ class TreeViewMenu:
         #self.treeview.vm_session.go_to_atom_window.open_window()
 
     # ----------------------------------------------------------------------- #
-    #  [NOVO] Mostrar / esconder a regiao MM (tudo que nao esta' na lista QC)   #
+    #  [NEW] Show / hide the MM region (everything not in the QC list)          #
     # ----------------------------------------------------------------------- #
     def _get_mm_indexes(self, vismol_object, system):
         """Indices dos atomos da regiao MM = todos os atomos do objeto que NAO
@@ -701,7 +701,7 @@ class TreeViewMenu:
 
             # Aplica a mesma visibilidade as representacoes de "corpo" tipicas
             # da parte MM. 'lines' e 'sticks' cobrem o caso comum; se alguma
-            # nao existir para o objeto, show_or_hide simplesmente ignora.
+            # does not exist for the object, show_or_hide simply ignores it.
             for rep in ("lines"):#, "sticks", "nonbonded", "dots"):
                 try:
                     main.vm_session.show_or_hide(rep_type=rep, selection=selection, show=show)
@@ -788,11 +788,11 @@ class TreeViewMenu:
                      if hasattr ( r, "set_render_mode" ) ]
 
         reps = get_surface_reps ( )
-        # Estado atual (pra a janela abrir refletindo o que ja esta na
-        # tela, nao sempre nos valores padrao) -- lido da primeira
+        # Current state (so the window opens reflecting what is already on
+        # screen, not always the default values) -- read from the first
         # representacao encontrada; todas as representacoes do mesmo
         # objeto devem estar em sincronia, ja que so podem ter sido
-        # mudadas por esta mesma janela (uma instancia por objeto).
+        # changed by this same window (one instance per object).
         current_render_mode    = reps[0].render_mode       if reps else "surface"
         current_alpha          = reps[0].alpha             if reps else 1.0
         current_smooth_shading = reps[0].smooth_shading    if reps else False
@@ -801,7 +801,7 @@ class TreeViewMenu:
         window.set_border_width ( 10 )
         window.set_default_size ( 260, -1 )
         window.set_keep_above ( True )
-        self._surf_setup_window = window   # mantem referencia viva (padrao ja usado por self.preferences etc. neste arquivo)
+        self._surf_setup_window = window   # keeps a live reference (pattern already used by self.preferences etc. in this file)
 
         vbox = Gtk.Box ( orientation = Gtk.Orientation.VERTICAL, spacing = 8 )
         window.add ( vbox )
@@ -854,7 +854,7 @@ class TreeViewMenu:
         # Angstrom). Aplicado direto em vismol_object.surface_trajectory
         # (todos os frames/lobulos), substituindo a malha original -- gerar
         # a superficie de novo (menu do sistema QC/analysis) desfaz, ja que
-        # a malha "cheia" original nao e' mantida em paralelo.
+        # the original "full" mesh is not kept in parallel.
         label_decimate = Gtk.Label ( label = "Decimate (merge vertices within, in \u00c5):" )
         label_decimate.set_xalign ( 0 )
         vbox.pack_start ( label_decimate, False, False, 0 )
@@ -1298,7 +1298,7 @@ class TreeViewMenu:
         return tree_view_menu, menu_header
 
     def build_tree_view_menu (self, menu_items):
-        """Cria menus e submenus a partir de um dicionário."""
+        """Create menus and submenus from a dictionary."""
         menu = Gtk.Menu()
         menu_header = None
 
@@ -1314,7 +1314,7 @@ class TreeViewMenu:
                 mitem.set_sensitive(False)      # desabilita
                 menu_header = mitem
 
-            # --- Submenu (value é um dicionário) ---
+            # --- Submenu (value is a dictionary) ---
             elif isinstance(value, dict):
                 mitem = Gtk.MenuItem(label=label)
                 # cria o submenu recursivamente
@@ -1407,7 +1407,7 @@ class TreeViewMenu:
             """ Function doc """
             # [ATUALIZACAO] Antes chamava save_easyhybrid_session(tmp=True)
             # direto, incondicional -- ignorava completamente o toggle
-            # gl_parameters['autosave'] e nao contribuia pro criterio de
+            # gl_parameters['autosave'] and did not contribute to the
             # contador de eventos. Agora passa por register_change_and_
             # maybe_autosave, que respeita o toggle e so' salva de fato ao
             # atingir gl_parameters['autosave_event_count'] (ou via o timer

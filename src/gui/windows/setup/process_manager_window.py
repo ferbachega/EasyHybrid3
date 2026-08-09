@@ -98,7 +98,7 @@ def _pid_alive ( pid ):
     except ProcessLookupError:
         return False
     except PermissionError:
-        return True   # existe, so nao e nosso pra sinalizar (nao deveria acontecer com processos filhos nossos)
+        return True   # exists, just not ours to signal (should not happen with our child processes)
     return True
 
 
@@ -432,7 +432,7 @@ class ProcessManagerWindow(Gtk.Window):
         
     def on_button_press_event(self, widget, event):
         if event.type == Gdk.EventType.BUTTON_PRESS and event.button == 3:
-            # Seleciona a linha clicada com o botão direito
+            # Select the row clicked with the right button
             path_info = widget.get_path_at_pos(int(event.x), int(event.y))
             if path_info is not None:
                 path, col, cell_x, cell_y = path_info
@@ -976,12 +976,12 @@ class ProcessManagerWindow_filtro(Gtk.Window):
             self.window.present()
 
     def on_filter_entry_changed(self, entry):
-        """Atualiza o filtro quando o usuário digita no Entry."""
+        """Update the filter when the user types in the Entry."""
         self.current_filter_text = entry.get_text().lower()
         self.filtered_model.refilter()
 
     def visible_func(self, model, iter, data=None):
-        """Função de filtro por nome de sistema (coluna 0)."""
+        """Filter function by system name (column 0)."""
         system_name = model[iter][0].lower()
         if self.current_filter_text in system_name:
             return True

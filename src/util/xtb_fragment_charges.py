@@ -15,33 +15,34 @@
 xtb_fragment_charges
 ====================
 
-Motor (Fase 1, SEM interface grafica) para calcular cargas MM auto-consistentes
-por fragmento usando o binario `xtb`.
+Engine (Phase 1, NO graphical interface) to compute self-consistent per-fragment
+MM charges using the `xtb` binary.
 
-IDEIA
------
-O sistema e' dividido em fragmentos (residuo / segmento / cadeia). Em cada
-CICLO, calcula-se cada fragmento isoladamente com o xTB, onde:
-  - as ligacoes covalentes cortadas na fronteira do fragmento recebem um
-    hidrogenio de capping (link atom), sempre anexado AO FINAL da geometria;
-  - o restante do sistema entra como CARGAS PONTUAIS (embedding eletrostatico),
-    usando as cargas MM do ciclo anterior. No 1o ciclo, os outros fragmentos
-    ficam "mudos" (sem cargas pontuais).
-As cargas atomicas (CM5 ou Mulliken) sao extraidas, a fronteira e' tratada, o
-fragmento e' renormalizado para sua carga formal e o resultado e' escrito como
-cargas MM. Repete-se ate `max |Delta q| < tolerancia`.
+IDEA
+----
+The system is split into fragments (residue / segment / chain). In each CYCLE,
+every fragment is computed in isolation with xTB, where:
+  - covalent bonds cut at the fragment boundary receive a capping hydrogen
+    (link atom), always appended AT THE END of the geometry;
+  - the rest of the system enters as POINT CHARGES (electrostatic embedding),
+    using the previous cycle's MM charges. In the 1st cycle, the other fragments
+    are "mute" (no point charges).
+The atomic charges (CM5 or Mulliken) are extracted, the boundary is treated, the
+fragment is renormalized to its formal charge, and the result is written as MM
+charges. This repeats until `max |Delta q| < tolerance`.
 
-NOTA CIENTIFICA IMPORTANTE
---------------------------
-CM5 so' esta' disponivel com GFN1 (GFN2 => apenas Mulliken). O motor valida
-isso: pedir CM5 com GFN2 gera aviso e cai para Mulliken (ou forca GFN1,
-conforme `cm5_policy`).
+IMPORTANT SCIENTIFIC NOTE
+-------------------------
+CM5 is only available with GFN1 (GFN2 => Mulliken only). The engine validates
+this: requesting CM5 with GFN2 emits a warning and falls back to Mulliken (or
+forces GFN1, according to `cm5_policy`).
 
-DEPENDE DO SISTEMA pDynamo apenas para: coordenadas, conectividade
-(Get12Indices) e cargas MM iniciais (mmState.charges). NAO define QCModel.
+DEPENDS ON THE pDynamo SYSTEM only for: coordinates, connectivity
+(Get12Indices) and initial MM charges (mmState.charges). Does NOT define a QCModel.
 
-Este modulo e' testavel de forma isolada (ver `demo_dry_run` no fim) e suporta
-modo DRY-RUN: gera os inputs xTB e mostra o que faria, sem executar o binario.
+This module is testable in isolation (see `demo_dry_run` at the end) and supports
+a DRY-RUN mode: it generates the xTB inputs and shows what it would do, without
+executing the binary.
 """
 
 import os
@@ -126,7 +127,7 @@ _RESIDUE_CHARGE = {
 
 
 ANGSTROM_TO_BOHR = 1.8897259886
-# distancia tipica X-H para o hidrogenio de capping (Angstrom)
+# typical X-H distance for the capping hydrogen (Angstrom)
 DEFAULT_CAP_DISTANCE = 1.09
 
 
@@ -141,11 +142,11 @@ class Fragment:
         self.atom_indexes = list(atom_indexes)  # indices GLOBAIS no system
         self.formal_charge = 0            # sugerido; editavel pelo usuario
         self.multiplicity = 1             # sugerido; editavel pelo usuario
-        self.include = True               # se False, nao recalcula (mantem cargas MM)
-        # preenchidos durante o calculo:
+        self.include = True               # if False, not recomputed (keeps MM charges)
+        # filled in during the calculation:
         self.cap_atoms = []               # lista de dicts: H de capping
         # cap = {'pos': (x,y,z), 'caps_local_index': i, 'caps_global_index': g}
-        self.last_charges = None          # cargas atomicas do ciclo anterior
+        self.last_charges = None          # atomic charges from the previous cycle
 
     def __repr__(self):
         return "Fragment({}, natoms={}, q={}, mult={})".format(
@@ -266,7 +267,7 @@ def build_fragments(system, level="residue", residue_of=None, segment_of=None,
     #        frag.formal_charge = int(round(qsum))
     #        
     #    else:
-    #        # carga formal sugerida = soma das cargas MM arredondada ao inteiro
+    #        # suggested formal charge = rounded sum of the MM charges
     #        qsum = sum(acc.mm_charge(i) for i in groups[k])
     #        frag.formal_charge = int(round(qsum))
     #    
@@ -302,12 +303,12 @@ def build_fragments(system, level="residue", residue_of=None, segment_of=None,
 
         frag = Fragment(key, groups[key])
 
-        # Nome do resíduo, se possível.
+        # Residue name, if possible.
         residue_name = None
         if level == "residue":
             if isinstance(key, str):
                 parts = key.split("/")
-                residue_name = parts[-2]  # funciona para SEG/RES ou apenas RES
+                residue_name = parts[-2]  # works for SEG/RES or just RES
             else:
                 residue_name = str(key)
         #print(residue_name)
@@ -405,10 +406,10 @@ def add_caps(fragment, system, cap_distance=DEFAULT_CAP_DISTANCE):
         ph = (pq[0] + (pm[0] - pq[0]) * scale,
               pq[1] + (pm[1] - pq[1]) * scale,
               pq[2] + (pm[2] - pq[2]) * scale)
-        # indice local do H = apos todos os atomos reais + caps ja' adicionados
+        # local H index = after all real atoms + caps already added
         caps.append({
             "pos": ph,
-            "caps_global_index": q,                 # atomo pesado (global) que recebe o cap
+            "caps_global_index": q,                 # heavy atom (global) receiving the cap
             "caps_local_index": fragment.atom_indexes.index(q),  # idx local do Q
             "cap_local_index": n_real + len(caps),  # idx local deste H
         })
@@ -496,8 +497,8 @@ def build_xtb_command(xtb_path, xyz_file, charge, multiplicity, method="gfn1",
            "--uhf", str(uhf),
            "--sp"]
     if pcharge_file:
-        # o xtb le cargas pontuais de um arquivo chamado 'pcharge' no diretorio,
-        # ou via --input; aqui assumimos o arquivo 'pcharge' no cwd.
+        # xtb reads point charges from a file named 'pcharge' in the directory,
+        # or via --input; here we assume the 'pcharge' file in the cwd.
         pass
     if extra:
         cmd += list(extra)
@@ -552,7 +553,7 @@ def read_charges(workdir, charge_model="cm5", stdout_text=None):
         except Exception:
             pass
 
-    # 2) arquivo 'charges' (Mulliken, 1 por linha)
+    # 2) 'charges' file (Mulliken, 1 per line)
     cpath = os.path.join(workdir, "charges")
     if charge_model.lower() != "cm5" and os.path.isfile(cpath):
         try:
@@ -605,7 +606,7 @@ def _is_float(s):
 
 
 # --------------------------------------------------------------------------- #
-#  Tratamento da fronteira e renormalizacao                                    #
+#  Boundary treatment and renormalization                                      #
 # --------------------------------------------------------------------------- #
 def handle_boundary(fragment, charges, mode="redistribute"):
     """Trata as cargas dos H de capping (que nao sao atomos reais).
@@ -632,7 +633,7 @@ def handle_boundary(fragment, charges, mode="redistribute"):
             li = cap["caps_local_index"]
             real[li] += qcap
     elif mode == "discard":
-        pass  # simplesmente ignora as cargas dos caps
+        pass  # simply ignore the cap charges
     else:
         raise ValueError("modo de fronteira desconhecido: {}".format(mode))
     return real
@@ -686,7 +687,7 @@ def _run_one_fragment_worker(job):
         raw = read_charges(job["workdir"], charge_model=job["charge_model"],
                            stdout_text=proc.stdout)
 
-        # tratamento de fronteira (replicado aqui para nao depender do objeto Fragment)
+        # boundary treatment (replicated here to avoid depending on the Fragment object)
         n_real = job["n_real"]
         real = list(raw[:n_real])
         caps = list(raw[n_real:])
@@ -818,7 +819,7 @@ def run_self_consistent(system, fragments, xtb_path,
 #                        cm5_policy="fallback",
 #                        dry_run=False, workroot=None, verbose=True,
 #                        progress_cb=None):
-#    """Executa o ciclo auto-consistente de cargas MM por fragmento.
+#    """Run the self-consistent per-fragment MM charge cycle.
 #
 #    Returns:
 #        dict com: 'converged' (bool), 'cycles' (int), 'max_dq' (float),
@@ -832,10 +833,10 @@ def run_self_consistent(system, fragments, xtb_path,
 #    acc = SystemAccessor(system)
 #    n = acc.natoms()
 #
-#    # cargas MM correntes (ciclo 0). 1o ciclo: outros fragmentos MUDOS => 0.
+#    # current MM charges (cycle 0). 1st cycle: other fragments MUTE => 0.
 #    charges_by_index = {i: 0.0 for i in range(n)}
 #
-#    # prepara caps uma unica vez (geometria nao muda entre ciclos)
+#    # prepare caps once (geometry does not change between cycles)
 #    for frag in fragments:
 #        add_caps(frag, system)
 #
@@ -877,13 +878,13 @@ def run_self_consistent(system, fragments, xtb_path,
 #            real = handle_boundary(frag, raw, mode=boundary_mode)
 #            real = renormalize(real, frag.formal_charge)
 #
-#            # mede convergencia comparando com o ciclo anterior deste fragmento
+#            # measure convergence by comparing with this fragment's previous cycle
 #            if frag.last_charges is not None:
 #                dq = max(abs(a - b) for a, b in zip(real, frag.last_charges))
 #                cycle_dq = max(cycle_dq, dq)
 #            frag.last_charges = real
 #
-#            # grava as novas cargas MM dos atomos reais deste fragmento
+#            # store the new MM charges of this fragment's real atoms
 #            for li, gidx in enumerate(frag.atom_indexes):
 #                new_charges[gidx] = real[li]
 #
@@ -893,14 +894,14 @@ def run_self_consistent(system, fragments, xtb_path,
 #        charges_by_index = new_charges
 #
 #        if dry_run:
-#            # em dry-run nao ha convergencia; roda so' 1 ciclo demonstrativo
+#            # in dry-run there is no convergence; runs only 1 demo cycle
 #            return {"dry_run": True, "cycles": 1, "history": history,
 #                    "workroot": workroot}
 #
 #        max_dq = cycle_dq
 #        history.append({"cycle": cycle, "max_dq": max_dq})
 #        if verbose:
-#            print("ciclo {}: max |dq| = {:.5f}".format(cycle, max_dq))
+#            print("cycle {}: max |dq| = {:.5f}".format(cycle, max_dq))
 #
 #        if cycle > 1 and max_dq is not None and max_dq < tolerance:
 #            converged = True
@@ -1073,19 +1074,19 @@ def run_self_consistent_parallel(system, fragments, xtb_path,
 #                                 cm5_policy="fallback", nprocs=4,
 #                                 workroot=None, verbose=True,
 #                                 cycle_cb=None, init_from_mm=True):
-#    """Versao PARALELA do loop: dentro de cada ciclo, os fragmentos rodam em
+#    """PARALLEL version of the loop: within each cycle, fragments run in
 #    processos separados (multiprocessing.Pool), pois sao independentes (todos
-#    leem as cargas do ciclo anterior). Ha' uma barreira entre ciclos.
+#    read the previous cycle's charges). There is a barrier between cycles.
 #
 #    Fragmentos com frag.include == False NAO sao recalculados: eles mantem as
-#    cargas correntes (por padrao as cargas MM originais do sistema) e ainda
-#    CONTRIBUEM para o embedding eletrostatico dos demais. Assim nao se cria um
-#    "buraco" eletrostatico no lugar do fragmento ignorado.
+#    current charges (by default the system's original MM charges) and still
+#    CONTRIBUTE to the electrostatic embedding of the others. This avoids creating a
+#    electrostatic "hole" where the ignored fragment is.
 #
-#    init_from_mm: se True, o embedding do ciclo 1 usa as cargas MM ORIGINAIS dos
+#    init_from_mm: if True, cycle-1 embedding uses the ORIGINAL MM charges of the
 #    fragmentos ignorados (recomendado). Se False, tudo comeca em zero.
 #
-#    cycle_cb(cycle, max_dq): callback opcional ao fim de cada ciclo.
+#    cycle_cb(cycle, max_dq): optional callback at the end of each cycle.
 #    Retorna o mesmo dict de run_self_consistent.
 #    """
 #    import multiprocessing
@@ -1100,7 +1101,7 @@ def run_self_consistent_parallel(system, fragments, xtb_path,
 #    n = acc.natoms()
 #
 #    # Cargas correntes. Fragmentos ignorados mantem sua carga MM original; os
-#    # que serao calculados comecam em 0 (mudos no ciclo 1).
+#    # to be computed start at 0 (mute in cycle 1).
 #    included_indexes = set()
 #    for frag in fragments:
 #        if getattr(frag, "include", True):
@@ -1111,8 +1112,8 @@ def run_self_consistent_parallel(system, fragments, xtb_path,
 #        if i in included_indexes:
 #            charges_by_index[i] = 0.0
 #        else:
-#            # atomo de fragmento ignorado (ou fora de qualquer fragmento):
-#            # mantem a carga MM original para participar do embedding.
+#            # atom of an ignored fragment (or outside any fragment):
+#            # keeps the original MM charge to take part in the embedding.
 #            charges_by_index[i] = acc.mm_charge(i) if init_from_mm else 0.0
 #
 #    # so' processa os fragmentos marcados
@@ -1125,7 +1126,7 @@ def run_self_consistent_parallel(system, fragments, xtb_path,
 #        workroot = tempfile.mkdtemp(prefix="xtb_fragq_")
 #    os.makedirs(workroot, exist_ok=True)
 #
-#    # pre-extrai a geometria de cada fragmento UMA vez (nao muda entre ciclos)
+#    # pre-extract each fragment's geometry ONCE (does not change between cycles)
 #    frag_xyz_text = []
 #    frag_meta = []
 #    for frag in active_fragments:
@@ -1189,7 +1190,7 @@ def run_self_consistent_parallel(system, fragments, xtb_path,
 #        new_charges = dict(charges_by_index)
 #        for (fpos, real, err) in results:
 #            if err:
-#                raise RuntimeError("fragmento {} falhou: {}".format(
+#                raise RuntimeError("fragment {} failed: {}".format(
 #                    active_fragments[fpos].key, err))
 #            if last_frag_charges[fpos] is not None:
 #                dq = max(abs(a - b) for a, b in zip(real, last_frag_charges[fpos]))
@@ -1202,7 +1203,7 @@ def run_self_consistent_parallel(system, fragments, xtb_path,
 #        max_dq = cycle_dq
 #        history.append({"cycle": cycle, "max_dq": max_dq})
 #        if verbose:
-#            print("ciclo {}: max |dq| = {:.5f}".format(cycle, max_dq))
+#            print("cycle {}: max |dq| = {:.5f}".format(cycle, max_dq))
 #        if cycle_cb:
 #            cycle_cb(cycle, max_dq)
 #
@@ -1306,7 +1307,7 @@ def demo_dry_run():
         method="gfn1", charge_model="cm5",
         boundary_mode="redistribute", tolerance=0.01,
         dry_run=True, verbose=True)
-    print("\nDRY-RUN — comandos que seriam executados:")
+    print("\nDRY-RUN — commands that would be executed:")
     for h in result["history"]:
         print("  [{}] {}  (caps={}, pointcharges={})".format(
             h["fragment"], h["cmd"], h["n_caps"], h["n_pointcharges"]))

@@ -1515,7 +1515,7 @@ class EasyHybridSession(VismolSession, GLMenu):
         self.vm_glcore.queue_draw()  
         
     def gen_random_tag_string(self, length=4):
-        chars = string.ascii_letters + string.digits  # letras (A-Z, a-z) + dígitos (0-9)
+        chars = string.ascii_letters + string.digits  # letters (A-Z, a-z) + digits (0-9)
         return ''.join(random.choice(chars) for _ in range(length))
     #-------------------------------------------------------------------
     #                        restricted methods
@@ -1762,10 +1762,10 @@ button position in the main treeview (active column).""".format(name,self.main.p
             pass
         for rep  in vobject.representations.keys():
             if vobject.representations[rep]:
-                # Representacoes com cor FIXA (ex: OneColorDotsRepresentation
-                # das restricoes de posicao) nao devem seguir a cor por-atomo
-                # do objeto -- pular, ou a cor escolhida pelo usuario e
-                # sobrescrita pela cor padrao do atomo.
+                # Representations with a FIXED color (e.g. OneColorDotsRepresentation
+                # for position restraints) must not follow the object's
+                # per-atom color -- skip, or the color chosen by the user gets
+                # overwritten by the atom's default color.
                 if getattr(vobject.representations[rep], 'uses_uniform_color', False):
                     continue
                 #try:

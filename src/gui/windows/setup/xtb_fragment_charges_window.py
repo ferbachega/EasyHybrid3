@@ -121,7 +121,7 @@ class XtbFragmentChargesWindow:
         self.fragments = []          # lista de xfc.Fragment
         self.result = None           # dict returned by the engine
         self._running = False
-        self._selection_counter = 0  # numera os fragmentos importados de selecao
+        self._selection_counter = 0  # numbers the fragments imported from selection
 
     # ------------------------------------------------------------------ #
     #  Construcao da UI                                                    #
@@ -363,8 +363,81 @@ class XtbFragmentChargesWindow:
 
         vbox.pack_start(row_btn, False, False, 0)
 
+        self._setup_tooltips()
         self.window.show_all()
-        self._on_level_changed(self.combo_level)  # ajusta visibilidade inicial
+        self._on_level_changed(self.combo_level)  # set initial visibility
+
+    def _setup_tooltips(self):
+        """Attach explanatory tooltips to the controls.
+
+        Kept in one place so the help text is easy to review and translate. The
+        tooltips summarize the scientific meaning of each option (e.g. that CM5
+        is only available with GFN1, or what each boundary mode does).
+        """
+        tips = {
+            self.combo_level:
+                "How the system is split into fragments:\n"
+                "- residue / segment / chain: automatic grouping;\n"
+                "- selection: build fragments manually from the current "
+                "viewer selection (use 'Import selection fragment').",
+            self.btn_build:
+                "Split the active system into fragments at the chosen level and "
+                "fill the table with a suggested formal charge and multiplicity "
+                "for each fragment.",
+            self.btn_import_sel:
+                "Add the atoms currently selected in the 3D viewer as one "
+                "fragment. Can be used several times to add multiple selection "
+                "fragments (only in 'selection' level).",
+            self.treeview:
+                "One row per fragment. 'Use' toggles whether the fragment is "
+                "recomputed (unchecked = keeps its MM charges but still enters "
+                "the embedding). Charge and Mult are editable and override the "
+                "suggested values. Right-click for select/deselect all.",
+            self.combo_method:
+                "xTB parametrization: GFN1, GFN2 or GFN0. Note: CM5 charges are "
+                "only available with GFN1.",
+            self.combo_charge:
+                "Atomic charge model read from xTB output:\n"
+                "- CM5: only with GFN1;\n"
+                "- Mulliken: available with any GFN.\n"
+                "If CM5 is chosen with GFN2/GFN0 the tool adjusts automatically.",
+            self.combo_boundary:
+                "How the charge of each capping hydrogen (link atom) is handled:\n"
+                "- redistribute: add it onto the heavy atom it caps;\n"
+                "- discard: drop it (removed by renormalization);\n"
+                "- keep_on_boundary: keep it on the boundary heavy atom.",
+            self.entry_tol:
+                "Convergence threshold on the maximum atomic-charge change "
+                "between cycles (max |dq|), in elementary charges. Default 0.01.",
+            self.entry_nproc:
+                "Number of fragments computed in parallel (one xTB process each) "
+                "within a cycle. Higher = faster, up to your CPU core count.",
+            self.entry_maxcyc:
+                "Safety cap on the number of self-consistent cycles, in case "
+                "convergence is not reached.",
+            self.entry_factor:
+                "Optional multiplier applied to the final charges when writing "
+                "them to the system (1.0 = unchanged).",
+            self.entry_xtb:
+                "Path to the xTB executable. Prefilled from the "
+                "PDYNAMO3_XTBCOMMAND environment variable when available.",
+            self.entry_tmpdir:
+                "Folder where each fragment's xTB input/output files are written. "
+                "Leave empty to use a system temporary folder.",
+            self.btn_tmpdir:
+                "Choose the temporary folder.",
+            self.btn_run:
+                "Run the self-consistent calculation in the background. The "
+                "progress bar updates once per cycle.",
+            self.btn_apply:
+                "Write the converged charges into the system's MM charges "
+                "(system.mmState.charges). Only enabled after a successful run.",
+        }
+        for widget, text in tips.items():
+            try:
+                widget.set_tooltip_text(text)
+            except Exception:
+                pass
 
     def _on_level_changed(self, combo):
         """Show 'Build fragments' for residue/segment/chain and
