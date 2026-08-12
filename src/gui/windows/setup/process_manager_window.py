@@ -549,7 +549,8 @@ class ProcessManagerWindow(Gtk.Window):
         import glob
         folder = os.path.dirname(pdynamo_logfile)
         base = os.path.basename(pdynamo_logfile)
-        if base.endswith(".log"):
+        #if base.endswith(".log"):
+        if base.endswith(".log") or base.endswith(".out"):
             base = base[:-4]
 
         # which program did THIS job use? ('ORCA' / 'XTB' / None)
@@ -568,8 +569,11 @@ class ProcessManagerWindow(Gtk.Window):
         name_candidates = []
         if engine == "ORCA" or engine is None:
             name_candidates.append((os.path.join(folder, base + ".orca.log"), "ORCA"))
+            name_candidates.append((os.path.join(folder, base + ".orca.out"), "ORCA"))
+        
         if engine == "XTB" or engine is None:
             name_candidates.append((os.path.join(folder, base + ".xtb.log"), "xTB"))
+            name_candidates.append((os.path.join(folder, base + ".xtb.out"), "xTB"))
         for path, label in name_candidates:
             if os.path.isfile(path):
                 text = self._read_text(path)
