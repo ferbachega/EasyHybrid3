@@ -195,8 +195,18 @@ class SetupXTBWindow:
             self.entry_xtb_iterations.set_text(str(self.parameters['iterations'  ]))
             self.entry_xtb_fermi_temp.set_text(str(self.parameters['fermi_temp'  ]))
             self.entry_keywords      .set_text(str(self.parameters['add_keywords']))
-            self.entry_scratch       .set_text(str(self.parameters['scratch']))
+            
+            
+            
+            _id = self.main_session.p_session.active_id
+            system = self.main_session.p_session.psystem[_id]
 
+            scratch = os.path.join(str(self.parameters['scratch']), system.e_tag)
+            #self.entry_scratch       .set_text(str(self.parameters['scratch']))
+            self.entry_scratch       .set_text(scratch)
+
+            
+            
             for key, checkbox in self.checkbox_xtb_backup.items():
                 checkbox.set_active(key in self.parameters['backup_files'])
             

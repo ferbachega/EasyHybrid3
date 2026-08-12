@@ -134,6 +134,8 @@ def backup_xtb_files (system, output_folder = None, output_name = None, files = 
     is defined (see session.define_a_new_QCModel), or just ['log'] if that
     is not set either.
     """
+    
+    
     if not system.qcModel:
         return
 
@@ -151,9 +153,17 @@ def backup_xtb_files (system, output_folder = None, output_name = None, files = 
     # (see QCModelXTB.DeterminePaths/_resolve_scratch), NOT directly in the
     # configured scratch base. Read the real folder via activeScratch; fall back
     # to .scratch for older models that don't expose it.
+    
+    scratch = os.path.dirname(system.qcState.paths["Coord"])
+    
+    '''
     scratch = getattr ( system.qcModel, 'activeScratch', None ) or system.qcModel.scratch
+    
+    print('scratch', scratch)
+    print('paths', system.qcState.paths)
     _time = time.asctime()
-
+    #'''   
+    
     if output_folder is None:
         folder = scratch
     else:
@@ -163,7 +173,9 @@ def backup_xtb_files (system, output_folder = None, output_name = None, files = 
         output_name = 'XTBJob' + _time
 
     dprint ('\nChecking for xTB files at: ', scratch)
-
+    
+    #print('backup_xtb_files', system, output_folder  , output_name  , files )
+    
     for key in files:
         file_info = _XTB_BACKUP_FILES.get ( key )
         if file_info is None:
@@ -173,6 +185,9 @@ def backup_xtb_files (system, output_folder = None, output_name = None, files = 
         description = file_info['description']
         extension   = file_info['extension']
         source_name = file_info.get ( 'source_name', '{}.{}'.format ( _XTB_JOB_NAME, extension ) )
+        if extension == 'log':
+            extension='out'
+        
         destination_name = '{}.xtb.{}'.format ( output_name, extension )
 
         try:
@@ -209,14 +224,16 @@ def backup_qc_files (system, output_folder = None, output_name = None, xtb_files
     engine = system.qcModel.SummaryItems()[0][0]
 
     backup_fn = _QC_BACKUP_DISPATCH.get ( engine )
+    
     if backup_fn is None:
         return   # engine with no backup routine -- nothing to do
-    
+    '''
+    print( 'backup_qc_files')
     print( system        ,
            output_folder ,
            output_name    ,
            xtb_files       )
-    
+    '''
     
     
     backup_fn ( system        = system        ,

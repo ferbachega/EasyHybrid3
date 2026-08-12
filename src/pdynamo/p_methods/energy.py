@@ -224,11 +224,19 @@ class EnergyCalculation:
 
         parameters['system'].Summary(log = self.logFile2)
         energy = parameters['system'].Energy(log = self.logFile2)
+        
+        
+        print(parameters['system'] ,
+              parameters['folder'] ,
+              parameters['filename'], "zero")
 
-        backup_qc_files(system        = parameters['system'],
-                          output_folder = parameters['folder'],
+
+
+
+        backup_qc_files(system        =   parameters['system'] ,
+                          output_folder = parameters['folder'] ,
                           output_name   = parameters['filename'])
-
+        
         self.logFile2.Footer ( )
         self.logFile2.Close()
         self.logFile2 = None

@@ -1,6 +1,6 @@
 """The XTB QC model."""
 
-import glob, math, os, os.path, subprocess, re, tempfile, shutil
+import glob, math, os, os.path, subprocess, re
 
 from  pCore                     import logFile           , \
                                        LogFileActive     , \
@@ -28,19 +28,8 @@ _DefaultJobName = "XTBJob"
 # . Command environment variable.
 _XTBCommand = "PDYNAMO3_XTBCOMMAND"
 
-# . Scratch base-directory environment variable.
-_XTBScratchEnv = "PDYNAMO3_SCRATCH"
-
 # . Scratch directory.
-#   [PORTABILITY] Built from PDYNAMO3_SCRATCH, but that variable may be unset on
-#   this machine (e.g. a system prepared elsewhere is opened here). Guard against
-#   os.getenv returning None so merely importing this module never fails; the
-#   real, machine-local resolution happens in _resolve_scratch() at run time.
-_scratch_base = os.getenv ( _XTBScratchEnv )
-if _scratch_base:
-    _XTBScratch = os.path.join ( _scratch_base, "XTBScratch" )
-else:
-    _XTBScratch = os.path.join ( tempfile.gettempdir ( ), "XTBScratch" )
+_XTBScratch = os.path.join ( os.getenv ( "PDYNAMO3_SCRATCH" ), "XTBScratch" )
 
 #===================================================================================================================================
 # . Class.
@@ -60,85 +49,22 @@ class QCModelXTBState ( QCModelState ):
         """Delete job files."""
         if self.deleteJobFiles:
             try:
-                # The scratch folder is now always a unique random directory
-                # (see DeterminePaths/_resolve_scratch), so it is safe to remove
-                # it whole. rmtree (unlike the old os.rmdir) also clears files
-                # that are NOT prefixed by the job name -- notably 'xtbrestart',
-                # whose leftover from a previous system was the source of the
-                # cross-system "Index out of range" error.
-                scratch = self.paths.get ( "Scratch", None )
-                if scratch is not None and os.path.isdir ( scratch ):
-                    shutil.rmtree ( scratch, ignore_errors = True )
-                else:
-                    # fallback: remove only this job's files
-                    jobFiles = glob.glob ( os.path.join ( self.paths["Glob"] + "*" ) )
-                    for jobFile in jobFiles: os.remove ( jobFile )
+                jobFiles = glob.glob ( os.path.join ( self.paths["Glob"] + "*" ) )
+                for jobFile in jobFiles: os.remove ( jobFile )
+                scratch  = self.paths.get ( "Scratch", None )
+                if scratch is not None: os.rmdir ( scratch ) # . Only deleted if random.
             except:
                 pass
-
-    @staticmethod
-    def _resolve_scratch ( scratch ):
-        """Resolve a usable scratch base directory on THIS machine.
-
-        Portability + isolation logic (mirrors the executable fallback):
-          1. if the scratch directory assigned to the object exists (or its
-             parent exists so it can be created), use it -- this is the folder
-             configured where the system was prepared;
-          2. otherwise fall back to this machine's PDYNAMO3_SCRATCH;
-          3. otherwise fall back to the system temporary directory.
-
-        In every case a UNIQUE random subfolder is then created underneath, so
-        two processes / systems can never accidentally share a scratch folder
-        (which is what let a residual 'xtbrestart' from another system be read
-        and produce an "Index out of range" error).
-
-        Returns the absolute path of the freshly created, unique scratch folder.
-        """
-        def _usable ( base ):
-            if not base:
-                return False
-            # usable if it already exists, or its parent exists (so we can mkdir)
-            if os.path.isdir ( base ):
-                return True
-            parent = os.path.dirname ( os.path.normpath ( base ) )
-            return bool ( parent ) and os.path.isdir ( parent )
-
-        # 1) the path stored on the object (from where the system was prepared)
-        base = scratch if _usable ( scratch ) else None
-
-        # 2) fall back to this machine's PDYNAMO3_SCRATCH
-        if base is None:
-            env_base = os.getenv ( _XTBScratchEnv )
-            if env_base:
-                env_base = os.path.join ( env_base, "XTBScratch" )
-                if _usable ( env_base ):
-                    base = env_base
-
-        # 3) last resort: the system temp directory
-        if base is None:
-            base = os.path.join ( tempfile.gettempdir ( ), "XTBScratch" )
-
-        # make sure the base exists, then create a unique random subfolder
-        os.makedirs ( base, exist_ok = True )
-        unique = os.path.join ( base, RandomString ( ) )
-        os.makedirs ( unique, exist_ok = True )
-        return unique
 
     def DeterminePaths ( self, scratch, deleteJobFiles = True, randomJob = False, randomScratch = False ):
         """Determine the paths needed by an XTB job."""
         paths = {}
         if randomJob: job = RandomString ( )
         else:         job = _DefaultJobName
-        # [PORTABILITY + ISOLATION] Always resolve the scratch on THIS machine
-        # and run inside a unique random subfolder. _resolve_scratch() handles
-        # the case where the assigned path came from another computer and does
-        # not exist here, and the random subfolder prevents cross-process/
-        # cross-system contamination (e.g. a stale 'xtbrestart'). Because the
-        # folder is always unique, it is always safe to remove afterwards, so we
-        # record it under "Scratch" for DeleteJobFiles.
-        scratch          = self._resolve_scratch ( scratch )
-        paths["Scratch"] = scratch
-        if not os.path.exists ( scratch ): os.makedirs ( scratch, exist_ok = True )
+        if randomScratch:
+            scratch          = os.path.join ( scratch, RandomString ( ) )
+            paths["Scratch"] = scratch # . Only set if random.
+        if not os.path.exists ( scratch ): os.mkdir ( scratch )
         jobRoot       = os.path.join ( scratch, job )
         paths["Glob"] = jobRoot
         for ( key, ext ) in ( ( "EnGrad" , "engrad" ) ,
@@ -209,6 +135,7 @@ class QCModelXTB ( QCModel ):
     
     #self.gfn  = _attributable['gfn']
     #self.cpus = _attributable['cpus']
+
     
     def AtomicCharges ( self, target, chargeModel = ChargeModel.Mulliken ):
         """Atomic charges."""
@@ -234,24 +161,7 @@ class QCModelXTB ( QCModel ):
                                deleteJobFiles = self.deleteJobFiles ,
                                randomJob      = self.randomJob      ,
                                randomScratch  = self.randomScratch  )
-        # Expose the actual (unique, random) scratch folder resolved for this
-        # run on the model itself, so code outside pDynamo can find where the
-        # job files really are. Needed because the files now live in a random
-        # subfolder under self.scratch, not directly in self.scratch -- e.g.
-        # EasyHybrid's backup_xtb_files() copies the xTB log from here.
-        self.__dict__["_activeScratch"] = state.paths.get ( "Scratch", self.scratch )
         return state
-
-    @property
-    def activeScratch ( self ):
-        """The actual scratch folder used by the most recent build/run.
-
-        This is the unique random subfolder created by DeterminePaths, i.e.
-        where the xTB job files (log, engrad, ...) for the current run really
-        live. Falls back to the configured scratch base if no run has been
-        built yet.
-        """
-        return self.__dict__.get ( "_activeScratch", self.scratch )
 
     def DipoleMoment ( self, target, center = None ):
         """Dipole Moment."""
@@ -282,62 +192,87 @@ class QCModelXTB ( QCModel ):
         """ Function doc """
         unpaired = multiplicity-1
         return unpaired
+    
+    def Execute ( self, state, target ):
+        """Execute the xtb job."""
+        
 
-    def Execute(self, state, target):
-        """Execute the xTB job."""
-
+        backup = os.getcwd()
         directory = os.path.dirname(state.paths["Coord"])
+        os.chdir(directory)
+        outFile = state.paths["Output"]
 
-        charge = target.electronicState.charge
+
+
+        # O erro é anteriror
+        ##Check xTB tmp path.
+        #if os.path.isdir(directory):
+        #    print("A pasta existe")
+        #    #return False
+        #else:
+        #    print("A pasta não existe")
+        #    PDYNAMO3_SCRATCH = os.getenv ( "PDYNAMO3_SCRATCH" )
+        #    tag = 'XTB_'+ RandomString ( )
+        #    scratch    = os.path.join ( scratch, tag )
+        #    
+        #    print("Nova pasta:", scratch)
+        #    #target.Summary()
+        #    target.qcState.DeterminePaths (scratch)
+            
+
+        # Build the command as an ARGUMENT LIST (not a shell string). Safer than
+        # os.system (no shell parsing) and lets us run with cwd=directory instead
+        # of chdir'ing the whole process -- removing the old cwd-leak bug.
+        args = [ self.command ]
+        
+        # charge and multiplicity
+        charge       = target.electronicState.charge
         multiplicity = target.electronicState.multiplicity
         unpaired = self.multiplicity_to_unpaired(multiplicity)
+        args += [ "-c", str ( charge ), "-u", str ( unpaired ) ]
+        
+        
+        #.CPUs
+        args += [ "-P", str ( self.parallel ) ]
 
-        cmd = [
-            self.command,
-            "-c", str(charge),
-            "-u", str(unpaired),
-            "-P", str(self.parallel),
-        ]
 
-        # GFN parametrization.
+        #.GFN specify parametrisation of GFN-xTB (default = 2)
         if self.gfn == 3:
-            cmd.append("--gxtb")
+            args += [ "--gxtb" ]
         else:
-            cmd.extend(["--gfn", str(self.gfn)])
+            args += [ "--gfn", str ( self.gfn ) ]
 
-        # Electronic temperature / Fermi smearing.
-        cmd.extend(["--etemp", str(self.fermi_temp)])
+        #.Fermi-smearing
+        args += [ "--etemp", str ( self.fermi_temp ) ]
 
-        # SCC convergence / iterations.
-        cmd.extend(["--acc", str(self.acc)])
-        cmd.extend(["--iterations", str(self.iterations)])
+        #.acc accuracy for SCC calculation, lower is better (default = 1.0)
+        args += [ "--acc", str ( self.acc ) ]
 
-        # Additional xTB keywords.
-        if self.keywords:
-            cmd.extend(self.keywords.split())
+        #.iterations
+        args += [ "--iterations", str ( self.iterations ) ]
 
-        # Request gradients.
-        cmd.append("--grad")
+        #aditional keys? (a plain string; split into separate arguments)
+        if  self.keywords:
+            args += self.keywords.split ( )
 
-        # xTB input file.
-        cmd.extend(["--input", state.paths["Input"]])
+        #.gradients
+        args += [ "--grad" ]
 
-        # Coordinate file.
-        cmd.append(state.paths["Coord"])
+        # adding inputfile and coordinates
+        args += [ "--input", state.paths["Input"], state.paths["Coord"] ]
 
-        # Execute xTB.
-        with open(state.paths["Output"], "w") as output:
-            result = subprocess.run(
-                cmd,
-                cwd=directory,
-                stdout=output,
-                stderr=subprocess.STDOUT,
-                check=False
-            )
-
-        if result.returncode != 0:
+        # Run xtb inside the scratch folder via cwd (no os.chdir of the parent
+        # process), sending stdout -- what used to be the shell '> XTBJob.log'
+        # redirect -- to the output log, with stderr merged in.
+        try:
+            with open ( state.paths["Output"], "w" ) as outFile:
+                subprocess.run ( args, cwd = directory,
+                                 stdout = outFile, stderr = subprocess.STDOUT )
+        except Exception:
+            # xtb failed to launch/crashed; Energy() detects the missing
+            # engrad/output and calls SaveErrorFiles.
             return False
-
+        #' > /dev/null 2>&1'
         try:
             #os.rename(os.path.join(directory,'pcgrad') , os.path.join(directory,'XTBJob.pcgrad'))
             try:
@@ -362,40 +297,9 @@ class QCModelXTB ( QCModel ):
                 for line in range(size):
                     outfile.write('0.00000 0.00000 0.00000\n')
                 outfile.close()
-                
         except:
             pass
         return True
-
-
-        ## Process point-charge gradients.
-        #pcgrad = os.path.join(directory, "pcgrad")
-        #output_pcgrad = os.path.join(directory, "XTBJob.pcgrad")
-        #
-        #if os.path.exists(pcgrad):
-        #    with open(pcgrad, "r") as infile:
-        #        lines = infile.readlines()
-        #
-        #    with open(output_pcgrad, "w") as outfile:
-        #        outfile.write(str(len(lines)) + "\n")
-        #        outfile.writelines(lines)
-        #
-        #else:
-        #    # No pcgrad produced by xTB.
-        #    pcfile = os.path.join(directory, "XTBJob.pc")
-        #
-        #    if not os.path.exists(pcfile):
-        #        return False
-        #
-        #    with open(pcfile, "r") as f:
-        #        size = int(f.readline())
-        #
-        #    with open(output_pcgrad, "w") as outfile:
-        #        outfile.write(str(size) + "\n")
-        #        for _ in range(size):
-        #            outfile.write("0.00000 0.00000 0.00000\n")
-        #
-        #return True
     
     def Execute_old ( self, state, target ):
         """Execute the xtb job."""
@@ -407,7 +311,7 @@ class QCModelXTB ( QCModel ):
         directory = os.path.dirname(state.paths["Coord"])
         os.chdir(directory)
         outFile = state.paths["Output"]
-        
+        """
         # starting xtb exec
         cmd = self.command
         
@@ -426,10 +330,7 @@ class QCModelXTB ( QCModel ):
         
         
         #.GFN specify parametrisation of GFN-xTB (default = 2)
-        if self.gfn == 3:
-            cpus = ' --gxtb '.format(self.gfn)
-        else:
-            cpus = ' --gfn {} '.format(self.gfn)
+        cpus = ' --gfn {} '.format(self.gfn)
         cmd += cpus
         
         #.Fermi-smearing
@@ -491,6 +392,75 @@ class QCModelXTB ( QCModel ):
         #' > /dev/null 2>&1'
         try:
             #os.rename(os.path.join(directory,'pcgrad') , os.path.join(directory,'XTBJob.pcgrad'))
+            infile  = open(os.path.join(directory,'pcgrad'), 'r')
+            outfile = open(os.path.join(directory,'XTBJob.pcgrad'), 'w')
+        
+            lines = infile.readlines()
+            outfile.write(str(len(lines))+'\n')
+            for line in lines:
+                outfile.write(line)
+            outfile.close()
+            infile.close()
+        except:
+            pass
+        return True
+        """
+        # Build the command as an ARGUMENT LIST (not a shell string). Safer than
+        # os.system (no shell parsing) and lets us run with cwd=directory instead
+        # of chdir'ing the whole process -- removing the old cwd-leak bug.
+        args = [ self.command ]
+        
+        
+        # charge and multiplicity
+        charge       = target.electronicState.charge
+        multiplicity = target.electronicState.multiplicity
+        unpaired = self.multiplicity_to_unpaired(multiplicity)
+        args += [ "-c", str ( charge ), "-u", str ( unpaired ) ]
+        
+        
+        #.CPUs
+        args += [ "-P", str ( self.parallel ) ]
+
+
+        #.GFN specify parametrisation of GFN-xTB (default = 2)
+        if self.gfn == 3:
+            args += [ "--gxtb" ]
+        else:
+            args += [ "--gfn", str ( self.gfn ) ]
+
+        #.Fermi-smearing
+        args += [ "--etemp", str ( self.fermi_temp ) ]
+
+        #.acc accuracy for SCC calculation, lower is better (default = 1.0)
+        args += [ "--acc", str ( self.acc ) ]
+
+        #.iterations
+        args += [ "--iterations", str ( self.iterations ) ]
+
+        #aditional keys? (a plain string; split into separate arguments)
+        if  self.keywords:
+            args += self.keywords.split ( )
+
+        #.gradients
+        args += [ "--grad" ]
+
+        # adding inputfile and coordinates
+        args += [ "--input", state.paths["Input"], state.paths["Coord"] ]
+
+        # Run xtb inside the scratch folder via cwd (no os.chdir of the parent
+        # process), sending stdout -- what used to be the shell '> XTBJob.log'
+        # redirect -- to the output log, with stderr merged in.
+        try:
+            with open ( state.paths["Output"], "w" ) as outFile:
+                subprocess.run ( args, cwd = directory,
+                                 stdout = outFile, stderr = subprocess.STDOUT )
+        except Exception:
+            # xtb failed to launch/crashed; Energy() detects the missing
+            # engrad/output and calls SaveErrorFiles.
+            return False
+        #' > /dev/null 2>&1'
+        try:
+            #os.rename(os.path.join(directory,'pcgrad') , os.path.join(directory,'XTBJob.pcgrad'))
             try:
                 infile  = open(os.path.join(directory,'pcgrad'), 'r')
                 outfile = open(os.path.join(directory,'XTBJob.pcgrad'), 'w')
@@ -513,11 +483,10 @@ class QCModelXTB ( QCModel ):
                 for line in range(size):
                     outfile.write('0.00000 0.00000 0.00000\n')
                 outfile.close()
-                
         except:
             pass
         return True
-                
+
     def OrbitalEnergies ( self, target ):
         """Orbital energies and HOMO and LUMO indices."""
         return ( target.scratch.XTBOutputData.get ( "Orbital Energies", None ) ,
@@ -541,6 +510,61 @@ class QCModelXTB ( QCModel ):
         except:
             return False
 
+    def ReadOutputFile_old (self, target, XTBOutputData):
+        """ Function doc """
+        state  = getattr ( target, self.__class__._stateName )
+        #print(state.paths["Output"])
+        atFile = open ( state.paths["Output"], "r" )
+        scratch         = { "Is Successful" : False }
+        try:
+            n = len ( state.atomicNumbers )
+            for line in atFile:
+                #print(line)
+                if line == "Chelpg Charges":
+                    data = Array.WithExtent ( n )
+                    line = next ( outFile )
+                    for i in range ( n ):
+                        words   = next ( outFile ).split ( ":", 1 )
+                        data[i] = float ( words[-1] )
+                    scratch["CHELPG Charges"] = data
+                
+                elif 'Mulliken/CM5' in line.split():
+                    #print(line)
+                    data1 = Array.WithExtent ( n )
+                    data2 = Array.WithExtent ( n )
+                    #line = next ( atFile )
+                    for i in range ( n ):
+                        #.something like:
+                        #['1N', '-0.53592', '-1.03886', '1.367', '4.169', '0.000']
+                        words   = next ( atFile ).split ()
+                        #print(words)
+                        data1[i] = float ( words[1] )
+                        data2[i] = float ( words[2] )
+                    scratch["Mulliken Charges"] = data1
+                    scratch["CM5 Charges"] = data2
+                    #print (data1)
+                    #print (data2)
+                # . Convergence OK if xTB being used (added by Fernando Bachega).
+                elif  "convergence criteria satisfied after" in line:
+                    words                   = line.split ( )
+                    scratch["Cycles"]       = int ( words[5] )
+                    scratch["Is Converged"] = True
+    
+                elif "TOTAL ENERGY" in line:
+                    #print(line.split ( ))
+                    words                   = line.split ( )
+                    scratch["Energy"]       = float( words[3] )
+                
+                elif "HOMO-LUMO GAP" in line:
+                    words                   = line.split ( )
+                    scratch["HOMO-LUMO"]    = float( words[3] )
+                    
+            XTBOutputData.update(scratch)  
+            atFile.close ( )
+            return True    
+        except:
+            return False
+
     def ReadOutputFile ( self, target, XTBOutputData ):
         """Parse the xTB text output into XTBOutputData.
 
@@ -552,8 +576,6 @@ class QCModelXTB ( QCModel ):
         simply skips (leaving its key unset) if its section is absent or its
         format is unexpected, so one malformed section never aborts the rest.
         """
-        
-        #print('target',target)
         state = getattr ( target, self.__class__._stateName )
         try:
             with open ( state.paths["Output"], "r" ) as atFile:
@@ -580,6 +602,7 @@ class QCModelXTB ( QCModel ):
             self._xtb_extract_wiberg_bonds      ,   # "Wiberg Bonds"      (list of (i,j,order))
             self._xtb_extract_dipole            ,   # "Dipole"            (x,y,z,tot Debye)
             self._xtb_extract_metadata          ,   # "XTB Version", "GFN", "Wall Time"
+            self._xtb_extract_termination       ,   # "Normal Termination" (bool) + warning
         ]
         # --------------------------------------------------------------------
 
@@ -591,6 +614,19 @@ class QCModelXTB ( QCModel ):
                 pass
 
         XTBOutputData.update ( data )
+
+        # Surface a termination warning to the log so the user notices a run
+        # that did not finish normally (the value is set by
+        # _xtb_extract_termination). Also mirror it to the pDynamo logFile if
+        # available.
+        warning = data.get ( "Warning" )
+        if warning:
+            print ( warning )
+            try:
+                logFile.Paragraph ( warning )
+            except Exception:
+                pass
+
         return True
 
     # -- individual, independent extractors ---------------------------------
@@ -611,7 +647,6 @@ class QCModelXTB ( QCModel ):
         i = self._xtb_find ( lines, "TOTAL ENERGY" )
         if i >= 0:
             data["Energy"] = float ( lines[i].split ( )[3] )
-        #print("Energy", data["Energy"])
 
     def _xtb_extract_homo_lumo_gap ( self, lines, n, data ):
         i = self._xtb_find ( lines, "HOMO-LUMO GAP" )
@@ -852,7 +887,49 @@ class QCModelXTB ( QCModel ):
         i = self._xtb_find ( lines, "wall-time" )
         if i >= 0:
             data["Wall Time"] = lines[i].split ( ":", 1 )[-1].strip ( )
-    
+
+    def _xtb_extract_termination ( self, lines, n, data ):
+        """Check whether xtb terminated normally.
+
+        Sets data["Normal Termination"] to True/False and, when it looks like an
+        abnormal run, sets data["Warning"] to a message the caller can surface.
+
+        Robustness note: the exact wording varies by xtb version and run mode.
+        A run is treated as FAILED only when a positive error signal is present
+        ('abnormal termination of xtb', '[ERROR]', 'ERROR STOP'). It is treated
+        as OK when a success signal is present ('normal termination of xtb') OR
+        when the run clearly reached the end ('finished run on', which some
+        versions print instead of 'normal termination'). This avoids a false
+        'abnormal termination' warning on logs (like GFN2 single points) that
+        finish cleanly yet never print the literal 'normal termination' line.
+        """
+        text = "".join ( lines )
+
+        # positive evidence of failure
+        failed = ( "abnormal termination of xtb" in text ) \
+                 or ( "[ERROR]" in text ) \
+                 or ( "ERROR STOP" in text )
+
+        # positive evidence of success
+        succeeded = ( "normal termination of xtb" in text ) \
+                    or ( "finished run on" in text )
+
+        if failed:
+            data["Normal Termination"] = False
+            data["Warning"] = "warning: xTB abnormal termination"
+        elif succeeded:
+            data["Normal Termination"] = True
+        else:
+            # no clear signal either way -- flag conservatively so the user can
+            # check, but say it is unconfirmed rather than definitely abnormal
+            data["Normal Termination"] = False
+            data["Warning"] = "warning: xTB termination could not be confirmed"
+
+
+
+
+
+  
     def SummaryItems ( self ):
         """Summary items."""
         items = super ( QCModelXTB, self ).SummaryItems ( )
@@ -891,95 +968,37 @@ class QCModelXTB ( QCModel ):
             inFile.write ( '    input={}\n'.format(state.paths["PC"]))
             inFile.write ( '$end\n')
         
-    @staticmethod
-    def _is_valid_executable ( command ):
-        """True if 'command' is a non-empty path to an existing executable file."""
-        return ( command is not None ) and os.path.isfile ( command ) \
-               and os.access ( command, os.X_OK )
+        
+        #inFile = open ( state.paths["Input"], "w" )
+        
+        #inFile.write ( "#\n" )
+        #inFile.write ( "# XTB Job.\n" )
+        #inFile.write ( "#\n" )
+        
+        #if doGradients: mode = "ENGRAD"
+        #else          : mode = "ENERGY"
+        #inFile.write ( "! " + mode + " BOHRS " + " ".join ( self.keywords ) + "\n" )
+        #inFile.write ( "* xyz {:d} {:d}\n".format ( target.electronicState.charge, target.electronicState.multiplicity ) )
+        #for ( i, n ) in enumerate ( state.atomicNumbers ):
+        #    inFile.write ( "{:<12s}{:20.10f}{:20.10f}{:20.10f}\n".format ( PeriodicTable.Symbol ( n ) ,
+        #                                                                   coordinates3[i,0]          ,
+        #                                                                   coordinates3[i,1]          ,
+        #                                                                   coordinates3[i,2]        ) )
+        #inFile.write ( "*\n" )
+        #inFile.close ( )
 
     @property
     def command ( self ):
-        """Get the command to execute the program.
-
-        Resolution order (makes an exported system portable across machines):
-          1. the path stored on this object (self.__dict__["_command"]), if it
-             still points to a valid executable on THIS machine -- this is the
-             path configured where the system was prepared;
-          2. otherwise, the PDYNAMO3_XTBCOMMAND environment variable of the
-             CURRENT machine -- so a system prepared elsewhere (with a different
-             xTB path) still runs here;
-          3. if neither is valid, raise NotInstalledError.
-
-        The old behaviour trusted a cached '_command' blindly: a system prepared
-        on machine A carried A's absolute xTB path, and on machine B it kept
-        trying that non-existent path instead of falling back to B's env var.
-        Validating the path before use fixes that.
-        """
-        # 1) path stored on the object (from where the system was prepared)
-        stored = self.__dict__.get ( "_command", None )
-        if self._is_valid_executable ( stored ):
-            return stored
-
-        # 2) fall back to this machine's environment variable
-        env_command = os.getenv ( _XTBCommand )
-        if self._is_valid_executable ( env_command ):
-            # remember the valid path so we don't re-check every call
-            self.__dict__["_command"] = env_command
-            return env_command
-
-        # 3) neither worked
-        raise NotInstalledError (
-            "XTB executable not found. Checked the path stored with the system "
-            "({}) and the {} environment variable ({}). Set {} to the xtb "
-            "executable on this machine.".format (
-                stored, _XTBCommand, env_command, _XTBCommand ) )
-
-    def SetCommand ( self, path, validate = True ):
-        """Redefine the xTB executable path used by this model.
-
-        Stores 'path' as the executable to run (self.__dict__["_command"]),
-        taking precedence over the PDYNAMO3_XTBCOMMAND environment variable on
-        the next run.
-
-        By default the path is validated (must be an existing executable file);
-        an invalid path raises NotInstalledError so the caller finds out
-        immediately instead of at calculation time. Pass validate=False to store
-        the path unconditionally (e.g. when configuring a machine where the file
-        is not present yet). Pass path=None to clear the stored path and fall
-        back to the environment variable again.
-        """
-        if path is None:
-            self.__dict__.pop ( "_command", None )
-            return
-        if validate and not self._is_valid_executable ( path ):
-            raise NotInstalledError (
-                "Not a valid xTB executable: {}".format ( path ) )
-        self.__dict__["_command"] = path
-
-    def SetScratch ( self, path, validate = True ):
-        """Redefine the scratch base directory used by this model.
-
-        Stores 'path' as the scratch base (self.scratch). It is resolved on the
-        actual machine at run time by _resolve_scratch (which also creates a
-        unique random subfolder under it), so a value that does not exist yet is
-        fine -- it will be created, or fall back to PDYNAMO3_SCRATCH / the system
-        temp directory if it turns out not to be usable here.
-
-        By default the path is lightly validated: it must be creatable, i.e. it
-        already exists or its parent directory exists. Pass validate=False to
-        store it unconditionally. Pass path=None to reset to the default scratch.
-        """
-        if path is None:
-            self.scratch = _XTBScratch
-            return
-        if validate:
-            usable = os.path.isdir ( path ) or \
-                     os.path.isdir ( os.path.dirname ( os.path.normpath ( path ) ) )
-            if not usable:
-                raise QCModelError (
-                    "Scratch directory is not creatable (neither it nor its "
-                    "parent exists): {}".format ( path ) )
-        self.scratch = path
+        """Get the command to execute the program."""
+        command = self.__dict__.get ( "_command", None )
+        if command is None:
+            command = os.getenv ( _XTBCommand )
+            # . Command must point to an executable file.
+            if  ( command is None ) or not ( os.path.isfile ( command ) and os.access ( command, os.X_OK ) ):
+                raise NotInstalledError ( "XTB executable not found." )
+            else:
+                self.__dict__["_command"] = command
+        return command
 
 #===================================================================================================================================
 # . Testing.
