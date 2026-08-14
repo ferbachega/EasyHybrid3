@@ -201,7 +201,8 @@ class SetupXTBWindow:
             _id = self.main_session.p_session.active_id
             system = self.main_session.p_session.psystem[_id]
 
-            scratch = os.path.join(str(self.parameters['scratch']), system.e_tag)
+            #scratch = os.path.join(str(self.parameters['scratch']), system.e_tag)
+            scratch = os.path.join( PDYNAMO3_SCRATCH, system.e_tag)
             #self.entry_scratch       .set_text(str(self.parameters['scratch']))
             self.entry_scratch       .set_text(scratch)
 

@@ -41,6 +41,10 @@ import numpy as np
 
 from gui.widgets.custom_widgets import SystemComboBox
 from gui.widgets.custom_widgets import CoordinatesComboBox
+from vismol.libgl.vismol_font import list_available_fonts
+from vismol.libgl.vismol_font import resolve_font_path
+from vismol.libgl.vismol_font import DEFAULT_FONT_FILE, DEFAULT_FONT_SIZE
+from vismol.libgl.representations import compute_atom_label_text
 from pprint import pprint
 VISMOL_HOME = os.environ.get('VISMOL_HOME')
 HOME        = os.environ.get('HOME')
@@ -504,6 +508,95 @@ class EasyHybridPreferencesWindow():
         field_of_view            = self.vm_session.vm_config.gl_parameters["field_of_view"]
         self.entry_field_of_view.set_text(str(field_of_view))
 
+    def _populate_font_combo(self, combo, spin, current_font, current_size):
+        """ Fills a font-family GtkComboBoxText with the bundled .ttf
+            fonts (see vismol/libgl/fonts/) and selects `current_font`,
+            and sets `spin` (a GtkSpinButton) to `current_size`. Shared
+            helper used for both the Picking/Distance labels font and the
+            Atom Labels (index/charge/residue.../glArea) font, which are
+            configured independently of each other.
+        """
+        if combo is not None:
+            combo.remove_all()
+            available_fonts = list_available_fonts()
+            if current_font not in available_fonts:
+                available_fonts = [current_font] + available_fonts
+            active_index = 0
+            for i, font_name in enumerate(available_fonts):
+                # Nice display name: drop the .ttf extension
+                display_name = os.path.splitext(font_name)[0]
+                combo.append(font_name, display_name)
+                if font_name == current_font:
+                    active_index = i
+            combo.set_active(active_index)
+
+        if spin is not None:
+            spin.set_value(current_size)
+
+    def _iter_all_vm_objects_atoms(self):
+        """ Yields every (vm_object, atom) pair currently loaded, across
+            every molecule in the session. Used by the "Show for All
+            Atoms" / "Hide All" atom-label buttons.
+        """
+        for vm_object in self.vm_session.vm_objects_dic.values():
+            for atom in vm_object.atoms.values():
+                yield vm_object, atom
+
+    def _current_label_content(self):
+        """ Reads the 'Label Content' combo (falls back to gl_parameters,
+            then to 'name' if the widget isn't available for some reason).
+        """
+        combo = self.builder.get_object('combo_label_content')
+        if combo is not None:
+            content = combo.get_active_id()
+            if content:
+                return content
+        return self.vm_session.vm_config.gl_parameters.get('label_content', 'name')
+
+    def on_btn_show_all_atom_labels (self, widget):
+        """ Turns the "Labels" representation (atom index/charge/residue
+            name/.../chain, per the Label Content selector) ON immediately
+            for every atom of every loaded molecule, using the currently
+            selected content option. This talks directly to the
+            representation's *own* font object
+            (vm_object.representations['labels'].vm_font) -- the one
+            actually used for drawing -- not vm_object.vm_font, which the
+            "labels" representation does not read.
+        """
+        content = self._current_label_content()
+        self.vm_session.vm_config.gl_parameters['label_content'] = content
+
+        for vm_object in self.vm_session.vm_objects_dic.values():
+            if len(vm_object.atoms) == 0:
+                continue
+            if vm_object.representations.get('labels') is None:
+                vm_object.create_representation(rep_type='labels')
+            rep = vm_object.representations['labels']
+
+            indexes = []
+            for atom in vm_object.atoms.values():
+                atom.label_text = compute_atom_label_text(atom, content)
+                atom.labels = True
+                indexes.append(atom.atom_id)
+
+            rep.define_new_indexes_to_vbo(indexes)
+            rep.active = True
+
+        self.vm_session.vm_glcore.queue_draw()
+
+    def on_btn_hide_all_atom_labels (self, widget):
+        """ Turns the "Labels" representation OFF for every atom of every
+            loaded molecule.
+        """
+        for vm_object in self.vm_session.vm_objects_dic.values():
+            for atom in vm_object.atoms.values():
+                atom.labels = False
+            rep = vm_object.representations.get('labels')
+            if rep is not None:
+                rep.active = False
+
+        self.vm_session.vm_glcore.queue_draw()
+
     def set_selection_parameters (self):
         """ Function doc """
         #-------------------------------------------------------------------------------------
@@ -546,6 +639,61 @@ class EasyHybridPreferencesWindow():
         rgba = Gdk.RGBA(color[0], color[1], color[2])
         self.color_btn_pk_dist_lines     = self.builder.get_object('color_btn_pk_dist_lines')
         self.color_btn_pk_dist_lines.set_rgba(rgba)
+        #-------------------------------------------------------------------------------------
+
+        #-------------------------------------------------------------------------------------
+        #             Picking / Distance Labels Font: family + size
+        #-------------------------------------------------------------------------------------
+        gp = self.vm_session.vm_config.gl_parameters
+
+        self.combo_pk_dist_font_family = self.builder.get_object('combo_pk_dist_font_family')
+        self.spin_pk_dist_font_size    = self.builder.get_object('spin_pk_dist_font_size')
+        self._populate_font_combo(self.combo_pk_dist_font_family,
+                                   self.spin_pk_dist_font_size,
+                                   gp.get('label_font_file', DEFAULT_FONT_FILE),
+                                   gp.get('label_font_size', DEFAULT_FONT_SIZE))
+        #-------------------------------------------------------------------------------------
+
+        #-------------------------------------------------------------------------------------
+        #    Atom Labels (glArea): content (index/charge/resname/...) + family + size
+        #-------------------------------------------------------------------------------------
+        self.combo_atom_label_font_family = self.builder.get_object('combo_atom_label_font_family')
+        self.spin_atom_label_font_size    = self.builder.get_object('spin_atom_label_font_size')
+        self._populate_font_combo(self.combo_atom_label_font_family,
+                                   self.spin_atom_label_font_size,
+                                   gp.get('atom_label_font_file', DEFAULT_FONT_FILE),
+                                   gp.get('atom_label_font_size', DEFAULT_FONT_SIZE))
+
+        self.combo_label_content = self.builder.get_object('combo_label_content')
+        if self.combo_label_content is not None:
+            self.combo_label_content.remove_all()
+            # (internal value, display label) -- internal value is what
+            # gets stored in gl_parameters['label_content'] and passed to
+            # representations.compute_atom_label_text().
+            content_options = [
+                ('name',          'Atom Name'),
+                ('symbol',        'Atom Symbol'),
+                ('index',         'Atom Index'),
+                ('mm_charge',     'MM Charge'),
+                ('residue_name',  'Residue Name'),
+                ('residue_index', 'Residue Index'),
+                ('chain',         'Chain'),
+            ]
+            current_content = gp.get('label_content', 'name')
+            active_index = 0
+            for i, (value, display) in enumerate(content_options):
+                self.combo_label_content.append(value, display)
+                if value == current_content:
+                    active_index = i
+            self.combo_label_content.set_active(active_index)
+
+        self.btn_show_all_atom_labels = self.builder.get_object('btn_show_all_atom_labels')
+        if self.btn_show_all_atom_labels is not None:
+            self.btn_show_all_atom_labels.connect('clicked', self.on_btn_show_all_atom_labels)
+
+        self.btn_hide_all_atom_labels = self.builder.get_object('btn_hide_all_atom_labels')
+        if self.btn_hide_all_atom_labels is not None:
+            self.btn_hide_all_atom_labels.connect('clicked', self.on_btn_hide_all_atom_labels)
         #-------------------------------------------------------------------------------------
 
 
@@ -881,6 +1029,69 @@ class EasyHybridPreferencesWindow():
         #self.vm_session.vm_glcore.vm_font_dist.vao = None
         
         
+        #-----------------------------------------------------------------------
+
+        #-----------------------------------------------------------------------
+        #             Picking / Distance Labels Font: family + size
+        #-----------------------------------------------------------------------
+        # Applies the chosen font family/size to the picking labels
+        # (#1 #2 #3 #4) and distance labels drawn in the glArea, both of
+        # which live directly on vm_glcore. apply_settings() marks each
+        # font's VAO for regeneration (vao=None) so the new font/size take
+        # effect on the next draw, without needing to reload the molecules.
+        combo_font = self.builder.get_object('combo_pk_dist_font_family')
+        spin_size  = self.builder.get_object('spin_pk_dist_font_size')
+        if combo_font is not None and spin_size is not None:
+            font_file = combo_font.get_active_id() or DEFAULT_FONT_FILE
+            font_size = spin_size.get_value()
+
+            self.vm_session.vm_config.gl_parameters['label_font_file'] = font_file
+            self.vm_session.vm_config.gl_parameters['label_font_size'] = font_size
+
+            vm_glcore = self.vm_session.vm_glcore
+            for font_obj in (vm_glcore.vm_font, vm_glcore.vm_font_static, vm_glcore.vm_font_dist):
+                font_obj.apply_settings(font_file=font_file, size=font_size)
+        #-----------------------------------------------------------------------
+
+        #-----------------------------------------------------------------------
+        #    Atom Labels (glArea): content (index/charge/resname/...) + family + size
+        #-----------------------------------------------------------------------
+        # This is a SEPARATE font from the one above: the "labels"
+        # representation (atom index/MM charge/residue name/residue
+        # index/chain -- also settable per-selection via the glArea
+        # right-click "Show" menu) owns its OWN VismolFont instance, one
+        # per vm_object, at vm_object.representations['labels'].vm_font --
+        # NOT vm_object.vm_font, which that representation never reads.
+        combo_font = self.builder.get_object('combo_atom_label_font_family')
+        spin_size  = self.builder.get_object('spin_atom_label_font_size')
+        combo_content = self.builder.get_object('combo_label_content')
+        if combo_font is not None and spin_size is not None:
+            font_file = combo_font.get_active_id() or DEFAULT_FONT_FILE
+            font_size = spin_size.get_value()
+            content = (combo_content.get_active_id() if combo_content is not None else None) or 'name'
+
+            self.vm_session.vm_config.gl_parameters['atom_label_font_file'] = font_file
+            self.vm_session.vm_config.gl_parameters['atom_label_font_size'] = font_size
+            self.vm_session.vm_config.gl_parameters['label_content']       = content
+
+            for vm_object in self.vm_session.vm_objects_dic.values():
+                rep = vm_object.representations.get('labels')
+                if rep is None:
+                    # Representation not created yet for this object (no
+                    # atom has ever been labeled): nothing to refresh.
+                    continue
+                rep.vm_font.apply_settings(font_file=font_file, size=font_size)
+                # Re-derive the text for every atom currently labeled
+                # (atom.labels == True) so a Label Content change (e.g.
+                # "Atom Name" -> "MM Charge") is reflected immediately on
+                # Apply, without needing to re-pick the selection.
+                relabeled_indexes = []
+                for atom in vm_object.atoms.values():
+                    if getattr(atom, 'labels', False):
+                        atom.label_text = compute_atom_label_text(atom, content)
+                        relabeled_indexes.append(atom.atom_id)
+                if relabeled_indexes:
+                    rep.define_new_indexes_to_vbo(relabeled_indexes)
         #-----------------------------------------------------------------------
         
 
