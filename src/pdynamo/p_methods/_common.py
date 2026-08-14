@@ -156,11 +156,11 @@ def backup_xtb_files (system, output_folder = None, output_name = None, files = 
     
     scratch = os.path.dirname(system.qcState.paths["Coord"])
     
-    '''
-    scratch = getattr ( system.qcModel, 'activeScratch', None ) or system.qcModel.scratch
+    #'''
+    #scratch = getattr ( system.qcModel, 'activeScratch', None ) or system.qcModel.scratch
     
-    print('scratch', scratch)
-    print('paths', system.qcState.paths)
+    #print('scratch', scratch)
+    #print('paths', system.qcState.paths)
     _time = time.asctime()
     #'''   
     
