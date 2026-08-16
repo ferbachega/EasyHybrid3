@@ -242,6 +242,9 @@ system.Summary()
         if self.parameters['simulation_type'] == 'Umbrella_Sampling':
             header += '\n\nsimObj =  pMethods.UmbrellaSampling()'
         
+        elif self.parameters['simulation_type'] == 'Advanced_Relaxed_Surface_Scan':
+            header += '\n\nsimObj =  pMethods.AdvancedRelaxedSurfaceScan()'
+        
         elif self.parameters['simulation_type'] == 'Relaxed_Surface_Scan':
             header += '\n\nsimObj =  pMethods.RelaxedSurfaceScan()'
         

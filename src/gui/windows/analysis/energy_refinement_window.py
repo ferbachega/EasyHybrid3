@@ -119,12 +119,14 @@ class EnergyRefinementWindow():
             
             #----------------------------------------------------------------------------------------------
             #                                    Reaction Coordinate Boxes  
-            ##'''--------------------------------------------------------------------------------------------'''
+            #'''--------------------------------------------------------------------------------------------'''
             self.RC_box1 = ReactionCoordinateBox(self.main)
             self.builder.get_object('rc1_aligment').add(self.RC_box1)
             self.RC_box2 = ReactionCoordinateBox(self.main)
             self.builder.get_object('rc2_aligment').add(self.RC_box2)
             #'''--------------------------------------------------------------------------------------------'''
+    
+            
             
             
             

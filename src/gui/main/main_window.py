@@ -347,7 +347,7 @@ class MainWindow:
             self.paned_V.set_position(self.paned_V_position)
             self.paned_V.connect("notify::position", self.on_paned_v_position_changed)
 
-            self.bottom_notebook.status_teeview_add_new_item(message = 'Welcome to EasyHybrid 3.0, have a happy simulation day!')
+            self.bottom_notebook.status_teeview_add_new_item(message = 'Welcome to EasyHybrid, have a happy simulation day!')
 
         ''' - - - - - - - - - - - - Terminal e Trajectory Play - - - - - - - - - - - - - - - - '''
         self.trajectory_player_button = self.builder.get_object('toolbutton_trajectory_tool1')
