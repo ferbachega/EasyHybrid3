@@ -508,6 +508,20 @@ class EasyHybridPreferencesWindow():
         field_of_view            = self.vm_session.vm_config.gl_parameters["field_of_view"]
         self.entry_field_of_view.set_text(str(field_of_view))
 
+        #-------------------------------------------------------------------------------------
+        #    Labels: single "scale with zoom" option for ALL glArea labels
+        #-------------------------------------------------------------------------------------
+        # Replaces what used to be three separate checkboxes (picking,
+        # distance and atom labels each had their own). zoom_sensitivity
+        # is a 0.0..1.0 float per VismolFont (see vismol_font.py); this
+        # single checkbox only offers the two extremes and is applied to
+        # every label font at once in __apply_viewer_selections_parameters().
+        self.chk_labels_scale_with_zoom = self.builder.get_object('chk_labels_scale_with_zoom')
+        if self.chk_labels_scale_with_zoom is not None:
+            zoom_sensitivity = self.vm_session.vm_config.gl_parameters.get('labels_zoom_sensitivity', 1.0)
+            self.chk_labels_scale_with_zoom.set_active(zoom_sensitivity >= 0.5)
+        #-------------------------------------------------------------------------------------
+
     def _populate_font_combo(self, combo, spin, current_font, current_size):
         """ Fills a font-family GtkComboBoxText with the bundled .ttf
             fonts (see vismol/libgl/fonts/) and selects `current_font`,
@@ -642,8 +656,15 @@ class EasyHybridPreferencesWindow():
         #-------------------------------------------------------------------------------------
 
         #-------------------------------------------------------------------------------------
-        #             Picking / Distance Labels Font: family + size
+        #    Picking / Distance Labels: SHARED font family, INDEPENDENT sizes
         #-------------------------------------------------------------------------------------
+        # Picking labels (#1 #2 #3 #4) and distance labels use the same
+        # font family (one combo box, 'combo_pk_dist_font_family') but
+        # keep their own, independently adjustable font sizes -- picking
+        # via 'label_font_size', distance via 'pk_dist_label_font_size'.
+        # "Scale with zoom" used to be a per-label checkbox here; it's
+        # now a single option for ALL labels in the glArea, on the
+        # Viewer > General tab (see set_general_parameters()).
         gp = self.vm_session.vm_config.gl_parameters
 
         self.combo_pk_dist_font_family = self.builder.get_object('combo_pk_dist_font_family')
@@ -652,6 +673,12 @@ class EasyHybridPreferencesWindow():
                                    self.spin_pk_dist_font_size,
                                    gp.get('label_font_file', DEFAULT_FONT_FILE),
                                    gp.get('label_font_size', DEFAULT_FONT_SIZE))
+
+        self.spin_dist_label_font_size = self.builder.get_object('spin_dist_label_font_size')
+        self._populate_font_combo(None,
+                                   self.spin_dist_label_font_size,
+                                   None,
+                                   gp.get('pk_dist_label_font_size', gp.get('label_font_size', DEFAULT_FONT_SIZE)))
         #-------------------------------------------------------------------------------------
 
         #-------------------------------------------------------------------------------------
@@ -1032,25 +1059,45 @@ class EasyHybridPreferencesWindow():
         #-----------------------------------------------------------------------
 
         #-----------------------------------------------------------------------
-        #             Picking / Distance Labels Font: family + size
+        #    Labels: single "scale with zoom" option for ALL glArea labels
         #-----------------------------------------------------------------------
-        # Applies the chosen font family/size to the picking labels
-        # (#1 #2 #3 #4) and distance labels drawn in the glArea, both of
-        # which live directly on vm_glcore. apply_settings() marks each
-        # font's VAO for regeneration (vao=None) so the new font/size take
-        # effect on the next draw, without needing to reload the molecules.
-        combo_font = self.builder.get_object('combo_pk_dist_font_family')
-        spin_size  = self.builder.get_object('spin_pk_dist_font_size')
-        if combo_font is not None and spin_size is not None:
-            font_file = combo_font.get_active_id() or DEFAULT_FONT_FILE
-            font_size = spin_size.get_value()
+        # Read once here (Viewer > General tab) and applied below to every
+        # label font: picking, distance and atom labels. zoom_sensitivity
+        # is just a uniform value read every frame by the shader, so it
+        # can be set directly on each VismolFont with no VAO rebuild.
+        chk_scale_zoom = self.builder.get_object('chk_labels_scale_with_zoom')
+        labels_zoom_sensitivity = 1.0 if (chk_scale_zoom is not None and chk_scale_zoom.get_active()) else 0.0
+        self.vm_session.vm_config.gl_parameters['labels_zoom_sensitivity'] = labels_zoom_sensitivity
+        #-----------------------------------------------------------------------
 
-            self.vm_session.vm_config.gl_parameters['label_font_file'] = font_file
-            self.vm_session.vm_config.gl_parameters['label_font_size'] = font_size
+        #-----------------------------------------------------------------------
+        #    Picking / Distance Labels: SHARED font family, INDEPENDENT sizes
+        #-----------------------------------------------------------------------
+        # Picking labels (#1 #2 #3 #4, on vm_glcore.vm_font/vm_font_static)
+        # and distance labels (vm_glcore.vm_font_dist) share ONE font
+        # family (a single combo box) but keep their own font sizes.
+        # apply_settings() marks each font's VAO for regeneration
+        # (vao=None) so the new font/size take effect on the next draw,
+        # without needing to reload the molecules.
+        combo_font = self.builder.get_object('combo_pk_dist_font_family')
+        spin_pk_size   = self.builder.get_object('spin_pk_dist_font_size')
+        spin_dist_size = self.builder.get_object('spin_dist_label_font_size')
+        if combo_font is not None and spin_pk_size is not None:
+            font_file = combo_font.get_active_id() or DEFAULT_FONT_FILE
+            pk_size   = spin_pk_size.get_value()
+            dist_size = spin_dist_size.get_value() if spin_dist_size is not None else pk_size
+
+            self.vm_session.vm_config.gl_parameters['label_font_file']         = font_file
+            self.vm_session.vm_config.gl_parameters['label_font_size']         = pk_size
+            self.vm_session.vm_config.gl_parameters['pk_dist_label_font_file'] = font_file
+            self.vm_session.vm_config.gl_parameters['pk_dist_label_font_size'] = dist_size
 
             vm_glcore = self.vm_session.vm_glcore
-            for font_obj in (vm_glcore.vm_font, vm_glcore.vm_font_static, vm_glcore.vm_font_dist):
-                font_obj.apply_settings(font_file=font_file, size=font_size)
+            for font_obj in (vm_glcore.vm_font, vm_glcore.vm_font_static):
+                font_obj.apply_settings(font_file=font_file, size=pk_size)
+                font_obj.zoom_sensitivity = labels_zoom_sensitivity
+            vm_glcore.vm_font_dist.apply_settings(font_file=font_file, size=dist_size)
+            vm_glcore.vm_font_dist.zoom_sensitivity = labels_zoom_sensitivity
         #-----------------------------------------------------------------------
 
         #-----------------------------------------------------------------------
@@ -1081,6 +1128,7 @@ class EasyHybridPreferencesWindow():
                     # atom has ever been labeled): nothing to refresh.
                     continue
                 rep.vm_font.apply_settings(font_file=font_file, size=font_size)
+                rep.vm_font.zoom_sensitivity = labels_zoom_sensitivity
                 # Re-derive the text for every atom currently labeled
                 # (atom.labels == True) so a Label Content change (e.g.
                 # "Atom Name" -> "MM Charge") is reflected immediately on
