@@ -1460,7 +1460,7 @@ def _us_velocity_verlet_dynamics (system, trajectories, parameters):
                                             )
 
 
-def _us_langevin_dynamics (system, trajectory, parameters):
+def _us_langevin_dynamics (system, trajectories, parameters):
     
     """ Function doc """
     # . Define a normal deviate generator in a given state.
