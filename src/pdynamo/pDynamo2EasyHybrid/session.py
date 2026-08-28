@@ -37,6 +37,7 @@ import multiprocessing
 import glob, math, os, os.path, sys, shutil
 import pickle
 import threading
+import traceback
 from util.file_parser import read_MOL2  
 from util.file_parser import read_SIMPLE_txt  
 from util.file_parser import read_MOPAC_aux  
@@ -1766,8 +1767,29 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
 
     def define_a_new_QCModel (self, system = None, parameters = None, vismol_object = None):
+        """ Wraps _define_a_new_QCModel_impl in a try/except so that any
+            error raised while building/assigning the QC model (missing
+            executable, invalid parameter, pDynamo core error, etc.) shows
+            an error dialog instead of just a traceback on the terminal
+            with no feedback in the interface. The MMModelError case has
+            its own more specific dialog already, raised from inside the
+            impl (see below); this generic handler is the catch-all for
+            everything else.
+        """
+        try:
+            return self._define_a_new_QCModel_impl(system = system, parameters = parameters, vismol_object = vismol_object)
+        except Exception as error:
+            traceback.print_exc()
+            call_message_dialog(
+                text1 = 'Error defining the QC Model',
+                text2 = '{}: {}'.format(type(error).__name__, error),
+                transient_for = self.main.window,
+            )
+            return False
+
+    def _define_a_new_QCModel_impl (self, system = None, parameters = None, vismol_object = None):
         """ Function doc """
-        
+
         '''Here we have to reload the mmModel original charges.
         This is postulated because multiple associations of QC 
         regions can distort the charge distribution of some residues. 
@@ -1882,8 +1904,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 system.DefineQCModel (qcModel, qcSelection = Selection.FromIterable ( system.e_qc_table) )          
             except MMModelError:
                 dprint('\n\n\n MMModelError. Total active MM charge is neither integral nor zero', MMModelError)
-                call_message_dialog(text1 = 'MMModelError', text2 = 'Total active MM charge is neither integral nor zero', transient_for =  None)
-                return None
+                call_message_dialog(text1 = 'MMModelError', text2 = 'Total active MM charge is neither integral nor zero', transient_for = self.main.window)
+                return False
             if system.mmModel:
                 if parameters['qcengine'] == 'ORCA':
                     system.DefineNBModel (NBModelORCA.WithDefaults ( ))
@@ -1913,11 +1935,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             else:
                 pass
         self.main.refresh_widgets()
-        
+
         if self.main.selection_list_window.visible:
             self.main.selection_list_window.update_window()
-    
-    
+
+        return True
+
+
     def check_charge_fragmentation(self, system = None, vismol_object = None,  correction = True):
         """ Function doc """
         #self.psystem[self.active_id]['system_original_charges']
