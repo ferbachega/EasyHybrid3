@@ -477,6 +477,20 @@ class EasyHybridPreferencesWindow():
         self.checkbox_save_window_size = self.builder.get_object('checkbox_save_window_size')
         save_window_size = self.vm_session.vm_config.gl_parameters.get('save_window_size', True)
         self.checkbox_save_window_size.set_active(bool(save_window_size))
+
+        # V-Sync ("vblank_mode" env var -- see easyhybrid.py's
+        # _maybe_disable_vsync_for_intel_igpu). Only takes effect on the
+        # next restart, since it must be set before the GL context is
+        # created (before GTK is even imported).
+        self.combo_vblank_mode = self.builder.get_object('combo_vblank_mode')
+        if self.combo_vblank_mode is not None:
+            self.combo_vblank_mode.remove_all()
+            self.combo_vblank_mode.append('auto', 'Auto-detect (Intel iGPU only)')
+            self.combo_vblank_mode.append('on',   'Force On')
+            self.combo_vblank_mode.append('off',  'Force Off')
+            vblank_mode = self.vm_session.vm_config.gl_parameters.get('vblank_mode', 'auto')
+            if self.combo_vblank_mode.set_active_id(vblank_mode) is False:
+                self.combo_vblank_mode.set_active_id('auto')
         pass
     
     def set_general_parameters (self):
@@ -1289,6 +1303,33 @@ class EasyHybridPreferencesWindow():
         # on_delete_event).
         self.vm_session.vm_config.gl_parameters['save_window_size'] = c
         dprint(a,b,c)
+
+        #---------------------------------------------------------------
+        #                       V-Sync (vblank_mode)
+        #---------------------------------------------------------------
+        # Only takes effect on the NEXT restart (must be set before the GL
+        # context is created -- see easyhybrid.py's
+        # _maybe_disable_vsync_for_intel_igpu). Warn the user when they
+        # change it so the lack of an immediate effect isn't mistaken for
+        # a bug.
+        combo_vblank_mode = self.builder.get_object('combo_vblank_mode')
+        if combo_vblank_mode is not None:
+            vblank_mode = combo_vblank_mode.get_active_id() or 'auto'
+            previous_vblank_mode = self.vm_session.vm_config.gl_parameters.get('vblank_mode', 'auto')
+            self.vm_session.vm_config.gl_parameters['vblank_mode'] = vblank_mode
+            if vblank_mode != previous_vblank_mode:
+                dialog = Gtk.MessageDialog(
+                                    flags=0,
+                                    message_type=Gtk.MessageType.INFO,
+                                    buttons=Gtk.ButtonsType.OK,
+                                    text="V-Sync setting changed.",
+                                )
+                dialog.format_secondary_text(
+                                    "This only takes effect after restarting EasyHybrid."
+                                        )
+                dialog.run()
+                dialog.destroy()
+        #---------------------------------------------------------------
         
         # Criterio de autosave (timer em minutos + contador de eventos).
         # Aceita virgula OU ponto decimal; cai pro valor atual em caso de

@@ -144,6 +144,18 @@ class VismolConfig                       :
                                       # but the value was never used). See MainWindow.
                                       # __init__ / window_resize / on_delete_event.
                                       'save_window_size'   : True,
+                                      # V-Sync ("vblank_mode" env var, read by the
+                                      # Mesa/GLX driver -- see easyhybrid.py's
+                                      # _maybe_disable_vsync_for_intel_igpu, which
+                                      # must set it BEFORE the GL context is
+                                      # created, i.e. before GTK is even imported).
+                                      # 'auto' keeps the existing behavior (disable
+                                      # V-Sync automatically on Intel iGPUs only,
+                                      # to avoid a rotation/pan/zoom stutter);
+                                      # 'on'/'off' force it either way regardless
+                                      # of GPU vendor. Only takes effect after a
+                                      # restart -- see Preferences > Startup.
+                                      'vblank_mode'         : 'auto',
                                       }
                               
         self.n_proc = 2
