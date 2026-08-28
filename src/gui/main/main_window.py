@@ -238,8 +238,18 @@ class MainWindow:
         # Connect key press/release events for 3D visualization widget
         self.window.connect("key-press-event",   self.vm_session.vm_widget.key_pressed)
         self.window.connect("key-release-event", self.vm_session.vm_widget.key_released)
-        
-                
+
+        # [BUG FIX] ESC used to close the whole app instantly: vm_widget's
+        # own _pressed_Escape (graphics_engine/vismol/gui/vismol_gtkwidget.py)
+        # calls self.quit() -> Gtk.main_quit() directly, with no
+        # confirmation and completely bypassing on_delete_event's "unsaved
+        # changes" check below. Overridden here at the INSTANCE level
+        # (vm_widget is a single object, not the class) instead of editing
+        # the graphics engine itself, so ESC now goes through the exact
+        # same close path as clicking the window's [x] button.
+        self.vm_session.vm_widget._pressed_Escape = lambda: self.on_delete_event(self.window, None)
+
+
         # -------------------- SELECTION BOX --------------------
         self.menu_box = self.builder.get_object('toolbutton_selection_box')
         self.box2 = self.builder.get_object('box2')

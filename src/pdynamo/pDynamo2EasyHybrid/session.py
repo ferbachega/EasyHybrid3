@@ -335,8 +335,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             system.coordinates3 = ImportCoordinates3 ( input_files['coordinates'] )
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format( input_files['coordinates']), system = None)
 
-            self.define_NBModel(_type = 1, system = system)                      
-        
+            if not self.define_NBModel(_type = 1, system = system):
+                raise RuntimeError('Failed to bind the non-bonding model (NBModel) to the imported AMBER system.')
+
         elif system_type == 1:
             parameters          = CHARMMParameterFileReader.PathsToParameters (input_files['charmm_par'])
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format( input_files['charmm_par']), system = None)
@@ -346,9 +347,10 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             
             system.coordinates3 = ImportCoordinates3 ( input_files['coordinates'] )
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format( input_files['coordinates']), system = None)
-            
-            self.define_NBModel(_type = 1, system = system)        
-        
+
+            if not self.define_NBModel(_type = 1, system = system):
+                raise RuntimeError('Failed to bind the non-bonding model (NBModel) to the imported CHARMM system.')
+
         elif system_type == 2:
             mmModel        = MMModelOPLS.WithParameterSet ( input_files['prm_folder'] )       
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading MMModel:  {} '.format( input_files['prm_folder']), system = None)
@@ -357,8 +359,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format(input_files['coordinates']), system = None)
             
             system.DefineMMModel ( mmModel )
-            self.define_NBModel(_type = 1, system = system)          
-        
+            if not self.define_NBModel(_type = 1, system = system):
+                raise RuntimeError('Failed to bind the non-bonding model (NBModel) to the imported OPLS system.')
+
         elif system_type == 5:
             mmModel        = MMModelDYFF.WithParameterSet ( input_files['prm_folder'] )       
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading MMModel:  {} '.format( input_files['prm_folder']), system = None)
@@ -367,8 +370,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format(input_files['coordinates']), system = None)
             #system.BondsFromCoordinates3 ( )
             system.DefineMMModel ( mmModel )
-            
-            self.define_NBModel(_type = 1, system = system)          
+
+            if not self.define_NBModel(_type = 1, system = system):
+                raise RuntimeError('Failed to bind the non-bonding model (NBModel) to the imported DYFF system.')
             if input_files['charges']:
                 dprint('\nGetting atomic charges from mol2 file!\n')
                 self.main.bottom_notebook.status_teeview_add_new_item(message = 'Getting atomic charges from mol2 file!', system = None)
@@ -2168,9 +2172,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 self.psystem[self.active_id].DefineNBModel ( self.nbModel )
                 self.psystem[self.active_id].Summary ( )
             return True
-        
-        except:
-            #print('failed to bind nbModel')
+
+        except Exception:
+            # Used to be a bare "except: return False" -- silently
+            # swallowed with no dprint/traceback at all. Callers that
+            # ignore the True/False return (most of them) had no way to
+            # find out the NBModel was never actually bound.
+            dprint('Failed to bind NBModel:\n', traceback.format_exc())
             return False
     
     
