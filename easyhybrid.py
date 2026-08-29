@@ -290,6 +290,7 @@ def main():
         main_window.builder.get_object('test_item')             .hide() # IR spectrum
         
         #This is the editor
+        #This is the editor
         main_window.builder.get_object('_show_cell')             .hide() # IR spectrum
         
         
