@@ -182,6 +182,18 @@ def is_wsl():
         return False
 
 
+def is_macos():
+    """ [EN] True on macOS. Used to gate the extra checks below that only
+    apply there: GTK3's Quartz backend cannot realize a working
+    Gtk.GLArea at all (see MACOS_NATIVE_RENDERING_FIX.md), so on this
+    platform EasyHybrid renders through a hidden GLFW window instead
+    (src/graphics_engine/.../vismol_gtkwidget.py) -- which needs both the
+    "glfw" pip package AND the native GLFW library (a SEPARATE, OS-level
+    dependency pip cannot install, exactly like the GTK3 typelib case
+    below). Neither is needed, or checked, on Linux/Windows. """
+    return sys.platform == "darwin"
+
+
 WSL_NOTE_TEXT = """\
 Windows Subsystem for Linux (WSL) detected.
 
@@ -198,6 +210,31 @@ Two practical recommendations:
   - The GTK 3.0 typelib (gir1.2-gtk-3.0) below is a common gap on a
     freshly-installed WSL distribution; the dependency check further
     below will confirm whether it is already present.
+"""
+
+
+MACOS_NOTE_TEXT = """\
+macOS detected.
+
+GTK3's native (Quartz) backend cannot realize a working OpenGL
+GLArea at all -- doing so corrupts window compositing for the whole
+app (see MACOS_NATIVE_RENDERING_FIX.md for the full story). EasyHybrid
+works around this by rendering the 3D view through a hidden GLFW
+window instead of GTK's own GL widget, which needs an extra
+dependency beyond every other platform:
+
+  - The "glfw" pip package (already listed below, installed the same
+    way as everything else).
+  - The native GLFW library itself -- a SEPARATE, OS-level dependency
+    that pip cannot install (exactly like the GTK 3.0 typelib case
+    below, just the macOS equivalent of it). Install it via conda/
+    mamba, e.g.:
+        mamba install -c conda-forge glfw
+    (Homebrew's "glfw" formula also works, if you already use brew
+    instead of conda/mamba.)
+
+The dependency check further below will confirm whether both are
+already present.
 """
 
 
@@ -798,6 +835,14 @@ PYTHON_LIBRARIES = {
     "psutil":   "psutil",
 }
 
+# [EN] macOS-only, checked in ADDITION to PYTHON_LIBRARIES above (see
+# is_macos()/MACOS_NOTE_TEXT) -- never required, and never checked, on
+# Linux/Windows, which keep using GTK's own Gtk.GLArea directly and have
+# no use for GLFW at all.
+MACOS_PYTHON_LIBRARIES = {
+    "glfw": "glfw",
+}
+
 
 def check_gtk3_typelib():
     """ [EN] "import gi" succeeding is NOT enough to confirm the GUI can
@@ -825,24 +870,90 @@ def check_gtk3_typelib():
         return False
 
 
+def check_glfw_native_lib():
+    """ [EN] macOS-only, same distinction as check_gtk3_typelib() above,
+    just for GLFW instead of GTK3: "import glfw" (the pip package,
+    already checked via MACOS_PYTHON_LIBRARIES) succeeding is NOT enough
+    -- it only provides Python ctypes bindings, which still need to
+    locate and load the actual native GLFW shared library at runtime,
+    a SEPARATE, OS-level dependency pip cannot install (see
+    MACOS_NOTE_TEXT). "import glfw" succeeds either way; only
+    glfw.init() actually touches the native library, so that's what's
+    called here, then immediately torn down again -- this function's
+    only job is the check itself, not to leave GLFW initialized.
+
+    Returns True if the native library loads and initializes
+    correctly, False otherwise (including if the "glfw" pip package
+    itself isn't installed at all). """
+    try:
+        import glfw
+        if not glfw.init():
+            return False
+        glfw.terminate()
+        return True
+    except (ImportError, AttributeError, OSError):
+        return False
+
+
+def check_xcode_clt():
+    """ [EN] macOS-only. install_vismol() (Step 3) compiles VISMOL's
+    Cython extensions (see setup.py/install.sh: "python3 setup.py
+    build_ext --inplace"), which needs a working C compiler -- on
+    macOS that's clang, shipped as part of the Xcode Command Line
+    Tools, NOT installed by default on a fresh machine. Checked here,
+    alongside the other prerequisites, for the same reason the
+    dependency-check step was reordered to run before install_vismol()
+    in the first place (see the comment in main()): surface one clear
+    "NOT FOUND" message up front instead of letting the Cython build
+    fail with a confusing "command not found: clang"/linker error deep
+    in Step 3.
+
+    "xcode-select -p" is the standard, documented way to check this: it
+    prints the active developer directory and exits 0 if the Command
+    Line Tools (or full Xcode) are installed, or exits with an error
+    and no output if they aren't -- no compilation attempted, just asks
+    Xcode's own tooling directly.
+
+    Returns True if found, False otherwise. Never attempts to install
+    them itself: "xcode-select --install" pops up Apple's own GUI
+    installer and requires accepting a license there, not something
+    scriptable/unattended the way a pip or conda install is. """
+    try:
+        result = subprocess.run(["xcode-select", "-p"], capture_output=True, text=True)
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
 def check_external_libraries(auto_install=False):
     """ Checks required external Python libraries (see PYTHON_LIBRARIES
-    above), PLUS the GTK3 system typelib (see check_gtk3_typelib()) --
-    which is not a Python package at all and needs its own, separate
-    fix/message.
+    above, plus MACOS_PYTHON_LIBRARIES on macOS), PLUS the GTK3 system
+    typelib (see check_gtk3_typelib()) and, on macOS, the native GLFW
+    library (see check_glfw_native_lib()) and the Xcode Command Line
+    Tools (see check_xcode_clt()) -- none of which are Python packages
+    at all and each need their own, separate fix/message.
 
     auto_install: if True (or if the user says yes when prompted, in
     interactive mode), attempts "pip install <package>" for whatever
-    Python packages are missing. Never attempts to install the GTK3
-    system package automatically -- that needs sudo/apt, a much bigger
-    thing to do without asking explicitly every time, so it only ever
-    prints the exact command to run. """
+    Python packages are missing. Never attempts to install GTK3, GLFW
+    or the Xcode Command Line Tools automatically -- those need sudo/
+    apt, conda/brew, or Apple's own installer dialog respectively, a
+    much bigger thing to do without asking explicitly every time, so it
+    only ever prints the exact command to run. """
 
     print(c_header("\nChecking required Python packages...\n"))
 
     missing_pip_names = []
 
-    for import_name, pip_name in PYTHON_LIBRARIES.items():
+    # [EN] glfw is only ever needed on macOS (see MACOS_PYTHON_LIBRARIES/
+    # is_macos()) -- merged into the same dict/loop as everything else so
+    # it gets the exact same "NOT FOUND" reporting and pip-install flow
+    # below, without duplicating either.
+    libraries_to_check = dict(PYTHON_LIBRARIES)
+    if is_macos():
+        libraries_to_check.update(MACOS_PYTHON_LIBRARIES)
+
+    for import_name, pip_name in libraries_to_check.items():
         try:
             importlib.import_module(import_name)
             print(f"{import_name} : {c_ok('OK')}")
@@ -856,8 +967,34 @@ def check_external_libraries(auto_install=False):
     else:
         print(f"GTK 3.0 typelib (gir1.2-gtk-3.0) : {c_error('NOT FOUND')}")
 
-    if not missing_pip_names and gtk3_ok:
-        print(c_ok("\n✓ All required Python packages and GTK 3 dependencies were found."))
+    # [EN] Same "pip package imports fine, but the actual OS-level
+    # library it wraps is missing" distinction as check_gtk3_typelib()
+    # above, just for GLFW -- see check_glfw_native_lib(). Not applicable
+    # (treated as satisfied) outside macOS.
+    glfw_native_ok = True
+    if is_macos():
+        glfw_native_ok = check_glfw_native_lib()
+        if glfw_native_ok:
+            print(f"GLFW native library : {c_ok('OK')}")
+        else:
+            print(f"GLFW native library : {c_error('NOT FOUND')}")
+
+    # [EN] install_vismol() (Step 3) needs a working C compiler (clang,
+    # via Xcode CLT on macOS) to build VISMOL's Cython extensions -- see
+    # check_xcode_clt(). Not applicable (treated as satisfied) outside
+    # macOS, where a compiler is either already present (most Linux
+    # dev setups) or its absence surfaces as its own clear error from
+    # the build step, unrelated to anything macOS-specific here.
+    xcode_clt_ok = True
+    if is_macos():
+        xcode_clt_ok = check_xcode_clt()
+        if xcode_clt_ok:
+            print(f"Xcode Command Line Tools : {c_ok('OK')}")
+        else:
+            print(f"Xcode Command Line Tools : {c_error('NOT FOUND')}")
+
+    if not missing_pip_names and gtk3_ok and glfw_native_ok and xcode_clt_ok:
+        print(c_ok("\n✓ All required Python packages and system dependencies were found."))
         return True
 
     if missing_pip_names:
@@ -920,11 +1057,40 @@ def check_external_libraries(auto_install=False):
             return False
 
     if not gtk3_ok:
+        if is_macos():
+            print(c_warn(
+                "\nGTK 3 (with its Python/gi bindings) was not found. This is a "
+                "SYSTEM/conda package, not something pip can install. Install it "
+                "via:\n"
+            ) + c_info("    mamba install -c conda-forge pygobject gtk3\n") +
+                '(Homebrew\'s "pygobject3" + "gtk+3" formulas also work, if you '
+                "use brew instead of conda/mamba)."
+            )
+        else:
+            print(c_warn(
+                "\nThe GTK 3.0 typelib is a SYSTEM package, not something pip can "
+                "install. On Debian/Ubuntu, run:\n"
+            ) + c_info("    sudo apt-get install gir1.2-gtk-3.0\n") +
+                "(the exact package name may differ on other distributions)."
+            )
+
+    if not glfw_native_ok:
         print(c_warn(
-            "\nThe GTK 3.0 typelib is a SYSTEM package, not something pip can "
-            "install. On Debian/Ubuntu, run:\n"
-        ) + c_info("    sudo apt-get install gir1.2-gtk-3.0\n") +
-            "(the exact package name may differ on other distributions)."
+            "\nThe native GLFW library is a SYSTEM/conda package, not something "
+            "pip can install (the 'glfw' Python package above only provides "
+            "bindings to it -- see MACOS_NOTE_TEXT). Install it via:\n"
+        ) + c_info("    mamba install -c conda-forge glfw\n") +
+            '(Homebrew\'s "glfw" formula also works, if you use brew instead '
+            "of conda/mamba)."
+        )
+
+    if not xcode_clt_ok:
+        print(c_warn(
+            "\nThe Xcode Command Line Tools (needed to compile VISMOL's Cython "
+            "extensions in Step 3) were not found. Install them with:\n"
+        ) + c_info("    xcode-select --install\n") +
+            "(pops up Apple's own installer dialog -- accept the license there, "
+            "then re-run this installer)."
         )
 
     return False
@@ -1044,6 +1210,9 @@ Run with --credits at any time to see the full citation details.\
 
     if is_wsl():
         print(c_warn("\n" + WSL_NOTE_TEXT))
+
+    if is_macos():
+        print(c_warn("\n" + MACOS_NOTE_TEXT))
 
     # [EN] REORDERED (previously: install_vismol() ran FIRST, then
     # dependencies were checked afterwards). install_vismol() compiles

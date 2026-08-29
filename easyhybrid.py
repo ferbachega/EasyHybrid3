@@ -179,9 +179,20 @@ except Exception as e:
 
 
 
-import gi 
+import gi
+# [EN] macOS/Quartz fix: PyGObject's automatic Gdk.init_check() (run as a
+# side effect of the first "from gi.repository import Gtk/Gdk..." below)
+# used to run before the Quartz backend was fully loaded, causing issues
+# specific to that backend. gi.disable_legacy_autoinit() skips that
+# automatic init; Gtk.init([]) right after the import does it explicitly,
+# once the backend is actually ready. Gated to macOS only -- Linux/
+# Windows keep using PyGObject's normal automatic init, unchanged.
+if sys.platform == "darwin":
+    gi.disable_legacy_autoinit()
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
+if sys.platform == "darwin":
+    Gtk.init([])
 
 
 #               Installation is not necessary anymore.

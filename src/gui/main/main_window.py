@@ -492,8 +492,15 @@ class MainWindow:
         #self.window.connect("delete-event", Gtk.main_quit)
         #self.window.connect("destroy",      self.quit_easyhybrid)
         self.window.connect("delete-event", self.on_delete_event)
-        self.window.connect("check-resize", self.window_resize)       
+        self.window.connect("check-resize", self.window_resize)
         self.window.show_all()
+        # [EN] macOS fix belt-and-suspenders: present() + an idle_add()
+        # nudge for the very first frame. Harmless on every platform
+        # (present() is a no-op if the window is already focused/shown;
+        # the idle callback just asks the glArea/DrawingArea to redraw
+        # once the main loop is idle) -- not gated to macOS.
+        self.window.present()
+        GLib.idle_add(self.vm_session.vm_widget.queue_draw)
 
 
     def on_drag_data_received(self, widget, drag_context,
