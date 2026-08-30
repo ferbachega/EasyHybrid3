@@ -134,6 +134,8 @@ def backup_xtb_files (system, output_folder = None, output_name = None, files = 
     is defined (see session.define_a_new_QCModel), or just ['log'] if that
     is not set either.
     """
+    
+    
     if not system.qcModel:
         return
 
@@ -147,9 +149,21 @@ def backup_xtb_files (system, output_folder = None, output_name = None, files = 
     if not files:
         return
 
-    scratch =  system.qcModel.scratch
+    # The xTB job files now live in a unique random subfolder created per run
+    # (see QCModelXTB.DeterminePaths/_resolve_scratch), NOT directly in the
+    # configured scratch base. Read the real folder via activeScratch; fall back
+    # to .scratch for older models that don't expose it.
+    
+    scratch = os.path.dirname(system.qcState.paths["Coord"])
+    
+    #'''
+    #scratch = getattr ( system.qcModel, 'activeScratch', None ) or system.qcModel.scratch
+    
+    #print('scratch', scratch)
+    #print('paths', system.qcState.paths)
     _time = time.asctime()
-
+    #'''   
+    
     if output_folder is None:
         folder = scratch
     else:
@@ -159,7 +173,9 @@ def backup_xtb_files (system, output_folder = None, output_name = None, files = 
         output_name = 'XTBJob' + _time
 
     dprint ('\nChecking for xTB files at: ', scratch)
-
+    
+    #print('backup_xtb_files', system, output_folder  , output_name  , files )
+    
     for key in files:
         file_info = _XTB_BACKUP_FILES.get ( key )
         if file_info is None:
@@ -169,6 +185,9 @@ def backup_xtb_files (system, output_folder = None, output_name = None, files = 
         description = file_info['description']
         extension   = file_info['extension']
         source_name = file_info.get ( 'source_name', '{}.{}'.format ( _XTB_JOB_NAME, extension ) )
+        if extension == 'log':
+            extension='out'
+        
         destination_name = '{}.xtb.{}'.format ( output_name, extension )
 
         try:
@@ -182,13 +201,70 @@ def backup_xtb_files (system, output_folder = None, output_name = None, files = 
 
 def backup_qc_files (system, output_folder = None, output_name = None, xtb_files = None):
     """
-    Single entry point used by the energy-calculation code: figures out
-    which external QC engine (if any) the system is currently using, and
-    dispatches to the matching backup function (backup_orca_files /
-    backup_xtb_files). Safe to call unconditionally -- it is a no-op for
-    systems without a QC model, or with a QC model that has no backup
-    routine implemented (e.g. MOPAC, DFTB+, MNDO).
+    Single entry point for backing up external-QC-program files, used by ALL
+    calculation types (single point, geometry optimization, surface scan,
+    molecular dynamics, ...). It figures out which external QC engine (if any)
+    the system currently uses and dispatches to the matching backup function.
+
+    Safe to call unconditionally -- it is a no-op for systems without a QC
+    model, or with a QC model whose engine has no backup routine registered
+    (e.g. MOPAC, DFTB+, MNDO).
+
+    EXTENSIBILITY: to support a new QC program, write its backup function
+    (following backup_orca_files / backup_xtb_files) and add ONE entry to
+    _QC_BACKUP_DISPATCH below, keyed by the engine's SummaryItems label. Every
+    calculation type then supports it automatically, because they all funnel
+    through here.
     """
+    #print('aqui')
+    
+    if not system.qcModel:
+        return
+
+    engine = system.qcModel.SummaryItems()[0][0]
+
+    backup_fn = _QC_BACKUP_DISPATCH.get ( engine )
+    
+    if backup_fn is None:
+        return   # engine with no backup routine -- nothing to do
+    '''
+    print( 'backup_qc_files')
+    print( system        ,
+           output_folder ,
+           output_name    ,
+           xtb_files       )
+    '''
+    
+    
+    backup_fn ( system        = system        ,
+                output_folder = output_folder ,
+                output_name   = output_name    ,
+                xtb_files     = xtb_files       )
+
+
+def _backup_orca_dispatch ( system, output_folder, output_name, xtb_files = None ):
+    """Adapter so ORCA's backup matches the common dispatch signature."""
+    backup_orca_files ( system = system, output_folder = output_folder, output_name = output_name )
+
+
+def _backup_xtb_dispatch ( system, output_folder, output_name, xtb_files = None ):
+    """Adapter so xTB's backup matches the common dispatch signature."""
+    backup_xtb_files ( system = system, output_folder = output_folder,
+                       output_name = output_name, files = xtb_files )
+
+
+# Registry of engine label -> backup function. Add new QC programs here; every
+# calculation type picks them up automatically via backup_qc_files().
+_QC_BACKUP_DISPATCH = {
+    'ORCA QC Model' : _backup_orca_dispatch ,
+    'XTB QC Model'  : _backup_xtb_dispatch  ,
+    # 'DFTB+ QC Model' : _backup_dftbplus_dispatch ,   # <- future engines go here
+    # 'MOPAC QC Model' : _backup_mopac_dispatch    ,
+}
+
+
+def _backup_qc_files_unused_old ( system, output_folder = None, output_name = None, xtb_files = None ):
+    """ retained for reference """
     if not system.qcModel:
         return
 

@@ -50,6 +50,11 @@ from gui.widgets.custom_widgets import CoordinatesComboBox
 
 from pprint import pprint
 import numpy as np
+# [EN] BUG FIX: cKDTree e' usado la' embaixo (algoritmo tipo ICP de
+# alinhamento de trajetoria) mas nunca era importado -- quebrava com
+# NameError sempre que essa ferramenta era usada. scipy nao estava
+# listado em requirements.txt tambem; adicionado la' junto.
+from scipy.spatial import cKDTree
 
 class ReimagingTrajectoryWindow:
 

@@ -51,7 +51,7 @@ from pprint import pprint
 import os, time, sys
 
 # --- imports entre modulos adicionados na refatoracao ---
-from pdynamo.p_methods._common import write_header, get_hamiltonian
+from pdynamo.p_methods._common import write_header, get_hamiltonian, backup_qc_files
 
 class UmbrellaSampling:
     def __init__ (self):
@@ -609,6 +609,12 @@ class UmbrellaSampling:
                 Pickle( os.path.join(parameters['trajectory_path_opt'], 
                                                  "frame{}.pkl".format(i) ), 
                                         parameters['system'].coordinates3 )
+                # Back up this window's QC log (ORCA/xTB/...) next to its
+                # optimized geometry, so bond-order (Mayer/Wiberg) vs RC analysis
+                # can read each window's log. Same 'frame{i}' name as the .pkl.
+                backup_qc_files( system = parameters['system'],
+                                 output_folder = parameters['trajectory_path_opt'],
+                                 output_name = "frame{}".format(i) )
             
             
             '''                M O L E C U L A R   D Y N A M I C S               '''
@@ -679,6 +685,12 @@ class UmbrellaSampling:
                 Pickle( os.path.join(parameters['trajectory_path_opt'], 
                                                  "frame{}.pkl".format(i) ), 
                                         parameters['system'].coordinates3 )
+                # Back up this window's QC log (ORCA/xTB/...) next to its
+                # optimized geometry, so bond-order (Mayer/Wiberg) vs RC analysis
+                # can read each window's log. Same 'frame{i}' name as the .pkl.
+                backup_qc_files( system = parameters['system'],
+                                 output_folder = parameters['trajectory_path_opt'],
+                                 output_name = "frame{}".format(i) )
             
             
             '''                M O L E C U L A R   D Y N A M I C S               '''
@@ -851,6 +863,10 @@ def _run_advanced_parallel_umbrella_sampling_2D (job):
         Pickle( os.path.join(parameters['trajectory_path_opt'], 
                                          "frame{}_{}.pkl".format(i, j) ), 
                                 parameters['system'].coordinates3 )
+        # Back up this window's QC log next to its optimized geometry (2D case).
+        backup_qc_files( system = parameters['system'],
+                         output_folder = parameters['trajectory_path_opt'],
+                         output_name = "frame{}_{}".format(i, j) )
 
 
     '''                M O L E C U L A R   D Y N A M I C S               '''
@@ -954,6 +970,10 @@ def _run_advanced_parallel_umbrella_sampling_1D (job):
             Pickle( os.path.join(parameters['trajectory_path_opt'], 
                                  "frame{}.pkl".format(i) ), 
                         parameters['system'].coordinates3 ) 
+            # Back up this window's QC log next to its optimized geometry.
+            backup_qc_files( system = parameters['system'],
+                             output_folder = parameters['trajectory_path_opt'],
+                             output_name = "frame{}".format(i) )
 
 
     '''                M O L E C U L A R   D Y N A M I C S               '''
@@ -1131,6 +1151,10 @@ def _run_parallel_umbrella_sampling_2D (job):
         Pickle( os.path.join(parameters['trajectory_path_opt'], 
                                          "frame{}_{}.pkl".format(i, j) ), 
                                 parameters['system'].coordinates3 )
+        # Back up this window's QC log next to its optimized geometry (2D case).
+        backup_qc_files( system = parameters['system'],
+                         output_folder = parameters['trajectory_path_opt'],
+                         output_name = "frame{}_{}".format(i, j) )
 
 
     '''                M O L E C U L A R   D Y N A M I C S               '''
@@ -1254,6 +1278,10 @@ def _run_parallel_umbrella_sampling_1D (job):
             Pickle( os.path.join(parameters['trajectory_path_opt'], 
                                  "frame{}.pkl".format(i) ), 
                         parameters['system'].coordinates3 ) 
+            # Back up this window's QC log next to its optimized geometry.
+            backup_qc_files( system = parameters['system'],
+                             output_folder = parameters['trajectory_path_opt'],
+                             output_name = "frame{}".format(i) )
         #opt_parameters['trajectory_path_opt']
 
 
@@ -1432,7 +1460,7 @@ def _us_velocity_verlet_dynamics (system, trajectories, parameters):
                                             )
 
 
-def _us_langevin_dynamics (system, trajectory, parameters):
+def _us_langevin_dynamics (system, trajectories, parameters):
     
     """ Function doc """
     # . Define a normal deviate generator in a given state.

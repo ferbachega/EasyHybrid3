@@ -62,7 +62,7 @@ from gui.windows.setup.windows_and_dialogs import InfoWindow
 from gui.windows.setup.windows_and_dialogs import MergeSystemWindow
 from gui.windows.setup.windows_and_dialogs import SolvateSystemWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
-from gui.windows.setup.windows_and_dialogs import TextWindow
+from gui.windows.setup.windows_and_dialogs import TextWindow, TabbedLogWindow
 from gui.windows.setup.edit_frames_dialog import EditFrameDialog
 
 from gui.windows.setup.easyhybrid_terminal    import TerminalWindow
@@ -140,7 +140,7 @@ class TreeViewMenu:
         #        "Como PNG": self._menu_rename,
         #        "Como JPG": self._menu_rename,
         #        "_separator": None,
-        #        "Avançado": {
+        #        "Advanced": {
         #            "Alta Qualidade": self._menu_rename,
         #            "Baixa Qualidade": self._menu_rename,
         #        }
@@ -215,6 +215,18 @@ class TreeViewMenu:
                                 #'Edit Frames'           : self.call_editframe_window,
                                 'Go To Atom'            : self._menu_go_to_atom ,
                                 '_separator'            : ''      ,
+                                # [NOVO] Mostrar/esconder a parte MM (tudo que
+                                # not in the QC list). Useful to focus on
+                                # regiao QC sem perder o resto do sistema.
+                                
+                                
+                                #'MM region': {
+                                #        'Hide MM atoms': self._menu_hide_mm,
+                                #        'Show MM atoms': self._menu_show_mm,
+                                #        },
+                                #'_separator'            : ''      ,
+                                
+                                
                                 # [EN] User request: link a simulation's
                                 # log file to the vismol_object IT
                                 # created, right here in the main
@@ -269,7 +281,7 @@ class TreeViewMenu:
                                 #'test'  : self.f1 ,
                                 #'f1'    : self.f1 ,
                                 #'f2'    : self.f2 ,
-                                #'gordão': self.f3 ,
+                                #'gordao': self.f3 ,
                                 #'delete': self.f3 ,
                                 }
                     
@@ -390,7 +402,7 @@ class TreeViewMenu:
         atom_qtty = len(vobject.atoms.items())
         size = len(vobject.frames)
         dprint(atom_qtty, size)
-        dprint('Interpolating, wait a second…')
+        dprint('Interpolating, wait a second...')
         
         #coords
         
@@ -644,6 +656,70 @@ class TreeViewMenu:
         #self._show_lines(vobject = self.vobjects[0], indices = [0,1,2,3,4] )
         self.treeview.main.go_to_atom_window.open_window()
         #self.treeview.vm_session.go_to_atom_window.open_window()
+
+    # ----------------------------------------------------------------------- #
+    #  [NEW] Show / hide the MM region (everything not in the QC list)          #
+    # ----------------------------------------------------------------------- #
+    def _get_mm_indexes(self, vismol_object, system):
+        """Indices dos atomos da regiao MM = todos os atomos do objeto que NAO
+        estao na lista QC (system.qcState.pureQCAtoms / e_qc_table).
+
+        Retorna [] se o sistema nao tem modelo QC (nesse caso 'MM vs QC' nao
+        se aplica -- tudo e' MM)."""
+        try:
+            if getattr(system, "qcModel", None):
+                qc_table = set(system.qcState.pureQCAtoms)
+            else:
+                qc_table = set()
+        except Exception:
+            qc_table = set()
+        all_indexes = list(vismol_object.atoms.keys())
+        return [i for i in all_indexes if i not in qc_table]
+
+    def _menu_set_mm_visibility(self, show):
+        """Mostra (show=True) ou esconde (show=False) os atomos da regiao MM do
+        objeto que foi clicado com o botao direito na treeview.
+
+        Usa o mesmo mecanismo de representacao por selecao usado no resto do
+        codigo (create_new_selection -> selecting_by_indexes -> show_or_hide).
+        A regiao QC nao e' tocada.
+        """
+        try:
+            main = self.treeview.main
+            vobject_index = getattr(self, "vobject_index", None)
+            if vobject_index is None or vobject_index == -1:
+                return
+            vismol_object = main.vm_session.vm_objects_dic[vobject_index]
+            system = main.p_session.psystem[vismol_object.e_id]
+
+            mm_indexes = self._get_mm_indexes(vismol_object, system)
+            if not mm_indexes:
+                return  # nada a fazer (sem regiao MM distinta)
+
+            selection = main.vm_session.create_new_selection()
+            selection.selecting_by_indexes(vismol_object, mm_indexes, clear=True)
+
+            # Aplica a mesma visibilidade as representacoes de "corpo" tipicas
+            # da parte MM. 'lines' e 'sticks' cobrem o caso comum; se alguma
+            # does not exist for the object, show_or_hide simply ignores it.
+            for rep in ("lines"):#, "sticks", "nonbonded", "dots"):
+                try:
+                    main.vm_session.show_or_hide(rep_type=rep, selection=selection, show=show)
+                except Exception:
+                    pass
+
+            main.vm_session.vm_glcore.queue_draw()
+        except Exception as e:
+            print("MM visibility toggle failed:", e)
+
+    def _menu_hide_mm(self, vobject = None):
+        """Esconde os atomos da parte MM (mantem so' a regiao QC visivel)."""
+        self._menu_set_mm_visibility(show=False)
+
+    def _menu_show_mm(self, vobject = None):
+        """Mostra novamente os atomos da parte MM (QC + MM)."""
+        self._menu_set_mm_visibility(show=True)
+    
     def f3 (self, vobject = None):
         """ Function doc """
         
@@ -712,11 +788,11 @@ class TreeViewMenu:
                      if hasattr ( r, "set_render_mode" ) ]
 
         reps = get_surface_reps ( )
-        # Estado atual (pra a janela abrir refletindo o que ja esta na
-        # tela, nao sempre nos valores padrao) -- lido da primeira
+        # Current state (so the window opens reflecting what is already on
+        # screen, not always the default values) -- read from the first
         # representacao encontrada; todas as representacoes do mesmo
         # objeto devem estar em sincronia, ja que so podem ter sido
-        # mudadas por esta mesma janela (uma instancia por objeto).
+        # changed by this same window (one instance per object).
         current_render_mode    = reps[0].render_mode       if reps else "surface"
         current_alpha          = reps[0].alpha             if reps else 1.0
         current_smooth_shading = reps[0].smooth_shading    if reps else False
@@ -725,7 +801,7 @@ class TreeViewMenu:
         window.set_border_width ( 10 )
         window.set_default_size ( 260, -1 )
         window.set_keep_above ( True )
-        self._surf_setup_window = window   # mantem referencia viva (padrao ja usado por self.preferences etc. neste arquivo)
+        self._surf_setup_window = window   # keeps a live reference (pattern already used by self.preferences etc. in this file)
 
         vbox = Gtk.Box ( orientation = Gtk.Orientation.VERTICAL, spacing = 8 )
         window.add ( vbox )
@@ -778,7 +854,7 @@ class TreeViewMenu:
         # Angstrom). Aplicado direto em vismol_object.surface_trajectory
         # (todos os frames/lobulos), substituindo a malha original -- gerar
         # a superficie de novo (menu do sistema QC/analysis) desfaz, ja que
-        # a malha "cheia" original nao e' mantida em paralelo.
+        # the original "full" mesh is not kept in parallel.
         label_decimate = Gtk.Label ( label = "Decimate (merge vertices within, in \u00c5):" )
         label_decimate.set_xalign ( 0 )
         vbox.pack_start ( label_decimate, False, False, 0 )
@@ -1096,15 +1172,95 @@ class TreeViewMenu:
                     "(it may have been moved or deleted):\n\n{}".format(vismol_object.name, logfile))
             return
 
+        # ---- pDynamo log ----
         try:
             with open(logfile, 'r') as f:
-                data = f.read()
+                pdynamo_text = f.read()
         except Exception as exc:
             self.main.simple_dialog.error(
                 msg="Could not read the log file:\n\n{}\n\nError: {}".format(logfile, exc))
             return
 
-        textwindow = TextWindow(data, logfile)
+        # ---- QC program log (ORCA / xTB), if present ----
+        # The QC log is copied to a permanent folder by the simulation
+        # (backup_orca_files/backup_xtb_files in p_methods/_common.py), with the
+        # SAME basename as the pDynamo log. We match by name + by the system's
+        # actual QC model so we never show an ORCA log for an xTB job (or pick up
+        # an unrelated log left in the folder by a previous run).
+        system = None
+        try:
+            system = self.main.p_session.psystem[vismol_object.e_id]
+        except Exception:
+            system = None
+        qc_label, qc_text = self._find_qc_log(logfile, system)
+
+        tabs = [("pDynamo", pdynamo_text)]
+        if qc_text:
+            tabs.append((qc_label, qc_text))
+
+        TabbedLogWindow(tabs, title="Log: {}".format(vismol_object.name))
+
+    def _find_qc_log(self, pdynamo_logfile, system=None):
+        """Locate and read the QC-program log that belongs to THIS job.
+
+        Robust matching (avoids picking up an unrelated ORCA/xTB log left in the
+        same folder by a previous run):
+          1. by NAME: the QC log has the same basename as the pDynamo log, only
+             swapping '.log' for '.orca.log'/'.xtb.log' (see backup_*_files).
+          2. by QC MODEL: if the by-name match fails, scan the folder but only
+             for the program the system's qcModel actually is -- never return an
+             ORCA log for an xTB job.
+
+        Returns (label, text); text is None when nothing suitable is found.
+        """
+        import glob
+        folder = os.path.dirname(pdynamo_logfile)
+        base = os.path.basename(pdynamo_logfile)
+        if base.endswith(".log"):
+            base = base[:-4]
+
+        engine = None
+        try:
+            if system is not None and getattr(system, "qcModel", None):
+                tag = system.qcModel.SummaryItems()[0][0]
+                if "ORCA" in tag.upper():
+                    engine = "ORCA"
+                elif "XTB" in tag.upper():
+                    engine = "XTB"
+        except Exception:
+            engine = None
+
+        # 1) exact name match
+        name_candidates = []
+        if engine == "ORCA" or engine is None:
+            name_candidates.append((os.path.join(folder, base + ".orca.log"), "ORCA"))
+        if engine == "XTB" or engine is None:
+            name_candidates.append((os.path.join(folder, base + ".xtb.log"), "xTB"))
+        for path, label in name_candidates:
+            if os.path.isfile(path):
+                text = self._read_text(path)
+                if text is not None:
+                    return label, text
+
+        # 2) fallback: scan folder, restricted to the engine this job used
+        if folder and os.path.isdir(folder) and engine is not None:
+            pattern = "*.orca.log" if engine == "ORCA" else "*.xtb.log"
+            label = "ORCA" if engine == "ORCA" else "xTB"
+            for path in sorted(glob.glob(os.path.join(folder, pattern))):
+                if path == pdynamo_logfile:
+                    continue
+                text = self._read_text(path)
+                if text is not None:
+                    return label, text
+
+        return "QC", None
+
+    def _read_text(self, path):
+        try:
+            with open(path, 'r', errors='replace') as f:
+                return f.read()
+        except Exception:
+            return None
 
     def _menu_delete_system (self, widget):
         """ Function doc """
@@ -1142,7 +1298,7 @@ class TreeViewMenu:
         return tree_view_menu, menu_header
 
     def build_tree_view_menu (self, menu_items):
-        """Cria menus e submenus a partir de um dicionário."""
+        """Create menus and submenus from a dictionary."""
         menu = Gtk.Menu()
         menu_header = None
 
@@ -1158,7 +1314,7 @@ class TreeViewMenu:
                 mitem.set_sensitive(False)      # desabilita
                 menu_header = mitem
 
-            # --- Submenu (value é um dicionário) ---
+            # --- Submenu (value is a dictionary) ---
             elif isinstance(value, dict):
                 mitem = Gtk.MenuItem(label=label)
                 # cria o submenu recursivamente
@@ -1251,7 +1407,7 @@ class TreeViewMenu:
             """ Function doc """
             # [ATUALIZACAO] Antes chamava save_easyhybrid_session(tmp=True)
             # direto, incondicional -- ignorava completamente o toggle
-            # gl_parameters['autosave'] e nao contribuia pro criterio de
+            # gl_parameters['autosave'] and did not contribute to the
             # contador de eventos. Agora passa por register_change_and_
             # maybe_autosave, que respeita o toggle e so' salva de fato ao
             # atingir gl_parameters['autosave_event_count'] (ou via o timer

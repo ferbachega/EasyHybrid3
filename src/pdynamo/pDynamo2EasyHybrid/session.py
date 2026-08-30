@@ -37,6 +37,7 @@ import multiprocessing
 import glob, math, os, os.path, sys, shutil
 import pickle
 import threading
+import traceback
 from util.file_parser import read_MOL2  
 from util.file_parser import read_SIMPLE_txt  
 from util.file_parser import read_MOPAC_aux  
@@ -334,8 +335,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             system.coordinates3 = ImportCoordinates3 ( input_files['coordinates'] )
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format( input_files['coordinates']), system = None)
 
-            self.define_NBModel(_type = 1, system = system)                      
-        
+            if not self.define_NBModel(_type = 1, system = system):
+                raise RuntimeError('Failed to bind the non-bonding model (NBModel) to the imported AMBER system.')
+
         elif system_type == 1:
             parameters          = CHARMMParameterFileReader.PathsToParameters (input_files['charmm_par'])
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format( input_files['charmm_par']), system = None)
@@ -345,9 +347,10 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             
             system.coordinates3 = ImportCoordinates3 ( input_files['coordinates'] )
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format( input_files['coordinates']), system = None)
-            
-            self.define_NBModel(_type = 1, system = system)        
-        
+
+            if not self.define_NBModel(_type = 1, system = system):
+                raise RuntimeError('Failed to bind the non-bonding model (NBModel) to the imported CHARMM system.')
+
         elif system_type == 2:
             mmModel        = MMModelOPLS.WithParameterSet ( input_files['prm_folder'] )       
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading MMModel:  {} '.format( input_files['prm_folder']), system = None)
@@ -356,8 +359,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format(input_files['coordinates']), system = None)
             
             system.DefineMMModel ( mmModel )
-            self.define_NBModel(_type = 1, system = system)          
-        
+            if not self.define_NBModel(_type = 1, system = system):
+                raise RuntimeError('Failed to bind the non-bonding model (NBModel) to the imported OPLS system.')
+
         elif system_type == 5:
             mmModel        = MMModelDYFF.WithParameterSet ( input_files['prm_folder'] )       
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading MMModel:  {} '.format( input_files['prm_folder']), system = None)
@@ -366,8 +370,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format(input_files['coordinates']), system = None)
             #system.BondsFromCoordinates3 ( )
             system.DefineMMModel ( mmModel )
-            
-            self.define_NBModel(_type = 1, system = system)          
+
+            if not self.define_NBModel(_type = 1, system = system):
+                raise RuntimeError('Failed to bind the non-bonding model (NBModel) to the imported DYFF system.')
             if input_files['charges']:
                 dprint('\nGetting atomic charges from mol2 file!\n')
                 self.main.bottom_notebook.status_teeview_add_new_item(message = 'Getting atomic charges from mol2 file!', system = None)
@@ -1766,8 +1771,29 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
 
     def define_a_new_QCModel (self, system = None, parameters = None, vismol_object = None):
+        """ Wraps _define_a_new_QCModel_impl in a try/except so that any
+            error raised while building/assigning the QC model (missing
+            executable, invalid parameter, pDynamo core error, etc.) shows
+            an error dialog instead of just a traceback on the terminal
+            with no feedback in the interface. The MMModelError case has
+            its own more specific dialog already, raised from inside the
+            impl (see below); this generic handler is the catch-all for
+            everything else.
+        """
+        try:
+            return self._define_a_new_QCModel_impl(system = system, parameters = parameters, vismol_object = vismol_object)
+        except Exception as error:
+            traceback.print_exc()
+            call_message_dialog(
+                text1 = 'Error defining the QC Model',
+                text2 = '{}: {}'.format(type(error).__name__, error),
+                transient_for = self.main.window,
+            )
+            return False
+
+    def _define_a_new_QCModel_impl (self, system = None, parameters = None, vismol_object = None):
         """ Function doc """
-        
+
         '''Here we have to reload the mmModel original charges.
         This is postulated because multiple associations of QC 
         regions can distort the charge distribution of some residues. 
@@ -1882,8 +1908,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 system.DefineQCModel (qcModel, qcSelection = Selection.FromIterable ( system.e_qc_table) )          
             except MMModelError:
                 dprint('\n\n\n MMModelError. Total active MM charge is neither integral nor zero', MMModelError)
-                call_message_dialog(text1 = 'MMModelError', text2 = 'Total active MM charge is neither integral nor zero', transient_for =  None)
-                return None
+                call_message_dialog(text1 = 'MMModelError', text2 = 'Total active MM charge is neither integral nor zero', transient_for = self.main.window)
+                return False
             if system.mmModel:
                 if parameters['qcengine'] == 'ORCA':
                     system.DefineNBModel (NBModelORCA.WithDefaults ( ))
@@ -1913,11 +1939,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             else:
                 pass
         self.main.refresh_widgets()
-        
+
         if self.main.selection_list_window.visible:
             self.main.selection_list_window.update_window()
-    
-    
+
+        return True
+
+
     def check_charge_fragmentation(self, system = None, vismol_object = None,  correction = True):
         """ Function doc """
         #self.psystem[self.active_id]['system_original_charges']
@@ -2144,9 +2172,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 self.psystem[self.active_id].DefineNBModel ( self.nbModel )
                 self.psystem[self.active_id].Summary ( )
             return True
-        
-        except:
-            #print('failed to bind nbModel')
+
+        except Exception:
+            # Used to be a bare "except: return False" -- silently
+            # swallowed with no dprint/traceback at all. Callers that
+            # ignore the True/False return (most of them) had no way to
+            # find out the NBModel was never actually bound.
+            dprint('Failed to bind NBModel:\n', traceback.format_exc())
             return False
     
     

@@ -41,6 +41,10 @@ import numpy as np
 
 from gui.widgets.custom_widgets import SystemComboBox
 from gui.widgets.custom_widgets import CoordinatesComboBox
+from vismol.libgl.vismol_font import list_available_fonts
+from vismol.libgl.vismol_font import resolve_font_path
+from vismol.libgl.vismol_font import DEFAULT_FONT_FILE, DEFAULT_FONT_SIZE
+from vismol.libgl.representations import compute_atom_label_text
 from pprint import pprint
 VISMOL_HOME = os.environ.get('VISMOL_HOME')
 HOME        = os.environ.get('HOME')
@@ -129,6 +133,9 @@ class EasyHybridPreferencesWindow():
             self.set_bond_parameters()
             
             self.set_stick_parameters()
+
+            # [NOVO] estado inicial dos controles de cor unica das dynamic bonds
+            self.set_dynamic_bonds_parameters()
             
             self.set_sphere_parameters()
             
@@ -361,6 +368,91 @@ class EasyHybridPreferencesWindow():
         
         return color
 
+    # ----------------------------------------------------------------------- #
+    #  [NOVO] Dynamic bonds: cor unica opcional                                 #
+    # ----------------------------------------------------------------------- #
+    # ----------------------------------------------------------------------- #
+    #  [NOVO] Dynamic bonds: cor unica opcional                                 #
+    # ----------------------------------------------------------------------- #
+    def set_dynamic_bonds_parameters(self):
+        """Configura os controles de cor unica das dynamic bonds na abertura.
+
+        Le as preferencias atuais e reflete nos widgets do Glade:
+          - checkbox_dynamic_bonds_single_color (GtkCheckButton)
+          - colorbutton_dynamic_bonds          (GtkColorButton)
+        Se os widgets nao existirem no glade (ainda nao adicionados), sai sem erro.
+        """
+        try:
+            from gi.repository import Gdk
+            gp = self.vm_session.vm_config.gl_parameters
+
+            self.checkbox_dynamic_bonds_single_color = self.builder.get_object(
+                'checkbox_dbond_unique_color')
+            self.colorbutton_dynamic_bonds = self.builder.get_object(
+                'btn_dbond_unique_color')
+
+            if self.checkbox_dynamic_bonds_single_color is not None:
+                self.checkbox_dynamic_bonds_single_color.set_active(
+                    gp.get("dynamic_bonds_single_color", False))
+                self.checkbox_dynamic_bonds_single_color.connect(
+                    'toggled', self.on_dynamic_bonds_single_color_toggled)
+
+            if self.colorbutton_dynamic_bonds is not None:
+                c = gp.get("dynamic_bonds_color", [1.0, 1.0, 1.0, 1.0])
+                rgba = Gdk.RGBA()
+                rgba.red, rgba.green, rgba.blue = c[0], c[1], c[2]
+                rgba.alpha = c[3] if len(c) > 3 else 1.0
+                self.colorbutton_dynamic_bonds.set_rgba(rgba)
+                self.colorbutton_dynamic_bonds.connect(
+                    'color-set', self.on_dynamic_bonds_color_set)
+        except Exception as e:
+            dprint("set_dynamic_bonds_parameters skipped:", e)
+
+    def on_dynamic_bonds_single_color_toggled(self, widget):
+        """Liga/desliga o uso de cor unica para as ligacoes dinamicas (QC).
+
+        Conectar no Glade ao 'toggled' de um GtkCheckButton chamado
+        'checkbox_dynamic_bonds_single_color'. Ao mudar, atualiza a preferencia
+        e reconstroi a representacao 'dynamic' dos objetos para refletir na tela.
+        """
+        active = widget.get_active()
+        self.vm_session.vm_config.gl_parameters["dynamic_bonds_single_color"] = active
+        self._refresh_dynamic_bonds_representation()
+
+    def on_dynamic_bonds_color_set(self, widget):
+        """Define a cor unica das ligacoes dinamicas.
+
+        Conectar no Glade ao 'color-set' de um GtkColorButton chamado
+        'colorbutton_dynamic_bonds'. Guarda a cor (RGBA em [0,1]) e, se a opcao
+        de cor unica estiver ligada, atualiza a representacao imediatamente.
+        """
+        color = list(widget.get_rgba())  # [r, g, b, a] em [0,1]
+        self.vm_session.vm_config.gl_parameters["dynamic_bonds_color"] = color
+        if self.vm_session.vm_config.gl_parameters.get("dynamic_bonds_single_color", False):
+            self._refresh_dynamic_bonds_representation()
+
+    def _refresh_dynamic_bonds_representation(self):
+        """Reconstroi a representacao 'dynamic' de todos os objetos visuais.
+
+        Zera a representacao 'dynamic' existente para que ela seja recriada
+        (create_representation lera as preferencias novas e aplicara/limpara a
+        cor unica), e redesenha a cena.
+        """
+        try:
+            for vm_object in self.vm_session.vm_objects_dic.values():
+                if "dynamic" in vm_object.representations and \
+                   vm_object.representations["dynamic"] is not None:
+                    # Aplica a mudanca na representacao ja existente, sem recriar:
+                    rep = vm_object.representations["dynamic"]
+                    gp = self.vm_session.vm_config.gl_parameters
+                    if gp.get("dynamic_bonds_single_color", False):
+                        rep.set_uniform_color(gp.get("dynamic_bonds_color", [1.0, 1.0, 1.0, 1.0]))
+                    else:
+                        rep.clear_uniform_color()
+            self.vm_session.vm_glcore.queue_draw()
+        except Exception as e:
+            dprint("dynamic bonds color refresh failed:", e)
+
     def set_interface_startup_shutdown_paramters (self):
         """ Function doc """
         a = self.vm_session.vm_config.gl_parameters['autosave']      
@@ -385,6 +477,20 @@ class EasyHybridPreferencesWindow():
         self.checkbox_save_window_size = self.builder.get_object('checkbox_save_window_size')
         save_window_size = self.vm_session.vm_config.gl_parameters.get('save_window_size', True)
         self.checkbox_save_window_size.set_active(bool(save_window_size))
+
+        # V-Sync ("vblank_mode" env var -- see easyhybrid.py's
+        # _maybe_disable_vsync_for_intel_igpu). Only takes effect on the
+        # next restart, since it must be set before the GL context is
+        # created (before GTK is even imported).
+        self.combo_vblank_mode = self.builder.get_object('combo_vblank_mode')
+        if self.combo_vblank_mode is not None:
+            self.combo_vblank_mode.remove_all()
+            self.combo_vblank_mode.append('auto', 'Auto-detect (Intel iGPU only)')
+            self.combo_vblank_mode.append('on',   'Force On')
+            self.combo_vblank_mode.append('off',  'Force Off')
+            vblank_mode = self.vm_session.vm_config.gl_parameters.get('vblank_mode', 'auto')
+            if self.combo_vblank_mode.set_active_id(vblank_mode) is False:
+                self.combo_vblank_mode.set_active_id('auto')
         pass
     
     def set_general_parameters (self):
@@ -415,6 +521,109 @@ class EasyHybridPreferencesWindow():
         self.entry_field_of_view = self.builder.get_object('entry_field_of_view')
         field_of_view            = self.vm_session.vm_config.gl_parameters["field_of_view"]
         self.entry_field_of_view.set_text(str(field_of_view))
+
+        #-------------------------------------------------------------------------------------
+        #    Labels: single "scale with zoom" option for ALL glArea labels
+        #-------------------------------------------------------------------------------------
+        # Replaces what used to be three separate checkboxes (picking,
+        # distance and atom labels each had their own). zoom_sensitivity
+        # is a 0.0..1.0 float per VismolFont (see vismol_font.py); this
+        # single checkbox only offers the two extremes and is applied to
+        # every label font at once in __apply_viewer_selections_parameters().
+        self.chk_labels_scale_with_zoom = self.builder.get_object('chk_labels_scale_with_zoom')
+        if self.chk_labels_scale_with_zoom is not None:
+            zoom_sensitivity = self.vm_session.vm_config.gl_parameters.get('labels_zoom_sensitivity', 1.0)
+            self.chk_labels_scale_with_zoom.set_active(zoom_sensitivity >= 0.5)
+        #-------------------------------------------------------------------------------------
+
+    def _populate_font_combo(self, combo, spin, current_font, current_size):
+        """ Fills a font-family GtkComboBoxText with the bundled .ttf
+            fonts (see vismol/libgl/fonts/) and selects `current_font`,
+            and sets `spin` (a GtkSpinButton) to `current_size`. Shared
+            helper used for both the Picking/Distance labels font and the
+            Atom Labels (index/charge/residue.../glArea) font, which are
+            configured independently of each other.
+        """
+        if combo is not None:
+            combo.remove_all()
+            available_fonts = list_available_fonts()
+            if current_font not in available_fonts:
+                available_fonts = [current_font] + available_fonts
+            active_index = 0
+            for i, font_name in enumerate(available_fonts):
+                # Nice display name: drop the .ttf extension
+                display_name = os.path.splitext(font_name)[0]
+                combo.append(font_name, display_name)
+                if font_name == current_font:
+                    active_index = i
+            combo.set_active(active_index)
+
+        if spin is not None:
+            spin.set_value(current_size)
+
+    def _iter_all_vm_objects_atoms(self):
+        """ Yields every (vm_object, atom) pair currently loaded, across
+            every molecule in the session. Used by the "Show for All
+            Atoms" / "Hide All" atom-label buttons.
+        """
+        for vm_object in self.vm_session.vm_objects_dic.values():
+            for atom in vm_object.atoms.values():
+                yield vm_object, atom
+
+    def _current_label_content(self):
+        """ Reads the 'Label Content' combo (falls back to gl_parameters,
+            then to 'name' if the widget isn't available for some reason).
+        """
+        combo = self.builder.get_object('combo_label_content')
+        if combo is not None:
+            content = combo.get_active_id()
+            if content:
+                return content
+        return self.vm_session.vm_config.gl_parameters.get('label_content', 'name')
+
+    def on_btn_show_all_atom_labels (self, widget):
+        """ Turns the "Labels" representation (atom index/charge/residue
+            name/.../chain, per the Label Content selector) ON immediately
+            for every atom of every loaded molecule, using the currently
+            selected content option. This talks directly to the
+            representation's *own* font object
+            (vm_object.representations['labels'].vm_font) -- the one
+            actually used for drawing -- not vm_object.vm_font, which the
+            "labels" representation does not read.
+        """
+        content = self._current_label_content()
+        self.vm_session.vm_config.gl_parameters['label_content'] = content
+
+        for vm_object in self.vm_session.vm_objects_dic.values():
+            if len(vm_object.atoms) == 0:
+                continue
+            if vm_object.representations.get('labels') is None:
+                vm_object.create_representation(rep_type='labels')
+            rep = vm_object.representations['labels']
+
+            indexes = []
+            for atom in vm_object.atoms.values():
+                atom.label_text = compute_atom_label_text(atom, content)
+                atom.labels = True
+                indexes.append(atom.atom_id)
+
+            rep.define_new_indexes_to_vbo(indexes)
+            rep.active = True
+
+        self.vm_session.vm_glcore.queue_draw()
+
+    def on_btn_hide_all_atom_labels (self, widget):
+        """ Turns the "Labels" representation OFF for every atom of every
+            loaded molecule.
+        """
+        for vm_object in self.vm_session.vm_objects_dic.values():
+            for atom in vm_object.atoms.values():
+                atom.labels = False
+            rep = vm_object.representations.get('labels')
+            if rep is not None:
+                rep.active = False
+
+        self.vm_session.vm_glcore.queue_draw()
 
     def set_selection_parameters (self):
         """ Function doc """
@@ -458,6 +667,74 @@ class EasyHybridPreferencesWindow():
         rgba = Gdk.RGBA(color[0], color[1], color[2])
         self.color_btn_pk_dist_lines     = self.builder.get_object('color_btn_pk_dist_lines')
         self.color_btn_pk_dist_lines.set_rgba(rgba)
+        #-------------------------------------------------------------------------------------
+
+        #-------------------------------------------------------------------------------------
+        #    Picking / Distance Labels: SHARED font family, INDEPENDENT sizes
+        #-------------------------------------------------------------------------------------
+        # Picking labels (#1 #2 #3 #4) and distance labels use the same
+        # font family (one combo box, 'combo_pk_dist_font_family') but
+        # keep their own, independently adjustable font sizes -- picking
+        # via 'label_font_size', distance via 'pk_dist_label_font_size'.
+        # "Scale with zoom" used to be a per-label checkbox here; it's
+        # now a single option for ALL labels in the glArea, on the
+        # Viewer > General tab (see set_general_parameters()).
+        gp = self.vm_session.vm_config.gl_parameters
+
+        self.combo_pk_dist_font_family = self.builder.get_object('combo_pk_dist_font_family')
+        self.spin_pk_dist_font_size    = self.builder.get_object('spin_pk_dist_font_size')
+        self._populate_font_combo(self.combo_pk_dist_font_family,
+                                   self.spin_pk_dist_font_size,
+                                   gp.get('label_font_file', DEFAULT_FONT_FILE),
+                                   gp.get('label_font_size', DEFAULT_FONT_SIZE))
+
+        self.spin_dist_label_font_size = self.builder.get_object('spin_dist_label_font_size')
+        self._populate_font_combo(None,
+                                   self.spin_dist_label_font_size,
+                                   None,
+                                   gp.get('pk_dist_label_font_size', gp.get('label_font_size', DEFAULT_FONT_SIZE)))
+        #-------------------------------------------------------------------------------------
+
+        #-------------------------------------------------------------------------------------
+        #    Atom Labels (glArea): content (index/charge/resname/...) + family + size
+        #-------------------------------------------------------------------------------------
+        self.combo_atom_label_font_family = self.builder.get_object('combo_atom_label_font_family')
+        self.spin_atom_label_font_size    = self.builder.get_object('spin_atom_label_font_size')
+        self._populate_font_combo(self.combo_atom_label_font_family,
+                                   self.spin_atom_label_font_size,
+                                   gp.get('atom_label_font_file', DEFAULT_FONT_FILE),
+                                   gp.get('atom_label_font_size', DEFAULT_FONT_SIZE))
+
+        self.combo_label_content = self.builder.get_object('combo_label_content')
+        if self.combo_label_content is not None:
+            self.combo_label_content.remove_all()
+            # (internal value, display label) -- internal value is what
+            # gets stored in gl_parameters['label_content'] and passed to
+            # representations.compute_atom_label_text().
+            content_options = [
+                ('name',          'Atom Name'),
+                ('symbol',        'Atom Symbol'),
+                ('index',         'Atom Index'),
+                ('mm_charge',     'MM Charge'),
+                ('residue_name',  'Residue Name'),
+                ('residue_index', 'Residue Index'),
+                ('chain',         'Chain'),
+            ]
+            current_content = gp.get('label_content', 'name')
+            active_index = 0
+            for i, (value, display) in enumerate(content_options):
+                self.combo_label_content.append(value, display)
+                if value == current_content:
+                    active_index = i
+            self.combo_label_content.set_active(active_index)
+
+        self.btn_show_all_atom_labels = self.builder.get_object('btn_show_all_atom_labels')
+        if self.btn_show_all_atom_labels is not None:
+            self.btn_show_all_atom_labels.connect('clicked', self.on_btn_show_all_atom_labels)
+
+        self.btn_hide_all_atom_labels = self.builder.get_object('btn_hide_all_atom_labels')
+        if self.btn_hide_all_atom_labels is not None:
+            self.btn_hide_all_atom_labels.connect('clicked', self.on_btn_hide_all_atom_labels)
         #-------------------------------------------------------------------------------------
 
 
@@ -794,6 +1071,90 @@ class EasyHybridPreferencesWindow():
         
         
         #-----------------------------------------------------------------------
+
+        #-----------------------------------------------------------------------
+        #    Labels: single "scale with zoom" option for ALL glArea labels
+        #-----------------------------------------------------------------------
+        # Read once here (Viewer > General tab) and applied below to every
+        # label font: picking, distance and atom labels. zoom_sensitivity
+        # is just a uniform value read every frame by the shader, so it
+        # can be set directly on each VismolFont with no VAO rebuild.
+        chk_scale_zoom = self.builder.get_object('chk_labels_scale_with_zoom')
+        labels_zoom_sensitivity = 1.0 if (chk_scale_zoom is not None and chk_scale_zoom.get_active()) else 0.0
+        self.vm_session.vm_config.gl_parameters['labels_zoom_sensitivity'] = labels_zoom_sensitivity
+        #-----------------------------------------------------------------------
+
+        #-----------------------------------------------------------------------
+        #    Picking / Distance Labels: SHARED font family, INDEPENDENT sizes
+        #-----------------------------------------------------------------------
+        # Picking labels (#1 #2 #3 #4, on vm_glcore.vm_font/vm_font_static)
+        # and distance labels (vm_glcore.vm_font_dist) share ONE font
+        # family (a single combo box) but keep their own font sizes.
+        # apply_settings() marks each font's VAO for regeneration
+        # (vao=None) so the new font/size take effect on the next draw,
+        # without needing to reload the molecules.
+        combo_font = self.builder.get_object('combo_pk_dist_font_family')
+        spin_pk_size   = self.builder.get_object('spin_pk_dist_font_size')
+        spin_dist_size = self.builder.get_object('spin_dist_label_font_size')
+        if combo_font is not None and spin_pk_size is not None:
+            font_file = combo_font.get_active_id() or DEFAULT_FONT_FILE
+            pk_size   = spin_pk_size.get_value()
+            dist_size = spin_dist_size.get_value() if spin_dist_size is not None else pk_size
+
+            self.vm_session.vm_config.gl_parameters['label_font_file']         = font_file
+            self.vm_session.vm_config.gl_parameters['label_font_size']         = pk_size
+            self.vm_session.vm_config.gl_parameters['pk_dist_label_font_file'] = font_file
+            self.vm_session.vm_config.gl_parameters['pk_dist_label_font_size'] = dist_size
+
+            vm_glcore = self.vm_session.vm_glcore
+            for font_obj in (vm_glcore.vm_font, vm_glcore.vm_font_static):
+                font_obj.apply_settings(font_file=font_file, size=pk_size)
+                font_obj.zoom_sensitivity = labels_zoom_sensitivity
+            vm_glcore.vm_font_dist.apply_settings(font_file=font_file, size=dist_size)
+            vm_glcore.vm_font_dist.zoom_sensitivity = labels_zoom_sensitivity
+        #-----------------------------------------------------------------------
+
+        #-----------------------------------------------------------------------
+        #    Atom Labels (glArea): content (index/charge/resname/...) + family + size
+        #-----------------------------------------------------------------------
+        # This is a SEPARATE font from the one above: the "labels"
+        # representation (atom index/MM charge/residue name/residue
+        # index/chain -- also settable per-selection via the glArea
+        # right-click "Show" menu) owns its OWN VismolFont instance, one
+        # per vm_object, at vm_object.representations['labels'].vm_font --
+        # NOT vm_object.vm_font, which that representation never reads.
+        combo_font = self.builder.get_object('combo_atom_label_font_family')
+        spin_size  = self.builder.get_object('spin_atom_label_font_size')
+        combo_content = self.builder.get_object('combo_label_content')
+        if combo_font is not None and spin_size is not None:
+            font_file = combo_font.get_active_id() or DEFAULT_FONT_FILE
+            font_size = spin_size.get_value()
+            content = (combo_content.get_active_id() if combo_content is not None else None) or 'name'
+
+            self.vm_session.vm_config.gl_parameters['atom_label_font_file'] = font_file
+            self.vm_session.vm_config.gl_parameters['atom_label_font_size'] = font_size
+            self.vm_session.vm_config.gl_parameters['label_content']       = content
+
+            for vm_object in self.vm_session.vm_objects_dic.values():
+                rep = vm_object.representations.get('labels')
+                if rep is None:
+                    # Representation not created yet for this object (no
+                    # atom has ever been labeled): nothing to refresh.
+                    continue
+                rep.vm_font.apply_settings(font_file=font_file, size=font_size)
+                rep.vm_font.zoom_sensitivity = labels_zoom_sensitivity
+                # Re-derive the text for every atom currently labeled
+                # (atom.labels == True) so a Label Content change (e.g.
+                # "Atom Name" -> "MM Charge") is reflected immediately on
+                # Apply, without needing to re-pick the selection.
+                relabeled_indexes = []
+                for atom in vm_object.atoms.values():
+                    if getattr(atom, 'labels', False):
+                        atom.label_text = compute_atom_label_text(atom, content)
+                        relabeled_indexes.append(atom.atom_id)
+                if relabeled_indexes:
+                    rep.define_new_indexes_to_vbo(relabeled_indexes)
+        #-----------------------------------------------------------------------
         
 
         #-------------------------------------------------------------------------
@@ -942,6 +1303,33 @@ class EasyHybridPreferencesWindow():
         # on_delete_event).
         self.vm_session.vm_config.gl_parameters['save_window_size'] = c
         dprint(a,b,c)
+
+        #---------------------------------------------------------------
+        #                       V-Sync (vblank_mode)
+        #---------------------------------------------------------------
+        # Only takes effect on the NEXT restart (must be set before the GL
+        # context is created -- see easyhybrid.py's
+        # _maybe_disable_vsync_for_intel_igpu). Warn the user when they
+        # change it so the lack of an immediate effect isn't mistaken for
+        # a bug.
+        combo_vblank_mode = self.builder.get_object('combo_vblank_mode')
+        if combo_vblank_mode is not None:
+            vblank_mode = combo_vblank_mode.get_active_id() or 'auto'
+            previous_vblank_mode = self.vm_session.vm_config.gl_parameters.get('vblank_mode', 'auto')
+            self.vm_session.vm_config.gl_parameters['vblank_mode'] = vblank_mode
+            if vblank_mode != previous_vblank_mode:
+                dialog = Gtk.MessageDialog(
+                                    flags=0,
+                                    message_type=Gtk.MessageType.INFO,
+                                    buttons=Gtk.ButtonsType.OK,
+                                    text="V-Sync setting changed.",
+                                )
+                dialog.format_secondary_text(
+                                    "This only takes effect after restarting EasyHybrid."
+                                        )
+                dialog.run()
+                dialog.destroy()
+        #---------------------------------------------------------------
         
         # Criterio de autosave (timer em minutos + contador de eventos).
         # Aceita virgula OU ponto decimal; cai pro valor atual em caso de

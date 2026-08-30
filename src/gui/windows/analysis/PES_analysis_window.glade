@@ -329,6 +329,21 @@
                         <property name="position">9</property>
                       </packing>
                     </child>
+                    <child>
+                      <object class="GtkButton" id="button_plot2d_colors">
+                        <property name="label" translatable="yes">Colors...</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">True</property>
+                        <property name="tooltip-text" translatable="yes">Change the 2D energy surface's background, axis/label and frame colors.</property>
+                        <signal name="clicked" handler="on_button_plot2d_colors_clicked" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">False</property>
+                        <property name="position">10</property>
+                      </packing>
+                    </child>
                   </object>
                 </child>
                 <child type="label">
@@ -423,6 +438,21 @@
                         <property name="position">1</property>
                       </packing>
                     </child>
+                    <child>
+                      <object class="GtkButton" id="button_plot1d_colors">
+                        <property name="label" translatable="yes">Colors...</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">True</property>
+                        <property name="tooltip-text" translatable="yes">Change the 1D energy profile's background, grid line and plot line colors.</property>
+                        <signal name="clicked" handler="on_button_plot1d_colors_clicked" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">False</property>
+                        <property name="position">2</property>
+                      </packing>
+                    </child>
                   </object>
                 </child>
                 <child type="label">
@@ -482,7 +512,7 @@
                 <property name="can-focus">False</property>
                 <child>
                   <object class="GtkToggleButton" id="toggle_sidebar_button">
-                    <property name="label" translatable="yes">&#9664; Hide tools</property>
+                    <property name="label" translatable="yes">◀ Hide tools</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">False</property>

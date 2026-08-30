@@ -34,6 +34,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk
 import cairo
 import random
+import math
 import numpy as np
 import sys
 
@@ -212,11 +213,32 @@ class XYPlot(Gtk.DrawingArea):
         self.Ymax = max(self.Ymax_list)
         
 
-        
-        self.Ymin = self.Ymin + self.Ymin/self.Y_space
-        self.Ymax = self.Ymax + self.Ymax/self.Y_space
-        self.Ymin = int(self.Ymin)# + self.y_botton #- 3 #round(delta/20)
-        self.Ymax = int(self.Ymax) + self.y_top    #+ 2 #round(delta/20)
+        # [EN] BUG FIX (parte 2 -- a raiz do problema): a formula antiga
+        # ("self.Ymin = self.Ymin + self.Ymin/self.Y_space") calculava a
+        # margem como uma FRACAO DO PROPRIO VALOR de Ymin, nao do
+        # intervalo de dados. Isso so' da' margem na direcao CERTA
+        # (Ymin fica mais negativo/menor) quando Ymin <= 0. Para valores
+        # POSITIVOS -- o caso comum aqui, energias absolutas tipo 300-440
+        # kJ/mol, nao so' perfis ja normalizados para comecar em 0 -- o
+        # termo "+ Ymin/Y_space" e' POSITIVO, entao SOMA ao inves de
+        # subtrair: o limite inferior do eixo ficava ACIMA do ponto de
+        # menor energia (confirmado: com dados 305..441, o eixo calculado
+        # ficava em 334 -- 29 unidades ACIMA do minimo real de 305),
+        # cortando o ponto mais baixo pra fora da area visivel do grafico.
+        #
+        # Corrigido calculando a margem como uma fracao do INTERVALO real
+        # dos dados (Ymax - Ymin, sempre >= 0) e SEMPRE subtraindo de Ymin
+        # / somando a Ymax -- direcao correta garantida, independente do
+        # sinal ou da grandeza dos valores. math.floor/ceil (em vez de
+        # int(), que trunca em direcao a zero) garantem que a margem
+        # nunca encolhe por causa do arredondamento.
+        data_range = self.Ymax - self.Ymin
+        if data_range == 0:
+            data_range = abs(self.Ymax) if self.Ymax != 0 else 1
+        margin = data_range / self.Y_space
+
+        self.Ymin = math.floor(self.Ymin - margin) + self.y_botton
+        self.Ymax = math.ceil(self.Ymax + margin) + self.y_top
         delta = self.Ymax - self.Ymin
 
         

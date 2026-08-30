@@ -46,6 +46,7 @@ License: GPL-3.0-or-later
 import os
 import re
 import sys
+import shutil
 import subprocess
 import importlib
 from pathlib import Path
@@ -181,6 +182,18 @@ def is_wsl():
         return False
 
 
+def is_macos():
+    """ [EN] True on macOS. Used to gate the extra checks below that only
+    apply there: GTK3's Quartz backend cannot realize a working
+    Gtk.GLArea at all (see MACOS_NATIVE_RENDERING_FIX.md), so on this
+    platform EasyHybrid renders through a hidden GLFW window instead
+    (src/graphics_engine/.../vismol_gtkwidget.py) -- which needs both the
+    "glfw" pip package AND the native GLFW library (a SEPARATE, OS-level
+    dependency pip cannot install, exactly like the GTK3 typelib case
+    below). Neither is needed, or checked, on Linux/Windows. """
+    return sys.platform == "darwin"
+
+
 WSL_NOTE_TEXT = """\
 Windows Subsystem for Linux (WSL) detected.
 
@@ -197,6 +210,31 @@ Two practical recommendations:
   - The GTK 3.0 typelib (gir1.2-gtk-3.0) below is a common gap on a
     freshly-installed WSL distribution; the dependency check further
     below will confirm whether it is already present.
+"""
+
+
+MACOS_NOTE_TEXT = """\
+macOS detected.
+
+GTK3's native (Quartz) backend cannot realize a working OpenGL
+GLArea at all -- doing so corrupts window compositing for the whole
+app (see MACOS_NATIVE_RENDERING_FIX.md for the full story). EasyHybrid
+works around this by rendering the 3D view through a hidden GLFW
+window instead of GTK's own GL widget, which needs an extra
+dependency beyond every other platform:
+
+  - The "glfw" pip package (already listed below, installed the same
+    way as everything else).
+  - The native GLFW library itself -- a SEPARATE, OS-level dependency
+    that pip cannot install (exactly like the GTK 3.0 typelib case
+    below, just the macOS equivalent of it). Install it via conda/
+    mamba, e.g.:
+        mamba install -c conda-forge glfw
+    (Homebrew's "glfw" formula also works, if you already use brew
+    instead of conda/mamba.)
+
+The dependency check further below will confirm whether both are
+already present.
 """
 
 
@@ -275,8 +313,296 @@ def install_vismol():
 
 
 # ---------------------------------------------------------------------
-# Parse bash environment file
+# Install external QC modules (xTB, ...) into pDynamo
 # ---------------------------------------------------------------------
+
+# EasyHybrid ships QC-model modules that are NOT part of a stock pDynamo3
+# install (xTB above all). They live in EasyHybrid's src/util/extras/ and, to be
+# usable, must be (1) copied into pDynamo's pMolecule/QCModel/ package and
+# (2) imported from that package's __init__.py. This is the manual step users
+# otherwise have to remember; automating it here avoids the classic "I replaced
+# the file but nothing changed" confusion (the running copy is the one inside
+# pDynamo, not the one in extras).
+#
+# Each entry: engine label -> (source filename in extras, symbols to import).
+# The import line mirrors how pDynamo imports ORCA/DFTB:
+#     from .QCModelXTB import _XTBCommand, \
+#                             QCModelXTB
+QC_MODULES = {
+    "xTB": {
+        "filename": "QCModelXTB.py",
+        "module":   "QCModelXTB",
+        "symbols":  ["_XTBCommand", "QCModelXTB"],
+    },
+    # add more here later, e.g.:
+    # "SPARROW": {"filename": "QCModelSPARROW.py", "module": "QCModelSPARROW",
+    #             "symbols": ["_SPARROWCommand", "QCModelSPARROW"]},
+}
+
+
+def _locate_pdynamo_qcmodel_dir():
+    """Return the Path to pDynamo's pMolecule/QCModel package, or None."""
+    try:
+        m = importlib.import_module("pMolecule.QCModel")
+        return Path(m.__file__).parent
+    except Exception:
+        return None
+
+
+def _qcmodel_import_block(module, symbols):
+    """Build the import line(s) matching pDynamo's own __init__ style."""
+    if len(symbols) == 1:
+        return "from .{:s} import {:s}\n".format(module, symbols[0])
+    first = symbols[0]
+    rest = symbols[1:]
+    # 'from .Mod import A, \'  then continuation lines '        B'
+    line = "from .{:s} import {:s}".format(module, first)
+    for s in rest:
+        line += ", \\\n                                        {:s}".format(s)
+    return line + "\n"
+
+
+def _locate_pdynamo_env_script():
+    """Return the Path to pDynamo's environment_bash.com, or None.
+
+    Derived from the pMolecule package location: the env script lives at
+    <pDynamo3>/installation/shellScripts/environment_bash.com, and pMolecule is
+    directly under <pDynamo3>.
+    """
+    try:
+        m = importlib.import_module("pMolecule")
+        pdynamo_root = Path(m.__file__).parent.parent
+        script = pdynamo_root / "installation" / "shellScripts" / "environment_bash.com"
+        return script if script.exists() else None
+    except Exception:
+        return None
+
+
+def _write_env_var_to_script(script_path, var, value):
+    """Add or update 'export VAR="value"' in a bash environment script.
+
+    If VAR is already defined in the file, its line is replaced (so re-running
+    the installer updates the path instead of appending a duplicate). Otherwise
+    the export is appended. Returns True on success.
+    """
+    script_path = Path(script_path)
+    try:
+        lines = script_path.read_text().splitlines()
+    except Exception:
+        lines = []
+
+    new_line = 'export {:s}="{:s}"'.format(var, value)
+    # match a line that sets this var (with or without 'export', ignoring
+    # leading spaces), but NOT a commented-out one
+    pattern = re.compile(r'^\s*(export\s+)?' + re.escape(var) + r'\s*=')
+
+    replaced = False
+    out = []
+    for line in lines:
+        if pattern.match(line) and not line.lstrip().startswith("#"):
+            out.append(new_line)
+            replaced = True
+        else:
+            out.append(line)
+
+    if not replaced:
+        out.append("")
+        out.append("# Added by EasyHybrid installer")
+        out.append(new_line)
+
+    try:
+        # keep a one-time backup the first time we touch the file
+        backup = script_path.with_suffix(script_path.suffix + ".easyhybrid.bak")
+        if not backup.exists():
+            shutil.copy2(str(script_path), str(backup))
+        script_path.write_text("\n".join(out) + "\n")
+        return True
+    except Exception as e:
+        print(c_error("Could not write to {:s}: {:s}".format(str(script_path), str(e))))
+        return False
+
+
+def configure_xtb_command():
+    """Offer to persist PDYNAMO3_XTBCOMMAND into pDynamo's environment script.
+
+    Asks for authorization, asks for the xtb executable path (validating it),
+    and writes 'export PDYNAMO3_XTBCOMMAND="..."' into environment_bash.com so
+    the variable is set in future shells. Returns True unless the user
+    authorized it but writing failed.
+    """
+    var = QC_ENGINE_ENV_VARS["xTB"]  # "PDYNAMO3_XTBCOMMAND"
+
+    # If it is already set in this shell, tell the user and offer to skip.
+    current = os.environ.get(var)
+    if current:
+        print(c_info("\n{:s} is already set -> {:s}".format(var, current)))
+        if not ask_yes_no("Do you want to (re)write it into environment_bash.com anyway?"):
+            return True
+
+    if not ask_yes_no(
+        "\nMay the installer save the xTB executable path into pDynamo's "
+        "environment_bash.com (sets {:s} for future shells)?".format(var)):
+        print(c_info("Skipped writing {:s}. You can set it manually later.".format(var)))
+        return True
+
+    script = _locate_pdynamo_env_script()
+    if script is None:
+        print(c_warn(
+            "Could not locate pDynamo's environment_bash.com automatically. "
+            "Set {:s} manually in your shell configuration.".format(var)))
+        return True
+
+    # Ask for the xtb path, validating it is a real executable.
+    xtb_path = ""
+    while True:
+        xtb_path = input("\nFull path to the xtb executable "
+                         "(e.g. /home/user/xtb-6.7.1/bin/xtb): ").strip()
+        if not xtb_path:
+            print(c_info("No path given; skipping."))
+            return True
+        xtb_path = os.path.abspath(os.path.expanduser(xtb_path))
+        if os.path.isfile(xtb_path) and os.access(xtb_path, os.X_OK):
+            break
+        print(c_warn("That path is not an executable file. "
+                     "Please check it and try again (or leave empty to skip)."))
+
+    if _write_env_var_to_script(script, var, xtb_path):
+        print(c_ok("Saved {:s} -> {:s}".format(var, xtb_path)))
+        print(c_info("in ") + str(script))
+        # also set it for the current process so later checks see it
+        os.environ[var] = xtb_path
+        print(c_warn(
+            "Open a new shell or run:  source " + str(script) + "\n"
+            "for the change to take effect in your current terminal."))
+        return True
+    return False
+
+
+def install_qc_modules():
+    """Offer to install EasyHybrid's external QC modules into pDynamo.
+
+    For each module (currently xTB) this copies the source file from
+    src/util/extras/ into pDynamo's pMolecule/QCModel/ and adds an import to
+    that package's __init__.py, so 'from pMolecule.QCModel import *' exposes it.
+
+    Returns True if nothing went wrong (including the user declining); False
+    only if the user asked to install but it failed.
+    """
+
+    print(c_header("\nExternal QC modules (xTB, ...) for pDynamo\n"))
+
+    extras_dir = EASYHYBRID_HOME / "src" / "util" / "extras"
+    qcmodel_dir = _locate_pdynamo_qcmodel_dir()
+
+    if qcmodel_dir is None:
+        print(c_warn(
+            "Could not locate pDynamo's pMolecule/QCModel package (is pDynamo3 "
+            "loaded in this shell?). Skipping automatic QC-module installation."))
+
+        # Give the user everything they need to do it by hand. Build the exact
+        # import line(s) the installer would have added, per module.
+        print(c_info(
+            "\nTo install the QC module(s) manually, for each module do the "
+            "following two steps:\n"))
+        print("  1. Copy the module file from EasyHybrid's extras into pDynamo's\n"
+              "     pMolecule/QCModel/ folder. If you don't know where that is, run:\n"
+              "         python3 -c \"import pMolecule.QCModel as m; import os; "
+              "print(os.path.dirname(m.__file__))\"\n"
+              "     then copy the file there, e.g.:")
+        for engine, info in QC_MODULES.items():
+            src = extras_dir / info["filename"]
+            print("         # {:s}".format(engine))
+            print("         cp \"{:s}\" <pMolecule/QCModel>/".format(str(src)))
+        print("\n  2. Register it by adding its import to that folder's "
+              "__init__.py.\n"
+              "     Append these line(s) to <pMolecule/QCModel>/__init__.py:")
+        for engine, info in QC_MODULES.items():
+            block = _qcmodel_import_block(info["module"], info["symbols"]).rstrip("\n")
+            print("         # {:s}".format(engine))
+            for bl in block.splitlines():
+                print("         " + bl)
+        print(c_info(
+            "\nAfter that, 'from pMolecule.QCModel import *' will expose the "
+            "module, and EasyHybrid will be able to use the engine.\n"
+            "This is exactly what the installer does automatically when it can "
+            "find the pDynamo package -- so loading the pDynamo environment "
+            "first (source .../environment_bash.com) and re-running this "
+            "installer will also work."))
+        return True
+
+    print(c_info("pDynamo QCModel package: ") + str(qcmodel_dir))
+    print(c_info("EasyHybrid extras folder: ") + str(extras_dir))
+
+    init_path = qcmodel_dir / "__init__.py"
+
+    ok = True
+    for engine, info in QC_MODULES.items():
+        src = extras_dir / info["filename"]
+        dst = qcmodel_dir / info["filename"]
+
+        # Is it already installed (file present AND imported in __init__)?
+        # The import we add/look for is 'from .<module> import ...', so detect
+        # exactly that (an earlier check for 'import <module>' never matched,
+        # because the module name sits after 'from .', not after 'import').
+        init_text = init_path.read_text() if init_path.exists() else ""
+        import_marker = "from .{:s} import".format(info["module"])
+        already_imported = import_marker in init_text
+
+        if dst.exists() and already_imported:
+            print(f"{engine} : {c_ok('already installed')} -> {dst}")
+            continue
+
+        if not src.exists():
+            print(f"{engine} : {c_error('source not found')} ({src})")
+            ok = False
+            continue
+
+        if not ask_yes_no(
+            "\nInstall the {:s} QC module into pDynamo? "
+            "(copies {:s} and updates QCModel/__init__.py)".format(engine, info["filename"])):
+            print(c_info("Skipped {:s}.".format(engine)))
+            continue
+
+        # 1) copy the module file
+        try:
+            shutil.copy2(str(src), str(dst))
+            print(f"{engine} : {c_ok('copied')} -> {dst}")
+        except Exception as e:
+            print(f"{engine} : {c_error('copy failed')} ({e})")
+            ok = False
+            continue
+
+        # 2) add the import to __init__.py (if not already there)
+        if not already_imported:
+            try:
+                block = _qcmodel_import_block(info["module"], info["symbols"])
+                with open(str(init_path), "a") as f:
+                    f.write("\n# Added by EasyHybrid installer: external QC module\n")
+                    f.write(block)
+                print(f"{engine} : {c_ok('registered in __init__.py')}")
+            except Exception as e:
+                print(f"{engine} : {c_error('could not update __init__.py')} ({e})")
+                print(c_warn(
+                    "   Add this line manually to " + str(init_path) + ":\n"
+                    "       " + _qcmodel_import_block(info["module"], info["symbols"]).strip()))
+                ok = False
+                continue
+
+        # 3) verify it now imports from the package
+        try:
+            importlib.invalidate_caches()
+            mod = importlib.import_module("pMolecule.QCModel." + info["module"])
+            if hasattr(mod, info["symbols"][-1]):
+                print(f"{engine} : {c_ok('verified (imports correctly)')}")
+            else:
+                print(f"{engine} : {c_warn('installed but symbol not found on import')}")
+        except Exception as e:
+            print(f"{engine} : {c_warn('installed but could not verify import')} ({e})")
+
+    return ok
+
+
+
 
 def parse_bash_env_file(filepath):
     """
@@ -406,8 +732,77 @@ To load them manually, run:
 
 
 # ---------------------------------------------------------------------
-# Check external libraries
+# Check external QC engines (ORCA / xTB)
 # ---------------------------------------------------------------------
+
+# Each external QC engine that EasyHybrid can drive is configured through a
+# pDynamo environment variable that must point at the engine executable. This
+# table maps a human-readable name to that variable; add a row here when a new
+# engine is supported and the check below covers it automatically.
+QC_ENGINE_ENV_VARS = {
+    "ORCA": "PDYNAMO3_ORCACOMMAND",
+    "xTB":  "PDYNAMO3_XTBCOMMAND",
+}
+
+# The shared scratch directory both engines write their temporary files to.
+QC_SCRATCH_ENV_VAR = "PDYNAMO3_SCRATCH"
+
+
+def check_qc_engines():
+    """Check that the external QC engines (ORCA, xTB) are configured.
+
+    This first stage verifies the *environment variables* that pDynamo uses to
+    locate each engine executable, plus the shared scratch directory. It does
+    NOT yet run the executables -- that deeper check can be layered on later.
+
+    Returns a dict {engine_name: bool} indicating whether each engine's
+    environment variable is set (scratch is reported but not included in the
+    per-engine result).
+    """
+
+    print(c_header("\nChecking external QC engines (environment variables)...\n"))
+
+    results = {}
+
+    for engine, var in QC_ENGINE_ENV_VARS.items():
+        value = os.environ.get(var)
+        if value:
+            print(f"{engine:5s} ({var}) : {c_ok('SET')} -> {value}")
+            results[engine] = True
+        else:
+            print(f"{engine:5s} ({var}) : {c_warn('NOT SET')}")
+            results[engine] = False
+
+    # Shared scratch directory (used by every engine).
+    scratch = os.environ.get(QC_SCRATCH_ENV_VAR)
+    if scratch:
+        print(f"scratch ({QC_SCRATCH_ENV_VAR}) : {c_ok('SET')} -> {scratch}")
+    else:
+        print(f"scratch ({QC_SCRATCH_ENV_VAR}) : {c_warn('NOT SET')}")
+
+    # Friendly summary: not finding an engine is only a warning, since a given
+    # user may legitimately use just one of them (or neither).
+    configured = [e for e, ok in results.items() if ok]
+    if configured:
+        print(c_info("\nConfigured QC engine(s): ") + ", ".join(configured))
+    else:
+        print(c_warn(
+            "\nNo external QC engine environment variable is set. If you plan "
+            "to run ORCA or xTB calculations, set the variable(s) above to the "
+            "engine executable, e.g.:\n"
+            "    export PDYNAMO3_XTBCOMMAND=/path/to/xtb\n"
+            "    export PDYNAMO3_ORCACOMMAND=/path/to/orca"))
+
+    if not scratch:
+        print(c_warn(
+            "\n" + QC_SCRATCH_ENV_VAR + " is not set. QC calculations write "
+            "temporary files there; set it to a writable directory, e.g.:\n"
+            "    export " + QC_SCRATCH_ENV_VAR + "=$PDYNAMO3_HOME/scratch"))
+
+    return results
+
+
+
 
 # [EN] Maps the Python import name (what importlib.import_module() needs)
 # to the actual pip package name (what "pip install ..." needs) -- these
@@ -422,11 +817,30 @@ To load them manually, run:
 # alongside genuinely-external packages was misleading.
 PYTHON_LIBRARIES = {
     "numpy":    "numpy",
+    "scipy":    "scipy",
     "OpenGL":   "PyOpenGL",
     "freetype": "freetype-py",
     "cairo":    "pycairo",
     "gi":       "PyGObject",
     "Cython":   "Cython",
+    # [EN] Added for the Process Manager's "Abort" feature -- needs to
+    # find and signal every DESCENDANT of a running job's process (its
+    # own multiprocessing.Pool workers, or external QM programs it
+    # shelled out to), not just the one direct child multiprocessing.
+    # Process.terminate() already knows about. Cross-platform by
+    # construction (implemented per-OS internally by psutil itself --
+    # /proc on Linux, sysctl/libproc on macOS, a different mechanism
+    # again on Windows), unlike an earlier version of this feature that
+    # read /proc directly and consequently never worked on macOS at all.
+    "psutil":   "psutil",
+}
+
+# [EN] macOS-only, checked in ADDITION to PYTHON_LIBRARIES above (see
+# is_macos()/MACOS_NOTE_TEXT) -- never required, and never checked, on
+# Linux/Windows, which keep using GTK's own Gtk.GLArea directly and have
+# no use for GLFW at all.
+MACOS_PYTHON_LIBRARIES = {
+    "glfw": "glfw",
 }
 
 
@@ -456,24 +870,90 @@ def check_gtk3_typelib():
         return False
 
 
+def check_glfw_native_lib():
+    """ [EN] macOS-only, same distinction as check_gtk3_typelib() above,
+    just for GLFW instead of GTK3: "import glfw" (the pip package,
+    already checked via MACOS_PYTHON_LIBRARIES) succeeding is NOT enough
+    -- it only provides Python ctypes bindings, which still need to
+    locate and load the actual native GLFW shared library at runtime,
+    a SEPARATE, OS-level dependency pip cannot install (see
+    MACOS_NOTE_TEXT). "import glfw" succeeds either way; only
+    glfw.init() actually touches the native library, so that's what's
+    called here, then immediately torn down again -- this function's
+    only job is the check itself, not to leave GLFW initialized.
+
+    Returns True if the native library loads and initializes
+    correctly, False otherwise (including if the "glfw" pip package
+    itself isn't installed at all). """
+    try:
+        import glfw
+        if not glfw.init():
+            return False
+        glfw.terminate()
+        return True
+    except (ImportError, AttributeError, OSError):
+        return False
+
+
+def check_xcode_clt():
+    """ [EN] macOS-only. install_vismol() (Step 3) compiles VISMOL's
+    Cython extensions (see setup.py/install.sh: "python3 setup.py
+    build_ext --inplace"), which needs a working C compiler -- on
+    macOS that's clang, shipped as part of the Xcode Command Line
+    Tools, NOT installed by default on a fresh machine. Checked here,
+    alongside the other prerequisites, for the same reason the
+    dependency-check step was reordered to run before install_vismol()
+    in the first place (see the comment in main()): surface one clear
+    "NOT FOUND" message up front instead of letting the Cython build
+    fail with a confusing "command not found: clang"/linker error deep
+    in Step 3.
+
+    "xcode-select -p" is the standard, documented way to check this: it
+    prints the active developer directory and exits 0 if the Command
+    Line Tools (or full Xcode) are installed, or exits with an error
+    and no output if they aren't -- no compilation attempted, just asks
+    Xcode's own tooling directly.
+
+    Returns True if found, False otherwise. Never attempts to install
+    them itself: "xcode-select --install" pops up Apple's own GUI
+    installer and requires accepting a license there, not something
+    scriptable/unattended the way a pip or conda install is. """
+    try:
+        result = subprocess.run(["xcode-select", "-p"], capture_output=True, text=True)
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
 def check_external_libraries(auto_install=False):
     """ Checks required external Python libraries (see PYTHON_LIBRARIES
-    above), PLUS the GTK3 system typelib (see check_gtk3_typelib()) --
-    which is not a Python package at all and needs its own, separate
-    fix/message.
+    above, plus MACOS_PYTHON_LIBRARIES on macOS), PLUS the GTK3 system
+    typelib (see check_gtk3_typelib()) and, on macOS, the native GLFW
+    library (see check_glfw_native_lib()) and the Xcode Command Line
+    Tools (see check_xcode_clt()) -- none of which are Python packages
+    at all and each need their own, separate fix/message.
 
     auto_install: if True (or if the user says yes when prompted, in
     interactive mode), attempts "pip install <package>" for whatever
-    Python packages are missing. Never attempts to install the GTK3
-    system package automatically -- that needs sudo/apt, a much bigger
-    thing to do without asking explicitly every time, so it only ever
-    prints the exact command to run. """
+    Python packages are missing. Never attempts to install GTK3, GLFW
+    or the Xcode Command Line Tools automatically -- those need sudo/
+    apt, conda/brew, or Apple's own installer dialog respectively, a
+    much bigger thing to do without asking explicitly every time, so it
+    only ever prints the exact command to run. """
 
     print(c_header("\nChecking required Python packages...\n"))
 
     missing_pip_names = []
 
-    for import_name, pip_name in PYTHON_LIBRARIES.items():
+    # [EN] glfw is only ever needed on macOS (see MACOS_PYTHON_LIBRARIES/
+    # is_macos()) -- merged into the same dict/loop as everything else so
+    # it gets the exact same "NOT FOUND" reporting and pip-install flow
+    # below, without duplicating either.
+    libraries_to_check = dict(PYTHON_LIBRARIES)
+    if is_macos():
+        libraries_to_check.update(MACOS_PYTHON_LIBRARIES)
+
+    for import_name, pip_name in libraries_to_check.items():
         try:
             importlib.import_module(import_name)
             print(f"{import_name} : {c_ok('OK')}")
@@ -487,8 +967,34 @@ def check_external_libraries(auto_install=False):
     else:
         print(f"GTK 3.0 typelib (gir1.2-gtk-3.0) : {c_error('NOT FOUND')}")
 
-    if not missing_pip_names and gtk3_ok:
-        print(c_ok("\n✓ All required Python packages and GTK 3 dependencies were found."))
+    # [EN] Same "pip package imports fine, but the actual OS-level
+    # library it wraps is missing" distinction as check_gtk3_typelib()
+    # above, just for GLFW -- see check_glfw_native_lib(). Not applicable
+    # (treated as satisfied) outside macOS.
+    glfw_native_ok = True
+    if is_macos():
+        glfw_native_ok = check_glfw_native_lib()
+        if glfw_native_ok:
+            print(f"GLFW native library : {c_ok('OK')}")
+        else:
+            print(f"GLFW native library : {c_error('NOT FOUND')}")
+
+    # [EN] install_vismol() (Step 3) needs a working C compiler (clang,
+    # via Xcode CLT on macOS) to build VISMOL's Cython extensions -- see
+    # check_xcode_clt(). Not applicable (treated as satisfied) outside
+    # macOS, where a compiler is either already present (most Linux
+    # dev setups) or its absence surfaces as its own clear error from
+    # the build step, unrelated to anything macOS-specific here.
+    xcode_clt_ok = True
+    if is_macos():
+        xcode_clt_ok = check_xcode_clt()
+        if xcode_clt_ok:
+            print(f"Xcode Command Line Tools : {c_ok('OK')}")
+        else:
+            print(f"Xcode Command Line Tools : {c_error('NOT FOUND')}")
+
+    if not missing_pip_names and gtk3_ok and glfw_native_ok and xcode_clt_ok:
+        print(c_ok("\n✓ All required Python packages and system dependencies were found."))
         return True
 
     if missing_pip_names:
@@ -551,11 +1057,40 @@ def check_external_libraries(auto_install=False):
             return False
 
     if not gtk3_ok:
+        if is_macos():
+            print(c_warn(
+                "\nGTK 3 (with its Python/gi bindings) was not found. This is a "
+                "SYSTEM/conda package, not something pip can install. Install it "
+                "via:\n"
+            ) + c_info("    mamba install -c conda-forge pygobject gtk3\n") +
+                '(Homebrew\'s "pygobject3" + "gtk+3" formulas also work, if you '
+                "use brew instead of conda/mamba)."
+            )
+        else:
+            print(c_warn(
+                "\nThe GTK 3.0 typelib is a SYSTEM package, not something pip can "
+                "install. On Debian/Ubuntu, run:\n"
+            ) + c_info("    sudo apt-get install gir1.2-gtk-3.0\n") +
+                "(the exact package name may differ on other distributions)."
+            )
+
+    if not glfw_native_ok:
         print(c_warn(
-            "\nThe GTK 3.0 typelib is a SYSTEM package, not something pip can "
-            "install. On Debian/Ubuntu, run:\n"
-        ) + c_info("    sudo apt-get install gir1.2-gtk-3.0\n") +
-            "(the exact package name may differ on other distributions)."
+            "\nThe native GLFW library is a SYSTEM/conda package, not something "
+            "pip can install (the 'glfw' Python package above only provides "
+            "bindings to it -- see MACOS_NOTE_TEXT). Install it via:\n"
+        ) + c_info("    mamba install -c conda-forge glfw\n") +
+            '(Homebrew\'s "glfw" formula also works, if you use brew instead '
+            "of conda/mamba)."
+        )
+
+    if not xcode_clt_ok:
+        print(c_warn(
+            "\nThe Xcode Command Line Tools (needed to compile VISMOL's Cython "
+            "extensions in Step 3) were not found. Install them with:\n"
+        ) + c_info("    xcode-select --install\n") +
+            "(pops up Apple's own installer dialog -- accept the license there, "
+            "then re-run this installer)."
         )
 
     return False
@@ -666,7 +1201,7 @@ Python scripting for advanced workflows.
 This installer will:
 
   1. Check the required Python packages
-  2. Locate and verify your pDynamo3 installation
+  2. Locate and verify your pDynamo3 installation and QC engines (ORCA/xTB)
   3. Build the VISMOL graphics engine
   4. Optionally create desktop and application-menu shortcuts
 
@@ -675,6 +1210,9 @@ Run with --credits at any time to see the full citation details.\
 
     if is_wsl():
         print(c_warn("\n" + WSL_NOTE_TEXT))
+
+    if is_macos():
+        print(c_warn("\n" + MACOS_NOTE_TEXT))
 
     # [EN] REORDERED (previously: install_vismol() ran FIRST, then
     # dependencies were checked afterwards). install_vismol() compiles
@@ -691,6 +1229,17 @@ Run with --credits at any time to see the full citation details.\
 
     print(c_header("\n[Step 2/3] pDynamo3 installation"))
     check_pdynamo()
+
+    # External QC engines (ORCA / xTB) are optional but commonly used; report
+    # their environment-variable configuration so the user knows what will work.
+    check_qc_engines()
+
+    # Offer to persist the xTB executable path into pDynamo's environment script.
+    configure_xtb_command()
+
+    # Offer to install EasyHybrid's external QC modules (xTB, ...) into pDynamo
+    # -- copies the module and registers it in pMolecule/QCModel/__init__.py.
+    install_qc_modules()
 
     print(c_header("\n[Step 3/3] VISMOL graphics engine"))
     if not install_vismol():

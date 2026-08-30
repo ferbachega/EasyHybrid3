@@ -83,6 +83,36 @@ requirements_PH.txt
 src/gui/icons/icon_cell3.png
 src/gui/main/main.zip
 src/roteiros e dados/
+FE_S_untitled.easy~
+FE_cluster.easy~
+Fe_cluster.easy~
+examples/HALOACID.easy~
+examples/diels_alder.easy~
+pes_2d_energy_surface.png
+ruff.diff
+ruff.log
+ruff.stat
+run_remote.sh
+src/gui/eSession.old.py
+src/gui/widgets/#trajectory_box.glade#
+src/gui/windows/analysis/PES_analysis_window.glade~
+src/gui/windows/analysis/old/
+src/gui/windows/setup/old/
+src/gui/windows/simulation/old/
+src/pdynamo/p_methods/old/
+src/util/0-UNK_DYFF_ORCA QC MODEL_QC37_single_point_TDDFT.orca_spectrum.dat
+src/util/0-UNK_DYFF_ORCA QC MODEL_QC37_single_point_TDDFT.orca_spectrum_sticks.dat
+src/util/0-UNK_DYFF_ORCA QC MODEL_QC37_single_point_TDDFT.orca_states.dat
+src/util/FRAG.py
+src/util/README.txt
+src/util/extras/PES_publication_plot.py
+src/util/extras/logParser.py
+src/util/orca_tddft_analysis.py
+src/util/test_xtb_frag.py
+src/util/xtb_fragment_charges_old.py
+system.mol2
+tests/test_bond_order_matching.py
+untitled.easy~
 
 
 

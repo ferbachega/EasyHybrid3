@@ -8,7 +8,8 @@ from   pCore                 import Clone              , \
                                     logFile            , \
                                     LogFileActive      , \
                                     Selection          , \
-                                    SelectionContainer
+                                    SelectionContainer , \
+                                    SelfPairList
 from   pScientific           import Units
 from   pScientific.Arrays    import Array
 from   pScientific.Geometry3 import Vector3

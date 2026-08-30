@@ -51,7 +51,7 @@ from pprint import pprint
 import os, time, sys
 
 # --- imports entre modulos adicionados na refatoracao ---
-from pdynamo.p_methods._common import backup_orca_files, write_header, get_hamiltonian, plot_data
+from pdynamo.p_methods._common import backup_qc_files, backup_orca_files, write_header, get_hamiltonian, plot_data
 
 class AdvancedRelaxedSurfaceScan:
     """ Class doc """
@@ -150,9 +150,9 @@ class AdvancedRelaxedSurfaceScan:
                 text = text + "\nATOM                   =%15i  ATOM NAME              =%15s"     % ( int(rc2[1]), str(rc2[0]) )
                 text = text + "\nATOM                   =%15i  ATOM NAME              =%15s"     % ( int(rc2[3]), str(rc2[2]) )
                 text = text + "\nSigma                  =%15.5f"                                 % ( float(rc2[4]) )
-            text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC1']['nsteps']  , parameters['RC1']['force_constant'] )
-            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC1']['dminimum'], parameters['maximumIterations']         )
-            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC1']['dincre']  , parameters['rmsGradientTolerance']           )
+            text = text + "\nNUMBER OF STEPS        =%15i  FORCE CONSTANT         =%15i"     % (parameters['RC2']['nsteps']  , parameters['RC2']['force_constant'] )
+            text = text + "\nDMINIMUM               =%15.5f  MAX INTERACTIONS       =%15i"   % (parameters['RC2']['dminimum'], parameters['maximumIterations']         )
+            text = text + "\nSTEP SIZE              =%15.7f  RMS GRAD               =%15.7f" % (parameters['RC2']['dincre']  , parameters['rmsGradientTolerance']           )
             text = text + "\n--------------------------------------------------------------------------------"
 
 
@@ -219,7 +219,7 @@ class AdvancedRelaxedSurfaceScan:
                                   "frame{}.pkl".format(i) ), 
                     parameters['system'].coordinates3 ) 
             
-            backup_orca_files(system        = parameters['system'], 
+            backup_qc_files(system        = parameters['system'], 
                               output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
                               output_name   = "frame{}".format(i))
                 
@@ -365,7 +365,7 @@ class AdvancedRelaxedSurfaceScan:
                                    
             Pickle( pkl, parameters['system'].coordinates3 )
             
-            backup_orca_files(system        = parameters['system'], 
+            backup_qc_files(system        = parameters['system'], 
                               output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
                               output_name   = "frame{}_{}".format(i,j))
             
@@ -705,7 +705,7 @@ class RelaxedSurfaceScan:
                                       "frame{}.pkl".format(i) ), 
                         parameters['system'].coordinates3 ) 
                 
-                backup_orca_files(system        = parameters['system'], 
+                backup_qc_files(system        = parameters['system'], 
                                   output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
                                   output_name   = "frame{}".format(i))
         
@@ -742,7 +742,7 @@ class RelaxedSurfaceScan:
                                       "frame{}.pkl".format(i) ), 
                         parameters['system'].coordinates3 ) 
                 
-                backup_orca_files(system        = parameters['system'], 
+                backup_qc_files(system        = parameters['system'], 
                                   output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
                                   output_name   = "frame{}".format(i))
             
@@ -779,7 +779,7 @@ class RelaxedSurfaceScan:
                                       "frame{}.pkl".format(i) ), 
                         parameters['system'].coordinates3 ) 
                 
-                backup_orca_files(system        = parameters['system'], 
+                backup_qc_files(system        = parameters['system'], 
                                   output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
                                   output_name   = "frame{}".format(i))
                 
@@ -821,7 +821,7 @@ class RelaxedSurfaceScan:
                                       "frame{}.pkl".format(i) ), 
                         parameters['system'].coordinates3 ) 
                 
-                backup_orca_files(system        = parameters['system'], 
+                backup_qc_files(system        = parameters['system'], 
                                   output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
                                   output_name   = "frame{}".format(i))
 
@@ -1034,7 +1034,7 @@ class RelaxedSurfaceScan:
                                    
             Pickle( pkl, parameters['system'].coordinates3 )
             
-            backup_orca_files(system        = parameters['system'], 
+            backup_qc_files(system        = parameters['system'], 
                               output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
                               output_name   = "frame{}_{}".format(i,j))
             
@@ -1238,7 +1238,7 @@ class RelaxedSurfaceScan:
                                       "frame{}_{}.pkl".format(i,j) ), 
                                       parameters['system'].coordinates3 )
                 #--------------------------------------------------------------------------------------
-                backup_orca_files(system        = parameters['system'], 
+                backup_qc_files(system        = parameters['system'], 
                                   output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
                                   output_name   = "frame{}_{}".format(i,j))
         
@@ -1366,7 +1366,7 @@ def _run_advanced_second_coordinate_in_parallel (job):
                               
                               system.coordinates3 )
                               
-        backup_orca_files(system        = system, 
+        backup_qc_files(system        = system, 
                           output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
                           output_name   = "frame{}_{}".format(i,j))
         #--------------------------------------------------------------------------------------
@@ -1567,7 +1567,7 @@ def _run_second_coordinate_in_parallel (job):
                               
                               system.coordinates3 )
                               
-        backup_orca_files(system        = system, 
+        backup_qc_files(system        = system, 
                           output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
                           output_name   = "frame{}_{}".format(i,j))
         #--------------------------------------------------------------------------------------
@@ -1945,7 +1945,11 @@ def _run_left_right_line_in_parallel (job):
             
             Pickle( pkl, parameters['system'].coordinates3 )
             
-            #backup_orca_files(system        = parameters['system'], 
+            backup_qc_files(system        = parameters['system'], 
+                            output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
+                            output_name   = "frame{}_{}".format(i,j))
+            
+            #backup_qc_files(system        = parameters['system'], 
             #                  output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
             #                  output_name   = "frame{}_{}".format(i,j))
             
@@ -1977,6 +1981,10 @@ def _run_left_right_line_in_parallel (job):
                                 "frame{}_{}.pkl".format(matrix_index_i, matrix_index_j) )
             
             Pickle( pkl, parameters['system'].coordinates3 )
+
+            backup_qc_files(system        = parameters['system'], 
+                            output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
+                            output_name   = "frame{}_{}".format(i,j))
             
     #'''
     return data
@@ -2037,6 +2045,10 @@ def _run_up_down_column_in_parallel (job):
         
         Pickle( pkl, parameters['system'].coordinates3 )
 
+        backup_qc_files(system        = parameters['system'], 
+                        output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
+                        output_name   = "frame{}_{}".format(i,j))
+
 
         #print (matrix_index_i, matrix_index_j, E )            
         data[(matrix_index_i, matrix_index_j)] = [RC1_d1_minus_d2, RC2_d1_minus_d2, E]
@@ -2069,6 +2081,10 @@ def _run_up_down_column_in_parallel (job):
                             "frame{}_{}.pkl".format(matrix_index_i, matrix_index_j) )
         
         Pickle( pkl, parameters['system'].coordinates3 )
+
+        backup_qc_files(system        = parameters['system'], 
+                        output_folder = os.path.join(parameters['folder'],parameters['traj_folder_name']+".ptGeo") , 
+                        output_name   = "frame{}_{}".format(i,j))
 
         #print ( matrix_index_i, matrix_index_j, E )            
         data[(matrix_index_i, matrix_index_j)] = [RC1_d1_minus_d2, RC2_d1_minus_d2, E]

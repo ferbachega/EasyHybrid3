@@ -199,7 +199,33 @@ from pdynamo import p_methods as pMethods
 
 # Importing system
 system = ImportSystem ('{}')
+
+
+
+#--------------------------------  HPC SETUP  -------------------------------------#
+
+# You only need this section if you are using an external engine for QC calculations, 
+# such as ORCA, xTB, etc.
 # system.qcState.DeterminePaths('/home/usr/scratch') # Uncomment for ORCA / DFTB+ / xTB
+
+
+#This section is only used to check whether the scratch folder exists on the current 
+#workstation. If it is not found, the scratch directory will be redirected to the
+#default pDynamo scratch directory, with a random 10-character tag appended.
+
+import os
+import random
+import string
+
+PDYNAMO3_SCRATCH = os.environ.get('PDYNAMO3_SCRATCH')
+directory = os.path.dirname(system.qcState.paths['Coord'])
+if os.path.isdir(directory):
+    pass
+else:
+    s = ''.join(random.choices(string.ascii_letters, k=10))
+    system.qcState.DeterminePaths(os.path.join(PDYNAMO3_SCRATCH, s))
+#----------------------------------------------------------------------------------#
+
 
 # Summary of the imported system
 system.Summary()
@@ -215,6 +241,9 @@ system.Summary()
         # Add simulation object based on the type
         if self.parameters['simulation_type'] == 'Umbrella_Sampling':
             header += '\n\nsimObj =  pMethods.UmbrellaSampling()'
+        
+        elif self.parameters['simulation_type'] == 'Advanced_Relaxed_Surface_Scan':
+            header += '\n\nsimObj =  pMethods.AdvancedRelaxedSurfaceScan()'
         
         elif self.parameters['simulation_type'] == 'Relaxed_Surface_Scan':
             header += '\n\nsimObj =  pMethods.RelaxedSurfaceScan()'

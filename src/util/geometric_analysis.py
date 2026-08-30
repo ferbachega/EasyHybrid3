@@ -317,23 +317,23 @@ def rotate_bond_from_indexes (molecule, index_center, index_vector, theta):
 
 def find_subgroup(atom1, atom2, top):
     
-    #Versão iterativa, eficiente e segura contra ciclos.
-    #Retorna todos os átomos acessíveis a partir de atom2,
-    #excluindo atom1 e evitando loops cíclicos.
+    #Iterative version, efficient and safe against cycles.
+    #Returns all atoms reachable from atom2,
+    #excluding atom1 and avoiding cyclic loops.
     #
-    #Parâmetros:
+    #Parameters:
     #    atom1 : int
-    #        Átomo "pai" inicial — usado para evitar travessia de volta.
+    #        Initial "parent" atom -- used to prevent traversal back.
     #
     #    atom2 : int
-    #        Átomo inicial da busca (onde deve-se começar).
+    #        Initial search atom (where to start).
     #
     #    top : dict[int, list[int]]
     #        Conectividade do sistema (grafo). Exemplo:
-    #        top[i] = [lista de átomos conectados ao átomo i]
+    #        top[i] = [list of atoms connected to atom i]
     #
     #Retorno:
-    #    list[int]  — lista dos átomos pertencentes ao subgrupo.
+    #    list[int]  -- list of atoms belonging to the subgroup.
     """
     Iterative, efficient, and cycle-safe version.
     Returns all atoms accessible from atom2, excluding atom1 and avoiding cyclic loops.
@@ -369,7 +369,7 @@ def find_subgroup(atom1, atom2, top):
             visited.add(neighbor)
             subgroup.append(neighbor)
 
-            # só avança se o átomo tiver ramificações
+            # only advances if the atom has branches
             if len(top[neighbor]) > 1:
                 queue.append(neighbor)
 

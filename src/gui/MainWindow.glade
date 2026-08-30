@@ -718,12 +718,35 @@
                       </object>
                     </child>
                     <child>
-                      <object class="GtkMenuItem" id="menuitem_charge_inspection">
+                      <object class="GtkMenuItem" id="charge_menu">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">Charge Inspection</property>
+                        <property name="label" translatable="yes">Charges</property>
                         <property name="use-underline">True</property>
-                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                        <child type="submenu">
+                          <object class="GtkMenu">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <child>
+                              <object class="GtkMenuItem" id="menuitem_charge_inspection">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="label" translatable="yes">Charge Block Inspector</property>
+                                <property name="use-underline">True</property>
+                                <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkMenuItem" id="menuitem_fragment_charges">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="label" translatable="yes">Fragment-Based Charge Assignment</property>
+                                <property name="use-underline">True</property>
+                                <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
                       </object>
                     </child>
                     <child>

@@ -55,7 +55,7 @@ from util.geometric_analysis            import get_distance
 from util.geometric_analysis            import get_dihedral 
 from util.geometric_analysis            import get_simple_dihedral 
 from util.geometric_analysis            import get_angle 
-#from util.geometric_analysis            import find_subgroup 
+from util.geometric_analysis            import find_subgroup 
 from util.geometric_analysis            import rotate_bond 
 
 class CommandLine:
@@ -1013,8 +1013,126 @@ class GLMenu:
                         #if atom2 and atom1:
                         self.main.p_session.add_new_harmonic_restraint(parameters)
                         self.main.selection_list_window.update_window (selections = False, restraints = True)
-            
-            
+
+            def bond_from_picking(_):
+                """Create a bond between the pk1 and pk2 atoms (picking mode).
+
+                Creates it in BOTH the static topology (and syncs the pDynamo
+                system) AND the Dynamic Bonds representation (all frames), the
+                symmetric counterpart of unbond_from_picking. Reads pk1/pk2 once
+                and calls the same low-level helpers used by the terminal 'bond'
+                command (set_bond_order / set_dynamic_bond_order). Bond order is
+                single (1); edit the order afterwards with the terminal 'bond
+                order=...' command if needed.
+                """
+                atom1 = self.picking_selections.picking_selections_list[0]
+                atom2 = self.picking_selections.picking_selections_list[1]
+                if not atom1 or not atom2:
+                    dprint("bond: pick 2 atoms first (pk1, pk2).")
+                    return None
+                if atom1 is atom2:
+                    dprint("bond: pk1 and pk2 must be two different atoms.")
+                    return None
+                if atom1.vm_object is not atom2.vm_object:
+                    dprint("bond: pk1 and pk2 must belong to the same object.")
+                    return None
+
+                vismol_object = atom1.vm_object
+                from gui.windows.builder.atom_ops import (
+                    set_bond_order, set_dynamic_bond_order, resolve_frame_arg,
+                    push_undo_snapshot)
+
+                push_undo_snapshot(vismol_object)
+
+                # 1) static bonds representation (vismol_object.bonds)
+                created_static = False
+                try:
+                    created_static = set_bond_order(vismol_object, atom1.atom_id,
+                                                    atom2.atom_id, bond_order=1)
+                except ValueError as e:
+                    dprint("bond (static) failed:", e)
+                # NOTE: representation-only by design. We deliberately do NOT call
+                # sync_pdynamo_system() here: bond/unbond must change only what is
+                # DRAWN (the vismol object's static bonds and the dynamic bonds
+                # below), never the linked pDynamo system's real topology / force
+                # field / MM charges. Rebuilding the pDynamo system from the vismol
+                # geometry used to corrupt loaded systems (null system on the main
+                # treeview radiobutton).
+
+                # 2) dynamic bonds, in every frame
+                n_dyn = 0
+                try:
+                    frames_all = resolve_frame_arg(vismol_object, "all")
+                    if frames_all:
+                        n_dyn = set_dynamic_bond_order(vismol_object, atom1.atom_id,
+                                                       atom2.atom_id, bond_order=1,
+                                                       frames=frames_all)
+                except Exception as e:
+                    dprint("bond (dynamic) failed:", e)
+
+                # clears pk1..pk4 for the next pair
+                try:
+                    self.picking_selections.picking_selections_list = [None] * 4
+                except Exception:
+                    pass
+
+                self.vm_session.vm_glcore.queue_draw()
+                dprint("bond: static={} dynamic_pairs={}".format(created_static, n_dyn))
+
+            def unbond_from_picking(_):
+                """Remove the bond between the pk1 and pk2 atoms (picking mode).
+
+                Removes it from BOTH the static topology (and syncs the pDynamo
+                system) AND the Dynamic Bonds representation (all frames), so the
+                bond disappears completely. Reads pk1/pk2 once and calls the same
+                low-level helpers used by the terminal 'unbond' command
+                (unset_bond / unset_dynamic_bond).
+                """
+                atom1 = self.picking_selections.picking_selections_list[0]
+                atom2 = self.picking_selections.picking_selections_list[1]
+                if not atom1 or not atom2:
+                    dprint("unbond: pick 2 atoms first (pk1, pk2).")
+                    return None
+                if atom1 is atom2:
+                    dprint("unbond: pk1 and pk2 must be two different atoms.")
+                    return None
+                if atom1.vm_object is not atom2.vm_object:
+                    dprint("unbond: pk1 and pk2 must belong to the same object.")
+                    return None
+
+                vismol_object = atom1.vm_object
+                from gui.windows.builder.atom_ops import (
+                    unset_bond, unset_dynamic_bond, resolve_frame_arg,
+                    push_undo_snapshot)
+
+                push_undo_snapshot(vismol_object)
+
+                # 1) static bonds representation (vismol_object.bonds)
+                removed_static = unset_bond(vismol_object, atom1.atom_id, atom2.atom_id)
+                # NOTE: representation-only by design (same as bond_from_picking):
+                # no sync_pdynamo_system() call -- we only change what is drawn,
+                # never the linked pDynamo system's real topology.
+
+                # 2) dynamic bonds, in every frame
+                n_dyn = 0
+                try:
+                    frames_all = resolve_frame_arg(vismol_object, "all")
+                    if frames_all:
+                        n_dyn = unset_dynamic_bond(vismol_object, atom1.atom_id,
+                                                   atom2.atom_id, frames=frames_all)
+                except Exception as e:
+                    dprint("unbond (dynamic) failed:", e)
+
+                # clears pk1..pk4 for the next pair
+                try:
+                    self.picking_selections.picking_selections_list = [None] * 4
+                except Exception:
+                    pass
+
+                self.vm_session.vm_glcore.queue_draw()
+                dprint("unbond: static={} dynamic_pairs={}".format(removed_static, n_dyn))
+
+
             pick_menu = { 
                     'header' : ['MenuItem', None],
                     
@@ -1023,7 +1141,12 @@ class GLMenu:
                     'separator1'              :['separator', None],
                     'Add Harmonic Restraint'  :['MenuItem', add_harmonic_restraint],
                     
-                    'show'   : [
+                    'separator2'              :['separator', None],
+                    'Bond'                    :['MenuItem', bond_from_picking],
+                    'Unbond'                  :['MenuItem', unbond_from_picking],
+                    
+                    'separator3'              :['separator', None],
+                    'Show'   : [
                                 'submenu' ,{
                                             
                                             'lines'         : ['MenuItem', menu_show_lines],
@@ -1037,7 +1160,7 @@ class GLMenu:
                                ],
                     
                     
-                    'hide'   : [
+                    'Hide'   : [
                                 'submenu',  {
                                             'lines'    : ['MenuItem', menu_hide_lines],
                                             'sticks'   : ['MenuItem', menu_hide_sticks],
@@ -1049,7 +1172,7 @@ class GLMenu:
                                 ],
                     
                     
-                    'separator2':['separator', None],
+                    'separator4':['separator', None],
 
                     }
 
@@ -1392,7 +1515,7 @@ class EasyHybridSession(VismolSession, GLMenu):
         self.vm_glcore.queue_draw()  
         
     def gen_random_tag_string(self, length=4):
-        chars = string.ascii_letters + string.digits  # letras (A-Z, a-z) + dígitos (0-9)
+        chars = string.ascii_letters + string.digits  # letters (A-Z, a-z) + digits (0-9)
         return ''.join(random.choice(chars) for _ in range(length))
     #-------------------------------------------------------------------
     #                        restricted methods
@@ -1639,10 +1762,10 @@ button position in the main treeview (active column).""".format(name,self.main.p
             pass
         for rep  in vobject.representations.keys():
             if vobject.representations[rep]:
-                # Representacoes com cor FIXA (ex: OneColorDotsRepresentation
-                # das restricoes de posicao) nao devem seguir a cor por-atomo
-                # do objeto -- pular, ou a cor escolhida pelo usuario e
-                # sobrescrita pela cor padrao do atomo.
+                # Representations with a FIXED color (e.g. OneColorDotsRepresentation
+                # for position restraints) must not follow the object's
+                # per-atom color -- skip, or the color chosen by the user gets
+                # overwritten by the atom's default color.
                 if getattr(vobject.representations[rep], 'uses_uniform_color', False):
                     continue
                 #try:
@@ -2063,6 +2186,15 @@ button position in the main treeview (active column).""".format(name,self.main.p
 
     def show_cell (self, vismol_object):
         """ Function doc """
+        
+        if vismol_object.cell_parameters:
+            from vismol.libgl.representations import CellLineRepresentation
+            dprint (vismol_object.cell_parameters)
+            vismol_object.representations["cell_lines"] =  CellLineRepresentation(vismol_object, self.vm_glcore,name  = 'lines', active=True, indexes = vismol_object.cell_bonds)
+        self.vm_glcore.queue_draw()
+        
+        
+        '''
         rep_labels = vismol_object.representations.keys()
         
         if  "cell_lines" in rep_labels:
@@ -2074,7 +2206,7 @@ button position in the main treeview (active column).""".format(name,self.main.p
                 dprint (vismol_object.cell_parameters)
                 vismol_object.representations["cell_lines"] =  CellLineRepresentation(vismol_object, self.vm_glcore,name  = 'lines', active=True, indexes = vismol_object.cell_bonds)
         self.vm_glcore.queue_draw()
-   
+        #'''
     
     def hide_cell (self, vismol_object):
         if  "cell_lines" in  vismol_object.representations.keys():

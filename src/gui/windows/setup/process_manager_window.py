@@ -34,21 +34,30 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 from gi.repository import GdkPixbuf
 from gui.widgets.custom_widgets  import get_colorful_square_pixel_buffer
-from gui.windows.setup.windows_and_dialogs import TextWindow
+from gui.windows.setup.windows_and_dialogs import TextWindow, TabbedLogWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
 import os, sys, time, signal
+import psutil
 from pprint import pprint
 
 
 def _get_descendant_pids ( pid ):
-    """ [EN] Returns every descendant PID (children, grandchildren, ...)
-    of `pid`, walking /proc/<pid>/task/<tid>/children recursively --
-    Linux-specific (available since kernel 3.5), deliberately NOT using
-    psutil: it isn't used anywhere else in this codebase and isn't
-    guaranteed to be installed on every user's machine -- avoids adding
-    that as a hard new dependency just for this one feature, on an app
-    that's Linux-only in practice already (pDynamo3's own install paths,
-    GTK, etc.).
+    """ [EN] BUG FIX (real-world report: this used /proc/<pid>/task/
+    <tid>/children -- Linux-specific, does not exist at all on macOS,
+    which has no /proc filesystem by default). Confirmed while checking
+    macOS portability: this was the ONE genuinely OS-specific piece of
+    code in the whole project (grepped for "/proc/" across the entire
+    source tree -- this was the only hit). Every OTHER piece of this
+    Abort feature (os.kill, signal.SIGTERM/SIGKILL below) is plain
+    POSIX, already identical on Linux and macOS -- only the "find every
+    descendant" step needed a real fix, not a full rewrite.
+
+    Now uses psutil (a new dependency -- see install.py's own
+    PYTHON_LIBRARIES table, updated to match), whose children(
+    recursive=True) is implemented per-platform (via /proc on Linux, via
+    sysctl/libproc on macOS, via a different mechanism again on Windows)
+    behind the exact same API -- so this function itself no longer needs
+    ANY platform-specific code at all; psutil already did that work.
 
     Needed because multiprocessing.Process.terminate() only sends
     SIGTERM to the ONE direct child process it tracks -- confirmed by
@@ -58,22 +67,27 @@ def _get_descendant_pids ( pid ):
     like ORCA/XTB) INSIDE that child process, which terminate() has no
     idea about and never signals -- aborting a job used to report
     success while those grandchildren kept running, orphaned, still
-    consuming CPU. """
-    descendants = [ ]
-    to_visit = [ pid ]
-    while to_visit:
-        current = to_visit.pop ( )
-        try:
-            with open ( '/proc/{}/task/{}/children'.format ( current, current ) ) as f:
-                children_str = f.read ( ).strip ( )
-        except ( FileNotFoundError, ProcessLookupError, NotADirectoryError ):
-            continue
-        if not children_str:
-            continue
-        children = [ int ( p ) for p in children_str.split ( ) ]
-        descendants.extend ( children )
-        to_visit.extend ( children )
-    return descendants
+    consuming CPU.
+
+    Returns a plain list of ints (pids), matching the previous /proc-
+    based version's return type exactly, so every caller below
+    (_terminate_process_tree(), _force_kill_pids()) needed no changes at
+    all beyond this one function. """
+    try:
+        proc = psutil.Process ( pid )
+    except psutil.NoSuchProcess:
+        return [ ]
+    try:
+        return [ child.pid for child in proc.children ( recursive = True ) ]
+    except psutil.NoSuchProcess:
+        # [EN] the process tree can legitimately change WHILE we're
+        # walking it (a grandchild finishing on its own, mid-walk) --
+        # psutil raises NoSuchProcess for THAT specific vanished process
+        # rather than silently skipping it the way the old /proc-based
+        # try/except per-node did; treating it as "no descendants found"
+        # here is the same practical outcome (whatever already finished
+        # doesn't need signalling anyway).
+        return [ ]
 
 
 def _pid_alive ( pid ):
@@ -84,7 +98,7 @@ def _pid_alive ( pid ):
     except ProcessLookupError:
         return False
     except PermissionError:
-        return True   # existe, so nao e nosso pra sinalizar (nao deveria acontecer com processos filhos nossos)
+        return True   # exists, just not ours to signal (should not happen with our child processes)
     return True
 
 
@@ -418,7 +432,7 @@ class ProcessManagerWindow(Gtk.Window):
         
     def on_button_press_event(self, widget, event):
         if event.type == Gdk.EventType.BUTTON_PRESS and event.button == 3:
-            # Seleciona a linha clicada com o botão direito
+            # Select the row clicked with the right button
             path_info = widget.get_path_at_pos(int(event.x), int(event.y))
             if path_info is not None:
                 path, col, cell_x, cell_y = path_info
@@ -506,7 +520,85 @@ class ProcessManagerWindow(Gtk.Window):
                 msg="Could not read the log file:\n\n{}\n\nError: {}".format(logfile, exc))
             return
 
-        textwindow = TextWindow(data, logfile)
+        # Look for a QC-program (ORCA/xTB) log in the same folder as the pDynamo
+        # log and, if found, show both in tabs. The QC log is written there by
+        # backup_qc_files() (see p_methods/_common.py). This matters especially
+        # for Single Point, which does not create a vobject, so its logs are only
+        # reachable here (the Process Manager), not via the vobject 'View Log'.
+        qc_label, qc_text = self._find_qc_log(logfile, system)
+        tabs = [("pDynamo", data)]
+        if qc_text:
+            tabs.append((qc_label, qc_text))
+        TabbedLogWindow(tabs, title=logfile)
+
+    def _find_qc_log(self, pdynamo_logfile, system=None):
+        """Locate and read the QC-program log that belongs to THIS job.
+
+        Robust matching (avoids picking up an unrelated ORCA/xTB log left in the
+        same folder by a previous run):
+          1. by NAME: the backup step writes the QC log with the same basename
+             as the pDynamo log, only swapping '.log' for '.orca.log'/'.xtb.log'
+             (see backup_orca_files/backup_xtb_files). So we look for exactly
+             '<base>.orca.log' and '<base>.xtb.log' first.
+          2. by QC MODEL: if the by-name match fails, fall back to scanning the
+             folder, but restrict the search to the program the system's qcModel
+             actually is (ORCA vs xTB) -- never return an ORCA log for an xTB job.
+
+        Returns (label, text); text is None when nothing suitable is found.
+        """
+        import glob
+        folder = os.path.dirname(pdynamo_logfile)
+        base = os.path.basename(pdynamo_logfile)
+        #if base.endswith(".log"):
+        if base.endswith(".log") or base.endswith(".out"):
+            base = base[:-4]
+
+        # which program did THIS job use? ('ORCA' / 'XTB' / None)
+        engine = None
+        try:
+            if system is not None and getattr(system, "qcModel", None):
+                tag = system.qcModel.SummaryItems()[0][0]  # 'ORCA QC Model'/'XTB QC Model'
+                if "ORCA" in tag.upper():
+                    engine = "ORCA"
+                elif "XTB" in tag.upper():
+                    engine = "XTB"
+        except Exception:
+            engine = None
+
+        # 1) exact name match (most reliable)
+        name_candidates = []
+        if engine == "ORCA" or engine is None:
+            name_candidates.append((os.path.join(folder, base + ".orca.log"), "ORCA"))
+            name_candidates.append((os.path.join(folder, base + ".orca.out"), "ORCA"))
+        
+        if engine == "XTB" or engine is None:
+            name_candidates.append((os.path.join(folder, base + ".xtb.log"), "xTB"))
+            name_candidates.append((os.path.join(folder, base + ".xtb.out"), "xTB"))
+        for path, label in name_candidates:
+            if os.path.isfile(path):
+                text = self._read_text(path)
+                if text is not None:
+                    return label, text
+
+        # 2) fallback: scan folder, but only for the engine this job used
+        if folder and os.path.isdir(folder) and engine is not None:
+            pattern = "*.orca.log" if engine == "ORCA" else "*.xtb.log"
+            label = "ORCA" if engine == "ORCA" else "xTB"
+            for path in sorted(glob.glob(os.path.join(folder, pattern))):
+                if path == pdynamo_logfile:
+                    continue
+                text = self._read_text(path)
+                if text is not None:
+                    return label, text
+
+        return "QC", None
+
+    def _read_text(self, path):
+        try:
+            with open(path, 'r', errors='replace') as f:
+                return f.read()
+        except Exception:
+            return None
 
 
     def rerun_job(self, widget):
@@ -888,12 +980,12 @@ class ProcessManagerWindow_filtro(Gtk.Window):
             self.window.present()
 
     def on_filter_entry_changed(self, entry):
-        """Atualiza o filtro quando o usuário digita no Entry."""
+        """Update the filter when the user types in the Entry."""
         self.current_filter_text = entry.get_text().lower()
         self.filtered_model.refilter()
 
     def visible_func(self, model, iter, data=None):
-        """Função de filtro por nome de sistema (coluna 0)."""
+        """Filter function by system name (column 0)."""
         system_name = model[iter][0].lower()
         if self.current_filter_text in system_name:
             return True

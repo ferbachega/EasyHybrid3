@@ -24,8 +24,22 @@
 # anything, is missing.
 
 numpy>=1.20.0
+scipy>=1.7.0
 PyOpenGL>=3.1.0
 Cython>=0.29.12
 freetype-py>=2.3.0
 pycairo>=1.20.0
 PyGObject>=3.40.0
+# Process Manager's "Abort" feature -- finds/signals every descendant
+# of a job's process cross-platform (see install.py's PYTHON_LIBRARIES
+# for the fuller explanation of why).
+psutil>=5.9.0
+# macOS only: GTK3's Quartz backend corrupts window compositing when a
+# Gtk.GLArea is realized (see MACOS_NATIVE_RENDERING_FIX.md), so on
+# macOS the 3D view renders into a hidden GLFW window/offscreen OpenGL
+# context instead (src/graphics_engine/.../vismol_gtkwidget.py). Not
+# needed, and not installed, on Linux/Windows -- the environment marker
+# below skips it there. The native GLFW library itself is NOT a pip
+# package and must be installed separately, e.g.:
+#     mamba install -c conda-forge glfw
+glfw>=2.5.0 ; sys_platform == "darwin"

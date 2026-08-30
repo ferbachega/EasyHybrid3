@@ -51,7 +51,7 @@ from pprint import pprint
 import os, time, sys
 
 # --- imports entre modulos adicionados na refatoracao ---
-from pdynamo.p_methods._common import backup_orca_files
+from pdynamo.p_methods._common import backup_qc_files, backup_orca_files
 
 class GeometryOptimization:
     """ Class doc """
@@ -117,7 +117,7 @@ class GeometryOptimization:
         
         
         '''ORCA backup files'''
-        backup_orca_files(system = parameters['system'], output_folder = parameters['folder'], output_name = parameters['trajectory_name'])
+        backup_qc_files(system = parameters['system'], output_folder = parameters['folder'], output_name = parameters['trajectory_name'])
         
         
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -414,20 +414,44 @@ class ImportANewSystemWindow(Gtk.Window):
         files = self.easyhybrid_main.filechooser.open(select_multiple = True)
         #print(files)
 
+        failed_files = []
         for _file in files:
             #for res in self.VObj.chains[chain].residues:
-                ##print(res.resi, res.resn, chain,  len(res.atoms) ) 
-            
+                ##print(res.resi, res.resn, chain,  len(res.atoms) )
+
             active_iter = self.system_types_combo.get_active_iter()
             if active_iter:
                 model = self.system_types_combo.get_model()
                 #print(model[active_iter][1]) # access the value of the active item
                 systemtype = model[active_iter][1]
-            
-            filetype = self.filetype_parser( _file, systemtype)
+
+            # A corrupted file, or one missing information the parser
+            # expects (e.g. a .mol2 without charges -- see filetype_parser's
+            # read_MOL2 call), used to raise here with only a traceback on
+            # the terminal, silently aborting the rest of the file list with
+            # no feedback in the interface. Skip the bad file and keep
+            # loading the rest instead, then report every failure at once.
+            try:
+                filetype = self.filetype_parser( _file, systemtype)
+            except Exception as error:
+                tb = traceback.format_exc()
+                dprint("Error:", tb)
+                failed_files.append ( (_file, str(error), tb) )
+                continue
             self.residue_liststore.append(list([_file, filetype, 'unk' ]))
         self.treeview.set_model(self.residue_liststore)
         self.files['prm_folder'] =  self.builder.get_object('OPLS_folderchooserbutton').get_filename()
+
+        if failed_files:
+            summary = '\n'.join ( '{}: {}'.format(os.path.basename(f), msg) for f, msg, _tb in failed_files )
+            details = '\n\n'.join ( '{}\n{}'.format(f, tb) for f, _msg, tb in failed_files )
+            self.easyhybrid_main.bottom_notebook.status_teeview_add_new_item(
+                message = 'Could not load {} file(s), see the error dialog for details.'.format(len(failed_files)), system = None)
+            simpledialog = SimpleDialog(self.easyhybrid_main)
+            simpledialog.error_details(parent  = self.window,
+                                        msg     = "Could not load the following file(s):\n\n{}".format(summary),
+                                        details = details,
+                                        title   = 'File Load Error')
             
     def on_button_import_system_clicked (self, button):
         #print('ok_button_import_a_new_system')
@@ -460,12 +484,26 @@ class ImportANewSystemWindow(Gtk.Window):
         #wfolder  = self.folder_chooser_button.get_folder()
         if self.builder.get_object('cb_create_folder').get_active():
             wfolder = self.builder.get_object('entry_working_folder').get_text()
-            
+
             if not os.path.exists(wfolder):
                 try:
                     os.makedirs(wfolder)
-                except:
-                    dprint('Failed to create the working directory {}'.format(wfolder))
+                except Exception as error:
+                    # Used to only dprint() and fall through, leaving
+                    # wfolder pointing at a directory that was never
+                    # actually created -- the failure only ever showed up
+                    # later (if at all) as a confusing error somewhere
+                    # downstream. Abort here instead, with a clear dialog.
+                    tb = traceback.format_exc()
+                    dprint("Error:", tb)
+                    self.easyhybrid_main.bottom_notebook.status_teeview_add_new_item(
+                        message = 'Could not create the working directory.', system = None)
+                    simpledialog = SimpleDialog(self.easyhybrid_main)
+                    simpledialog.error_details(parent  = self.window,
+                                                msg     = "Could not create the working directory:\n{}\n\n{}".format(wfolder, error),
+                                                details = tb,
+                                                title   = 'Import Error')
+                    return None
         else:
             wfolder = None
         

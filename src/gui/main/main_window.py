@@ -181,22 +181,22 @@ class MainWindow:
         self.builder.add_from_file(os.path.join(self.home,'src/gui/MainWindow.glade'))
         self.builder.connect_signals(self)
         self.window = self.builder.get_object('window1')
-        # Restaura as dimensoes salvas da ultima sessao, mas so' se
-        # gl_parameters['save_window_size'] estiver ligado (checkbox "Save
-        # window size" na Preferences). Se desligado, usa sempre o tamanho
-        # fixo 1200x600 -- window_resize() abaixo tambem respeita essa
-        # flag, entao nada e' sobrescrito em gl_parameters nesse caso.
-        # [BUG FIX] Usa o PARAMETRO local 'vm_session', nao 'self.vm_session'
-        # -- self.vm_session so' e' atribuido mais abaixo neste __init__
-        # (linha ~223), entao acessa-lo aqui gerava AttributeError.
+        # Restore the dimensions saved from the last session, but only if
+        # gl_parameters['save_window_size'] is on (the "Save window size"
+        # checkbox in Preferences). If off, always use the fixed 1200x600
+        # size -- window_resize() below also respects this flag, so nothing
+        # is overwritten in gl_parameters in that case.
+        # [BUG FIX] Uses the local PARAMETER 'vm_session', not 'self.vm_session'
+        # -- self.vm_session is only assigned further down in this __init__
+        # (line ~223), so accessing it here raised AttributeError.
         if vm_session.vm_config.gl_parameters.get('save_window_size', True):
             saved_w = vm_session.vm_config.gl_parameters.get('main_window_width', 1200)
             saved_h = vm_session.vm_config.gl_parameters.get('main_window_height', 600)
         else:
             saved_w, saved_h = 1200, 600
-        # Guardado pra calcular a posicao inicial do paned_V mais abaixo
-        # neste __init__ (ver 'self.paned_V_position'), com base na mesma
-        # altura de janela restaurada aqui.
+        # Stored to compute the initial position of paned_V further down in
+        # this __init__ (see 'self.paned_V_position'), based on the same
+        # window height restored here.
         self._restored_window_height = saved_h
         self.window.set_default_size(saved_w, saved_h)                          
         self.window.set_title('EasyHybrid {}'.format(self.EASYHYBRID_VERSION))                          
@@ -238,8 +238,18 @@ class MainWindow:
         # Connect key press/release events for 3D visualization widget
         self.window.connect("key-press-event",   self.vm_session.vm_widget.key_pressed)
         self.window.connect("key-release-event", self.vm_session.vm_widget.key_released)
-        
-                
+
+        # [BUG FIX] ESC used to close the whole app instantly: vm_widget's
+        # own _pressed_Escape (graphics_engine/vismol/gui/vismol_gtkwidget.py)
+        # calls self.quit() -> Gtk.main_quit() directly, with no
+        # confirmation and completely bypassing on_delete_event's "unsaved
+        # changes" check below. Overridden here at the INSTANCE level
+        # (vm_widget is a single object, not the class) instead of editing
+        # the graphics engine itself, so ESC now goes through the exact
+        # same close path as clicking the window's [x] button.
+        self.vm_session.vm_widget._pressed_Escape = lambda: self.on_delete_event(self.window, None)
+
+
         # -------------------- SELECTION BOX --------------------
         self.menu_box = self.builder.get_object('toolbutton_selection_box')
         self.box2 = self.builder.get_object('box2')
@@ -329,17 +339,17 @@ class MainWindow:
             self.bottom_notebook = BottomNoteBook(main = self)
             self.paned_V.pack1 (self.paned_H,               True,  True)
             self.paned_V.pack2 (self.bottom_notebook.widget, False, True)
-            # [ATUALIZACAO] Antes era um valor fixo (400px), que nao fazia
-            # sentido nenhum se a janela restaurada tiver uma altura bem
-            # diferente (ver self._restored_window_height, calculado la'
-            # em cima a partir de gl_parameters['main_window_height']).
-            # Agora guarda/usa a posicao como PROPORCAO da altura da janela
-            # (gl_parameters['main_window_paned_v_ratio']) -- assim a
-            # divisao entre a area 3D/treeview e o notebook de baixo
-            # acompanha o tamanho da janela, em vez de ficar "grudada" num
-            # numero de pixels que so' fazia sentido pro tamanho default
-            # antigo (1200x600). Ver window_resize() e on_paned_v_position_
-            # changed() abaixo, que mantem isso atualizado continuamente.
+            # [UPDATE] It used to be a fixed value (400px), which made no
+            # sense at all if the restored window had a quite different
+            # height (see self._restored_window_height, computed up top
+            # from gl_parameters['main_window_height']).
+            # Now it stores/uses the position as a PROPORTION of the window
+            # height (gl_parameters['main_window_paned_v_ratio']) -- so the
+            # split between the 3D/treeview area and the bottom notebook
+            # follows the window size, instead of being "stuck" at a pixel
+            # number that only made sense for the old default size
+            # (1200x600). See window_resize() and on_paned_v_position_
+            # changed() below, which keep this continuously updated.
             default_paned_v_ratio = 400.0 / 600.0
             paned_v_ratio = self.vm_session.vm_config.gl_parameters.get(
                 'main_window_paned_v_ratio', default_paned_v_ratio)
@@ -347,7 +357,7 @@ class MainWindow:
             self.paned_V.set_position(self.paned_V_position)
             self.paned_V.connect("notify::position", self.on_paned_v_position_changed)
 
-            self.bottom_notebook.status_teeview_add_new_item(message = 'Welcome to EasyHybrid 3.0, have a happy simulation day!')
+            self.bottom_notebook.status_teeview_add_new_item(message = 'Welcome to EasyHybrid, have a happy simulation day!')
 
         ''' - - - - - - - - - - - - Terminal e Trajectory Play - - - - - - - - - - - - - - - - '''
         self.trajectory_player_button = self.builder.get_object('toolbutton_trajectory_tool1')
@@ -482,8 +492,15 @@ class MainWindow:
         #self.window.connect("delete-event", Gtk.main_quit)
         #self.window.connect("destroy",      self.quit_easyhybrid)
         self.window.connect("delete-event", self.on_delete_event)
-        self.window.connect("check-resize", self.window_resize)       
+        self.window.connect("check-resize", self.window_resize)
         self.window.show_all()
+        # [EN] macOS fix belt-and-suspenders: present() + an idle_add()
+        # nudge for the very first frame. Harmless on every platform
+        # (present() is a no-op if the window is already focused/shown;
+        # the idle callback just asks the glArea/DrawingArea to redraw
+        # once the main loop is idle) -- not gated to macOS.
+        self.window.present()
+        GLib.idle_add(self.vm_session.vm_widget.queue_draw)
 
 
     def on_drag_data_received(self, widget, drag_context,
@@ -522,12 +539,12 @@ class MainWindow:
         
     def window_resize (self, a, b =None, c=None):
         """ Function doc """
-        # [BUG FIX] Antes essa funcao lia w,h e nao fazia nada com eles --
-        # nenhuma dimensao de janela era persistida em lugar nenhum. Guarda
+        # [BUG FIX] This function used to read w,h and do nothing with them --
+        # no window dimension was persisted anywhere. It stores
         # em memoria aqui (barato, roda a cada evento 'check-resize'); a
-        # gravacao em disco de fato acontece em on_delete_event, nao aqui,
-        # pra nao escrever no arquivo de config a cada pixel arrastado.
-        # Respeita gl_parameters['save_window_size']: se desligado, nao
+        # the actual disk write happens in on_delete_event, not here, so as
+        # not to write to the config file on every dragged pixel.
+        # Respects gl_parameters['save_window_size']: if off, does not
         # atualiza nada (o tamanho fixo 1200x600 continua valendo na
         # proxima abertura).
         if not self.vm_session.vm_config.gl_parameters.get('save_window_size', True):
@@ -537,10 +554,10 @@ class MainWindow:
         self.vm_session.vm_config.gl_parameters['main_window_height'] = int(h)
         
         # Mantem o divisor paned_V (area 3D/treeview vs. notebook de baixo)
-        # acompanhando a proporcao atual, em vez de ficar fixo num numero de
-        # pixels enquanto a janela cresce/encolhe. set_position() dispara
+        # following the current proportion, instead of staying fixed at a
+        # pixel number while the window grows/shrinks. set_position() triggers
         # "notify::position" -> on_paned_v_position_changed(), que so'
-        # reconfirma a MESMA proporcao (nao diverge, so' redundante).
+        # reconfirms the SAME proportion (does not diverge, just redundant).
         paned_v = getattr(self, 'paned_V', None)
         if paned_v is not None and h > 0:
             ratio = self.vm_session.vm_config.gl_parameters.get('main_window_paned_v_ratio', 400.0/600.0)
@@ -659,7 +676,13 @@ class MainWindow:
         """ Function doc """
         if button  == self.builder.get_object('toolbutton_new_system'):
             self.NewSystemWindow.open_window()
-        
+            '''
+            from gui.windows.setup.xtb_fragment_charges_window import XtbFragmentChargesWindow
+            system = self.p_session.psystem[self.p_session.active_id]
+            
+            win = XtbFragmentChargesWindow(main=self.window, system=system)
+            win.open_window()
+            #'''        
         if button  == self.builder.get_object('toolbutton_save'):
             
             if self.session_filename == None:
@@ -1113,6 +1136,14 @@ class MainWindow:
 
 
 
+        elif menuitem == self.builder.get_object('menuitem_fragment_charges'):
+            from gui.windows.setup.xtb_fragment_charges_window import XtbFragmentChargesWindow
+            system = self.p_session.psystem[self.p_session.active_id]
+            
+            win = XtbFragmentChargesWindow(main=self, system=system)
+            win.open_window()
+            
+            
         elif menuitem == self.builder.get_object('menuitem_charge_inspection'): 
             TrueFalse, msg = self.p_session.check_for_fragmented_charges()
             #if true_or_false:
@@ -1907,38 +1938,38 @@ class MainWindow:
 
     def opengl_to_povray_camera(self,  view_matrix, projection_matrix, camera_position, use_clipping=True):
         """
-        Converte matrizes OpenGL para um bloco de câmera POV-Ray.
+        Convert OpenGL matrices to a POV-Ray camera block.
 
         Args:
-            view_matrix (np.ndarray): 4x4 matriz de visualização OpenGL.
-            projection_matrix (np.ndarray): 4x4 matriz de projeção OpenGL.
-            camera_position (list/np.ndarray): Posição da câmera [x, y, z].
+            view_matrix (np.ndarray): 4x4 OpenGL view matrix.
+            projection_matrix (np.ndarray): 4x4 OpenGL projection matrix.
+            camera_position (list/np.ndarray): Camera position [x, y, z].
             use_clipping (bool): Se True, adiciona o clipping (near/far).
 
         Returns:
-            str: Bloco de câmera POV-Ray.
+            str: POV-Ray camera block.
         """
         import math
-        # Campo de visão vertical (em graus)
+        # Vertical field of view (in degrees)
         fov_y_rad = 2 * math.atan(1 / projection_matrix[1,1])
         fov_y_deg = math.degrees(fov_y_rad)
         
-        # Planos near/far da matriz de projeção
+        # near/far planes from the projection matrix
         if use_clipping:
             p22 = projection_matrix[2,2]
             p32 = projection_matrix[3,2]
             # resolver f e n: 
             # p22 = -(f+n)/(f-n), p32 = -2*f*n/(f-n)
-            denom = p22 - 1e-12  # evitar divisão por zero
+            denom = p22 - 1e-12  # avoid division by zero
             far = (-p32)/(p22 + 1)
             near = far * (p22 - 1)/(p22 + 1)
         else:
             near, far = None, None
 
-        # POV-Ray look_at padrão (origem)
+        # POV-Ray default look_at (origin)
         look_at = np.array([0,0,0], dtype=float)
         
-        # Monta o bloco da câmera
+        # Assemble the camera block
         pov_lines = []
         pov_lines.append("camera {")
         pov_lines.append(f"    location <{camera_position[0]}, {camera_position[1]}, {camera_position[2]}>")

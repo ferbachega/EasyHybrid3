@@ -426,7 +426,9 @@ class EasyHybridSetupQCModelWindow:
             self.setup_mopac_window.open_window()
         else:
             pass
-
+        
+        print(self.method_id)
+        
     def on_button_ok (self, button):
         """ Function doc """
         
@@ -491,13 +493,17 @@ class EasyHybridSetupQCModelWindow:
         parameters['maximumIterations'] = int(self.builder.get_object('entry_maximumIterations').get_text())
 
         dprint(parameters)
-        
-        self.main_session.p_session.define_a_new_QCModel(system        = None,  
-                                                         parameters    = parameters, 
+
+        isOK = self.main_session.p_session.define_a_new_QCModel(system        = None,
+                                                         parameters    = parameters,
                                                          vismol_object = self.vismol_object)
         #self.main_session.update_gui_widgets ()
-        self.window.destroy()
-        self.Visible    =  False
+        # Keep the window open on failure (define_a_new_QCModel already
+        # shows an error dialog) so the user can fix the parameters
+        # without having to reopen the whole QC Model setup from scratch.
+        if isOK:
+            self.window.destroy()
+            self.Visible    =  False
 
     def on_button_setup_orca (self, button):
         """ Function doc """
@@ -505,11 +511,14 @@ class EasyHybridSetupQCModelWindow:
     
     def on_button_setup_dftb (self, button):
         """ Function doc """
-        if self.method_id == 7:
+        
+        print('on_button_setup_dftb', self.method_id )
+        
+        if self.qc_engine_id == 2:
             self.setup_dftb_window.open_window()
         
-        elif self.method_id == 8:
-            dprint(self.method_id, self.setup_xtb_window)
+        elif self.qc_engine_id == 3:
+            #print(self.method_id, self.setup_xtb_window)
             self.setup_xtb_window.open_window() 
         
         else:

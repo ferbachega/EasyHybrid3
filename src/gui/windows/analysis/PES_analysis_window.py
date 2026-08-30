@@ -76,11 +76,17 @@ class PotentialEnergyAnalysisWindow:
         self.data_liststore    = Gtk.ListStore(str, int)
         
         #.colors
-        self.xy_bg_color     = [0,0,0]
-        self.matrix_bg_color = [1,1,1]
-        
-        self.line_plot_color = [0,0,0] 
-        self.line_data_color = [0,0,0]
+        # [EN] BUG FIX: xy_bg_color/matrix_bg_color/line_plot_color/
+        # line_data_color existiam aqui, mas nunca eram lidas em NENHUM
+        # elsewhere in this file -- they just sat there with a value
+        # fixo, desconectadas das cores de verdade usadas ao desenhar
+        # (self.plot.*, self.plot2.line_color etc). Isso e' exatamente o
+        # que causou o bug relatado: on_mouse_button_press() (e outros
+        # 2 lugares) usavam "[0,0,0]" hardcoded (ou, no caso de
+        # on_data_combobox_change(), essa mesma self.line_data_color
+        # dead) instead of respecting the color the user chooses in
+        # dialogo "Colors..." (self.plot2.line_color) -- removidas para
+        # not to confuse again which is the source of truth.
         
         # plotting attributes
         self.interpolate = True
@@ -182,9 +188,9 @@ class PotentialEnergyAnalysisWindow:
             # . self.RC_label (o readout "i | j | rc1 | rc2 | E") ja' e'
             #   filho do plot2d_pane vindo do .glade (abaixo da legenda
             #   "2D energy surface") -- pack_start() sempre ANEXA no
-            #   final, entao sem isso self.plot apareceria DEPOIS do
+            #   end, so without this self.plot would appear AFTER the
             #   readout em vez de entre a legenda e ele. reorder_child()
-            #   garante a ordem visual correta (legenda, grafico, readout)
+            #   ensures the correct visual order (legend, chart, readout)
             #   independente da ordem de empacotamento.
             self.plot2d_pane.reorder_child(self.plot, 1)
             #self.plot.data = data2d
@@ -217,7 +223,7 @@ class PotentialEnergyAnalysisWindow:
             # mesmo motivo do reorder_child do plot2d_pane acima: o
             # plot1d_pane ja' tem a legenda "1D energy profile" (posicao 0)
             # E a caixa do scale bar/energia (posicao 2, vinda do .glade)
-            # como filhos reais -- sem isso o grafico apareceria DEPOIS
+            # as real children -- without this the chart would appear AFTER
             # do scale bar em vez de entre a legenda e ele.
             self.plot1d_pane.reorder_child(self.plot2, 1)
             '''-------------------------------------------------------------'''
@@ -232,7 +238,7 @@ class PotentialEnergyAnalysisWindow:
             # Frames com checkbox no titulo: liga/desliga TODO o grupo de
             # ferramentas (2D ou 1D) de uma vez, deixando os controles
             # insensiveis em vez de escondidos -- eles continuam visiveis
-            # (para nao mudar o tamanho/posicao do resto da barra lateral
+            # (so as not to change the size/position of the rest of the sidebar
             # toda vez que o usuario alterna), so' ficam acinzentados.
             self.builder.get_object('checkbox_2d_tools_enable').connect(
                 'toggled', self.on_2d_tools_enable_toggle)
@@ -241,7 +247,7 @@ class PotentialEnergyAnalysisWindow:
 
             # Alternador de layout (lado a lado / empilhado): so' muda a
             # orientacao do hbox_plotting -- como ele e' 'homogeneous', os
-            # dois paineis continuam sempre do mesmo tamanho nas duas
+            # two panels always stay the same size in both
             # orientacoes.
             self.builder.get_object('radio_layout_side_by_side').connect(
                 'toggled', self.on_layout_toggle_changed)
@@ -249,11 +255,11 @@ class PotentialEnergyAnalysisWindow:
                 'toggled', self.on_layout_toggle_changed)
             self.builder.get_object('radio_layout_stacked').set_active(True)
 
-            # Botao "Hide tools": esconde a barra lateral inteira (+ o
+            # "Hide tools" button: hides the whole sidebar (+ the
             # separador ao lado dela) pra dar mais espaco pros graficos.
-            # Fica FORA da barra lateral de proposito -- se estivesse
-            # dentro dela, escondida a barra o botao desapareceria junto
-            # e nao teria como trazer ela de volta.
+            # Kept OUTSIDE the sidebar on purpose -- if it were
+            # inside it, hiding the sidebar would hide the button too
+            # and there would be no way to bring it back.
             self.builder.get_object('toggle_sidebar_button').connect(
                 'toggled', self.on_toggle_sidebar_button_toggled)
 
@@ -448,7 +454,7 @@ class PotentialEnergyAnalysisWindow:
         ao lado dela), pra dar mais espaco pros graficos temporariamente.
         O proprio botao fica FORA da barra lateral (na barra de topo da
         area principal) de proposito -- se estivesse dentro dela, ao
-        escondê-la o botao sumiria junto e nao teria como trazer a barra
+        hiding it the button would vanish too and there would be no way to bring the sidebar
         de volta. """
         hidden = widget.get_active()
         self.builder.get_object('sidebar_box').set_visible(not hidden)
@@ -516,6 +522,107 @@ class PotentialEnergyAnalysisWindow:
     def on_button_export_1d_png_clicked (self, widget):
         self._export_plot_dialog(self.plot2, "pes_1d_energy_profile.png")
 
+    def on_button_plot1d_colors_clicked (self, widget):
+        """ Abre um dialogo pequeno com 3 seletores de cor (fundo, linhas
+        de grade, linha do grafico) para o perfil de energia 1D
+        (self.plot2). Usa Gtk.ColorButton -- ele mesmo ja abre o seletor
+        de cor nativo do sistema ao ser clicado, entao nao precisa de um
+        .glade proprio so' para isso. """
+        dialog = Gtk.Dialog(title="1D Plot Colors", transient_for=self.window, modal=True)
+        dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                            Gtk.STOCK_OK, Gtk.ResponseType.OK)
+
+        content = dialog.get_content_area()
+        content.set_border_width(10)
+        content.set_spacing(8)
+
+        grid = Gtk.Grid(row_spacing=8, column_spacing=12)
+        content.add(grid)
+
+        def make_color_button(rgb):
+            rgba = Gdk.RGBA()
+            rgba.red, rgba.green, rgba.blue, rgba.alpha = rgb[0], rgb[1], rgb[2], 1.0
+            return Gtk.ColorButton.new_with_rgba(rgba)
+
+        # [displayed name, current color, attribute in self.plot2 it controls]
+        rows = [
+            ("Background", self.plot2.bg_color,       "bg_color"),
+            ("Grid lines", self.plot2.bglines_color,   "bglines_color"),
+            ("Plot line",  self.plot2.line_color,      "line_color"),
+        ]
+        color_buttons = []
+        for row_index, (label_text, current_rgb, _attr) in enumerate(rows):
+            label = Gtk.Label(label=label_text, xalign=0)
+            btn = make_color_button(current_rgb)
+            grid.attach(label, 0, row_index, 1, 1)
+            grid.attach(btn, 1, row_index, 1, 1)
+            color_buttons.append(btn)
+
+        dialog.show_all()
+        response = dialog.run()
+
+        if response == Gtk.ResponseType.OK:
+            for (_label, _current_rgb, attr), btn in zip(rows, color_buttons):
+                rgba = btn.get_rgba()
+                setattr(self.plot2, attr, [rgba.red, rgba.green, rgba.blue])
+
+            # Se ja' existe um perfil desenhado (usuario ja' selecionou
+            # points in the 2D matrix), also updates the line color of the
+            # serie(s) ja' adicionadas -- senao a mudanca so' valeria
+            # for the NEXT profile, not for the one already on screen.
+            new_line_color = self.plot2.line_color
+            for series in self.plot2.data:
+                series['line_color'] = new_line_color
+
+            self.plot2.queue_draw()
+
+        dialog.destroy()
+
+    def on_button_plot2d_colors_clicked (self, widget):
+        """ Mesma ideia de on_button_plot1d_colors_clicked(), para a
+        superficie 2D (self.plot): fundo (self.plot.bg_color) e a cor
+        unica de eixos/marcas/rotulos/moldura (self.plot.axis_color,
+        ver image_plot.py -- antes tinha [0,0,0] fixo espalhado em 3
+        lugares diferentes, sem nenhuma forma de mudar tudo junto). """
+        dialog = Gtk.Dialog(title="2D Plot Colors", transient_for=self.window, modal=True)
+        dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                            Gtk.STOCK_OK, Gtk.ResponseType.OK)
+
+        content = dialog.get_content_area()
+        content.set_border_width(10)
+        content.set_spacing(8)
+
+        grid = Gtk.Grid(row_spacing=8, column_spacing=12)
+        content.add(grid)
+
+        def make_color_button(rgb):
+            rgba = Gdk.RGBA()
+            rgba.red, rgba.green, rgba.blue, rgba.alpha = rgb[0], rgb[1], rgb[2], 1.0
+            return Gtk.ColorButton.new_with_rgba(rgba)
+
+        rows = [
+            ("Background",      self.plot.bg_color,   "bg_color"),
+            ("Axis / labels",   self.plot.axis_color, "axis_color"),
+        ]
+        color_buttons = []
+        for row_index, (label_text, current_rgb, _attr) in enumerate(rows):
+            label = Gtk.Label(label=label_text, xalign=0)
+            btn = make_color_button(current_rgb)
+            grid.attach(label, 0, row_index, 1, 1)
+            grid.attach(btn, 1, row_index, 1, 1)
+            color_buttons.append(btn)
+
+        dialog.show_all()
+        response = dialog.run()
+
+        if response == Gtk.ResponseType.OK:
+            for (_label, _current_rgb, attr), btn in zip(rows, color_buttons):
+                rgba = btn.get_rgba()
+                setattr(self.plot, attr, [rgba.red, rgba.green, rgba.blue])
+            self.plot.queue_draw()
+
+        dialog.destroy()
+
     def on_coordinates_combobox_change (self, widget):
         """ Function doc """
         try:
@@ -530,8 +637,11 @@ class PotentialEnergyAnalysisWindow:
             
             try:
                 self.plot2.queue_draw()
+                #print("aceito")
             except Exception:
-                pass
+                #self.builder.get_object('checkbox_2d_tools_enable').set_active(False)
+                #print("negado")
+                pass                       
             
             try:
                 self.plot.queue_draw()
@@ -555,6 +665,7 @@ class PotentialEnergyAnalysisWindow:
         #print('data: ', self.data)
         
         if self.data['type'] == 'plot1D':
+            self.builder.get_object('checkbox_2d_tools_enable').set_active(False)
             pass
             self.plot2.data = []
 
@@ -583,12 +694,12 @@ class PotentialEnergyAnalysisWindow:
                             sym_fill = False, 
                             #sym_color = [1,1,1], 
                             line = 'solid', 
-                            line_color = self.line_data_color )
+                            line_color = self.plot2.line_color )
             self.plot.hide()
             self.scale_traj_new_definitions(set_range = len(self.data['Z']))
         
         elif self.data['type'] == 'plot2D':
-        
+            self.builder.get_object('checkbox_2d_tools_enable').set_active(True)
             minlist = []
             for line in self.data['Z']:
                 minlist.append(min(line))
@@ -666,11 +777,19 @@ class PotentialEnergyAnalysisWindow:
                     x.append(i)
                     y.append(widget.data[point[0]][point[1]])
                 
-                self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [0,0,1], line = 'solid', line_color = [0,0,0] )
+                self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [0,0,1], line = 'solid', line_color = self.plot2.line_color )
                 
                 self._set_plot2_x_ticks (len(x))
-                self.plot2.Xmax   = 10 
-                #self.plot2.x_major_ticks = 10
+                # [EN] BUG FIX: havia um "self.plot2.Xmax = 10" fixo aqui,
+                # logo depois de add() ja ter calculado o Xmax CERTO a
+                # partir dos pontos reais (define_xy_limits(), chamado
+                # internally by add()). This fixed value overwrote the
+                # calculo correto toda vez -- sempre que o numero de
+                # pontos selecionados na matriz 2D fosse diferente de 10,
+                # the grid/labels of the 1D chart's X axis were
+                # based on a 0-10 range that did not correspond to the
+                # real data (grid "not updating" when selecting
+                # pontos, exatamente o sintoma relatado).
                 dprint("Mouse clicker at:",  x, y, 
                                             int(i_on_plot), int(j_on_plot), 
                                             widget.data[int(i_on_plot)][int(j_on_plot)] )
@@ -680,7 +799,24 @@ class PotentialEnergyAnalysisWindow:
             widget.queue_draw()
         
         if event.button ==3:
-            self.menu.popup(None, None, None, None, 0, 3)
+            # [EN] BUG FIX: isto usava a API antiga e ja' depreciada
+            # Gtk.Menu.popup(None, None, None, None, 0, 3) -- os
+            # button/time arguments (0, 3) were fixed values, not
+            # vindos do evento de clique real. Isso bagunca o "grab"
+            # implicito que o GTK usa para saber quando fechar o menu:
+            # em vez de ficar aberto ate' um proximo clique (dentro ou
+            # fora dele, ou escolhendo um item -- o comportamento normal
+            # de qualquer menu de contexto), o menu se fechava assim que
+            # the physical right button was released, so it was only visible
+            # while the button was pressed.
+            #
+            # popup_at_pointer(event) e' a API moderna (GTK 3.22+, ja'
+            # usada em outro lugar deste mesmo arquivo -- ver
+            # on_button_actions_clicked()/popup_at_widget()): ela usa o
+            # proprio evento que disparou o menu para posicionar E para
+            # estabelecer o grab corretamente, corrigindo os dois
+            # problemas de uma vez.
+            self.menu.popup_at_pointer(event)
             
     def _set_plot2_x_ticks (self, num_points):
         """ Limits the number of major x-axis ticks/labels shown on the 1D
@@ -728,7 +864,7 @@ class PotentialEnergyAnalysisWindow:
                 if getattr(self.vobject, 'idx_2D_xy', False):
                     frame = self.vobject.idx_2D_xy[( xy[1],xy[0])]
                 else:
-                    # vobject nao veio de uma varredura 2D (sem grade x,y):
+                    # vobject did not come from a 2D scan (no x,y grid):
                     # cai no indice linear do ponto selecionado.
                     frame = int(value)
             else:
@@ -738,7 +874,8 @@ class PotentialEnergyAnalysisWindow:
             y = [self.data['Z'][int(value)]]
             dprint(x,y)
             text = 'E = {:<15.6f}'.format(y[0])
-            self.builder.get_object('label_energy').set_text(str(y[0]))
+            #self.builder.get_object('label_energy').set_text(str(y[0]))
+            self.builder.get_object('label_energy').set_text(text)
             
             frame = int(value)
         
@@ -750,7 +887,7 @@ class PotentialEnergyAnalysisWindow:
         
         
         try:
-            self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = True, sym_color = [1,0,0], line = 'solid', line_color = [0,0,0] )
+            self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = True, sym_color = [1,0,0], line = 'solid', line_color = self.plot2.line_color )
             self.plot2.queue_draw()
         except Exception:
             pass
@@ -887,6 +1024,19 @@ class PotentialEnergyAnalysisWindow:
         input_coord = self.plot.points
         e_matrix    = self.plot.data
 
+        # A pathway optimization (NEB) needs at least two selected points
+        # (a start and an end) to define a path. With zero or one point there
+        # is nothing to optimize; warn the user and stop instead of running the
+        # optimizer on an empty/degenerate input.
+        if not input_coord or len(input_coord) < 2:
+            try:
+                self.main.simple_dialog.info(
+                    msg="Select at least two points on the 2D plot to "
+                        "optimize a pathway.")
+            except Exception:
+                dprint("Optimize Pathway: select at least two points first.")
+            return
+
         self.plot.points = run_surface_NEB (input_coord = input_coord, e_matrix = e_matrix )
         
         
@@ -904,19 +1054,15 @@ class PotentialEnergyAnalysisWindow:
             x.append(i)
             y.append(self.plot.data[point[0]][point[1]])
         
-        self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [1,1,1], line = 'solid', line_color = [0,0,0] )
+        self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [1,1,1], line = 'solid', line_color = self.plot2.line_color )
 
         self._set_plot2_x_ticks (len(x))
-        self.plot2.Xmax   = 10 
+        # [EN] BUG FIX: mesmo problema de on_mouse_button_press() (ver o
+        # comentario la') -- "self.plot2.Xmax = 10" fixo sobrescrevia o
+        # valor real calculado por add(), quebrando a grade do eixo X
+        # sempre que o caminho otimizado (NEB) tivesse um numero de
+        # pontos diferente de 10.
 
-
-        
-        
-        
-        
-        
-        
-        
         self.scale_traj_new_definitions()
         self.plot.queue_draw()
         self.plot2.queue_draw()
@@ -1138,7 +1284,10 @@ def build_chain_of_states( input_coord):
  
     #print (input_coord)
     inset_point = True
-
+    
+    if input_coord == [] or len(input_coord) == 1:
+        inset_point = False
+    
 
     while inset_point == True:
         a = 0

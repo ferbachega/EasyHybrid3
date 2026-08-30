@@ -135,6 +135,7 @@ class QCModelXTB ( QCModel ):
     
     #self.gfn  = _attributable['gfn']
     #self.cpus = _attributable['cpus']
+
     
     def AtomicCharges ( self, target, chargeModel = ChargeModel.Mulliken ):
         """Atomic charges."""
@@ -194,6 +195,114 @@ class QCModelXTB ( QCModel ):
     
     def Execute ( self, state, target ):
         """Execute the xtb job."""
+        
+
+        backup = os.getcwd()
+        directory = os.path.dirname(state.paths["Coord"])
+        os.chdir(directory)
+        outFile = state.paths["Output"]
+
+
+
+        # O erro é anteriror
+        ##Check xTB tmp path.
+        #if os.path.isdir(directory):
+        #    print("A pasta existe")
+        #    #return False
+        #else:
+        #    print("A pasta não existe")
+        #    PDYNAMO3_SCRATCH = os.getenv ( "PDYNAMO3_SCRATCH" )
+        #    tag = 'XTB_'+ RandomString ( )
+        #    scratch    = os.path.join ( scratch, tag )
+        #    
+        #    print("Nova pasta:", scratch)
+        #    #target.Summary()
+        #    target.qcState.DeterminePaths (scratch)
+            
+
+        # Build the command as an ARGUMENT LIST (not a shell string). Safer than
+        # os.system (no shell parsing) and lets us run with cwd=directory instead
+        # of chdir'ing the whole process -- removing the old cwd-leak bug.
+        args = [ self.command ]
+        
+        # charge and multiplicity
+        charge       = target.electronicState.charge
+        multiplicity = target.electronicState.multiplicity
+        unpaired = self.multiplicity_to_unpaired(multiplicity)
+        args += [ "-c", str ( charge ), "-u", str ( unpaired ) ]
+        
+        
+        #.CPUs
+        args += [ "-P", str ( self.parallel ) ]
+
+
+        #.GFN specify parametrisation of GFN-xTB (default = 2)
+        if self.gfn == 3:
+            args += [ "--gxtb" ]
+        else:
+            args += [ "--gfn", str ( self.gfn ) ]
+
+        #.Fermi-smearing
+        args += [ "--etemp", str ( self.fermi_temp ) ]
+
+        #.acc accuracy for SCC calculation, lower is better (default = 1.0)
+        args += [ "--acc", str ( self.acc ) ]
+
+        #.iterations
+        args += [ "--iterations", str ( self.iterations ) ]
+
+        #aditional keys? (a plain string; split into separate arguments)
+        if  self.keywords:
+            args += self.keywords.split ( )
+
+        #.gradients
+        args += [ "--grad" ]
+
+        # adding inputfile and coordinates
+        args += [ "--input", state.paths["Input"], state.paths["Coord"] ]
+
+        # Run xtb inside the scratch folder via cwd (no os.chdir of the parent
+        # process), sending stdout -- what used to be the shell '> XTBJob.log'
+        # redirect -- to the output log, with stderr merged in.
+        try:
+            with open ( state.paths["Output"], "w" ) as outFile:
+                subprocess.run ( args, cwd = directory,
+                                 stdout = outFile, stderr = subprocess.STDOUT )
+        except Exception:
+            # xtb failed to launch/crashed; Energy() detects the missing
+            # engrad/output and calls SaveErrorFiles.
+            return False
+        #' > /dev/null 2>&1'
+        try:
+            #os.rename(os.path.join(directory,'pcgrad') , os.path.join(directory,'XTBJob.pcgrad'))
+            try:
+                infile  = open(os.path.join(directory,'pcgrad'), 'r')
+                outfile = open(os.path.join(directory,'XTBJob.pcgrad'), 'w')
+            
+                lines = infile.readlines()
+                outfile.write(str(len(lines))+'\n')
+                for line in lines:
+                    outfile.write(line)
+                outfile.close()
+                infile.close()
+            except:
+                #infile  = open(os.path.join(directory,'XTBJob.pc'), 'r')
+                
+                with open(os.path.join(directory,'XTBJob.pc'), "r") as f:
+                    fline = f.readline()
+                size = int(fline)
+                
+                outfile = open(os.path.join(directory,'XTBJob.pcgrad'), 'w')
+                outfile.write(str(size)+'\n')
+                for line in range(size):
+                    outfile.write('0.00000 0.00000 0.00000\n')
+                outfile.close()
+        except:
+            pass
+        return True
+    
+    def Execute_old ( self, state, target ):
+        """Execute the xtb job."""
         #print(self._attributable['cpus'])
         #try:
             #outFile = open ( state.paths["Output"], "w" )
@@ -202,7 +311,7 @@ class QCModelXTB ( QCModel ):
         directory = os.path.dirname(state.paths["Coord"])
         os.chdir(directory)
         outFile = state.paths["Output"]
-        
+        """
         # starting xtb exec
         cmd = self.command
         
@@ -221,10 +330,7 @@ class QCModelXTB ( QCModel ):
         
         
         #.GFN specify parametrisation of GFN-xTB (default = 2)
-        if self.gfn == 3:
-            cpus = ' --gxtb '.format(self.gfn)
-        else:
-            cpus = ' --gfn {} '.format(self.gfn)
+        cpus = ' --gfn {} '.format(self.gfn)
         cmd += cpus
         
         #.Fermi-smearing
@@ -286,6 +392,75 @@ class QCModelXTB ( QCModel ):
         #' > /dev/null 2>&1'
         try:
             #os.rename(os.path.join(directory,'pcgrad') , os.path.join(directory,'XTBJob.pcgrad'))
+            infile  = open(os.path.join(directory,'pcgrad'), 'r')
+            outfile = open(os.path.join(directory,'XTBJob.pcgrad'), 'w')
+        
+            lines = infile.readlines()
+            outfile.write(str(len(lines))+'\n')
+            for line in lines:
+                outfile.write(line)
+            outfile.close()
+            infile.close()
+        except:
+            pass
+        return True
+        """
+        # Build the command as an ARGUMENT LIST (not a shell string). Safer than
+        # os.system (no shell parsing) and lets us run with cwd=directory instead
+        # of chdir'ing the whole process -- removing the old cwd-leak bug.
+        args = [ self.command ]
+        
+        
+        # charge and multiplicity
+        charge       = target.electronicState.charge
+        multiplicity = target.electronicState.multiplicity
+        unpaired = self.multiplicity_to_unpaired(multiplicity)
+        args += [ "-c", str ( charge ), "-u", str ( unpaired ) ]
+        
+        
+        #.CPUs
+        args += [ "-P", str ( self.parallel ) ]
+
+
+        #.GFN specify parametrisation of GFN-xTB (default = 2)
+        if self.gfn == 3:
+            args += [ "--gxtb" ]
+        else:
+            args += [ "--gfn", str ( self.gfn ) ]
+
+        #.Fermi-smearing
+        args += [ "--etemp", str ( self.fermi_temp ) ]
+
+        #.acc accuracy for SCC calculation, lower is better (default = 1.0)
+        args += [ "--acc", str ( self.acc ) ]
+
+        #.iterations
+        args += [ "--iterations", str ( self.iterations ) ]
+
+        #aditional keys? (a plain string; split into separate arguments)
+        if  self.keywords:
+            args += self.keywords.split ( )
+
+        #.gradients
+        args += [ "--grad" ]
+
+        # adding inputfile and coordinates
+        args += [ "--input", state.paths["Input"], state.paths["Coord"] ]
+
+        # Run xtb inside the scratch folder via cwd (no os.chdir of the parent
+        # process), sending stdout -- what used to be the shell '> XTBJob.log'
+        # redirect -- to the output log, with stderr merged in.
+        try:
+            with open ( state.paths["Output"], "w" ) as outFile:
+                subprocess.run ( args, cwd = directory,
+                                 stdout = outFile, stderr = subprocess.STDOUT )
+        except Exception:
+            # xtb failed to launch/crashed; Energy() detects the missing
+            # engrad/output and calls SaveErrorFiles.
+            return False
+        #' > /dev/null 2>&1'
+        try:
+            #os.rename(os.path.join(directory,'pcgrad') , os.path.join(directory,'XTBJob.pcgrad'))
             try:
                 infile  = open(os.path.join(directory,'pcgrad'), 'r')
                 outfile = open(os.path.join(directory,'XTBJob.pcgrad'), 'w')
@@ -308,33 +483,10 @@ class QCModelXTB ( QCModel ):
                 for line in range(size):
                     outfile.write('0.00000 0.00000 0.00000\n')
                 outfile.close()
-                
         except:
             pass
         return True
-                
 
-            
-            
-            
-            #subprocess.check_call ( [ self.command, _InputFile ], cwd = state.paths["Scratch"], stderr = outFile, stdout = outFile )
-            #outFile.close ( )
-        #    return True
-        #
-        #except:
-        #    return False
-        
-        
-        
-        #try:
-        #    outFile = open ( state.paths["Output"], "w" )
-        #    subprocess.check_call ( [ self.command, state.paths["Input"] ], stderr = outFile, stdout = outFile )
-        #    outFile.close ( )
-        #    return True
-        #except:
-        #    return False
-
-    # . Alpha/beta?
     def OrbitalEnergies ( self, target ):
         """Orbital energies and HOMO and LUMO indices."""
         return ( target.scratch.XTBOutputData.get ( "Orbital Energies", None ) ,
@@ -358,7 +510,7 @@ class QCModelXTB ( QCModel ):
         except:
             return False
 
-    def ReadOutputFile (self, target, XTBOutputData):
+    def ReadOutputFile_old (self, target, XTBOutputData):
         """ Function doc """
         state  = getattr ( target, self.__class__._stateName )
         #print(state.paths["Output"])
@@ -412,138 +564,372 @@ class QCModelXTB ( QCModel ):
             return True    
         except:
             return False
-    
-    '''       
-    def ReadOutputFile_old ( self, target, XTBOutputData ):
-        """Read an output file."""
-        state  = getattr ( target, self.__class__._stateName )
+
+    def ReadOutputFile ( self, target, XTBOutputData ):
+        """Parse the xTB text output into XTBOutputData.
+
+        Modular design: the whole log is read once into memory, then each
+        property is extracted by its own independent helper. To stop collecting
+        a property, simply comment out its line in the `extractors` list below --
+        the helpers do not depend on one another, so disabling one never affects
+        the others. Each helper is defensive: it catches its own errors and
+        simply skips (leaving its key unset) if its section is absent or its
+        format is unexpected, so one malformed section never aborts the rest.
+        """
+        state = getattr ( target, self.__class__._stateName )
         try:
-            n       = len ( state.atomicNumbers )
-            scratch = { "Is Converged" : False }
-            outFile = open ( state.paths["Output"], "r" )
-            while True:
-                try:
-                    line = next ( outFile ).strip ( )
-                    # . CHELPG charges.
-                    if line == "Chelpg Charges":
-                        data = Array.WithExtent ( n )
-                        line = next ( outFile )
-                        for i in range ( n ):
-                            words   = next ( outFile ).split ( ":", 1 )
-                            data[i] = float ( words[-1] )
-                        scratch["CHELPG Charges"] = data
-                    # . Convergence OK.
-                    elif line.find ( "SCF CONVERGED AFTER" ) >= 0:
-                        words                   = line.split ( )
-                        scratch["Cycles"]       = int ( words[-3] )
-                        scratch["Is Converged"] = True
-                    # . Convergence OK if xTB being used (added by Fernando Bachega).
-                    elif line.find ( "convergence criteria satisfied after" ) >= 0:
-                        words                   = line.split ( )
-                        scratch["Cycles"]       = int ( words[5] )
-                        scratch["Is Converged"] = True
-                    # . Convergence not OK.
-                    elif line.find ( "SCF NOT CONVERGED AFTER" ) >= 0:
-                        words             = line.split ( )
-                        scratch["Cycles"] = int ( words[-3] )
-                    # . Dipole.
-                    elif line.startswith ( "Total Dipole Moment" ):
-                        data  = Vector3.Null ( )
-                        words = line.split ( )
-                        for ( i, word ) in enumerate ( words[-3:] ):
-                            data[i] = Units.Dipole_Atomic_Units_To_Debyes * float ( word )
-                        scratch["Dipole"] = data
-                    # . Energy.
-                    elif line.startswith ( "FINAL SINGLE POINT ENERGY" ):
-                        scratch["Energy"] = float ( line.split ( )[-1] )
-                    # . Loewdin charges.
-                    elif line == "LOEWDIN ATOMIC CHARGES":
-                        data = Array.WithExtent ( n )
-                        next ( outFile )
-                        for i in range ( n ):
-                            words   = next ( outFile ).split ( ":", 1 )
-                            data[i] = float ( words[-1] )
-                        scratch["Loewdin Charges"] = data 
-                    # . Loewdin charges and spin densities.
-                    elif line.startswith ( "LOEWDIN ATOMIC CHARGES AND SPIN " ):
-                        data = Array.WithExtent ( n )
-                        datb = Array.WithExtent ( n )
-                        next ( outFile )
-                        for i in range ( n ):
-                            words = next ( outFile ).split ( )
-                            data[i] = float ( words[-2] )
-                            datb[i] = float ( words[-1] )
-                        scratch["Loewdin Charges"] = data 
-                        scratch["Loewdin Spins"  ] = datb
-                    # . Mayer bond orders.
-                    elif line.startswith ( "Mayer bond orders larger than" ):
-                        data = []
-                        while True:
-                            line = next ( outFile )
-                            atompairs=re.findall(r'(\d+)-\w+\s*,\s*(\d+)-\w+', line)
-                            bondOrders=p=re.findall(r'(\d\.\d+)', line)
-                            if atompairs:
-                                for (pair, bond) in zip(atompairs, bondOrders):
-                                    i=int(pair[0])
-                                    j=int(pair[1])
-                                    data.append ( ( i, j, float ( bond ) ) )
-                            else:
-                                break
-                        scratch["Mayer Bond Orders"] = data
-                    # . Mulliken charges.
-                    elif line == "MULLIKEN ATOMIC CHARGES":
-                        data = Array.WithExtent ( n )
-                        line = next ( outFile )
-                        for i in range ( n ):
-                            words = next ( outFile ).split ( ":", 1 )
-                            data[i] = float ( words[-1] )
-                        scratch["Mulliken Charges"] = data
-                    # . Mulliken charges and spin densities.
-                    elif line.startswith ( "MULLIKEN ATOMIC CHARGES AND SPIN " ):
-                        data = Array.WithExtent ( n )
-                        datb = Array.WithExtent ( n )
-                        next ( outFile )
-                        for i in range ( n ):
-                            words = next ( outFile ).split ( )
-                            data[i] = float ( words[-2] )
-                            datb[i] = float ( words[-1] )
-                        scratch["Mulliken Charges"] = data 
-                        scratch["Mulliken Spins"  ] = datb
-                    # . Orbital energies.
-                    elif line == "ORBITAL ENERGIES":
-                        HOMO = -1
-                        LUMO = -1
-                        orbitalEnergies = []
-                        for i in range ( 3 ): next ( outFile )
-                        index = 0
-                        while True:
-                            tokens = next ( outFile ).split ( )
-                            if len ( tokens ) < 3: break
-                            else:
-                                occupancy = float ( tokens[1] )
-                                if ( HOMO == -1 ) and ( LUMO == -1 ) and ( occupancy <= 1.0e-6 ):
-                                    HOMO = index - 1
-                                    LUMO = index
-                                orbitalEnergies.append ( float ( tokens[2] ) )
-                                index += 1
-                        energies = Array.WithExtent ( len ( orbitalEnergies ) )
-                        energies.Set ( 0.0 )
-                        for ( i, e ) in enumerate ( orbitalEnergies ): energies[i] = e
-                        scratch["HOMO"] = HOMO
-                        scratch["LUMO"] = LUMO
-                        scratch["Orbital Energies"] = energies
-                    # . <S**2>.
-                    elif line.startswith ( "Expectation value of <S**2>" ):
-                        scratch["Spin Squared"] = float ( line.split ( ":", 1 )[-1] )
-                except StopIteration:
-                    break
-            outFile.close ( )
-            XTBOutputData.update ( scratch )
-            return scratch["Is Converged"]
-        except Exception as e:
+            with open ( state.paths["Output"], "r" ) as atFile:
+                lines = atFile.readlines ( )
+        except Exception:
             return False
-    '''
-    
+
+        n    = len ( state.atomicNumbers )
+        data = { "Is Successful" : True }
+
+        # ---- control panel -------------------------------------------------
+        # Comment out any line to stop extracting that property. Order is free.
+        extractors = [
+            self._xtb_extract_energy            ,   # "Energy"            (Eh)
+            self._xtb_extract_homo_lumo_gap     ,   # "HOMO-LUMO"         (eV)
+            self._xtb_extract_gradient_norm     ,   # "Gradient Norm"     (Eh/a0)
+            self._xtb_extract_convergence       ,   # "Cycles", "Is Converged"
+            self._xtb_extract_energy_breakdown  ,   # "Energy Terms"      (dict, Eh)
+            self._xtb_extract_total_charge      ,   # "Total Charge"      (e)
+            self._xtb_extract_partial_charges   ,   # "Partial Charges"   (per atom, any GFN)
+            self._xtb_extract_mulliken_cm5      ,   # "Mulliken Charges"/"CM5 Charges" (GFN1 only)
+            self._xtb_extract_chelpg_charges    ,   # "CHELPG Charges"    (if present)
+            self._xtb_extract_orbitals          ,   # "Orbitals" (+ "HOMO"/"LUMO")
+            self._xtb_extract_wiberg_bonds      ,   # "Wiberg Bonds"      (list of (i,j,order))
+            self._xtb_extract_dipole            ,   # "Dipole"            (x,y,z,tot Debye)
+            self._xtb_extract_metadata          ,   # "XTB Version", "GFN", "Wall Time"
+            self._xtb_extract_termination       ,   # "Normal Termination" (bool) + warning
+        ]
+        # --------------------------------------------------------------------
+
+        for extractor in extractors:
+            try:
+                extractor ( lines, n, data )
+            except Exception:
+                # a single failing property must not abort the others
+                pass
+
+        XTBOutputData.update ( data )
+
+        # Surface a termination warning to the log so the user notices a run
+        # that did not finish normally (the value is set by
+        # _xtb_extract_termination). Also mirror it to the pDynamo logFile if
+        # available.
+        warning = data.get ( "Warning" )
+        if warning:
+            print ( warning )
+            try:
+                logFile.Paragraph ( warning )
+            except Exception:
+                pass
+
+        return True
+
+    # -- individual, independent extractors ---------------------------------
+    #    Each fills one (or a few closely-related) key(s) in `data`. They take
+    #    (lines, n, data): the full list of log lines, the atom count, and the
+    #    output dict to populate. A helper that cannot find its section leaves
+    #    its key(s) unset.
+
+    @staticmethod
+    def _xtb_find ( lines, needle, start = 0 ):
+        """Return the index of the first line containing needle, or -1."""
+        for i in range ( start, len ( lines ) ):
+            if needle in lines[i]:
+                return i
+        return -1
+
+    def _xtb_extract_energy ( self, lines, n, data ):
+        i = self._xtb_find ( lines, "TOTAL ENERGY" )
+        if i >= 0:
+            data["Energy"] = float ( lines[i].split ( )[3] )
+
+    def _xtb_extract_homo_lumo_gap ( self, lines, n, data ):
+        i = self._xtb_find ( lines, "HOMO-LUMO GAP" )
+        if i >= 0:
+            data["HOMO-LUMO"] = float ( lines[i].split ( )[3] )
+
+    def _xtb_extract_gradient_norm ( self, lines, n, data ):
+        i = self._xtb_find ( lines, "GRADIENT NORM" )
+        if i >= 0:
+            data["Gradient Norm"] = float ( lines[i].split ( )[3] )
+
+    def _xtb_extract_convergence ( self, lines, n, data ):
+        i = self._xtb_find ( lines, "convergence criteria satisfied after" )
+        if i >= 0:
+            data["Cycles"]       = int ( lines[i].split ( )[5] )
+            data["Is Converged"] = True
+        elif self._xtb_find ( lines, "convergence criteria cannot be satisfied" ) >= 0:
+            data["Is Converged"] = False
+
+    def _xtb_extract_energy_breakdown ( self, lines, n, data ):
+        """The SUMMARY block: SCC, dispersion, repulsion, ES/XC terms, etc."""
+        start = self._xtb_find ( lines, "SUMMARY" )
+        if start < 0:
+            return
+        terms = {}
+        for line in lines[start:start+16]:
+            # rows look like ':: SCC energy   -301.79...  Eh ::'
+            if "::" not in line:
+                continue
+            body = line.replace ( "::", " " ).strip ( )
+            parts = body.split ( )
+            label_words, value = [], None
+            for p in parts:
+                try:
+                    value = float ( p ); break
+                except ValueError:
+                    label_words.append ( p )
+            if value is not None and label_words:
+                label = " ".join ( label_words )
+                if label.lower ( ) not in ( "summary", ):
+                    terms[label] = value
+        if terms:
+            data["Energy Terms"] = terms
+
+    def _xtb_extract_total_charge ( self, lines, n, data ):
+        i = self._xtb_find ( lines, "total charge" )
+        if i >= 0:
+            for p in lines[i].replace ( "::", " " ).split ( ):
+                try:
+                    data["Total Charge"] = float ( p ); break
+                except ValueError:
+                    continue
+
+    def _xtb_extract_partial_charges ( self, lines, n, data ):
+        """Per-atom partial charges from the '# Z covCN q C6AA a(0)' table.
+
+        This table is printed for ANY GFN (0/1/2), so it is the robust source of
+        atomic charges -- unlike the 'Mulliken/CM5' section which only GFN1
+        prints.
+        """
+        i = self._xtb_find ( lines, "covCN" )
+        if i < 0:
+            return
+        charges = Array.WithExtent ( n )
+        got = 0
+        for line in lines[i+1:]:
+            if line.strip ( ) == "":
+                break
+            words = line.split ( )
+            # expected: idx  Z  sym  covCN  q  C6AA  alpha  -> 7 columns
+            if len ( words ) < 7:
+                continue
+            try:
+                idx = int ( words[0] ) - 1
+                charges[idx] = float ( words[4] )
+                got += 1
+            except ( ValueError, IndexError ):
+                continue
+        if got == n:
+            data["Partial Charges"] = charges
+            # keep a Mulliken alias so existing AtomicCharges() calls work in
+            # every GFN, not only GFN1
+            data.setdefault ( "Mulliken Charges", charges )
+
+    def _xtb_extract_mulliken_cm5 ( self, lines, n, data ):
+        """The 'Mulliken/CM5' table -- printed by GFN1 only."""
+        i = self._xtb_find ( lines, "Mulliken/CM5" )
+        if i < 0:
+            return
+        mull = Array.WithExtent ( n )
+        cm5  = Array.WithExtent ( n )
+        got = 0
+        for k in range ( n ):
+            j = i + 1 + k
+            if j >= len ( lines ):
+                break
+            words = lines[j].split ( )
+            if len ( words ) < 3:
+                break
+            try:
+                mull[k] = float ( words[1] )
+                cm5[k]  = float ( words[2] )
+                got += 1
+            except ValueError:
+                break
+        if got == n:
+            data["Mulliken Charges"] = mull   # overrides the partial-charge alias
+            data["CM5 Charges"]      = cm5
+
+    def _xtb_extract_chelpg_charges ( self, lines, n, data ):
+        """CHELPG charges, if the section is present."""
+        i = self._xtb_find ( lines, "Chelpg Charges" )   # substring => tolerant of newline/indent
+        if i < 0:
+            return
+        charges = Array.WithExtent ( n )
+        got = 0
+        for k in range ( n ):
+            j = i + 2 + k
+            if j >= len ( lines ):
+                break
+            words = lines[j].split ( ":", 1 )
+            try:
+                charges[k] = float ( words[-1] )
+                got += 1
+            except ValueError:
+                break
+        if got == n:
+            data["CHELPG Charges"] = charges
+
+    def _xtb_extract_orbitals ( self, lines, n, data ):
+        """Orbital energies/occupations, and the HOMO/LUMO energies (eV)."""
+        i = self._xtb_find ( lines, "Occupation" )
+        if i < 0:
+            return
+        orbitals = []
+        homo = lumo = None
+        for line in lines[i+1:]:
+            if "---" in line:
+                if orbitals:      # second rule = end of the table
+                    break
+                continue
+            if line.strip ( ) == "":
+                break
+            words = line.split ( )
+            if len ( words ) < 3:
+                continue
+            tag = ""
+            if "(HOMO)" in line: tag = "(HOMO)"
+            if "(LUMO)" in line: tag = "(LUMO)"
+            numeric = [ w for w in words if w not in ( "(HOMO)", "(LUMO)" ) ]
+            try:
+                energy_ev = float ( numeric[-1] )
+            except ( ValueError, IndexError ):
+                continue
+            orbitals.append ( energy_ev )
+            if tag == "(HOMO)": homo = energy_ev
+            if tag == "(LUMO)": lumo = energy_ev
+        if orbitals:
+            data["Orbitals"] = orbitals
+        if homo is not None: data["HOMO"] = homo
+        if lumo is not None: data["LUMO"] = lumo
+
+    def _xtb_extract_wiberg_bonds ( self, lines, n, data ):
+        """Largest Wiberg bond orders -> list of (i, j, order), 1-based indices."""
+        i = self._xtb_find ( lines, "Wiberg" )
+        if i < 0:
+            return
+        # find the table header ('# Z sym total ...'), then skip the dashed rule
+        header = self._xtb_find ( lines, "total", i )
+        if header < 0:
+            return
+        start = header + 1
+        # skip the '-----' rule line(s) that follow the header
+        while start < len ( lines ) and "---" in lines[start]:
+            start += 1
+        bonds = []
+        atom_i = None
+        for line in lines[start:]:
+            if "---" in line:
+                break
+            if line.strip ( ) == "":
+                continue
+            if "--" in line:
+                left, right = line.split ( "--", 1 )
+                lwords = left.split ( )
+                try:
+                    atom_i = int ( lwords[0] )
+                except ( ValueError, IndexError ):
+                    atom_i = None
+                rest = right
+            else:
+                rest = line
+            if atom_i is None:
+                continue
+            rwords = rest.split ( )
+            k = 0
+            while k + 2 < len ( rwords ):
+                try:
+                    atom_j = int ( rwords[k] )
+                    order  = float ( rwords[k+2] )
+                    bonds.append ( ( atom_i, atom_j, order ) )
+                except ( ValueError, IndexError ):
+                    pass
+                k += 3
+        if bonds:
+            data["Wiberg Bonds"] = bonds
+
+    def _xtb_extract_dipole ( self, lines, n, data ):
+        """Molecular dipole: (x, y, z, total) in Debye, from the 'full:' row."""
+        i = self._xtb_find ( lines, "molecular dipole" )
+        if i < 0:
+            return
+        for line in lines[i:i+5]:
+            if line.strip ( ).startswith ( "full:" ):
+                words = line.split ( )
+                try:
+                    data["Dipole"] = [ float ( w ) for w in words[1:5] ]   # x,y,z,tot
+                except ( ValueError, IndexError ):
+                    pass
+                break
+
+    def _xtb_extract_metadata ( self, lines, n, data ):
+        """Version, GFN method and wall-time -- handy for logs/diagnostics."""
+        i = self._xtb_find ( lines, "xtb version" )
+        if i >= 0:
+            words = lines[i].split ( )
+            try:
+                data["XTB Version"] = words[words.index ( "version" ) + 1]
+            except ( ValueError, IndexError ):
+                pass
+        i = self._xtb_find ( lines, "--gfn" )
+        if i >= 0:
+            words = lines[i].split ( )
+            try:
+                data["GFN"] = words[words.index ( "--gfn" ) + 1]
+            except ( ValueError, IndexError ):
+                pass
+        i = self._xtb_find ( lines, "wall-time" )
+        if i >= 0:
+            data["Wall Time"] = lines[i].split ( ":", 1 )[-1].strip ( )
+
+    def _xtb_extract_termination ( self, lines, n, data ):
+        """Check whether xtb terminated normally.
+
+        Sets data["Normal Termination"] to True/False and, when it looks like an
+        abnormal run, sets data["Warning"] to a message the caller can surface.
+
+        Robustness note: the exact wording varies by xtb version and run mode.
+        A run is treated as FAILED only when a positive error signal is present
+        ('abnormal termination of xtb', '[ERROR]', 'ERROR STOP'). It is treated
+        as OK when a success signal is present ('normal termination of xtb') OR
+        when the run clearly reached the end ('finished run on', which some
+        versions print instead of 'normal termination'). This avoids a false
+        'abnormal termination' warning on logs (like GFN2 single points) that
+        finish cleanly yet never print the literal 'normal termination' line.
+        """
+        text = "".join ( lines )
+
+        # positive evidence of failure
+        failed = ( "abnormal termination of xtb" in text ) \
+                 or ( "[ERROR]" in text ) \
+                 or ( "ERROR STOP" in text )
+
+        # positive evidence of success
+        succeeded = ( "normal termination of xtb" in text ) \
+                    or ( "finished run on" in text )
+
+        if failed:
+            data["Normal Termination"] = False
+            data["Warning"] = "warning: xTB abnormal termination"
+        elif succeeded:
+            data["Normal Termination"] = True
+        else:
+            # no clear signal either way -- flag conservatively so the user can
+            # check, but say it is unconfirmed rather than definitely abnormal
+            data["Normal Termination"] = False
+            data["Warning"] = "warning: xTB termination could not be confirmed"
+
+
+
+
+
+  
     def SummaryItems ( self ):
         """Summary items."""
         items = super ( QCModelXTB, self ).SummaryItems ( )

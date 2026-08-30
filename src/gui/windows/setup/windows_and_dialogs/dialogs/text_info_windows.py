@@ -210,6 +210,64 @@ class TextWindow:
         self.window.show_all()
 
 
+class TabbedLogWindow:
+    """Log viewer with one tab per source (e.g. pDynamo + ORCA/xTB).
+
+    Shows several logs in a single window, each in its own tab, reusing the
+    same monospace + log-highlighting styling as TextWindow. Built for the
+    'View Log' action: a simulation run may have both a pDynamo log and a
+    QC-program log (ORCA, xTB, ...), and this shows them side by side.
+
+    Usage:
+        TabbedLogWindow([("pDynamo", pdynamo_text),
+                         ("ORCA",    orca_text)], title="Log: opt_1")
+
+    Tabs whose text is falsy (None/empty) are skipped. If only one tab has
+    content, it simply shows that one.
+    """
+
+    def __init__(self, tabs, title=None):
+        self.window = Gtk.Window(title=title or "Log")
+        self.window.set_default_size(1100, 600)
+
+        notebook = Gtk.Notebook()
+        self.window.add(notebook)
+
+        added = 0
+        for label, text in tabs:
+            if not text:
+                continue
+            notebook.append_page(self._make_log_view(text), Gtk.Label(label=label))
+            added += 1
+
+        if added == 0:
+            # nothing to show -> a single informative tab
+            notebook.append_page(self._make_log_view("(no log content available)"),
+                                 Gtk.Label(label="Log"))
+
+        self.window.show_all()
+
+    def _make_log_view(self, text):
+        """Builds one scrolled, monospace, highlighted text view for a tab."""
+        textview = Gtk.TextView()
+        buffer = textview.get_buffer()
+        buffer.set_text(text)
+        apply_log_highlighting(buffer)
+
+        fontdesc = Pango.FontDescription()
+        fontdesc.set_family("Monospace")
+        fontdesc.set_size(12 * Pango.SCALE)
+        textview.modify_font(fontdesc)
+        textview.get_style_context().add_class("text-black")
+        textview.set_editable(False)
+
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_hexpand(True)
+        scrolled.set_vexpand(True)
+        scrolled.add(textview)
+        return scrolled
+
+
 class InfoWindow:
     """ 
     Create a text window. Currently used to display system 

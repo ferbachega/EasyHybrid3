@@ -34,7 +34,7 @@
 
 from _version import EASYHYBRID_VERSION
 
-import os, sys, time, re
+import os, sys, time, re, json
 import logging
 
 # --- Fix: engasgo de rotacao em GPUs integradas Intel (driver Mesa/GLX) ---
@@ -49,9 +49,39 @@ import logging
 # CRITICO: essa variavel de ambiente so tem efeito se for definida ANTES
 # do contexto GL ser criado pelo Mesa - por isso essa deteccao roda aqui,
 # no topo do arquivo, antes de qualquer import do GTK/OpenGL.
+#
+# O usuario pode sobrepor esse auto-detect via Preferences > Startup >
+# "V-Sync (vblank_mode)" (ver setup_interface.py/.glade), que grava a
+# preferencia ('auto'/'on'/'off') em gl_parameters['vblank_mode'] e persiste
+# no .config.json (gui/config.py). Lemos esse arquivo aqui, como JSON cru
+# (sem importar gui.config), porque isso precisa rodar antes do GTK ser
+# importado -- so tem efeito na PROXIMA vez que o EasyHybrid for aberto.
+def _load_vblank_mode_preference():
+    """ Le a preferencia 'vblank_mode' salva em .config.json ('auto', 'on'
+        ou 'off'). Retorna 'auto' (comportamento padrao/legado) se o
+        arquivo nao existir, nao tiver a chave, ou nao puder ser lido.
+    """
+    try:
+        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".config.json")
+        with open(config_path, "r", encoding="utf-8") as config_file:
+            data = json.load(config_file)
+        return data.get("vblank_mode", "auto")
+    except (OSError, ValueError):
+        return "auto"
+
 def _maybe_disable_vsync_for_intel_igpu():
     if "vblank_mode" in os.environ:
         return  # usuario ou launcher ja definiu explicitamente; respeita
+
+    preference = _load_vblank_mode_preference()
+    if preference == "off":
+        os.environ["vblank_mode"] = "0"
+        return
+    if preference == "on":
+        os.environ["vblank_mode"] = "1"
+        return
+    # preference == "auto" (default): mantem o auto-detect de GPU Intel abaixo.
+
     if sys.platform != "linux":
         return
     try:
@@ -149,9 +179,20 @@ except Exception as e:
 
 
 
-import gi 
+import gi
+# [EN] macOS/Quartz fix: PyGObject's automatic Gdk.init_check() (run as a
+# side effect of the first "from gi.repository import Gtk/Gdk..." below)
+# used to run before the Quartz backend was fully loaded, causing issues
+# specific to that backend. gi.disable_legacy_autoinit() skips that
+# automatic init; Gtk.init([]) right after the import does it explicitly,
+# once the backend is actually ready. Gated to macOS only -- Linux/
+# Windows keep using PyGObject's normal automatic init, unchanged.
+if sys.platform == "darwin":
+    gi.disable_legacy_autoinit()
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
+if sys.platform == "darwin":
+    Gtk.init([])
 
 
 #               Installation is not necessary anymore.
@@ -248,6 +289,7 @@ def main():
         
         main_window.builder.get_object('test_item')             .hide() # IR spectrum
         
+        #This is the editor
         #This is the editor
         main_window.builder.get_object('_show_cell')             .hide() # IR spectrum
         
