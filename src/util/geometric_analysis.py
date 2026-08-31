@@ -148,50 +148,60 @@ def get_simple_dihedral(a1_coord, a2_coord, a3_coord, a4_coord):
     return dihedral
     
 
-#def get_dihedral(vobject, index1, index2, index3, index4):
-def get_dihedral(atom1, atom2, atom3, atom4):
-    # Convert the coordinates to numpy arrays
-    #atom1 = vobject.atoms[index1]
-    #atom2 = vobject.atoms[index2]
-    #atom3 = vobject.atoms[index3]
-    #atom4 = vobject.atoms[index4]
-    
-    a1_coord = atom1.coords()
-    a2_coord = atom2.coords()
-    a3_coord = atom3.coords()
-    a4_coord = atom4.coords()
-    
-    #print(a1_coord, a2_coord,a3_coord  , a4_coord)
-    
-    atom1 = np.array(a1_coord)
-    atom2 = np.array(a2_coord)
-    atom3 = np.array(a3_coord)
-    atom4 = np.array(a4_coord)
+def get_dihedral(vobject, index1, index2, index3, index4):
+    """
+    Calculate the signed dihedral angle for four atoms.
 
-    #print(atom1, atom2,atom3  , atom4)
+    The sign convention is chosen to match pDynamo3.
 
-    # Compute vectors between the atoms
-    vec1 = atom2 - atom1
-    vec2 = atom3 - atom2
-    vec3 = atom4 - atom3
+    Returns
+    -------
+    float
+        Dihedral angle in degrees, in the range (-180, 180].
+    """
 
-    # Normalize the vectors
-    vec1 /= np.linalg.norm(vec1)
-    vec2 /= np.linalg.norm(vec2)
-    vec3 /= np.linalg.norm(vec3)
+    # Coordinates
+    r1 = np.asarray(vobject.atoms[index1].coords(), dtype=float)
+    r2 = np.asarray(vobject.atoms[index2].coords(), dtype=float)
+    r3 = np.asarray(vobject.atoms[index3].coords(), dtype=float)
+    r4 = np.asarray(vobject.atoms[index4].coords(), dtype=float)
 
-    # Compute the cross products
-    cross1 = np.cross(vec1, vec2)
-    cross2 = np.cross(vec2, vec3)
+    # Bond vectors
+    b1 = r2 - r1
+    b2 = r3 - r2
+    b3 = r4 - r3
 
-    # Compute the dot product between the cross products
-    dot = np.dot(cross1, cross2)
+    # Normals to the two planes
+    n1 = np.cross(b1, b2)
+    n2 = np.cross(b2, b3)
 
-    # Compute the dihedral angle
-    dihedral = np.arctan2(np.linalg.norm(np.cross(cross1, cross2)), dot)
-    dihedral = np.degrees(dihedral)
-    return dihedral
+    # Norm of central bond
+    b2_norm = np.linalg.norm(b2)
 
+    # Check for degenerate geometry
+    if (
+        b2_norm == 0.0
+        or np.linalg.norm(n1) == 0.0
+        or np.linalg.norm(n2) == 0.0
+    ):
+        raise ValueError(
+            "Cannot calculate dihedral: atoms are collinear or coincident."
+        )
+
+    # Unit vector along the central bond
+    b2_unit = b2 / b2_norm
+
+    # Component perpendicular to n1
+    m1 = np.cross(n1, b2_unit)
+
+    # Dihedral
+    x = np.dot(n1, n2)
+    y = np.dot(m1, n2)
+
+    angle = np.degrees(np.arctan2(y, x))
+
+    # pDynamo convention
+    return -angle
 
 
 

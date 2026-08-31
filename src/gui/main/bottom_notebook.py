@@ -219,17 +219,34 @@ class BottomNoteBook:
         
     def set_active_system_text_to_textbuffer (self):
         e_id = self.main.p_session.active_id
-        new_text = self.main.p_session.psystem[e_id].e_annotations
-        self.annotations_textbuffer.set_text(new_text, -1)
-    
+        # [BUG FIX] Used to index psystem[e_id] directly -- raised
+        # KeyError (if e_id had just been removed, e.g. by delete_system)
+        # or AttributeError (psystem[e_id] is the None placeholder used
+        # when no system is loaded, see pDynamoSession.__init__). Neither
+        # case means there's really an "active system" to show
+        # annotations for, so just clear the buffer instead of crashing.
+        system = self.main.p_session.psystem.get(e_id)
+        if system is None:
+            self.annotations_textbuffer.set_text('', -1)
+            return
+        self.annotations_textbuffer.set_text(system.e_annotations, -1)
+
     def get_active_system_text_from_textbuffer (self):
         """ Function doc """
         start_iter = self.annotations_textbuffer.get_start_iter()
         end_iter = self.annotations_textbuffer.get_end_iter()
         extracted_text = self.annotations_textbuffer.get_text(start_iter, end_iter, include_hidden_chars=False)
-        
+
         e_id = self.main.p_session.active_id
-        self.main.p_session.psystem[e_id].e_annotations = extracted_text
+        # [BUG FIX] Same guard as set_active_system_text_to_textbuffer --
+        # see comment there. Nothing to write the annotations back onto
+        # when there's no real active system (e.g. every system was
+        # closed/deleted), so just skip it instead of crashing (this is
+        # called from save_easyhybrid_session(), i.e. every single save).
+        system = self.main.p_session.psystem.get(e_id)
+        if system is None:
+            return
+        system.e_annotations = extracted_text
 
     def change_annotations_textbuffer (self, before, after):
         """ Function doc """

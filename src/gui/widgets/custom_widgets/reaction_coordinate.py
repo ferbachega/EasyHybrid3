@@ -213,7 +213,9 @@ class AdvancedReactionCoordinateBox(Gtk.Box):
             index3 = int(self.builder.get_object('entry_atom3_index_coord1').get_text() )
             index4 = int(self.builder.get_object('entry_atom4_index_coord1').get_text() )
             
+            
             dihedral = get_dihedral(self.vobject, index1, index2, index3, index4)
+            print(dihedral)
             #dist2 = get_distance(self.vobject, index2, index3 )
             self.builder.get_object('entry_dmin_coord1').set_text(str(dihedral))
             

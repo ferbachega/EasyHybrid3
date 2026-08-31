@@ -1733,6 +1733,24 @@ class MainWindow:
             
             # Remove the system from p_session and update the graphical view.
             a = self.p_session.delete_system(system_e_id)
+
+            # [BUG FIX] active_id was never updated here -- if the system
+            # just removed was the active one (the common case), active_id
+            # kept pointing at a key delete_system() had just popped from
+            # psystem. Nothing crashed immediately, but the very next
+            # thing that touched "the active system" (e.g. File > Save As
+            # -> get_active_system_text_from_textbuffer()) blew up with
+            # KeyError instead. Point active_id at another remaining
+            # system if there is one, otherwise reset to the same empty
+            # placeholder state used by pDynamoSession.__init__/restart().
+            if self.p_session.active_id not in self.p_session.psystem:
+                remaining_ids = list(self.p_session.psystem.keys())
+                if remaining_ids:
+                    self.p_session.active_id = remaining_ids[-1]
+                else:
+                    self.p_session.active_id = 0
+                    self.p_session.psystem[0] = None
+
             self.vm_session.vm_glcore.queue_draw()
 
     def delete_vm_object (self, vm_object_index = None):
