@@ -62,6 +62,8 @@ from gui.windows.setup.windows_and_dialogs import TrajectoryPlayerWindow
 from gui.windows.setup.windows_and_dialogs import InfoWindow
 from gui.windows.setup.windows_and_dialogs import MergeSystemWindow
 from gui.windows.setup.windows_and_dialogs import SolvateSystemWindow
+from gui.windows.setup.windows_and_dialogs import PrepareAmberSystemWindow
+from gui.windows.setup.windows_and_dialogs import PrepareLigandAntechamberWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
 from gui.windows.setup.edit_frames_dialog import EditFrameDialog
 from gui.windows.setup.edit_cell          import EditCellWindow
@@ -479,6 +481,8 @@ class MainWindow:
         self.edit_frames_dialog = EditFrameDialog(main = self)
         self.merge_system_window = MergeSystemWindow(main = self)
         self.solvate_system_window = SolvateSystemWindow(main = self)
+        self.prepare_amber_system_window = PrepareAmberSystemWindow(main = self)
+        self.prepare_ligand_antechamber_window = PrepareLigandAntechamberWindow(main = self)
         self.preferences_window = EasyHybridPreferencesWindow(main = self)
 
         self.make_solvent_box_window = MakeSolventBoxWindow(main = self)
@@ -1188,8 +1192,14 @@ class MainWindow:
             self.refresh_widgets()
 
         
-        elif menuitem == self.builder.get_object('menuitem_solvate'): 
+        elif menuitem == self.builder.get_object('menuitem_solvate'):
             self.solvate_system_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_prepare_amber_tleap'):
+            self.prepare_amber_system_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_prepare_ligand_antechamber'):
+            self.prepare_ligand_antechamber_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_merge'): 
             """ Function doc """

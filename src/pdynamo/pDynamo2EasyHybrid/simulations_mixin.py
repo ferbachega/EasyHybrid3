@@ -113,6 +113,124 @@ from pdynamo.LogFileWriter import LogFileReader
 
 from gui.windows.setup.windows_and_dialogs import call_message_dialog
 
+# --- constants for the parent/child multiprocessing.Queue protocol ---
+# Module-level (not instance attributes) so _simulation_target_process()
+# below -- which runs as the multiprocessing.Process TARGET, in the
+# child process -- can reference them without needing "self" at all.
+# pSimulations.run_simulation() also assigns these same values onto
+# self.MSG_* (parent side only, read by _dispatch_message() below);
+# kept as a single source of truth here instead of two separately
+# hardcoded copies of the same four strings.
+_MSG_RESULT  = "RESULT"
+_MSG_ERROR   = "ERROR"
+_MSG_DONE    = "DONE"
+_MSG_RUNNING = "RUNNING"
+
+
+def _simulation_target_process(parameters):
+    """ Runs the selected simulation type and communicates results back
+        to the parent process via a multiprocessing.Queue.
+
+        [BUG FIX] This used to be pSimulations._target_process(self,
+        parameters), a bound METHOD passed directly as
+        multiprocessing.Process(target=self._target_process, ...) (see
+        run_simulation() below). On Linux/Windows, multiprocessing's
+        default start method is "fork": the child process is a copy of
+        the parent's own memory, so nothing needs to be serialized and
+        this worked fine. On macOS, the default start method is
+        "spawn": the child is a brand-new interpreter, so
+        multiprocessing.Process has to *pickle* whatever "target" (and
+        "args") point to in order to hand them to it -- for a bound
+        method, that means pickling its __self__, i.e. the ENTIRE
+        pDynamoSession/EasyHybrid GUI session object graph, which
+        contains real GTK objects (e.g. Gtk.ListStore via self.main's
+        widgets) that are simply not picklable at all:
+        "TypeError: cannot pickle 'ListStore' object" -- so
+        process.start() raised immediately, on macOS only, confirmed by
+        forcing multiprocessing.set_start_method("spawn") on Linux too
+        (see the module docstring / test notes for how this was
+        verified end-to-end without a Mac).
+
+        Moved to a plain module-level function instead -- it has no
+        "self" to pickle in the first place, so nothing about the GUI
+        session gets dragged into the child process' pickled target,
+        under spawn OR fork. (The one other thing that needed pickling
+        for "args", parameters['system']'s own live GTK tree/list-store
+        iterators, is handled separately in run_simulation() right
+        around process.start() -- not here.)
+    """
+    queue = parameters['queue']
+    queue.put(_MSG_RUNNING)  # Notify parent process that job started
+
+    # Map simulation type to class
+    simulation_classes = {
+        'Energy_Single_Point': EnergyCalculation,
+        'Energy_Refinement': EnergyRefinement,
+        'Geometry_Optimization': GeometryOptimization,
+        'Molecular_Dynamics': MolecularDynamics,
+        'Relaxed_Surface_Scan': RelaxedSurfaceScan,
+        'Advanced_Relaxed_Surface_Scan': AdvancedRelaxedSurfaceScan,
+        'Umbrella_Sampling': UmbrellaSampling,
+        'Nudged_Elastic_Band': ChainOfStatesOptimizePath,
+        'Normal_Modes': NormalModes,
+        }
+
+    sim_type = parameters['simulation_type']
+    cls = simulation_classes.get(sim_type)
+
+    if not cls:
+        # Unknown simulation type → exit silently
+        return
+
+    # Instantiate simulation class (a plain local variable now -- the
+    # old code stored this on self.target_process, but that was never
+    # actually read anywhere outside this same function: an assignment
+    # onto self inside the child process is invisible to the parent
+    # regardless of fork/spawn, since they don't share memory).
+    target_process = cls()
+
+    # Special flags for specific simulation types
+    if sim_type == 'Energy_Single_Point':
+        parameters['energy'] = True
+        parameters['new_vobject'] = False
+    elif sim_type == 'Energy_Refinement':
+        parameters['new_vobject'] = False
+
+    # Avoid passing queue object to child processes inside parameters
+    parameters['queue'] = None
+
+    try:
+        target_process.run(parameters)
+        results = {
+            'new_vobject': parameters.get('new_vobject', True),
+            'energy': parameters.get('energy', False),
+            'coords': parameters['system'].coordinates3,
+            'e_id': parameters['system'].e_id,
+            'simulation_type': sim_type,
+            'logfile': parameters['logfile'],
+            'error': None,
+            'step_counter': parameters['system'].e_step_counter
+        }
+        queue.put((_MSG_RESULT, results))
+        queue.put(_MSG_DONE)
+
+    except Exception as exc:
+        dprint(f"Error {sim_type}: {exc}")
+        traceback.print_exc()    # <-- imprime o traceback completo
+
+        results = {
+            'new_vobject': False,
+            'energy': False,
+            'coords': None,
+            'e_id': parameters['system'].e_id,
+            'simulation_type': sim_type,
+            'logfile': parameters['logfile'],
+            'error': exc,
+            'step_counter': parameters['system'].e_step_counter
+        }
+        queue.put((_MSG_ERROR, results))
+
+
 class pSimulations:
     """Class responsible for managing and running molecular simulations 
     using multiprocessing and GUI integration with EasyHybrid.
@@ -418,90 +536,6 @@ class pSimulations:
     # SIMULATION PROCESS
     # ========================================================================
 
-    def _target_process(self, parameters):
-        """Target function executed inside a separate process.
-
-        Runs the selected simulation type and communicates results back 
-        to the parent process via a multiprocessing.Queue.
-        """
-        queue = parameters['queue']
-        queue.put( self.MSG_RUNNING)  # Notify parent process that job started
-
-        # Map simulation type to class
-        simulation_classes = {
-            'Energy_Single_Point': EnergyCalculation,
-            'Energy_Refinement': EnergyRefinement,
-            'Geometry_Optimization': GeometryOptimization,
-            'Molecular_Dynamics': MolecularDynamics,
-            'Relaxed_Surface_Scan': RelaxedSurfaceScan,
-            'Advanced_Relaxed_Surface_Scan':AdvancedRelaxedSurfaceScan,
-            'Umbrella_Sampling': UmbrellaSampling,
-            'Nudged_Elastic_Band': ChainOfStatesOptimizePath,
-            'Normal_Modes': NormalModes,
-            }
-
-        sim_type = parameters['simulation_type']
-        cls = simulation_classes.get(sim_type)
-
-        if not cls:
-            # Unknown simulation type → exit silently
-            return
-
-        # Instantiate simulation class
-        self.target_process = cls()
-        
-
-        
-        # Special flags for specific simulation types
-        if sim_type == 'Energy_Single_Point':
-            parameters['energy'] = True
-            parameters['new_vobject'] = False
-        elif sim_type == 'Energy_Refinement':
-            parameters['new_vobject'] = False
-
-        # Avoid passing queue object to child processes inside parameters
-        parameters['queue'] = None
-        
-        #backup_parameters = parameters
-        #backup_parameters = copy.deepcopy(parameters)
-        #backup_parameters['system'] = None
-        #backup_parameters['step_counter'] = parameters['system'].e_step_counter
-
-        #self.target_process.run(parameters)
-        
-        try:
-            self.target_process.run(parameters)
-            results = {
-                'new_vobject': parameters.get('new_vobject', True),
-                'energy': parameters.get('energy', False),
-                'coords': parameters['system'].coordinates3,
-                'e_id': parameters['system'].e_id,
-                'simulation_type': sim_type,
-                'logfile': parameters['logfile'],
-                'error': None,
-                #'backup_parameters': backup_parameters,
-                'step_counter':parameters['system'].e_step_counter
-            }
-            queue.put((self.MSG_RESULT, results))
-            queue.put(self.MSG_DONE)
-            
-        except Exception as exc:
-            dprint(f"Error {sim_type}: {exc}")
-            traceback.print_exc()    # <-- imprime o traceback completo
-            
-            results = {
-                'new_vobject': False,
-                'energy': False,
-                'coords': None,
-                'e_id': parameters['system'].e_id,
-                'simulation_type': sim_type,
-                'logfile': parameters['logfile'],
-                'error': exc,
-                #'backup_parameters': backup_parameters,
-                'step_counter':parameters['system'].e_step_counter
-            }
-            queue.put((self.MSG_ERROR, results))
-        
     def run_simulation(self, parameters):
         """
         Start a new subprocess for a molecular simulation.
@@ -513,11 +547,13 @@ class pSimulations:
           4. Creates a subprocess and registers it in the process manager.
  
         """
-        # --- constants for messages
-        self.MSG_RESULT  = "RESULT"
-        self.MSG_ERROR   = "ERROR"
-        self.MSG_DONE    = "DONE"
-        self.MSG_RUNNING = "RUNNING"
+        # --- constants for messages (module-level -- see _MSG_* above,
+        # also used directly by _simulation_target_process(), which
+        # can't reach these as self.MSG_* since it runs with no self)
+        self.MSG_RESULT  = _MSG_RESULT
+        self.MSG_ERROR   = _MSG_ERROR
+        self.MSG_DONE    = _MSG_DONE
+        self.MSG_RUNNING = _MSG_RUNNING
         
         # Validate active system
         if self.active_id not in self.psystem:
@@ -582,19 +618,42 @@ class pSimulations:
 
         
         # Create and start subprocess
+        # [BUG FIX] target is now the module-level _simulation_target_process
+        # (see its docstring above) instead of a bound method -- required
+        # for multiprocessing's "spawn" start method (macOS's default) to
+        # be able to pickle the target at all.
         process = multiprocessing.Process(
-            target=self._target_process,
+            target=_simulation_target_process,
             args=(parameters,)
         )
-        
-        
+
+
         hamiltonian = self.get_hamiltonian_type(e_id)
         system.e_job_history[system.e_step_counter]['potential'] = hamiltonian
         #hamiltonian = getattr(system.qcModel, 'hamiltonian', 'unk')
         status = 'Queued'
-        
-        
-        process.start()
+
+        # [BUG FIX] "args=(parameters,)" carries parameters['system'] =
+        # system along with it, which -- same underlying issue as the
+        # target above -- has its own live GTK references
+        # (e_treeview_iter/e_liststore_iter, a Gtk.TreeIter each,
+        # assigned in add_new_system_to_psession()/session.py) that
+        # "spawn" cannot pickle either. Temporarily cleared here (right
+        # around the only line that actually needs to pickle args --
+        # process.start()) and restored immediately after, success or
+        # not. A no-op on Linux/Windows ("fork" needs none of this), but
+        # doesn't hurt there either since nothing reads these two
+        # attributes on `system` while start() is running synchronously
+        # on this same thread.
+        backup_treeview_iter  = system.e_treeview_iter
+        backup_liststore_iter = system.e_liststore_iter
+        system.e_treeview_iter  = None
+        system.e_liststore_iter = None
+        try:
+            process.start()
+        finally:
+            system.e_treeview_iter  = backup_treeview_iter
+            system.e_liststore_iter = backup_liststore_iter
         message = f"{parameters['simulation_type']} {system.e_step_counter} - Running..."
         
         #try:
