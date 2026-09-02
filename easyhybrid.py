@@ -287,12 +287,12 @@ def main():
         #main_window.builder.get_object('toolbutton_export_img').hide()
         #main_window.builder.get_object('button_task_list')           .hide()
         
-        main_window.builder.get_object('test_item')             .hide() # IR spectrum
+        main_window.builder.get_object('test_item')       .hide() # IR spectrum
         
         #This is the editor
         #This is the editor
-        main_window.builder.get_object('_show_cell')             .hide() # IR spectrum
-        
+        main_window.builder.get_object('_show_cell')      .hide() # IR spectrum
+        main_window.builder.get_object('menuitem_extras') .hide() # IR spectrum
         
         
         
