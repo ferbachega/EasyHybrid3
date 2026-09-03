@@ -24,12 +24,19 @@
 # anything, is missing.
 
 numpy>=1.20.0
-scipy>=1.7.0
 PyOpenGL>=3.1.0
 Cython>=0.29.12
 freetype-py>=2.3.0
 pycairo>=1.20.0
 PyGObject>=3.40.0
+# Used by the 3D view's GTK widget itself (vismol_gtkwidget.py: image
+# filtering/compositing for icons, offscreen buffers, etc.) -- import
+# name is "PIL", pip package is "Pillow". Was missing from this file
+# even though it's a hard, unconditional import at module load time
+# (not optional/guarded), so a fresh install without it fails as soon
+# as the app tries to open the 3D view: "ModuleNotFoundError: No
+# module named 'PIL'".
+Pillow>=9.0.0
 # Process Manager's "Abort" feature -- finds/signals every descendant
 # of a job's process cross-platform (see install.py's PYTHON_LIBRARIES
 # for the fuller explanation of why).

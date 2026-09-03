@@ -817,12 +817,17 @@ def check_qc_engines():
 # alongside genuinely-external packages was misleading.
 PYTHON_LIBRARIES = {
     "numpy":    "numpy",
-    "scipy":    "scipy",
     "OpenGL":   "PyOpenGL",
     "freetype": "freetype-py",
     "cairo":    "pycairo",
     "gi":       "PyGObject",
     "Cython":   "Cython",
+    # [EN] vismol_gtkwidget.py hard-imports this at module level (image
+    # filtering/compositing for the 3D view) -- was missing from this
+    # dict and from requirements.txt, so a fresh install this checker
+    # reported clean still failed at first launch with
+    # "ModuleNotFoundError: No module named 'PIL'".
+    "PIL":      "Pillow",
     # [EN] Added for the Process Manager's "Abort" feature -- needs to
     # find and signal every DESCENDANT of a running job's process (its
     # own multiprocessing.Pool workers, or external QM programs it

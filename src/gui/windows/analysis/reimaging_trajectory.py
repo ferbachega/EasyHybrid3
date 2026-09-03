@@ -50,11 +50,6 @@ from gui.widgets.custom_widgets import CoordinatesComboBox
 
 from pprint import pprint
 import numpy as np
-# [EN] BUG FIX: cKDTree e' usado la' embaixo (algoritmo tipo ICP de
-# alinhamento de trajetoria) mas nunca era importado -- quebrava com
-# NameError sempre que essa ferramenta era usada. scipy nao estava
-# listado em requirements.txt tambem; adicionado la' junto.
-from scipy.spatial import cKDTree
 
 class ReimagingTrajectoryWindow:
 
@@ -611,6 +606,35 @@ def kabsch(P, Q):
     t = centroid_P - R @ centroid_Q
     return R, t
 
+def _nearest_neighbor_query(A, B):
+    """ [EN] Pure-numpy replacement for scipy.spatial.cKDTree(A).query(B)
+    -- for each point in B, finds the closest point in A. Returns
+    (distances, indices), matching cKDTree.query()'s return shape.
+
+    Removes EasyHybrid's only remaining scipy dependency (see
+    surface_analysis_window.py for the same cKDTree/scipy removal done
+    there earlier, for the same reason). Brute-force squared-distance
+    expansion (|a-b|^2 = |a|^2 + |b|^2 - 2*a.b), same trick as that
+    file's _nearest_neighbor_lookup() -- a (m, n) matrix, not a
+    (m, n, 3) tensor, so memory stays modest even without chunking.
+    No chunking here (unlike that function): icp_small() -- the only
+    caller -- is explicitly for SMALL clusters (its own name/docstring),
+    not the ~100k-point grids _nearest_neighbor_lookup() has to handle.
+    Also: unlike a real KDTree, which amortizes its build cost over many
+    queries, the old code rebuilt a fresh cKDTree from scratch on EVERY
+    ICP iteration anyway (see icp_small()'s loop) -- so there was never
+    an amortization benefit being lost by dropping it. """
+    A = np.asarray(A, dtype=np.float64)
+    B = np.asarray(B, dtype=np.float64)
+    A_sq = np.einsum('ij,ij->i', A, A)
+    B_sq = np.einsum('ij,ij->i', B, B)
+    d2 = B_sq[:, None] + A_sq[None, :] - 2.0 * (B @ A.T)
+    np.maximum(d2, 0.0, out=d2)   # guard tiny negative values from float rounding
+    indices = np.argmin(d2, axis=1)
+    distances = np.sqrt(d2[np.arange(len(B)), indices])
+    return distances, indices
+
+
 def icp_small(A, B, subset_A=None, subset_B=None, max_iterations=5000, tolerance=1e-10):
     """
     -ICP (Iterative Closest Point)
@@ -648,8 +672,7 @@ def icp_small(A, B, subset_A=None, subset_B=None, max_iterations=5000, tolerance
     t_total = np.zeros(3)   # Accumulated translation
 
     for i in range(max_iterations):
-        tree = cKDTree(A_centered)
-        distances, indices = tree.query(B_transformed)
+        distances, indices = _nearest_neighbor_query(A_centered, B_transformed)
         A_matched = A_centered[indices]
 
         R, t = kabsch(A_matched, B_transformed)

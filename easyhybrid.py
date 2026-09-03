@@ -292,7 +292,7 @@ def main():
         #This is the editor
         #This is the editor
         main_window.builder.get_object('_show_cell')      .hide() # IR spectrum
-        #main_window.builder.get_object('menuitem_extras') .hide() # IR spectrum
+        main_window.builder.get_object('menuitem_extras') .hide() # IR spectrum
         
         
         
