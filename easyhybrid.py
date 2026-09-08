@@ -193,6 +193,8 @@ if sys.platform == "darwin":
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
 import cairo
+import ctypes
+import ctypes.util
 if sys.platform == "darwin":
     Gtk.init([])
 
@@ -223,6 +225,60 @@ import threading
 
 
 
+# --- Bundled brand font for the splash screen -------------------------
+# cairo's "select_font_face(name, ...)" is a *toy* API: it just hands
+# "name" to the platform's font backend (fontconfig on Linux/macOS) and
+# asks for whatever matches. "Sans" therefore renders as a DIFFERENT
+# real font depending on what happens to be installed on the machine
+# (typically DejaVu Sans on Linux, Helvetica/Arial elsewhere) -- not
+# something we control or can guarantee looks the same everywhere.
+#
+# To get a font we actually ship (and that renders identically on any
+# machine), we register the .ttf files bundled with vismol's own
+# renderer (src/graphics_engine/.../libgl/fonts/, already used for the
+# 3D viewport's atom labels) with fontconfig's *in-process* font list
+# via FcConfigAppFontAddFile. This does NOT install anything on the
+# system -- it only makes the font available to this process, for as
+# long as it runs. Once registered, "select_font_face("Amiko", ...)"
+# resolves to our own bundled file instead of whatever "Sans" happens
+# to mean locally.
+_BRAND_FONT_FAMILY   = "Amiko"
+_BRAND_FONT_REGISTERED = False
+
+def _register_bundled_fonts():
+    """ Registers the bundled Amiko .ttf files with fontconfig for this
+        process only. Safe to call more than once. On any failure (no
+        fontconfig, unexpected platform, missing files, ...) it just
+        logs a warning and leaves things as they were -- callers should
+        always be prepared to fall back to a generic family name
+        ("Sans") if this doesn't succeed.
+    """
+    global _BRAND_FONT_REGISTERED
+    if _BRAND_FONT_REGISTERED:
+        return True
+    try:
+        libname = ctypes.util.find_library("fontconfig") or "libfontconfig.so.1"
+        fontconfig = ctypes.CDLL(libname)
+        fontconfig.FcConfigAppFontAddFile.restype  = ctypes.c_int
+        fontconfig.FcConfigAppFontAddFile.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+
+        fonts_dir = os.path.join(EASYHYBRID_HOME,
+                                  "src", "graphics_engine", "src",
+                                  "vismol", "libgl", "fonts")
+        ok = True
+        for filename in ("Amiko-Regular.ttf", "Amiko-Bold.ttf"):
+            path = os.path.join(fonts_dir, filename)
+            ok = bool(fontconfig.FcConfigAppFontAddFile(None, path.encode("utf-8"))) and ok
+        if not ok:
+            raise RuntimeError("FcConfigAppFontAddFile reported failure for one or more files")
+        _BRAND_FONT_REGISTERED = True
+    except Exception as e:
+        logging.warning('Could not register the bundled Amiko font (%s) -- '
+                         'the splash screen will fall back to the system '
+                         '"Sans" font instead.', e)
+    return _BRAND_FONT_REGISTERED
+
+
 # Splash Screen
 class SplashScreen(Gtk.Window):
     """ Splash screen shown while modules load (see load_modules()/main()
@@ -248,6 +304,9 @@ class SplashScreen(Gtk.Window):
         super().__init__(title="EasyHybrid")
         self.set_decorated(False)  # Sem bordas
         self.set_position(Gtk.WindowPosition.CENTER)
+
+        self._font_family = (_BRAND_FONT_FAMILY
+                              if _register_bundled_fonts() else "Sans")
 
         self._image_surface = None
         width, height = 600, 492  # fallback size if splash.png can't be read at all
@@ -284,14 +343,14 @@ class SplashScreen(Gtk.Window):
 
         cr.set_source_rgb(1.0, 1.0, 1.0)
 
-        cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        cr.select_font_face(self._font_family, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
         cr.set_font_size(24)
         cr.move_to(self._TEXT_X, box_top + 30)
         cr.show_text("EasyHybrid")
 
-        cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+        cr.select_font_face(self._font_family, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
         cr.set_font_size(13)
-        cr.move_to(self._TEXT_X, box_top + 50)
+        cr.move_to(self._TEXT_X, box_top + 52)
         cr.show_text("Version {}".format(EASYHYBRID_VERSION))
 
         cr.set_font_size(14)
