@@ -1,6 +1,6 @@
 """The XTB QC model."""
 
-import glob, math, os, os.path, subprocess, re
+import glob, json, math, os, os.path, subprocess, re
 
 from  pCore                     import logFile           , \
                                        LogFileActive     , \
@@ -165,7 +165,28 @@ class QCModelXTB ( QCModel ):
 
     def DipoleMoment ( self, target, center = None ):
         """Dipole Moment."""
-        return target.scratch.XTBOutputData.get ( "Dipole", None )
+        # [EN] BUG FIX (2026-09-08, EasyHybrid3): this used to return
+        # whatever plain Python list _xtb_extract_dipole() below built
+        # (or None if its search string was absent from this
+        # particular xtb output -- see that method's own docstring for
+        # the GFN1-vs-GFN2 text-format difference also fixed alongside
+        # this), instead of a proper Vector3. Every other DipoleMoment()
+        # in pDynamo3 (QCModelBase, used by QCModelMNDO; QCModelORCA)
+        # returns a Vector3, and pSimulation.NormalModes.
+        # NormalModes_InfraredIntensities() calls .Add()/.Scale() and
+        # indexes [0:3] on whatever this returns -- both fail on a
+        # plain list or None (confirmed: "'list' object has no
+        # attribute 'Add'" / "'NoneType' object has no attribute
+        # 'Add'"). This still does not make DipoleMoment() correct for
+        # a QM/MM system -- see System.DipoleMoment(), which only keeps
+        # ONE model's result rather than summing mmModel + qcModel, so
+        # the MM region's own point-charge dipole is never included
+        # here regardless of this fix.
+        components = target.scratch.XTBOutputData.get ( "Dipole", None )
+        if components is None: return None
+        dipole = Vector3.Null ( )
+        for i in range ( 3 ): dipole[i] = components[i]
+        return dipole
 
     def Energy ( self, target ):
         """Calculate the quantum chemical energy."""
@@ -257,6 +278,22 @@ class QCModelXTB ( QCModel ):
 
         #.gradients
         args += [ "--grad" ]
+
+        # [EN] BUG FIX (2026-09-08, EasyHybrid3): xtb's own text log only
+        # prints the dipole moment to 4 decimal places (Debye or a.u.),
+        # nowhere near enough precision for NormalModes_InfraredIntensities()'s
+        # finite-difference scheme -- that function perturbs one Cartesian
+        # coordinate by only 1e-4 Angstrom at a time, and a change that
+        # small in the dipole moment is smaller than the text log's last
+        # printed digit, so every finite-difference derivative silently
+        # came out as exactly zero even after DipoleMoment() was fixed to
+        # return a proper Vector3 (confirmed: every mode's IR intensity
+        # was 0.0000 with --grad alone, including modes symmetry already
+        # predicted should be strongly IR-active). --json additionally
+        # writes xtbout.json with full double precision (confirmed:
+        # "dipole / a.u.": [0.0, 0.0, -1.11723498] vs the text log's
+        # "-1.1172"), which _xtb_extract_dipole() now prefers when present.
+        args += [ "--json" ]
 
         # adding inputfile and coordinates
         args += [ "--input", state.paths["Input"], state.paths["Coord"] ]
@@ -444,6 +481,22 @@ class QCModelXTB ( QCModel ):
         #.gradients
         args += [ "--grad" ]
 
+        # [EN] BUG FIX (2026-09-08, EasyHybrid3): xtb's own text log only
+        # prints the dipole moment to 4 decimal places (Debye or a.u.),
+        # nowhere near enough precision for NormalModes_InfraredIntensities()'s
+        # finite-difference scheme -- that function perturbs one Cartesian
+        # coordinate by only 1e-4 Angstrom at a time, and a change that
+        # small in the dipole moment is smaller than the text log's last
+        # printed digit, so every finite-difference derivative silently
+        # came out as exactly zero even after DipoleMoment() was fixed to
+        # return a proper Vector3 (confirmed: every mode's IR intensity
+        # was 0.0000 with --grad alone, including modes symmetry already
+        # predicted should be strongly IR-active). --json additionally
+        # writes xtbout.json with full double precision (confirmed:
+        # "dipole / a.u.": [0.0, 0.0, -1.11723498] vs the text log's
+        # "-1.1172"), which _xtb_extract_dipole() now prefers when present.
+        args += [ "--json" ]
+
         # adding inputfile and coordinates
         args += [ "--input", state.paths["Input"], state.paths["Coord"] ]
 
@@ -612,6 +665,29 @@ class QCModelXTB ( QCModel ):
             except Exception:
                 # a single failing property must not abort the others
                 pass
+
+        # [EN] BUG FIX (2026-09-08, EasyHybrid3): prefer the full-precision
+        # dipole from xtbout.json (now always written -- see the --json
+        # flag added in Execute()) over whatever _xtb_extract_dipole()
+        # above found in the text log. The text log only prints 4 decimal
+        # places, nowhere near enough resolution for pSimulation.
+        # NormalModes.NormalModes_InfraredIntensities()'s finite-difference
+        # scheme -- that function perturbs one Cartesian coordinate by
+        # only 1e-4 Angstrom at a time, and the resulting dipole change is
+        # smaller than the text log's last printed digit (confirmed:
+        # every computed IR intensity came out as exactly 0.0000 using
+        # the text-log dipole alone, even for modes symmetry already
+        # predicted should be strongly IR-active; xtbout.json's own
+        # "dipole / a.u." field carries 8 significant figures instead).
+        try:
+            jsonPath = os.path.join ( os.path.dirname ( state.paths["Output"] ), "xtbout.json" )
+            with open ( jsonPath, "r" ) as jsonFile:
+                jsonData = json.load ( jsonFile )
+            auDipole = jsonData.get ( "dipole / a.u." )
+            if auDipole is not None and len ( auDipole ) >= 3:
+                data["Dipole"] = [ Units.Dipole_Atomic_Units_To_Debyes * float ( component ) for component in auDipole[0:3] ]
+        except Exception:
+            pass
 
         XTBOutputData.update ( data )
 
@@ -855,18 +931,63 @@ class QCModelXTB ( QCModel ):
             data["Wiberg Bonds"] = bonds
 
     def _xtb_extract_dipole ( self, lines, n, data ):
-        """Molecular dipole: (x, y, z, total) in Debye, from the 'full:' row."""
+        """Molecular dipole: (x, y, z) in Debye.
+
+        [EN] BUG FIX (2026-09-08, EasyHybrid3): xtb prints this in (at
+        least) two different formats depending on the GFN Hamiltonian
+        used -- confirmed by running the xtb binary directly with both
+        --gfn 1 and --gfn 2 on the same molecule, since only the GFN2
+        case was previously handled here (GFN1 output has no
+        "molecular dipole" substring at all, so this extractor used to
+        silently leave data["Dipole"] unset for every GFN1 job):
+
+          - GFN2-xTB: a "molecular dipole:" block whose "full:" row is
+            the total (electronic + nuclear) dipole, already in Debye:
+                molecular dipole:
+                                 x           y           z       tot (Debye)
+                 q only:        ...
+                   full:       -0.000      -0.000      -0.894       2.271
+
+          - GFN1-xTB: a single "dipole moment from electron density
+            (au)" line, an "X  Y  Z" header, then one value line with
+            x,y,z in ATOMIC UNITS (only the explicitly labelled total
+            is in Debye):
+                 dipole moment from electron density (au)
+                     X       Y       Z
+                   0.0000   0.0000  -1.1172  total (Debye):    2.840
+
+        Both branches store data["Dipole"] as [x, y, z] in Debye,
+        dropping the "total" magnitude some formats also print --
+        DipoleMoment() (which wraps this into the Vector3 every caller
+        in pDynamo3 expects) only ever needs the three components.
+        """
+        # . GFN2-xTB format.
         i = self._xtb_find ( lines, "molecular dipole" )
+        if i >= 0:
+            for line in lines[i:i+5]:
+                if line.strip ( ).startswith ( "full:" ):
+                    words = line.split ( )
+                    try:
+                        data["Dipole"] = [ float ( w ) for w in words[1:4] ]   # x,y,z (Debye already)
+                    except ( ValueError, IndexError ):
+                        pass
+                    break
+            if "Dipole" in data:
+                return
+
+        # . GFN1-xTB (and other) format -- x,y,z here are in atomic units.
+        i = self._xtb_find ( lines, "dipole moment from electron density" )
         if i < 0:
             return
-        for line in lines[i:i+5]:
-            if line.strip ( ).startswith ( "full:" ):
-                words = line.split ( )
-                try:
-                    data["Dipole"] = [ float ( w ) for w in words[1:5] ]   # x,y,z,tot
-                except ( ValueError, IndexError ):
-                    pass
-                break
+        for line in lines[i+1:i+4]:
+            if "total" not in line.lower ( ):
+                continue
+            words = line.split ( )
+            try:
+                data["Dipole"] = [ Units.Dipole_Atomic_Units_To_Debyes * float ( w ) for w in words[0:3] ]
+            except ( ValueError, IndexError ):
+                pass
+            break
 
     def _xtb_extract_metadata ( self, lines, n, data ):
         """Version, GFN method and wall-time -- handy for logs/diagnostics."""

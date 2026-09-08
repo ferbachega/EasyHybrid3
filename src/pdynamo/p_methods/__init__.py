@@ -64,3 +64,4 @@ from pdynamo.p_methods.umbrella_sampling import UmbrellaSampling
 from pdynamo.p_methods.wham import WHAMAnalysis
 from pdynamo.p_methods.chain_of_states import ChainOfStatesOptimizePath
 from pdynamo.p_methods.normal_modes import NormalModes
+from pdynamo.p_methods.conjugate_peak_refinement import ConjugatePeakRefinementRun

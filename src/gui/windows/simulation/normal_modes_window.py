@@ -158,9 +158,9 @@ class NormalModesWindow(Gtk.Window):
         
         '''this combobox has the reference to the starting coordinates of a simulation'''
         parameters={ "simulation_type"   :"Normal_Modes"  ,
-                        "trajectory_name": None           , 
-                        "dialog"         : False          , 
-                        "folder"         : None           , 
+                        "trajectory_name": None           ,
+                        "dialog"         : False          ,
+                        "folder"         : None           ,
                         "cycles"         : None           ,
                         "frames"         : None           ,
                         "temperature"    : None           ,
@@ -168,6 +168,7 @@ class NormalModesWindow(Gtk.Window):
                         #"rmsGradient"    : None           ,
                         #"save_format"    : None           ,
                         "save_traj"      : False          ,
+                        "compute_ir_intensities": False   ,
                         #"save_pdb"       : False          }
                         }
         #----------------------------------------------------------------------------------
@@ -187,6 +188,7 @@ class NormalModesWindow(Gtk.Window):
         parameters["cycles"]       = int( self.builder.get_object('entry_cycles').get_text())
         parameters["frames"]       = int( self.builder.get_object('entry_frames_per_cycles').get_text())
         parameters["temperature"]  = int( self.builder.get_object('entry_temperature').get_text() )
+        parameters["compute_ir_intensities"] = self.builder.get_object('checkbox_ir_intensities').get_active()
         parameters['obj1_key6']    = vobject.key6
         #parameters["rmsGradient"]    = float( self.builder.get_object('entry_rmsd_tol').get_text() )
         parameters["vobject_name"]   = self.save_trajectory_box.builder.get_object('entry_trajectory_name').get_text()

@@ -447,5 +447,13 @@ class PrepareAmberSystemWindow:
             self.label_info.set_text('tleap succeeded, but importing the result failed -- see the message above.')
             return
 
+        # . Remembered so the "Run NAMD" window's "Use last tLeap output"
+        #   button can prefill from this without the user having to
+        #   re-browse for the same files it just wrote.
+        self.main.last_prepared_amber_files = {
+            'prmtop': result['prmtop'], 'inpcrd': result['inpcrd'],
+            'work_folder': work_folder, 'system_name': system_name,
+        }
+
         self.label_info.set_text('Done! "{}" was added to the treeview.'.format(system_name))
         self.close_window()

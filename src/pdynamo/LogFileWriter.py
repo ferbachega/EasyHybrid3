@@ -232,6 +232,7 @@ class LogFileReader:
         self.type = None  # Type of log file (to be determined)
 
         # Extract base name (file name only) and directory path of the logfile
+        self.logfile  = logfile
         self.basename = os.path.basename(logfile)
         self.dirname  = os.path.dirname(logfile)
 
@@ -411,6 +412,32 @@ class LogFileReader:
             }
             return data
 
+        elif self.type == 'Conjugate-Peak-Refinement':
+            '''
+            addOns.pyCPR output parsing (see pdynamo/p_methods/
+            conjugate_peak_refinement.py and util/cpr_log_parser.py,
+            which this reuses instead of re-implementing the same table
+            regexes here). Plots the LAST "Path Summary after CPRrun N"
+            table -- the final, most-refined reaction path -- as a
+            plot1D: RC1 = image index along the path, Z = energy. Same
+            shape as 'Chain-Of-States' so PES_analysis_window.py needs
+            no changes to display it.
+            '''
+            from util.cpr_log_parser import parse_cpr_log
+
+            parsed = parse_cpr_log(self.logfile)
+            finalPath = parsed['final_path']
+            if finalPath is None:
+                return None
+
+            data = {
+                'name': self.basename,
+                'type': "plot1D",
+                'RC1' : [float(image) for image in finalPath['image']],
+                'Z'   : finalPath['energy'],
+            }
+            return data
+
         else:
             # Suggestion: raise an exception instead of silently passing
             return None
@@ -426,6 +453,8 @@ class LogFileReader:
                 self.type = 'EasyHybrid-SCAN'
             elif 'Summary of Chain-Of-States Optimizer' in line:
                 self.type = 'Chain-Of-States'
+            elif 'Python-based Conjugate Peak Refinement' in line:
+                self.type = 'Conjugate-Peak-Refinement'
             # Suggestion: consider using `break` after finding the type for efficiency
 
 

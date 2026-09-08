@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.22.2 -->
+<!-- IRC / Reaction Path: steepest-descent path from a first-order saddle
+     point (pSimulation.SteepestDescentReactionPath.
+     SteepestDescentPath_SystemGeometry, fromSaddle always True here).
+     Modeled directly on transition_state_search_window.glade (same
+     Coordinates frame, same log-frequency/max-iterations field IDs, same
+     SaveTrajectoryBox placeholder box); the starting structure is
+     expected to already be a converged Baker saddle-point search
+     result. -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
-  <object class="GtkWindow" id="normal_modes_window">
+  <object class="GtkWindow" id="reaction_path_window">
     <property name="can_focus">False</property>
-    <property name="resizable">False</property>
     <signal name="delete-event" handler="close_window" swapped="no"/>
     <signal name="destroy-event" handler="close_window" swapped="no"/>
     <child type="titlebar">
@@ -19,13 +25,13 @@
         <property name="left_padding">10</property>
         <property name="right_padding">10</property>
         <child>
-          <object class="GtkBox" id="geo_opt_box">
+          <object class="GtkBox" id="reaction_path_box">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="orientation">vertical</property>
             <property name="spacing">7</property>
             <child>
-              <object class="GtkFrame" id="dftp_setup_box2">
+              <object class="GtkFrame" id="rp_coordinates_frame">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="label_xalign">0.5</property>
@@ -65,10 +71,22 @@
               </packing>
             </child>
             <child>
-              <placeholder/>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">Method: steepest-descent reaction path. Requires a converged first-order saddle point (e.g. the result of a Search Transition State (Baker) run) -- the Hessian is computed once at the starting structure and its single negative-eigenvalue mode is followed downhill in both directions, producing the reactant-side and product-side branches one after the other. Each branch always takes the full number of iterations below, at a FIXED step size, with no convergence check -- the FINAL structure is therefore not a meaningful chemical end-point by itself. Always inspect the saved trajectory (its log's RMS Gradient column) and pick the frame where each branch's gradient bottoms out.</property>
+                <property name="wrap">True</property>
+                <property name="max-width-chars">56</property>
+                <property name="xalign">0</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
             </child>
             <child>
-              <object class="GtkFrame" id="dftp_setup_box">
+              <object class="GtkFrame" id="rp_parameters_frame">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="label_xalign">0.5</property>
@@ -82,12 +100,13 @@
                     <property name="left_padding">10</property>
                     <property name="right_padding">10</property>
                     <child>
-                      <object class="GtkBox" id="parameters_box">
+                      <object class="GtkBox" id="rp_parm_box">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="orientation">vertical</property>
                         <property name="spacing">11</property>
                         <child>
+                          <!-- n-columns=2 n-rows=6 -->
                           <object class="GtkGrid">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
@@ -98,54 +117,66 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Cycles:</property>
+                                <property name="label" translatable="yes">Log Frequency</property>
                                 <property name="xalign">1</property>
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>
-                                <property name="top_attach">1</property>
+                                <property name="top_attach">0</property>
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkLabel">
-                                <property name="visible">True</property>
-                                <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Frames Per Cycle:</property>
-                                <property name="xalign">1</property>
-                              </object>
-                              <packing>
-                                <property name="left_attach">0</property>
-                                <property name="top_attach">2</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="GtkLabel">
-                                <property name="visible">True</property>
-                                <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Temperature:</property>
-                                <property name="xalign">1</property>
-                              </object>
-                              <packing>
-                                <property name="left_attach">0</property>
-                                <property name="top_attach">3</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="GtkEntry" id="entry_cycles">
+                              <object class="GtkEntry" id="entry_log_frequence">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="text" translatable="yes">1</property>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
+                                <property name="top_attach">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="label" translatable="yes">Max. iterations (per branch):</property>
+                                <property name="xalign">1</property>
+                              </object>
+                              <packing>
+                                <property name="left_attach">0</property>
                                 <property name="top_attach">1</property>
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkEntry" id="entry_frames_per_cycles">
+                              <object class="GtkEntry" id="entry_max_int">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="text" translatable="yes">21</property>
+                                <property name="text" translatable="yes">50</property>
+                              </object>
+                              <packing>
+                                <property name="left_attach">1</property>
+                                <property name="top_attach">1</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="label" translatable="yes">Function step:</property>
+                                <property name="xalign">1</property>
+                                <property name="tooltip-text" translatable="yes">Controls the size of the very first displacement away from the saddle point, along the negative-eigenvalue eigenvector (larger = bigger initial jump off the saddle).</property>
+                              </object>
+                              <packing>
+                                <property name="left_attach">0</property>
+                                <property name="top_attach">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkEntry" id="entry_function_step">
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="text" translatable="yes">0.2</property>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
@@ -153,10 +184,23 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkEntry" id="entry_temperature">
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="label" translatable="yes">Path step:</property>
+                                <property name="xalign">1</property>
+                                <property name="tooltip-text" translatable="yes">Step size taken along the gradient direction at every iteration after the initial displacement off the saddle. Smaller values trace the path more finely but need more iterations to cover the same distance.</property>
+                              </object>
+                              <packing>
+                                <property name="left_attach">0</property>
+                                <property name="top_attach">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkEntry" id="entry_path_step">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="text" translatable="yes">600</property>
+                                <property name="text" translatable="yes">0.025</property>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
@@ -167,9 +211,9 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Compute IR intensities:</property>
+                                <property name="label" translatable="yes">Mass-weighted:</property>
                                 <property name="xalign">1</property>
-                                <property name="tooltip-text" translatable="yes">Computes real infrared intensities via finite-difference dipole derivatives (NormalModes_InfraredIntensities) -- roughly 6 extra energy+dipole evaluations per free atom, so this can noticeably slow down the job for larger QC regions. Off by default for that reason. For a QM/MM system (both an MM and a QC model defined), the intensities only reflect the QC region's own dipole -- the MM region's point-charge contribution is not included (see the job log for a full warning).</property>
+                                <property name="tooltip-text" translatable="yes">Use mass-weighted coordinates, matching the classic (Fukui) definition of an intrinsic reaction coordinate. Off by default (plain Cartesian steepest descent).</property>
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>
@@ -177,12 +221,10 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkCheckButton" id="checkbox_ir_intensities">
+                              <object class="GtkCheckButton" id="checkbox_mass_weighting">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="halign">start</property>
                                 <property name="active">False</property>
-                                <property name="draw_indicator">True</property>
                                 <property name="label"></property>
                               </object>
                               <packing>
@@ -198,6 +240,21 @@
                           </packing>
                         </child>
                         <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="label" translatable="yes">Both branches are written into a single trajectory, in the order they are produced. Trajectory saving cannot be disabled for this tool -- it is the only chemically meaningful output.</property>
+                            <property name="wrap">True</property>
+                            <property name="max-width-chars">56</property>
+                            <property name="xalign">0</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
+                        <child>
                           <object class="GtkSeparator">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
@@ -205,7 +262,7 @@
                           <packing>
                             <property name="expand">False</property>
                             <property name="fill">True</property>
-                            <property name="position">1</property>
+                            <property name="position">2</property>
                           </packing>
                         </child>
                         <child>
@@ -262,7 +319,7 @@
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <signal name="clicked" handler="run" swapped="no"/>
+                    <signal name="clicked" handler="run_opt" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">True</property>

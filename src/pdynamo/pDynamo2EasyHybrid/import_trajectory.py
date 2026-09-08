@@ -422,13 +422,27 @@ class EasyHybridImportTrajectory:
             
             log   = open(os.path.join(trajectory,'frequency.log'), 'r')
             line  = log.readline()
+            log.close()
             line2 = line.split()
             mode  = line2[0].split('_')
             mode  = int(mode[-1])
-            
+
             frequency = line2[2]
-            
-            modes_dict[mode] = [frequency, [x, None]]
+
+            # . Vibrational symmetry label and IR intensity (see
+            # p_methods/normal_modes.py, 5th/6th tokens "symmetry=<label>"
+            # /"intensity=<km/mol or ?>"); '?' for frequency.log files
+            # written before these fields existed, or when the user
+            # didn't opt in to the (expensive) intensity calculation.
+            symmetry = '?'
+            if len(line2) >= 5 and line2[4].startswith('symmetry='):
+                symmetry = line2[4].split('=', 1)[1]
+
+            intensity = '?'
+            if len(line2) >= 6 and line2[5].startswith('intensity='):
+                intensity = line2[5].split('=', 1)[1]
+
+            modes_dict[mode] = [frequency, [x, None], symmetry, intensity]
             #print(trajectory)
             #-----------------------------------------------------------------------------------------------------------------------------
             trajectory = ImportTrajectory (trajectory, self.psystem[parameters['system_id']] )
@@ -447,6 +461,27 @@ class EasyHybridImportTrajectory:
             trajectory.Close ( )
             #-----------------------------------------------------------------------------------------------------------------------------
         vismol_object.normal_modes_dict = modes_dict
+
+        # [EN] BUG FIX (reported by the user: "IndexError: list index out
+        # of range" on vismol_object.dynamic_bonds[f] while trying to
+        # view a normal-modes trajectory). _apply_QC_representation_to_
+        # vobject() above (called back when vismol_object.frames still
+        # had just the single starting frame, before the empty-frames
+        # reset a few lines up) applies the QC region as an is_dynamic=
+        # True sticks representation, which makes vm_session.show_or_hide
+        # ('dynamic', ...) call define_dynamic_bonds() -- that snapshots
+        # vismol_object.dynamic_bonds as ONE LIST ENTRY PER CURRENT FRAME
+        # (see vismol_session.py's "for frame in range(len(vobject.
+        # frames))"). At that point frames.shape[0] was 1, so dynamic_
+        # bonds ended up with length 1 -- but the loop above just grew
+        # frames to the full mode trajectory length (verified against a
+        # real mode with 21 frames), so dynamic_bonds[f] for any f > 0
+        # goes out of range on that (plain Python list, not a numpy
+        # array) the instant the render/pick loop asks for any frame
+        # past the first. Re-applying the QC representation now, with
+        # frames fully populated, rebuilds dynamic_bonds at the correct
+        # final length.
+        self._apply_QC_representation_to_vobject(system_id = parameters['system_id'], vismol_object = vismol_object)
         #print (modes_dict)
         return modes_dict
 

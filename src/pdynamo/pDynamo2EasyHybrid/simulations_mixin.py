@@ -109,6 +109,7 @@ from pdynamo.p_methods import EnergyRefinement
 from pdynamo.p_methods import UmbrellaSampling
 
 from pdynamo.p_methods import WHAMAnalysis
+from pdynamo.p_methods import ConjugatePeakRefinementRun
 from pdynamo.LogFileWriter import LogFileReader
 
 from gui.windows.setup.windows_and_dialogs import call_message_dialog
@@ -173,6 +174,7 @@ def _simulation_target_process(parameters):
         'Umbrella_Sampling': UmbrellaSampling,
         'Nudged_Elastic_Band': ChainOfStatesOptimizePath,
         'Normal_Modes': NormalModes,
+        'Conjugate_Peak_Refinement': ConjugatePeakRefinementRun,
         }
 
     sim_type = parameters['simulation_type']

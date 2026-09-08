@@ -36,6 +36,7 @@ from _version import EASYHYBRID_VERSION
 
 import os, sys, time, re, json
 import logging
+import traceback
 
 # --- Fix: engasgo de rotacao em GPUs integradas Intel (driver Mesa/GLX) ---
 # Em GPUs integradas Intel com driver Mesa, um frame que atrasa levemente
@@ -191,6 +192,7 @@ if sys.platform == "darwin":
     gi.disable_legacy_autoinit()
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
+import cairo
 if sys.platform == "darwin":
     Gtk.init([])
 
@@ -223,26 +225,80 @@ import threading
 
 # Splash Screen
 class SplashScreen(Gtk.Window):
+    """ Splash screen shown while modules load (see load_modules()/main()
+        below). The background artwork lives in splash.png; the title,
+        version and tagline text are drawn on top at runtime with Cairo
+        instead of being baked into the image's own pixels (as the
+        previous splash.png did) -- so the version string always matches
+        EASYHYBRID_VERSION (_version.py) with no need to regenerate the
+        image on every release. Based on tests/splash.py, integrated
+        here with: the version pulled from EASYHYBRID_VERSION instead of
+        a second hardcoded copy, the image decoded once and cached
+        instead of on every "draw" event, the window sized from the
+        image's own real dimensions instead of a hardcoded guess, kept
+        centered (set_position), and the same defensive fallback the
+        previous version had if splash.png is missing/unreadable (log a
+        warning, show an empty window, instead of crashing on the very
+        first frame of startup).
+    """
+    _BOX_HEIGHT = 92          # height, in pixels, of the semi-transparent text band
+    _TEXT_X     = 24          # left margin for all three lines of text
+
     def __init__(self):
-        super().__init__(title="splash.png")
+        super().__init__(title="EasyHybrid")
         self.set_decorated(False)  # Sem bordas
         self.set_position(Gtk.WindowPosition.CENTER)
-        #self.set_default_size(710 ,710  )
-        self.set_default_size(605 ,605)
-        try:
-            # Carrega imagem do splash
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                filename=(os.path.join(EASYHYBRID_HOME, "splash.png")),   
-                width=605,
-                height=605,
-                preserve_aspect_ratio=True
-            )
 
-            image = Gtk.Image.new_from_pixbuf(pixbuf)
-            self.add(image)
+        self._image_surface = None
+        width, height = 600, 492  # fallback size if splash.png can't be read at all
+        try:
+            self._image_surface = cairo.ImageSurface.create_from_png(
+                os.path.join(EASYHYBRID_HOME, "splash.png"))
+            width  = self._image_surface.get_width()
+            height = self._image_surface.get_height()
         except Exception as e:
             logging.warning('splash.png could not be loaded (%s) -- '
                              'showing an empty splash window instead.', e)
+
+        self.set_default_size(width, height)
+
+        area = Gtk.DrawingArea()
+        area.connect("draw", self._on_draw)
+        self.add(area)
+
+    def _on_draw(self, widget, cr):
+        width  = widget.get_allocated_width()
+        height = widget.get_allocated_height()
+
+        if self._image_surface is not None:
+            cr.set_source_surface(self._image_surface, 0, 0)
+            cr.paint()
+
+        # . Semi-transparent band along the bottom edge, holding the
+        # text -- readable regardless of what's directly behind it in
+        # the artwork itself.
+        box_top = height - self._BOX_HEIGHT
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.65)
+        cr.rectangle(0, box_top, width, self._BOX_HEIGHT)
+        cr.fill()
+
+        cr.set_source_rgb(1.0, 1.0, 1.0)
+
+        cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        cr.set_font_size(24)
+        cr.move_to(self._TEXT_X, box_top + 30)
+        cr.show_text("EasyHybrid")
+
+        cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+        cr.set_font_size(13)
+        cr.move_to(self._TEXT_X, box_top + 50)
+        cr.show_text("Version {}".format(EASYHYBRID_VERSION))
+
+        cr.set_font_size(14)
+        cr.move_to(self._TEXT_X, box_top + 72)
+        cr.show_text("A Graphical Environment for QC/MM Simulations")
+
+        return False
 
 def load_modules(callback_final):
     def _load():
@@ -291,6 +347,8 @@ def main():
         
         #This is the editor
         #This is the editor
+        
+        
         main_window.builder.get_object('_show_cell')      .hide() # IR spectrum
         main_window.builder.get_object('menuitem_extras') .hide() # IR spectrum
         
@@ -301,14 +359,41 @@ def main():
         #main_window.builder.get_object('menuitem_RMSD_tool')   .hide()
         
         main_window.builder.get_object('menuitem_rama')   .hide()
+        main_window.builder.get_object('menuitem_transition_state_search').hide() # Baker method
+        main_window.builder.get_object('menuitem_reaction_path')   .hide() # IRC / Reaction Path...
+        main_window.builder.get_object('menuitem_cpr')   .hide() # Conjugate Peak Refinement...
+        
+        
+        main_window.builder.get_object('menuitem_rdf_analysis')   .hide() # RDF Analysis (g(r))
+        
+        
+        
         #main_window.builder.get_object('menuitem_advanced_rc_scans').hide()
         
         splash.destroy()
-        try:
+        # . BUG FIX: this used to unconditionally read sys.argv[-1] (the
+        #   script's own path when no file was actually passed) and call
+        #   vm_session.load_molecule() -- vismol's GENERIC loader, which
+        #   only recognises .aux/.gro/.mol2/.pdb/.psf/.top/.prmtop/.xyz
+        #   by extension and does nothing for a ".easy" EasyHybrid
+        #   session file (parse_file() falls through every branch,
+        #   leaving its `vismol_object` local unset -> UnboundLocalError
+        #   -- confirmed against a real .easy that reproduced exactly
+        #   "app opens, main treeview stays empty, no error shown").
+        #   The bare `except: pass` was load-bearing for the "no file
+        #   given" case (argv[-1] is always something), which is why it
+        #   swallowed real load failures too. Fixed on both counts: only
+        #   attempt a load when a file was actually passed, and use
+        #   vm_session.load() -- EasyHybridSession's own override that
+        #   actually dispatches ".easy" correctly (see gui/eSession.py) --
+        #   instead of vm_session.load_molecule(); a genuine failure is
+        #   now printed instead of silently disappearing.
+        if len(sys.argv) > 1:
             filein = sys.argv[-1]
-            vm_session.load_molecule(filein)
-        except:
-            pass
+            try:
+                vm_session.load(filein)
+            except Exception:
+                traceback.print_exc()
         #Gtk.main()
         return 0
 

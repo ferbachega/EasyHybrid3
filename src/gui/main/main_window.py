@@ -64,6 +64,9 @@ from gui.windows.setup.windows_and_dialogs import MergeSystemWindow
 from gui.windows.setup.windows_and_dialogs import SolvateSystemWindow
 from gui.windows.setup.windows_and_dialogs import PrepareAmberSystemWindow
 from gui.windows.setup.windows_and_dialogs import PrepareLigandAntechamberWindow
+from gui.windows.setup.windows_and_dialogs import PrepareNamdRunWindow
+from gui.windows.setup.windows_and_dialogs import PrepareSMDWindow
+from gui.windows.setup.windows_and_dialogs import PreparePackmolWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
 from gui.windows.setup.edit_frames_dialog import EditFrameDialog
 from gui.windows.setup.edit_cell          import EditCellWindow
@@ -75,6 +78,9 @@ from gui.windows.setup.process_manager_window import ProcessManagerWindow
 
 from gui.windows.simulation.single_point_window          import SinglePointWindow
 from gui.windows.simulation.geometry_optimization_window import GeometryOptimization
+from gui.windows.simulation.transition_state_search_window import TransitionStateSearchWindow
+from gui.windows.simulation.reaction_path_window import ReactionPathWindow
+from gui.windows.simulation.conjugate_peak_refinement_window import ConjugatePeakRefinementWindow
 from gui.windows.simulation.PES_scan_window              import PotentialEnergyScanWindow 
 from gui.windows.simulation.PES_advanced_scan_window     import AdvancedPotentialEnergyScanWindow 
 from gui.windows.simulation.molecular_dynamics_window    import MolecularDynamicsWindow 
@@ -91,6 +97,8 @@ from gui.windows.analysis.PES_analysis_window                     import Potenti
 from gui.windows.analysis.distance_angle_dihedral_analysis_window import DistanceAngleDihedralAnalysisWindow
 from gui.windows.analysis.RMSD_tool                               import RMSDToolWindow
 from gui.windows.analysis.RMSD_analysis_window                    import RMSDAnalysisWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
+from gui.windows.analysis.RMSF_analysis_window                    import RMSFAnalysisWindow
+from gui.windows.analysis.RDF_analysis_window                      import RDFAnalysisWindow
 from gui.windows.analysis.align_trajectory                        import AlignTrajectoryWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
 from gui.windows.analysis.reimaging_trajectory                    import ReimagingTrajectoryWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
 
@@ -403,6 +411,15 @@ class MainWindow:
         
         self.geometry_optimization_window = GeometryOptimization  ( main = self )
         self.window_list.append(self.geometry_optimization_window)
+
+        self.transition_state_search_window = TransitionStateSearchWindow ( main = self )
+        self.window_list.append(self.transition_state_search_window)
+
+        self.reaction_path_window = ReactionPathWindow ( main = self )
+        self.window_list.append(self.reaction_path_window)
+
+        self.cpr_window = ConjugatePeakRefinementWindow ( main = self )
+        self.window_list.append(self.cpr_window)
         
         self.PES_scan_window              = PotentialEnergyScanWindow    ( main=  self)
         self.window_list.append(self.PES_scan_window)
@@ -463,6 +480,8 @@ class MainWindow:
         
 
         self.rmsd_analysis_window = RMSDAnalysisWindow (main = self, system_liststore = self.system_liststore)
+        self.rmsf_analysis_window = RMSFAnalysisWindow (main = self)
+        self.rdf_analysis_window  = RDFAnalysisWindow  (main = self)
         
         self.align_trajectory_window = AlignTrajectoryWindow (main = self, system_liststore = self.system_liststore)
         
@@ -483,6 +502,9 @@ class MainWindow:
         self.solvate_system_window = SolvateSystemWindow(main = self)
         self.prepare_amber_system_window = PrepareAmberSystemWindow(main = self)
         self.prepare_ligand_antechamber_window = PrepareLigandAntechamberWindow(main = self)
+        self.prepare_namd_run_window = PrepareNamdRunWindow(main = self)
+        self.prepare_smd_window = PrepareSMDWindow(main = self)
+        self.prepare_packmol_window = PreparePackmolWindow(main = self)
         self.preferences_window = EasyHybridPreferencesWindow(main = self)
 
         self.make_solvent_box_window = MakeSolventBoxWindow(main = self)
@@ -1200,8 +1222,17 @@ class MainWindow:
 
         elif menuitem == self.builder.get_object('menuitem_prepare_ligand_antechamber'):
             self.prepare_ligand_antechamber_window.open_window()
-        
-        elif menuitem == self.builder.get_object('menuitem_merge'): 
+
+        elif menuitem == self.builder.get_object('menuitem_run_namd'):
+            self.prepare_namd_run_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_run_smd'):
+            self.prepare_smd_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_run_packmol'):
+            self.prepare_packmol_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_merge'):
             """ Function doc """
             system = self.p_session.psystem[self.p_session.active_id]
             e_id = system.e_id
@@ -1257,7 +1288,16 @@ class MainWindow:
             
         elif menuitem == self.builder.get_object('menuitem_geometry_optimization'):
             self.geometry_optimization_window.open_window()
-            
+
+        elif menuitem == self.builder.get_object('menuitem_transition_state_search'):
+            self.transition_state_search_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_reaction_path'):
+            self.reaction_path_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_cpr'):
+            self.cpr_window.open_window()
+
         elif menuitem == self.builder.get_object('menuitem_molecular_dynamics'):
             self.molecular_dynamics_window.open_window()
             
@@ -1316,6 +1356,12 @@ class MainWindow:
         elif menuitem == self.builder.get_object('menuitem_RMSD_tool'):
             #self.rmsd_tool_window.open_window()
             self.rmsd_analysis_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_rmsf_analysis'):
+            self.rmsf_analysis_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_rdf_analysis'):
+            self.rdf_analysis_window.open_window()
         
         elif menuitem == self.builder.get_object('test_histograms'):
             from util.easyplot import ImagePlot, XYPlot

@@ -292,6 +292,50 @@ class EasyHybridMainTreeView(Gtk.TreeView):
             self.main.vm_session.vm_objects_dic
         )
 
+    def verify_tree_matches_session(self):
+        """ Cross-checks this treeview's own rows against the actual
+            session state (self.main.p_session.psystem and
+            self.main.vm_session.vm_objects_dic) and returns a list of
+            human-readable problem descriptions -- empty if every
+            system/object that exists in the session actually has a row
+            in the tree.
+
+            Meant to be called right after a bulk load (see
+            io_data.load_easyhybrid_serialization_file()) to catch a
+            silently-incomplete tree instead of leaving the user staring
+            at an empty/partial treeview with no indication anything
+            went wrong. That exact symptom was traced to
+            easyhybrid.py's own command-line-argument startup path
+            calling vm_session.load_molecule() (vismol's GENERIC
+            loader, which only recognises .aux/.gro/.mol2/.pdb/.psf/
+            .top/.prmtop/.xyz by extension -- silently does nothing for
+            ".easy") instead of vm_session.load() (EasyHybridSession's
+            own override, which actually dispatches ".easy" to
+            load_easyhybrid_serialization_file()), with the resulting
+            exception swallowed by a bare `except: pass`. This function
+            does not fix that class of bug -- it is the safety net that
+            makes the NEXT one visible instead of silent.
+        """
+        problems = []
+
+        for system_id, system in self.main.p_session.psystem.items():
+            if system is None:
+                continue
+            tree_iter = self.main.system_treeview_iters.get(system_id)
+            if tree_iter is None or not self.treestore.iter_is_valid(tree_iter):
+                problems.append(
+                    'System {} ("{}") exists in the session but has no row in the treeview.'.format(
+                        system_id, getattr(system, 'label', '?')))
+
+        for vobject_id, vismol_object in self.main.vm_session.vm_objects_dic.items():
+            tree_iter = getattr(vismol_object, 'e_treeview_iter', None)
+            if tree_iter is None or not self.treestore.iter_is_valid(tree_iter):
+                problems.append(
+                    'Object {} ("{}") exists in the session but has no row in the treeview.'.format(
+                        vobject_id, getattr(vismol_object, 'name', '?')))
+
+        return problems
+
     def _create_treeview (self):
         """ Function doc """
         #treeview = Gtk.TreeView(model=self.treestore)

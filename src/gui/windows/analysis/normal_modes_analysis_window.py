@@ -78,7 +78,7 @@ class NormalModesAnalysisWindow(Gtk.Window):
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('window')
-            self.window.set_default_size(200, 600)  
+            self.window.set_default_size(390, 600)
             self.window.set_title('Normal Modes')  
             self.window.set_keep_above(True)
             
@@ -125,10 +125,11 @@ class NormalModesAnalysisWindow(Gtk.Window):
 
 
 
-            self.liststore = Gtk.ListStore(bool , #0 system_e_id           
-                                           str  , #1 vobject 
-                                           str  , #2 name 
-                    
+            self.liststore = Gtk.ListStore(bool , #0 system_e_id
+                                           str  , #1 vobject
+                                           str  , #2 name
+                                           str  , #3 symmetry (irreducible representation)
+                                           str  , #4 IR intensity (km/mol), '?' if not computed
                                            )
             
             #for i in range(0,10):
@@ -160,7 +161,21 @@ class NormalModesAnalysisWindow(Gtk.Window):
             column_text = Gtk.TreeViewColumn("Frequency", renderer_text, text=2)
             column_text.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
             column_text.set_resizable(True)
-            self.treeview.append_column(column_text)  
+            self.treeview.append_column(column_text)
+
+            # column
+            renderer_text = Gtk.CellRendererText()
+            column_text = Gtk.TreeViewColumn("Symmetry", renderer_text, text=3)
+            column_text.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
+            column_text.set_resizable(True)
+            self.treeview.append_column(column_text)
+
+            # column
+            renderer_text = Gtk.CellRendererText()
+            column_text = Gtk.TreeViewColumn("IR Intensity", renderer_text, text=4)
+            column_text.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
+            column_text.set_resizable(True)
+            self.treeview.append_column(column_text)
 
             self.treeview.set_model(self.liststore)
                     
@@ -284,14 +299,68 @@ class NormalModesAnalysisWindow(Gtk.Window):
                                   #         )
             
             for i, data in self.modes.items():
-                self.liststore.append([False, str(i), '{:.3f}'.format(float(data[0]))])
+                symmetry  = data[2] if len(data) >= 3 else '?'
+                intensity = data[3] if len(data) >= 4 else '?'
+                try:    intensity = '{:.4f}'.format(float(intensity))
+                except (TypeError, ValueError): intensity = '?'
+                self.liststore.append([False, str(i), '{:.3f}'.format(float(data[0])), symmetry, intensity])
             
             
             
             
         dialog.destroy()
-    
-    
+
+    def on_button_plot_ir_spectrum (self, button):
+        """ Plots the currently listed modes' frequencies against their
+            infrared intensity: a broadened curve (Lorentzian, matching
+            what a real IR instrument reports) plus the raw stick data
+            underneath it. Only modes imported from a Normal Modes job
+            run with "Compute IR intensities" enabled have a usable
+            intensity value -- others show "?" in the treeview and are
+            silently skipped here.
+        """
+        frequencies = []
+        intensities = []
+        for row in self.liststore:
+            try:
+                freq      = float(row[2])
+                intensity = float(row[4])
+            except (TypeError, ValueError):
+                continue
+            frequencies.append(freq)
+            intensities.append(intensity)
+
+        if len(frequencies) == 0:
+            self.main.simple_dialog.info(
+                msg="No modes with a computed IR intensity to plot.\n\n"
+                    "Re-run Simulate -> Normal Modes with \"Compute IR "
+                    "intensities\" enabled, then import those modes here."
+            )
+            return
+
+        from util.ir_spectrum import broaden_spectrum, stick_data
+        from util.easyplot    import XYPlot
+
+        xMax = max(4000.0, max(frequencies) + 200.0)
+        x, y = broaden_spectrum(frequencies, intensities, x_min=0.0, x_max=xMax, num_points=2000, fwhm=20.0)
+        stickFrequencies, stickIntensities = stick_data(frequencies, intensities)
+
+        plot = XYPlot()
+        plot.add(X=list(x), Y=list(y),
+                 symbol=None, sym_color=[1, 1, 1], sym_fill=False,
+                 line='solid', line_color=[0.85, 0.30, 0.10], energy_label=None)
+        for freq, intensity in zip(stickFrequencies, stickIntensities):
+            plot.add(X=[freq, freq], Y=[0.0, intensity],
+                      symbol=None, sym_color=[1, 1, 1], sym_fill=False,
+                      line='solid', line_color=[0.55, 0.55, 0.55], energy_label=None)
+
+        window = Gtk.Window()
+        window.set_default_size(820, 380)
+        window.move(900, 300)
+        window.set_title('IR Spectrum')
+        window.add(plot)
+        window.show_all()
+
     def _coordinates_model_update (self, e_id):
         """ Function doc """
         #------------------------------------------------------------------------------------
@@ -418,7 +487,11 @@ class NormalModesAnalysisWindow(Gtk.Window):
                 vobject = self.vm_session.vm_objects_dic[vobject_id]
                 self.liststore.clear()
                 for i, data in vobject.normal_modes_dict.items():
-                    self.liststore.append([False, str(i), data[0]])
+                    symmetry  = data[2] if len(data) >= 3 else '?'
+                    intensity = data[3] if len(data) >= 4 else '?'
+                    try:    intensity = '{:.4f}'.format(float(intensity))
+                    except (TypeError, ValueError): intensity = '?'
+                    self.liststore.append([False, str(i), data[0], symmetry, intensity])
             except:
                 dprint('vobject has no Normal Modes data')
                 pass

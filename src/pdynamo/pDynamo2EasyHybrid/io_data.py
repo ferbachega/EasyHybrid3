@@ -176,7 +176,24 @@ class LoadAndSaveData:
         '''- - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
         self.main.bottom_notebook.get_active_system_text_from_textbuffer()
         easyhybrid_session_data['systems'] = [ ]
-        
+
+        '''- - - - - - - - - - main window size - - - - - - - - - - '''
+        # Saved separately from 'camera' below (window size is a plain
+        # top-level GtkWindow property, not part of the 3D view's own
+        # state) so that on load the window itself can be resized via
+        # the normal, safe Gtk.Window.resize() -- restoring the window
+        # to (close to) the size it was saved at means the GLArea child
+        # naturally ends up at (close to) its own saved size too, from
+        # ordinary layout, with no need to ever force a specific size
+        # onto the GLArea widget directly (see the 'camera'/glarea_width
+        # handling below, and its own BUG FIX note, for why that specific
+        # approach silently broke the main treeview's rendering).
+        window_width, window_height = self.main.window.get_size()
+        easyhybrid_session_data['window'] = {
+            'width' : int(window_width),
+            'height': int(window_height),
+        }
+
         '''- - - - - - - - - - camera/view orientation - - - - - - - - - - '''
         # Captures the state that fully determines how the scene is framed:
         # model_mat (world rotation/pan - every VismolObject inherits this
@@ -389,7 +406,20 @@ class LoadAndSaveData:
             # Load the object from the file
             easyhybrid_session_data = pickle.load(f)
         #print(easyhybrid_session_data)
-        
+
+        '''- - - - - - - - - - main window size - - - - - - - - - - '''
+        # Older .easy files won't have this key -- .get() returns None
+        # and this is skipped, keeping whatever size the window already
+        # has (same compatibility pattern as 'camera' below).
+        # Gtk.Window.resize() only ever resizes the TOP-LEVEL window
+        # itself -- unlike the GLArea-specific set_size_request() this
+        # module used to also call (see the BUG FIX note below), there
+        # is no shared-layout child widget whose geometry gets forced
+        # here, so this does not carry that same risk.
+        window_data = easyhybrid_session_data.get('window')
+        if window_data is not None:
+            self.main.window.resize(window_data['width'], window_data['height'])
+
         '''- - - - - - - - - - camera/view orientation - - - - - - - - - - '''
         # Older .easy files won't have this key - skip restoring and keep
         # whatever default view vm_glcore already has in that case.
@@ -406,29 +436,44 @@ class LoadAndSaveData:
             glcamera.z_far  = camera_data['z_far']
             glcamera.update_fog()
             
-            # [NEW - OPTIONAL property] .easy files saved before this
-            # change do not have 'glarea_width'/'glarea_height' -- .get() returns
-            # None and the block below is skipped, without breaking anything (same
-            # compatibility pattern as the 'camera' block above).
+            # [OPTIONAL property] .easy files saved before this change do
+            # not have 'glarea_width'/'glarea_height' -- .get() returns
+            # None and the block below is skipped, without breaking
+            # anything (same compatibility pattern as the 'camera' block
+            # above).
             #
-            # When present: tries to resize the GLArea to the same size
-            # as when it was saved (set_size_request -- 'best effort', the
-            # GTK container may not respect it 100% depending on the layout) and,
-            # more importantly to actually eliminate distortion, recomputes the
-            # aspect ratio/projection_matrix via resize_window() using that
-            # SAME saved size (with z_near/z_far already restored above) --
-            # the raw projection_matrix restored just above was computed
-            # for the aspect ratio AT SAVE TIME, which may not match
-            # the current window's; resize_window ensures consistency.
+            # When present: recomputes the aspect ratio/projection_matrix
+            # via resize_window() using that SAME saved size (with
+            # z_near/z_far already restored above) -- the raw
+            # projection_matrix restored just above was computed for the
+            # aspect ratio AT SAVE TIME, which may not match the current
+            # window's; resize_window ensures consistency. This is pure
+            # matrix math, no widget geometry involved, so it is always
+            # safe to do.
+            #
+            # [BUG FIX] This used to ALSO call
+            # vm_widget.set_size_request(glarea_w, glarea_h) first, to
+            # literally resize the GLArea to its saved pixel size. That
+            # call is the confirmed root cause of the main object
+            # treeview rendering completely blank after loading a .easy
+            # file with a saved camera (i.e. any session actually saved
+            # from a real, sized window) -- confirmed by a direct A/B
+            # test: the SAME .easy file, in the SAME running process,
+            # populates and renders the treeview correctly with this one
+            # call skipped, and renders it blank with it present, despite
+            # every introspectable treeview/widget property (model
+            # contents, allocation, column widths, cell areas, colors,
+            # realized/mapped/visible flags) being individually normal
+            # either way -- i.e. a real GTK/GL widget-geometry side
+            # effect, not a data or treeview-construction bug. Forcing a
+            # GtkGLArea to a specific, likely-stale (saved at a different
+            # window size) pixel size via set_size_request() during
+            # startup is not needed for correctness anyway: resize_window()
+            # alone already fixes the distortion this was meant to solve,
+            # without touching any widget's actual allocated geometry.
             glarea_w = camera_data.get('glarea_width')
             glarea_h = camera_data.get('glarea_height')
             if glarea_w and glarea_h:
-                vm_widget = getattr(self.vm_session, 'vm_widget', None)
-                if vm_widget is not None:
-                    try:
-                        vm_widget.set_size_request(int(glarea_w), int(glarea_h))
-                    except Exception as e:
-                        dprint('Could not resize GLArea on session load:', e)
                 vm_glcore.resize_window(glarea_w, glarea_h)
             
             vm_glcore.queue_draw()
@@ -501,7 +546,21 @@ class LoadAndSaveData:
         else:
             self.main.session_filename = filename
         self.main.process_manager_window.build_liststore_from_job_history (clear = True)
-        
+
+        # . Verification pass: confirms every system/object this load
+        #   just added to the session actually has a row in the main
+        #   treeview, rather than trusting that silently -- see
+        #   verify_tree_matches_session()'s own docstring for the exact
+        #   silent-failure case this is meant to catch.
+        problems = self.main.main_treeview.verify_tree_matches_session()
+        if problems:
+            dprint('Treeview verification found {} problem(s) after loading "{}":'.format(len(problems), filename))
+            for problem in problems:
+                dprint('  -', problem)
+            self.main.simple_dialog.info(
+                msg='The session "{}" was loaded, but the treeview does not fully reflect it:\n\n{}'.format(
+                    filename, '\n'.join(problems)))
+
     def _rebuild_surface_vobject_from_saved_data (self, system, vobj):
         """ Reconstroi um VismolObject de superficie (orbital/densidade/
             potencial/MEP/cubo externo -- ver surface_analysis_window.py)
