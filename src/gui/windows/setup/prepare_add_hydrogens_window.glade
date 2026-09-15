@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- "Add Missing Hydrogens" window: analyzes standard amino-acid
+     residues of a loaded system against pDynamo3's own PDBComponentLibrary
+     templates (util/hydrogen_builder.py) and adds any missing hydrogen
+     atoms, letting the user review/pick a protonation state for any
+     residue where more than one is chemically plausible (His/Asp/Glu/
+     Cys/Lys) before committing. -->
+<interface>
+  <requires lib="gtk+" version="3.24"/>
+
+  <object class="GtkListStore" id="liststore_residues">
+    <columns>
+      <column type="gchararray"/> <!-- 0: residue display text, e.g. "A / HIS 42" -->
+      <column type="gchararray"/> <!-- 1: status text, e.g. "2 missing" / "non-standard (skipped)" -->
+      <column type="gchararray"/> <!-- 2: chosen protonation choice (editable via combo when ambiguous) -->
+      <column type="gboolean"/>   <!-- 3: choice is editable (ambiguous residue) -->
+      <column type="gchararray"/> <!-- 4: "|"-joined list of valid choices for this row's combo -->
+      <column type="gchararray"/> <!-- 5: chain -->
+      <column type="gchararray"/> <!-- 6: resName -->
+      <column type="gchararray"/> <!-- 7: resSeq -->
+      <column type="gboolean"/>   <!-- 8: is_standard_residue -->
+      <column type="gchararray"/> <!-- 9: pH text (organic/ligand residues only), editable -->
+      <column type="gboolean"/>   <!-- 10: is_organic_candidate (no PDBComponentLibrary entry, handled via the OpenBabel path) -->
+    </columns>
+  </object>
+
+  <object class="GtkWindow" id="window">
+    <property name="title" translatable="yes">Add Missing Hydrogens</property>
+    <property name="default-width">620</property>
+    <property name="default-height">520</property>
+    <property name="type-hint">dialog</property>
+    <signal name="delete-event" handler="close_window" swapped="no"/>
+    <child>
+      <object class="GtkBox">
+        <property name="visible">True</property>
+        <property name="orientation">vertical</property>
+        <property name="margin">8</property>
+        <property name="spacing">6</property>
+
+        <child>
+          <object class="GtkFrame">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">System and scope</property>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="orientation">vertical</property>
+                <property name="margin">6</property>
+                <property name="spacing">4</property>
+                <child>
+                  <object class="GtkBox" id="box_system_combo">
+                    <property name="visible">True</property>
+                    <property name="spacing">6</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">System:</property>
+                      </object>
+                    </child>
+                  </object>
+                  <packing><property name="expand">False</property></packing>
+                </child>
+                <child>
+                  <object class="GtkRadioButton" id="radio_scope_entire_system">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">Entire system</property>
+                    <property name="active">True</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkRadioButton" id="radio_scope_selected_atoms">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">Only residues touched by the current 3D-view selection</property>
+                    <property name="draw-indicator">True</property>
+                    <property name="group">radio_scope_entire_system</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="button_analyze">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">Analyze</property>
+                    <signal name="clicked" handler="on_button_analyze_clicked" swapped="no"/>
+                  </object>
+                  <packing><property name="expand">False</property></packing>
+                </child>
+              </object>
+            </child>
+          </object>
+          <packing><property name="expand">False</property></packing>
+        </child>
+
+        <child>
+          <object class="GtkFrame">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Residues needing attention</property>
+            <property name="tooltip-text" translatable="yes">Only H2/OXT/HXT (chain-terminus-only atoms) are never added by this tool -- capping real N-/C-termini is a separate concern. Disulfide-bonded cysteines never get a thiol H.</property>
+            <child>
+              <object class="GtkScrolledWindow">
+                <property name="visible">True</property>
+                <property name="shadow-type">in</property>
+                <property name="vexpand">True</property>
+                <child>
+                  <object class="GtkTreeView" id="treeview_residues">
+                    <property name="visible">True</property>
+                    <property name="model">liststore_residues</property>
+                    <child internal-child="selection">
+                      <object class="GtkTreeSelection"/>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn">
+                        <property name="title" translatable="yes">Residue</property>
+                        <property name="resizable">True</property>
+                        <child>
+                          <object class="GtkCellRendererText"/>
+                          <attributes><attribute name="text">0</attribute></attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn">
+                        <property name="title" translatable="yes">Status</property>
+                        <property name="resizable">True</property>
+                        <child>
+                          <object class="GtkCellRendererText"/>
+                          <attributes><attribute name="text">1</attribute></attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="treeviewcolumn_choice">
+                        <property name="title" translatable="yes">Protonation state</property>
+                        <property name="resizable">True</property>
+                        <child>
+                          <object class="GtkCellRendererCombo" id="cellrenderer_choice">
+                            <property name="text-column">0</property>
+                            <property name="has-entry">False</property>
+                            <signal name="edited" handler="on_residue_choice_edited" swapped="no"/>
+                          </object>
+                          <attributes>
+                            <attribute name="text">2</attribute>
+                            <attribute name="editable">3</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="treeviewcolumn_ph">
+                        <property name="title" translatable="yes">pH (organic/ligand)</property>
+                        <property name="resizable">True</property>
+                        <child>
+                          <object class="GtkCellRendererText" id="cellrenderer_ph">
+                            <signal name="edited" handler="on_residue_ph_edited" swapped="no"/>
+                          </object>
+                          <attributes>
+                            <attribute name="text">9</attribute>
+                            <attribute name="editable">10</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+          <packing><property name="expand">True</property></packing>
+        </child>
+
+        <child>
+          <object class="GtkLabel" id="label_status">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Choose a system and click "Analyze" to begin.</property>
+            <property name="wrap">True</property>
+            <property name="xalign">0</property>
+          </object>
+          <packing><property name="expand">False</property></packing>
+        </child>
+
+        <child>
+          <object class="GtkFrame">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Remove Hydrogens</property>
+            <property name="tooltip-text" translatable="yes">Uses the same System and Scope chosen above. Nonpolar = bonded to carbon (C-H); polar (N-H/O-H/S-H/...) hydrogens are kept in that mode.</property>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="orientation">horizontal</property>
+                <property name="margin">6</property>
+                <property name="spacing">12</property>
+                <child>
+                  <object class="GtkRadioButton" id="radio_remove_all">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">All hydrogens</property>
+                    <property name="active">True</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkRadioButton" id="radio_remove_apolar_only">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">Only nonpolar (C-H)</property>
+                    <property name="draw-indicator">True</property>
+                    <property name="group">radio_remove_all</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="button_remove_hydrogens">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">Remove Hydrogens</property>
+                    <signal name="clicked" handler="on_button_remove_hydrogens_clicked" swapped="no"/>
+                  </object>
+                  <packing><property name="expand">False</property></packing>
+                </child>
+              </object>
+            </child>
+          </object>
+          <packing><property name="expand">False</property></packing>
+        </child>
+
+        <child>
+          <object class="GtkButtonBox">
+            <property name="visible">True</property>
+            <property name="layout-style">end</property>
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkButton" id="button_undo">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">Undo last run</property>
+                <property name="sensitive">False</property>
+                <signal name="clicked" handler="on_button_undo_clicked" swapped="no"/>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="button_add_hydrogens">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">Add Hydrogens</property>
+                <property name="sensitive">False</property>
+                <signal name="clicked" handler="on_button_add_hydrogens_clicked" swapped="no"/>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="button_close">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">Close</property>
+                <signal name="clicked" handler="on_button_close_clicked" swapped="no"/>
+              </object>
+            </child>
+          </object>
+          <packing><property name="expand">False</property></packing>
+        </child>
+
+      </object>
+    </child>
+  </object>
+</interface>

@@ -354,6 +354,7 @@ class PrepareNamdRunWindow:
         self.spinbtn_pme_grid_y = self.builder.get_object('spinbtn_pme_grid_y')
         self.spinbtn_pme_grid_z = self.builder.get_object('spinbtn_pme_grid_z')
         self.checkbox_flexible_cell = self.builder.get_object('checkbox_flexible_cell')
+        self.checkbox_wrap_all = self.builder.get_object('checkbox_wrap_all')
 
         self.spinbtn_restartfreq = self.builder.get_object('spinbtn_restartfreq')
         self.spinbtn_dcdfreq = self.builder.get_object('spinbtn_dcdfreq')
@@ -1399,6 +1400,7 @@ class PrepareNamdRunWindow:
             langevin_hydrogen=self.checkbox_langevin_hydrogen.get_active(),
             flexible_cell=self.checkbox_flexible_cell.get_active(),
             pbc=pbc,
+            wrap_all=self.checkbox_wrap_all.get_active(),
             **self._get_implicit_solvent_kwargs(),
             **self._get_force_field_kwargs(),
             **self._get_output_freq_kwargs()
@@ -1521,6 +1523,7 @@ class PrepareNamdRunWindow:
         langevin_temp = self._get_langevin_temp_override()
         langevin_hydrogen = self.checkbox_langevin_hydrogen.get_active()
         flexible_cell = self.checkbox_flexible_cell.get_active()
+        wrap_all = self.checkbox_wrap_all.get_active()
         implicit_solvent_kwargs = self._get_implicit_solvent_kwargs()
         force_field_kwargs = self._get_force_field_kwargs()
         output_freq_kwargs = self._get_output_freq_kwargs()
@@ -1547,9 +1550,12 @@ class PrepareNamdRunWindow:
             #   PMEGridSizeX/Y/Z has to stay fixed for the whole chain
             #   (see build_equilibration_protocol()'s own docstring for
             #   why); build_namd_config() itself already suppresses the
-            #   cellBasisVector*/cellOrigin/wrapAll lines once
-            #   extended_system is set, so passing the same `cell` here
-            #   for every step is correct, not redundant.
+            #   cellBasisVector*/cellOrigin lines once extended_system is
+            #   set (a restart step reads its cell from the previous
+            #   step's own .xsc instead), so passing the same `cell`
+            #   here for every step is correct, not redundant. wrapAll
+            #   is NOT suppressed for restart steps -- every step with a
+            #   periodic cell gets its own trajectory wrapped.
 
             output_basename = '{}_step{:02d}'.format(system_name, i + 1)
             try:
@@ -1568,6 +1574,7 @@ class PrepareNamdRunWindow:
                     langevin_hydrogen=langevin_hydrogen,
                     flexible_cell=flexible_cell,
                     pbc=pbc,
+                    wrap_all=wrap_all,
                     **implicit_solvent_kwargs,
                     **force_field_kwargs,
                     **output_freq_kwargs

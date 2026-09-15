@@ -59,6 +59,8 @@
 #      │   ├── prepare_namd_run.py     PrepareNamdRunWindow
 #      │   ├── prepare_smd_run.py      PrepareSMDWindow
 #      │   ├── prepare_packmol_run.py  PreparePackmolWindow
+#      │   ├── prepare_vina_docking.py PrepareVinaDockingWindow
+#      │   ├── prepare_autodock_gpu.py PrepareAutoDockGPUWindow
 #      │   └── trajectory_player.py   TrajectoryPlayerWindow
 #      └── selection_windows/
 #          ├── selection.py          EasyHybridSelectionWindow, PDynamoSelectionWindow
@@ -88,6 +90,9 @@ from gui.windows.setup.windows_and_dialogs.system_windows.prepare_ligand_antecha
 from gui.windows.setup.windows_and_dialogs.system_windows.prepare_namd_run import PrepareNamdRunWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.prepare_smd_run import PrepareSMDWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.prepare_packmol_run import PreparePackmolWindow
+from gui.windows.setup.windows_and_dialogs.system_windows.prepare_vina_docking import PrepareVinaDockingWindow
+from gui.windows.setup.windows_and_dialogs.system_windows.prepare_autodock_gpu import PrepareAutoDockGPUWindow
+from gui.windows.setup.windows_and_dialogs.system_windows.prepare_add_hydrogens import PrepareAddHydrogensWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.trajectory_player import TrajectoryPlayerWindow
 from gui.windows.setup.windows_and_dialogs.selection_windows.selection import EasyHybridSelectionWindow, PDynamoSelectionWindow
 from gui.windows.setup.windows_and_dialogs.selection_windows.go_to_atom import EasyHybridGoToAtomWindow

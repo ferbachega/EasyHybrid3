@@ -537,7 +537,7 @@ def build_namd_config(
     readexclusions=True, scnb=2.0,
     rigidbonds="all", rigidtolerance=1e-08,
     vdw_force_switching=False,
-    pbc=True, implicit_solvent=True,
+    pbc=True, wrap_all=True, implicit_solvent=True,
     solvent_dielectric=78.5, ion_concentration=0.3, alpha_cutoff=15.0,
     sasa=False, surface_tension=0.005,
     fixed_atoms_file=None,
@@ -622,6 +622,16 @@ def build_namd_config(
             decides what replaces PME: NAMD's Generalized Born Implicit
             Solvent model (`GBIS`), or nothing at all (plain vacuum).
             Meaningless (and ignored) when `pbc` is True.
+        wrap_all -- only meaningful when `pbc` is True. True (default)
+            emits `wrapAll on`: every atom (not just water, unlike
+            NAMD's separate `wrapWater`) gets wrapped back into the
+            primary periodic image in the OUTPUT trajectory. Purely
+            cosmetic (for visualization/analysis) -- it does not change
+            the dynamics themselves, NAMD applies it only when writing
+            coordinates out. Emitted on EVERY step that has a periodic
+            cell, not just the first one that defines cellBasisVector*
+            explicitly (a restart step reading its cell from a previous
+            step's own .xsc still wants its own trajectory wrapped).
         implicit_solvent -- only meaningful when `pbc` is False. True
             (default) emits `GBIS on` plus the four parameters below.
             False emits neither GBIS nor PME nor a periodic cell -- a
@@ -857,6 +867,9 @@ def build_namd_config(
             lines.append("cellBasisVector2    {:.5f}     {:.5f}     {:.5f}".format(*cbv2))
             lines.append("cellBasisVector3    {:.5f}     {:.5f}     {:.5f}".format(*cbv3))
             lines.append("cellOrigin          {:.5f}     {:.5f}     {:.5f}".format(*origin))
+            lines.append("")
+
+        if wrap_all:
             lines.append("wrapAll                         on")
             lines.append("")
 

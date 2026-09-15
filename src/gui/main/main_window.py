@@ -67,6 +67,9 @@ from gui.windows.setup.windows_and_dialogs import PrepareLigandAntechamberWindow
 from gui.windows.setup.windows_and_dialogs import PrepareNamdRunWindow
 from gui.windows.setup.windows_and_dialogs import PrepareSMDWindow
 from gui.windows.setup.windows_and_dialogs import PreparePackmolWindow
+from gui.windows.setup.windows_and_dialogs import PrepareVinaDockingWindow
+from gui.windows.setup.windows_and_dialogs import PrepareAutoDockGPUWindow
+from gui.windows.setup.windows_and_dialogs import PrepareAddHydrogensWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
 from gui.windows.setup.edit_frames_dialog import EditFrameDialog
 from gui.windows.setup.edit_cell          import EditCellWindow
@@ -104,7 +107,7 @@ from gui.windows.analysis.reimaging_trajectory                    import Reimagi
 
 from util.geometric_analysis import get_simple_distance
 from util.sequence_plot import GtkSequenceViewer
-from util.rama_plot import RamachandranWindow
+from gui.windows.analysis.ramachandran_analysis_window import RamachandranAnalysisWindow
 
 from gui.windows.builder.builder_sidebar      import BuilderSidebarWindow
 
@@ -182,7 +185,16 @@ class MainWindow:
             str,               # 5: status
             GdkPixbuf.Pixbuf,  # 6: color/icon
             int,               # 7: e_id
-            int                # 8: step counter
+            int,               # 8: step counter
+            str                # 9: system tag (e_tag) -- appended at the
+                                #    end deliberately, not inserted after
+                                #    column 0, so every EXISTING column-index
+                                #    reference elsewhere (process_manager_
+                                #    window.py has many) stays correct; the
+                                #    "Tag" column's VISUAL position (right
+                                #    after "System Name") is controlled by
+                                #    treeview column insertion order, which
+                                #    is independent of liststore column order.
         )
 
         # -------------------- GTK BUILDER --------------------
@@ -482,6 +494,7 @@ class MainWindow:
         self.rmsd_analysis_window = RMSDAnalysisWindow (main = self, system_liststore = self.system_liststore)
         self.rmsf_analysis_window = RMSFAnalysisWindow (main = self)
         self.rdf_analysis_window  = RDFAnalysisWindow  (main = self)
+        self.ramachandran_analysis_window = RamachandranAnalysisWindow (main = self)
         
         self.align_trajectory_window = AlignTrajectoryWindow (main = self, system_liststore = self.system_liststore)
         
@@ -505,6 +518,9 @@ class MainWindow:
         self.prepare_namd_run_window = PrepareNamdRunWindow(main = self)
         self.prepare_smd_window = PrepareSMDWindow(main = self)
         self.prepare_packmol_window = PreparePackmolWindow(main = self)
+        self.prepare_vina_docking_window = PrepareVinaDockingWindow(main = self)
+        self.prepare_autodock_gpu_window = PrepareAutoDockGPUWindow(main = self)
+        self.prepare_add_hydrogens_window = PrepareAddHydrogensWindow(main = self)
         self.preferences_window = EasyHybridPreferencesWindow(main = self)
 
         self.make_solvent_box_window = MakeSolventBoxWindow(main = self)
@@ -527,7 +543,6 @@ class MainWindow:
         # once the main loop is idle) -- not gated to macOS.
         self.window.present()
         GLib.idle_add(self.vm_session.vm_widget.queue_draw)
-
 
     def on_drag_data_received(self, widget, drag_context,
                               x, y, data, info, time):
@@ -1232,6 +1247,15 @@ class MainWindow:
         elif menuitem == self.builder.get_object('menuitem_run_packmol'):
             self.prepare_packmol_window.open_window()
 
+        elif menuitem == self.builder.get_object('menuitem_run_vina'):
+            self.prepare_vina_docking_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_run_autodock_gpu'):
+            self.prepare_autodock_gpu_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_add_missing_hydrogens'):
+            self.prepare_add_hydrogens_window.open_window()
+
         elif menuitem == self.builder.get_object('menuitem_merge'):
             """ Function doc """
             system = self.p_session.psystem[self.p_session.active_id]
@@ -1351,7 +1375,7 @@ class MainWindow:
             self.distance_angle_dihedral_analysis_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_rama'):
-            rama = RamachandranWindow()
+            self.ramachandran_analysis_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_RMSD_tool'):
             #self.rmsd_tool_window.open_window()

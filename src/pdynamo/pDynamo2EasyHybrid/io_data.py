@@ -113,6 +113,45 @@ from pdynamo.LogFileWriter import LogFileReader
 
 from gui.windows.setup.windows_and_dialogs import call_message_dialog
 
+
+def _ensure_numpy_pickle_compat():
+    """ A .easy file pickles VismolObject.frames (and a few other
+        arrays) as REAL numpy.ndarray objects -- confirmed real: a
+        session saved under numpy>=2.0 embeds a class reference to
+        'numpy._core.multiarray._reconstruct' (numpy 2.0's renamed
+        internal module), and unpickling that under an older numpy
+        (<2.0, which has no 'numpy._core' at all) fails outright with
+        "ModuleNotFoundError: No module named 'numpy._core'" -- this is
+        exactly what several of this project's own working .easy files
+        hit here (they were evidently saved under a newer numpy than
+        the one this environment currently runs, e.g. from a different
+        machine/OS setup), reported by the user as "não estou
+        conseguindo abrir os arquivos .easy antigos".
+
+        numpy>=2.0 itself keeps 'numpy.core' as a working (deprecated)
+        alias precisely for this kind of backwards compatibility, so
+        the reverse direction (old file, new numpy) already works with
+        no help needed. There is no equivalent built forwards, so under
+        an old numpy we register the alias ourselves -- purely so
+        pickle's own class lookup can resolve the name; this never
+        changes the numpy version or API used anywhere else in the app,
+        and is a no-op (the `hasattr` check returns immediately) once
+        numpy itself is upgraded past 2.0 here.
+    """
+    if hasattr(np, '_core'):
+        return
+    import sys
+    import numpy.core
+    import numpy.core.multiarray
+    sys.modules.setdefault('numpy._core', numpy.core)
+    sys.modules.setdefault('numpy._core.multiarray', numpy.core.multiarray)
+    try:
+        import numpy.core._multiarray_umath
+        sys.modules.setdefault('numpy._core._multiarray_umath', numpy.core._multiarray_umath)
+    except ImportError:
+        pass
+
+
 class LoadAndSaveData:
     """ Class doc """
     
@@ -402,6 +441,7 @@ class LoadAndSaveData:
                                                                system =  None )
         if filename is None:
             return None
+        _ensure_numpy_pickle_compat()
         with open(filename, "rb") as f:
             # Load the object from the file
             easyhybrid_session_data = pickle.load(f)

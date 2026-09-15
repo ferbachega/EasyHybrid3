@@ -1208,14 +1208,20 @@
                                 <property name="left-padding">10</property>
                                 <property name="right-padding">10</property>
                                 <child>
-                                  <!-- n-columns=4 n-rows=3 -->
-                                  <object class="GtkGrid" id="grid_manual_cell">
+                                  <object class="GtkBox" id="box_periodic_cell">
                                     <property name="visible">True</property>
-                                    <property name="sensitive">False</property>
                                     <property name="can-focus">False</property>
-                                    <property name="row-spacing">6</property>
-                                    <property name="column-spacing">8</property>
-                                    <property name="column-homogeneous">True</property>
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">8</property>
+                                    <child>
+                                      <!-- n-columns=4 n-rows=3 -->
+                                      <object class="GtkGrid" id="grid_manual_cell">
+                                        <property name="visible">True</property>
+                                        <property name="sensitive">False</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="row-spacing">6</property>
+                                        <property name="column-spacing">8</property>
+                                        <property name="column-homogeneous">True</property>
                                     <child>
                                       <object class="GtkLabel">
                                         <property name="visible">True</property>
@@ -1378,9 +1384,27 @@
                                     </child>
                                   </object>
                                 </child>
+                                <child>
+                                  <object class="GtkCheckButton" id="checkbox_wrap_all">
+                                    <property name="label" translatable="yes">Wrap all atoms into the periodic cell (wrapAll)</property>
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="receives-default">False</property>
+                                    <property name="active">True</property>
+                                    <property name="tooltip-text" translatable="yes">Wraps every atom (not just water) back into the primary periodic image in the OUTPUT trajectory -- purely cosmetic/for visualization, does not affect the dynamics themselves. On by default, matching the reference AMBER protocol. Applies to every step that has a periodic cell, including restart steps that read their cell from a previous step's .xsc.</property>
+                                    <property name="draw-indicator">True</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
                               </object>
                             </child>
-                            <child type="label">
+                          </object>
+                        </child>
+                        <child type="label">
                               <object class="GtkCheckButton" id="checkbox_manual_cell">
                                 <property name="label" translatable="yes">Manually set periodic cell</property>
                                 <property name="visible">True</property>

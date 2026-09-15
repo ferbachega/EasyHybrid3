@@ -90,7 +90,6 @@ from gui.windows.analysis.reimaging_trajectory                    import Reimagi
 
 from util.geometric_analysis import get_simple_distance
 from util.sequence_plot import GtkSequenceViewer
-from util.rama_plot import RamachandranWindow
 
 
 from pdynamo.pDynamo2EasyHybrid import pDynamoSession
