@@ -136,7 +136,24 @@ class PrepareAmberSystemWindow:
         if not tleap_command or not os.path.isfile(tleap_command):
             tleap_command = tleap_runner.find_tleap_executable()
         self.entry_tleap_command.set_text(tleap_command or '')
-        if not tleap_command:
+
+        # . Checked AFTER populating the combos above (a real, confirmed
+        # failure mode: $AMBERHOME missing/wrong in the environment THIS
+        # process was launched from makes every force-field/water-model
+        # dropdown come back silently empty, with no error anywhere --
+        # easy to mistake for "EasyHybrid broke" when it's really just
+        # this specific launch's own environment missing it, e.g. a
+        # terminal that never sourced the AmberTools setup script).
+        # Takes priority over the plain "tleap not found" message below
+        # since it's the more complete explanation when both are true.
+        if not tleap_runner.amberhome_is_valid():
+            self.label_info.set_text(
+                '$AMBERHOME is not set (or does not point to a real AmberTools install) in the '
+                'environment this EasyHybrid was launched from -- the force field/water model lists '
+                'above are empty because of this, not because of anything wrong with the AmberTools '
+                'install itself. Set $AMBERHOME (e.g. in the terminal/profile EasyHybrid is started '
+                'from) and reopen this window.')
+        elif not tleap_command:
             self.label_info.set_text(
                 'tleap was not found automatically (checked PATH and $AMBERHOME/bin) -- '
                 'please enter the full path to the executable below.')

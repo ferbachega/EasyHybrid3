@@ -634,11 +634,23 @@ class EasyHybridImportTrajectory:
         if parameters['logfile']:
             logfile= LogFileReader(parameters['logfile'])
             data   = logfile.get_data()
-        
+
+            if data is None:
+                # get_logtype() didn't recognize this log's TYPE header --
+                # bail out instead of silently storing a None entry in
+                # e_logfile_data, which would later crash/no-op the PES
+                # analysis window's plotting instead of showing anything.
+                msg = "Could not parse log file (unrecognized type): {}".format(parameters['logfile'])
+                dprint(msg)
+                self.main.bottom_notebook.status_teeview_add_new_item(message=msg, system=None)
+                self.main.main_treeview.refresh_number_of_frames()
+                self.main.main_treeview.refresh_trajectory_scalebar()
+                return
+
             #print('vobject', parameters['vobject'], parameters['vobject_id'] )
-            
+
             vobject_id = parameters['vobject_id']
-            
+
             if parameters['isAppend']:
                 '''
                 When two trajectories are added together. Here EasyHybrid 

@@ -451,6 +451,14 @@ class LogFileReader:
                 self.type = 'EasyHybrid-SCAN2D'
             elif "EasyHybrid-SCAN" in line.split():
                 self.type = 'EasyHybrid-SCAN'
+            elif 'EasyHybrid Energy Refinement 2D' in line:
+                # p_methods/energy.py's EnergyRefinement.write_header() -- re-scores
+                # an existing scan's frames with a different (e.g. higher-level) method.
+                # Same TYPE/Coordinate/DATA line layout as EasyHybrid-SCAN2D, so it is
+                # parsed by that same branch below.
+                self.type = 'EasyHybrid-SCAN2D'
+            elif 'EasyHybrid Energy Refinement' in line:
+                self.type = 'EasyHybrid-SCAN'
             elif 'Summary of Chain-Of-States Optimizer' in line:
                 self.type = 'Chain-Of-States'
             elif 'Python-based Conjugate Peak Refinement' in line:

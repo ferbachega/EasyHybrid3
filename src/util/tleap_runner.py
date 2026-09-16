@@ -61,6 +61,23 @@ def _leap_cmd_dir():
     return path if os.path.isdir(path) else None
 
 
+def amberhome_is_valid():
+    """ True if $AMBERHOME is set and looks like a real AmberTools
+        install (has a dat/leap/cmd directory) -- i.e. whether
+        list_leaprc_files() has any chance of finding anything at all.
+
+        Used by the GUI to explain empty force-field/water-model
+        dropdowns instead of leaving them silently blank with no clue
+        why -- confirmed real: $AMBERHOME not being set in the specific
+        environment EasyHybrid was launched from (e.g. a terminal that
+        never sourced the AmberTools setup script) makes every
+        list_leaprc_files() call return [] with no error at all, which
+        looks exactly like "the force fields stopped loading" even
+        though nothing in this module or the GUI actually changed.
+    """
+    return _leap_cmd_dir() is not None
+
+
 def list_leaprc_files(prefix):
     """ Scans $AMBERHOME/dat/leap/cmd/leaprc.<prefix>* and returns the
         part of each filename after "leaprc." (e.g. "protein.ff14SB",
