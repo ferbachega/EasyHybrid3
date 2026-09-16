@@ -412,8 +412,9 @@ class LoadAndSaveData:
         if tmp:
             pass
         else:
-            self.main.bottom_notebook.status_teeview_add_new_item(message = ':  {}  saved'.format(filename), 
+            self.main.bottom_notebook.status_teeview_add_new_item(message = ':  {}  saved'.format(filename),
                                                                system =  system )
+            self.vm_session.vm_config.add_recent_file(filename, 'project')
         
         #'''- - - - - - - - - - - - vismol obejcts - - - - - - - - - - - '''
         #vobjects = {}

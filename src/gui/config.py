@@ -32,6 +32,7 @@
 from util.debug import dprint
 import os
 import json
+import time
 
 class VismolConfig                       :
     """ Class doc """
@@ -156,6 +157,14 @@ class VismolConfig                       :
                                       # of GPU vendor. Only takes effect after a
                                       # restart -- see Preferences > Startup.
                                       'vblank_mode'         : 'auto',
+                                      # Recently opened/saved projects (.easy) and
+                                      # systems (single-file opens via File > Open --
+                                      # .pkl/.pdb/.mol2/.xyz/.crd/etc). Each entry:
+                                      # {'path', 'type': 'project'|'system', 'last_opened'}.
+                                      # Most-recent-first, deduplicated by path. See
+                                      # add_recent_file/get_recent_files/clear_recent_files
+                                      # below and MainWindow's "Open Recent" submenu.
+                                      'recent_files'        : [],
                                       }
                               
         self.n_proc = 2
@@ -346,6 +355,35 @@ class VismolConfig                       :
             return False
         self.gl_parameters.update(loaded)
         return True
+
+    def add_recent_file (self, path, file_type, max_entries = 10):
+        """ Records 'path' as the most recently used entry ('project' or
+            'system'), moving it to the top if it was already present, and
+            persists the change immediately (same reasoning as autosave --
+            the list should survive a crash, not just a clean exit). """
+        if not path:
+            return
+        path = os.path.abspath(path)
+        recent = [entry for entry in self.gl_parameters.get('recent_files', [])
+                  if entry.get('path') != path]
+        recent.insert(0, {'path': path, 'type': file_type, 'last_opened': time.time()})
+        self.gl_parameters['recent_files'] = recent[:max_entries]
+        self.save_easyhybrid_config()
+
+    def get_recent_files (self):
+        """ Returns the recent-files list, pruning entries whose file no
+            longer exists on disk (persisting the pruned list back). """
+        recent   = self.gl_parameters.get('recent_files', [])
+        existing = [entry for entry in recent if os.path.exists(entry.get('path', ''))]
+        if len(existing) != len(recent):
+            self.gl_parameters['recent_files'] = existing
+            self.save_easyhybrid_config()
+        return existing
+
+    def clear_recent_files (self):
+        """ Function doc """
+        self.gl_parameters['recent_files'] = []
+        self.save_easyhybrid_config()
     
 
 

@@ -529,6 +529,15 @@ class MainWindow:
         self.window_list.append(self.edit_cell_window)
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
 
+        # -------------------- OPEN RECENT MENU --------------------
+        # Populated dynamically (not in the .glade) from vm_config's
+        # persisted 'recent_files' list -- see gui/config.py. Refreshed
+        # on the submenu's own "show" signal so a file that was removed
+        # from disk since it was recorded gets pruned right before display.
+        self.recent_files_submenu = self.builder.get_object('menu_open_recent')
+        self.recent_files_submenu.connect('show', self.on_recent_files_menu_show)
+        self.refresh_recent_files_menu()
+
         # -------------------- WINDOW SIGNALS --------------------
         #self.window.connect("destroy", Gtk.main_quit)
         #self.window.connect("delete-event", Gtk.main_quit)
@@ -1663,6 +1672,55 @@ class MainWindow:
 
         if filename:
             self.vm_session.load(filename)
+
+    def refresh_recent_files_menu (self):
+        """ Rebuilds the "Open Recent" submenu from vm_config's persisted
+            list. Called once at startup and every time the submenu is
+            about to be shown (see on_recent_files_menu_show) -- cheap
+            enough (at most max_entries items) to just rebuild from
+            scratch rather than diffing. """
+        for child in self.recent_files_submenu.get_children():
+            self.recent_files_submenu.remove(child)
+
+        recent = self.vm_session.vm_config.get_recent_files()
+
+        if not recent:
+            placeholder = Gtk.MenuItem(label="(no recent files)")
+            placeholder.set_sensitive(False)
+            placeholder.show()
+            self.recent_files_submenu.append(placeholder)
+            return
+
+        for entry in recent:
+            path  = entry.get('path', '')
+            label = "{}  [{}]".format(os.path.basename(path), entry.get('type', '?'))
+            item  = Gtk.MenuItem(label=label)
+            item.set_tooltip_text(path)
+            item.connect('activate', self.on_recent_file_item_activate, path)
+            item.show()
+            self.recent_files_submenu.append(item)
+
+        separator = Gtk.SeparatorMenuItem()
+        separator.show()
+        self.recent_files_submenu.append(separator)
+
+        clear_item = Gtk.MenuItem(label="Clear Recent")
+        clear_item.connect('activate', self.on_recent_files_clear_activate)
+        clear_item.show()
+        self.recent_files_submenu.append(clear_item)
+
+    def on_recent_files_menu_show (self, submenu):
+        """ Function doc """
+        self.refresh_recent_files_menu()
+
+    def on_recent_file_item_activate (self, menuitem, path):
+        """ Function doc """
+        self.vm_session.load(path)
+
+    def on_recent_files_clear_activate (self, menuitem):
+        """ Function doc """
+        self.vm_session.vm_config.clear_recent_files()
+        self.refresh_recent_files_menu()
 
     def run_dialog_set_QC_atoms (self, _type = None, vismol_object = None):
         """ Function doc """
