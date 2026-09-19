@@ -210,6 +210,63 @@ class TextWindow:
         self.window.show_all()
 
 
+class TextDialog:
+    """Same scrollable/monospace/log-highlighted TextView as TextWindow,
+    but wrapped in a real Gtk.Dialog with a single "OK" button instead of
+    a plain Gtk.Window -- for report-style messages that replace what
+    would otherwise be a plain Gtk.MessageDialog (e.g. the QC engine path
+    check in io_data.py's load_easyhybrid_serialization_file: a report
+    that can get long across several systems, so it needs the same
+    scrollbox TextWindow already has, but it's still fundamentally a
+    "here's a warning, click OK" dialog, not a standalone window).
+
+    Construction only BUILDS the dialog (textview/textbuffer/scrolledwindow
+    are all ready right after __init__, same as TextWindow -- so a caller
+    can still apply its own extra highlighting/wrap-mode/etc. on
+    self.textbuffer/self.textview first). Call show() when ready to
+    actually display it; that's the call that blocks (Gtk.Dialog.run())
+    until the user clicks OK, then destroys the dialog -- matching
+    SimpleDialog.info()'s own modal default, since this dialog only ever
+    has the one button anyway.
+    """
+
+    def __init__ (self, text = 'No text', title = None, parent = None):
+        """ Class initialiser """
+        self.dialog = Gtk.Dialog(title=title, transient_for=parent, modal=True)
+        self.dialog.set_default_size(1100, 600)
+        self.dialog.add_button("OK", Gtk.ResponseType.OK)
+
+        self.textview = Gtk.TextView()
+        self.textview.set_editable(False)
+        self.textview.set_cursor_visible(False)
+        self.textbuffer = self.textview.get_buffer()
+        self.textbuffer.set_text(text)
+
+        apply_log_highlighting ( self.textbuffer )
+
+        fontdesc = Pango.FontDescription()
+        fontdesc.set_family("Monospace")
+        fontdesc.set_size(12 * Pango.SCALE)
+        self.textview.modify_font(fontdesc)
+
+        style = self.textview.get_style_context()
+        style.add_class("text-black")
+
+        scrolledwindow = Gtk.ScrolledWindow()
+        scrolledwindow.set_hexpand(True)
+        scrolledwindow.set_vexpand(True)
+        scrolledwindow.add(self.textview)
+
+        content_area = self.dialog.get_content_area()
+        content_area.pack_start(scrolledwindow, True, True, 0)
+
+    def show (self):
+        """ Displays the dialog and blocks until the user clicks OK. """
+        self.dialog.show_all()
+        self.dialog.run()
+        self.dialog.destroy()
+
+
 class TabbedLogWindow:
     """Log viewer with one tab per source (e.g. pDynamo + ORCA/xTB).
 

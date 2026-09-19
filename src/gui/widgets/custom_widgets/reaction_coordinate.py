@@ -122,7 +122,16 @@ class AdvancedReactionCoordinateBox(Gtk.Box):
         self.builder.add_from_string(xml)
 
         box = self.builder.get_object('reaction_coordinate_box')
-        self.pack_start(box, False, False, 0)
+        # [EN] BUG FIX: this used to be (False, False) -- so even when a
+        # parent window/container gave this box MORE width than its own
+        # natural (unexpanded) size, the extra space was left empty instead
+        # of being used by the weighted-distance treeview (added later via
+        # self.scrolledbox.add(...) by the caller), making the treeview's
+        # columns look cramped/cut off in any window wide enough to have
+        # room to spare -- reported by the user for EnergyRefinementWindow,
+        # whose window is resizable specifically so this box has room to
+        # grow into. (True, True) lets it actually fill that space.
+        self.pack_start(box, True, True, 0)
         self.scrolledbox = self.builder.get_object('scrolledbox')
         
         if mode == 0:
@@ -355,20 +364,39 @@ class AdvancedReactionCoordinateBox(Gtk.Box):
     def set_rc_mode (self, rc_mode = 0):
         """ Chenges the mode:
              0 - default, RCs scan go in one directions
-             
-             1 - TS mode, Starts from TS coordenate guess and 
+
+             1 - TS mode, Starts from TS coordenate guess and
                  RCs scan go forward and backward directions
+
+            Guarded the same way as ReactionCoordinateBox.set_rc_mode --
+            see its docstring -- so this stays safe even if a future glade
+            layout for this box doesn't define these fields either.
         """
-        
+        label_f       = self.builder.get_object('label_f')
+        label_b       = self.builder.get_object('label_b')
+        entry_nsteps2 = self.builder.get_object('entry_nsteps2')
+        if not (label_f and label_b and entry_nsteps2):
+            return
+
         if rc_mode == 0:
-            self.builder.get_object('label_f').hide()
-            self.builder.get_object('label_b').hide()
-            self.builder.get_object('entry_nsteps2').hide()
-        
+            label_f.hide()
+            label_b.hide()
+            entry_nsteps2.hide()
+
         if rc_mode == 1:
-            self.builder.get_object('label_f').show()
-            self.builder.get_object('label_b').show()
-            self.builder.get_object('entry_nsteps2').show()
+            label_f.show()
+            label_b.show()
+            entry_nsteps2.show()
+
+    def set_hide_scan_parameters (self):
+        """ Hides the scan-only fields (force constant, step size, nsteps,
+        dminimum) for windows that only need the weighted-distance-list
+        itself to MEASURE a reaction coordinate value (e.g. Energy
+        Refinement, reading an existing trajectory) rather than to RUN a
+        restrained scan with it. Mirrors
+        ReactionCoordinateBox.set_hide_scan_parameters. """
+        self.builder.get_object('rc_grid').hide()
+        self.builder.get_object('rc_aligment').hide()
 
     def get_rc_data (self, _is_ts_mode = False):
         """ Function doc """
@@ -948,21 +976,35 @@ class ReactionCoordinateBox(Gtk.Box):
     def set_rc_mode (self, rc_mode = 0):
         """ Chenges the mode:
              0 - default, RCs scan go in one directions
-             
-             1 - TS mode, Starts from TS coordenate guess and 
+
+             1 - TS mode, Starts from TS coordenate guess and
                  RCs scan go forward and backward directions
+
+            Note: this "rc_mode" is unrelated to the constructor's own
+            "mode" (0/1) parameter, which picks which glade layout the box
+            loads -- the mode=1 inline layout doesn't define label_f/
+            label_b/entry_nsteps2 at all (only mode=0's external
+            RC_box_mode_0_new.glade does), so these lookups are guarded
+            instead of assumed to exist -- a caller (e.g. a window that
+            never actually toggles TS mode) can safely use either
+            constructor layout without this crashing.
         """
-        
+        label_f       = self.builder.get_object('label_f')
+        label_b       = self.builder.get_object('label_b')
+        entry_nsteps2 = self.builder.get_object('entry_nsteps2')
+        if not (label_f and label_b and entry_nsteps2):
+            return
+
         if rc_mode == 0:
-            self.builder.get_object('label_f').hide()
-            self.builder.get_object('label_b').hide()
-            self.builder.get_object('entry_nsteps2').hide()
-        
+            label_f.hide()
+            label_b.hide()
+            entry_nsteps2.hide()
+
         if rc_mode == 1:
-            self.builder.get_object('label_f').show()
-            self.builder.get_object('label_b').show()
-            self.builder.get_object('entry_nsteps2').show()
-            
+            label_f.show()
+            label_b.show()
+            entry_nsteps2.show()
+
     def refresh_dmininum (self, coord1 =  False, coord2 = False):
         """ Function doc """
         if hasattr(self, 'vobject'):

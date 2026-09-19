@@ -425,6 +425,8 @@ def main():
         #main_window.builder.get_object('menuitem_extras') .hide() # IR spectrum
         #main_window.builder.get_object('menuitem_rdf_analysis')   .hide() # RDF Analysis (g(r))
         
+        main_window.builder.get_object('menuitem_advanced_rc_scans')   .hide() # RDF Analysis (g(r))
+        
         
         
         #main_window.builder.get_object('menuitem_advanced_rc_scans').hide()
@@ -453,6 +455,7 @@ def main():
                 vm_session.load(filein)
             except Exception:
                 traceback.print_exc()
+
         #Gtk.main()
         return 0
 

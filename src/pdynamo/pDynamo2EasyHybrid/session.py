@@ -467,9 +467,23 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system =system)
         
         # Add the system as a vismol object to the easyhybrid session
-        self._add_vismol_object_to_easyhybrid_session (system, True)  
-        
-        
+        self._add_vismol_object_to_easyhybrid_session (system, True)
+
+        # A system loaded directly from a .pkl/.pdb/etc (as opposed to
+        # inside a .easy project -- see load_easyhybrid_serialization_file
+        # in io_data.py, which already does this per system it restores)
+        # can just as easily already carry an XTB/ORCA/DFTB+ QC model
+        # whose scratch/executable/skfPath no longer exist on THIS
+        # machine (e.g. a .pkl someone else pickled, or one of this
+        # machine's own older runs). Same check+auto-redirect+dialog as
+        # the .easy path -- see util/qc_engine_check.py and
+        # io_data.py's _get_qc_engine_report_entries()/
+        # _show_qc_engine_report_dialog() (shared via the pDynamoSession
+        # mixin, both methods live on LoadAndSaveData in io_data.py).
+        self._show_qc_engine_report_dialog(
+            self._get_qc_engine_report_entries(system),
+            title='QC Engine Path Check -- "{}"'.format(system.label))
+
         #self.main.refresh_active_system_liststore()
         #self.main.refresh_system_liststore ()
         ''' '''
@@ -1972,9 +1986,14 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             its own more specific dialog already, raised from inside the
             impl (see below); this generic handler is the catch-all for
             everything else.
+
+            [EN] Also confirms SUCCESS with a dialog now (previously only
+            failure showed any feedback at all -- a successful QC region
+            definition happened silently, with nothing but the 3D view's
+            own QC representation to notice it by).
         """
         try:
-            return self._define_a_new_QCModel_impl(system = system, parameters = parameters, vismol_object = vismol_object)
+            result = self._define_a_new_QCModel_impl(system = system, parameters = parameters, vismol_object = vismol_object)
         except Exception as error:
             traceback.print_exc()
             call_message_dialog(
@@ -1983,6 +2002,21 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 transient_for = self.main.window,
             )
             return False
+
+        if result:
+            # Resolves the same target system _define_a_new_QCModel_impl
+            # itself just used (same fallback chain), to report how many
+            # atoms ended up in the QC region and with which engine.
+            target_system = system if system else (
+                self.psystem[vismol_object.e_id] if vismol_object else self.psystem[self.active_id])
+            n_qc_atoms = len(getattr(target_system, 'e_qc_table', None) or [])
+            call_message_dialog(
+                text1 = 'QC Model defined successfully',
+                text2 = '{} atom(s) set as the QC region, using the {} engine.'.format(
+                    n_qc_atoms, parameters.get('qcengine', '?') if parameters else '?'),
+                transient_for = self.main.window,
+            )
+        return result
 
     def _define_a_new_QCModel_impl (self, system = None, parameters = None, vismol_object = None):
         """ Function doc """

@@ -70,7 +70,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 from gui.windows.setup.windows_and_dialogs.dialogs.simple_dialog import call_message_dialog, SimpleDialog
-from gui.windows.setup.windows_and_dialogs.dialogs.text_info_windows import TextWindow, InfoWindow, TabbedLogWindow
+from gui.windows.setup.windows_and_dialogs.dialogs.text_info_windows import TextWindow, TextDialog, InfoWindow, TabbedLogWindow
 from gui.windows.setup.windows_and_dialogs.dialogs.export_dialogs import ExportScriptDialog, ExportDataWindow
 from gui.windows.setup.windows_and_dialogs.dialogs.restraint_dialog import AddHarmonicRestraintDialog
 from gui.windows.setup.windows_and_dialogs.dialogs.restraint_dialog import AddPositionHarmonicRestraintDialog

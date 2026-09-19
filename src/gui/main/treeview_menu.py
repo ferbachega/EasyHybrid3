@@ -265,6 +265,7 @@ class TreeViewMenu:
                                 '_separator'              : ''                              ,
                                                           
                                 'Rename'                  : self._menu_rename               ,
+                                'Change Working Folder...': self._menu_change_working_folder,
                                 'Import Data...'          : self._menu_load_data_to_system  ,
                                 'Reference Color'         : self._menu_change_color_palette ,
                                 #'Edit Parameters'        : self.f2                         ,
@@ -562,10 +563,67 @@ class TreeViewMenu:
         selection     = self.treeview.get_selection()
         (model, iter) = selection.get_selected()
         e_id          = int(model.get_value(iter, 0))  # @+
-        #----------------------------------------------------------------------        
+        #----------------------------------------------------------------------
         system = self.main.p_session.psystem[e_id]
         window = InfoWindow(system)
-        
+
+    def _menu_change_working_folder (self, widget):
+        """Row-menu entry point (right-click on a system's row, "Change
+        Working Folder..." -- see system_menu_items above): operates on
+        whichever system was right-clicked (self.system_e_id, set by
+        open_menu() right before this menu is popped up)."""
+        self._change_working_folder_for_system(self.system_e_id)
+
+    def change_working_folder_for_active_system (self, widget = None):
+        """Main menubar entry point ("System > Change Working
+        Folder...", see main_window.py's on_main_menu_activate): there's
+        no right-clicked-row context from the menubar, so this operates
+        on the currently ACTIVE system instead (p_session.active_id)."""
+        self._change_working_folder_for_system(self.main.p_session.active_id)
+
+    def _change_working_folder_for_system (self, e_id):
+        """Lets the user pick a new working folder for system `e_id`.
+        Every simulation window already defaults its own "folder" chooser
+        from system.e_working_folder (see e.g. PES_scan_window.py/
+        umbrella_sampling_window.py's own update_working_folder_chooser()),
+        so changing it here and then refreshing already-open windows
+        makes it the new default everywhere without touching those
+        windows individually."""
+        system = self.main.p_session.psystem.get(e_id)
+        if system is None:
+            self.main.bottom_notebook.status_teeview_add_new_item(
+                message = 'No active system to set a working folder for.', system = None)
+            return
+
+        dialog = Gtk.FileChooserDialog(
+            title  = "Choose the working folder for \"{}\"".format(system.label),
+            parent = self.main.window,
+            action = Gtk.FileChooserAction.SELECT_FOLDER,
+        )
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OPEN, Gtk.ResponseType.OK,
+        )
+        current_folder = getattr(system, 'e_working_folder', None) or os.environ.get('HOME')
+        if current_folder and os.path.isdir(current_folder):
+            dialog.set_current_folder(current_folder)
+
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            new_folder = dialog.get_filename()
+            system.e_working_folder = new_folder
+            self.main.p_session.register_change_and_maybe_autosave()
+            # Propagates the new default folder into every currently open
+            # simulation window (each re-reads e_working_folder on its own
+            # update()/update_working_folder_chooser() -- no per-window
+            # changes needed).
+            self.main.uptade_interface_windows_and_dialogs()
+            self.main.bottom_notebook.status_teeview_add_new_item(
+                message = 'Working folder for "{}" set to: {}'.format(system.label, new_folder),
+                system  = system)
+        dialog.destroy()
+
+
     def _menu_export_data_window (self,vobject = None ):
         """ Function doc """
         selection     = self.treeview.get_selection()
@@ -1088,37 +1146,46 @@ class TreeViewMenu:
             rep.active = not rep.active
         self.treeview.main.vm_session.vm_glcore.queue_draw()
 
+    def open_rename_window (self, e_id, v_id, old_name, tag):
+        """ Shared rename-window opener used by BOTH the row-level
+        right-click "Rename" (_menu_rename, below) and the main menubar's
+        "System > Rename" (main_window.py's on_main_menu_activate) --
+        keeps a single PreferencesWindow instance/guard across whichever
+        entry point is used, instead of each keeping its own untracked
+        reference (which used to let two rename windows exist at once). """
+        if self.rename_window_visible:
+            self.preferences.set_names (old_name, tag)
+            self.preferences.window.present()
+        else:
+            self.preferences = PreferencesWindow(main = self.main,
+                                                 e_id = e_id     ,
+                                                 v_id = v_id     )
+            self.preferences.set_names (old_name, tag)
+
     def _menu_rename (self, menu_item = None ):
-        """  
+        """
         menu_item = Gtk.MenuItem object at 0x7fbdcc035700 (GtkMenuItem at 0x37cf6c0)
-        
+
         """
         selection     = self.treeview.get_selection()
         (model, iter) = selection.get_selected()
 
-        old_name = model.get_value(iter, 2)
         v_id     = model.get_value(iter, 1)
         e_id     = model.get_value(iter, 0)
-        tag      = self.main.p_session.psystem[e_id].e_tag 
-        
-        old_name = old_name.split("- ")
-        old_name = old_name[-1]
-        
-        if self.rename_window_visible:
-            self.preferences.set_names (old_name, tag)
-            pass
+        tag      = self.main.p_session.psystem[e_id].e_tag
+
+        # [EN] BUG FIX: this used to derive old_name by parsing the
+        # DISPLAYED treeview text ("<e_id> - <name>").split("- ")[-1],
+        # which breaks if the real name itself contains "- ". Read it
+        # straight from the underlying data instead.
+        if v_id == -1:
+            old_name = self.main.p_session.psystem[e_id].label
         else:
-            
-            self.preferences = PreferencesWindow(main = self.main, 
-                                                 e_id = e_id     ,
-                                                 v_id = v_id     )
-            self.preferences.set_names (old_name, tag)
+            old_name = self.main.vm_session.vm_objects_dic[v_id].name
+
+        self.open_rename_window(e_id, v_id, old_name, tag)
         self._save_backup_file()
-        
-    def destroy (self, widget):
-        """ Function doc """
-        self.rename_window_visible = False
-    
+
     def _menu_delete_vm_object (self, widget):
         """ Function doc """
         self.main.delete_vm_object ( vm_object_index = self.vobject_index)
@@ -1263,6 +1330,11 @@ class TreeViewMenu:
 
     def _menu_delete_system (self, widget):
         """ Function doc """
+        system = self.main.p_session.psystem.get(self.system_e_id)
+        name = system.label if system is not None else str(self.system_e_id)
+        if not self.main.simple_dialog.question(
+                'Delete system "{}"? This cannot be undone.'.format(name)):
+            return
         self.main.delete_system (system_e_id = self.system_e_id )
         self._save_backup_file()
         #self.save_easyhybrid_session( filename = self.main.session_filename, tmp = True)

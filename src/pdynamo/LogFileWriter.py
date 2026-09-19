@@ -34,6 +34,7 @@ from pCore import *
 from datetime import datetime
 from timeit import default_timer as timer
 import os
+import re
 #*************************************************************
 from pprint import pprint
 HEADER = '''
@@ -697,8 +698,118 @@ class LogFileReader_old:
 #==================================================================
 
 
+# Matches an "ATOMn = idx  ATOM NAMEn = name" pair on a single line, in ANY
+# of the 3 shapes EasyHybrid's own scan/refinement backends write it in
+# (see detect_reaction_coordinates_from_log below for which):
+#   "ATOM1                  =           3841  ATOM NAME1             =             Fe"
+#   "ATOM2*                 =           3887  ATOM NAME2             =             O1"   (multiple_distance's middle atom)
+#   "ATOM                   =           3841  ATOM NAME              =             Fe"   (advanced/weighted-list, unnumbered)
+_ATOM_LINE_RE = re.compile(r'ATOM\d*\*?\s*=\s*(\S+)\s+ATOM NAME\d*\s*=\s*(\S+)')
+
+# Matches the per-pair weight line the advanced/weighted-list format writes
+# right after each pair's two ATOM lines -- "Sigma" (surface_scan.py's
+# AdvancedRelaxedSurfaceScan) or "WEIGHT" (energy.py's EnergyRefinement).
+# Deliberately does NOT match RelaxedSurfaceScan's own informational
+# "Sigma atom1 - atom3    =...Sigma atom3 - atom1    =..." line (that text
+# sits between "Sigma" and "=", so \s*= alone doesn't match it) -- that line
+# only ever appears for the FIXED-SHAPE 'multiple_distance' RC, which must
+# NOT be misdetected as advanced.
+_WEIGHT_LINE_RE = re.compile(r'(?:Sigma|WEIGHT)\s*=\s*(\S+)')
 
 
+def detect_reaction_coordinates_from_log(log_path):
+    """ Scans an EasyHybrid-written 'output.log' (from a Relaxed Surface
+    Scan, Advanced Relaxed Surface Scan, or Energy Refinement run -- see
+    p_methods/surface_scan.py and p_methods/energy.py) for the reaction
+    coordinate(s) it used, so a window that consumes an EXISTING
+    trajectory (e.g. Umbrella Sampling's "From Trajectory" input mode)
+    can auto-fill its own RC boxes instead of making the user retype the
+    same atoms that produced that trajectory in the first place.
+
+    Returns {'RC1': dict_or_None, 'RC2': dict_or_None}, or None if the
+    file doesn't exist / isn't a recognizable EasyHybrid scan log.
+
+    Each RC dict is either:
+        - fixed-shape: {'rc_type': 'simple_distance'|'multiple_distance'|
+                        'multiple_distance*4atoms',
+                        'ATOMS': [int, ...], 'ATOM_NAMES': [str, ...]}
+          -- directly usable with ReactionCoordinateBox.set_rc_data().
+        - advanced:    {'rc_type': 'advanced',
+                        'RC': [[name1, idx1, name2, idx2, weight, '0.0'], ...]}
+          -- same row shape AdvancedReactionCoordinateBox's own treeview
+          uses. '0.0' is a placeholder for the display-only "dist" column:
+          it is never read back by compute_reaction_coordinate() or
+          RestraintMultipleDistance, both of which always recompute the
+          live distance from the current coordinates, not this stored
+          value.
+    """
+    if not os.path.isfile(log_path):
+        return None
+
+    try:
+        with open(log_path, 'r', errors='replace') as f:
+            text = f.read()
+    except Exception:
+        return None
+
+    if 'Coordinate 1' not in text:
+        return None
+
+    def _parse_section(section_text):
+        atom_pairs = _ATOM_LINE_RE.findall(section_text)    # [(idx, name), ...]
+        weights    = _WEIGHT_LINE_RE.findall(section_text)  # [weight, ...]
+
+        if not atom_pairs:
+            return None
+
+        if weights:
+            # Advanced (weighted distance list): each weight consumes the
+            # next 2 atoms in order.
+            rows = []
+            for k, w in enumerate(weights):
+                if 2 * k + 1 >= len(atom_pairs):
+                    break
+                idx1, name1 = atom_pairs[2 * k]
+                idx2, name2 = atom_pairs[2 * k + 1]
+                rows.append([name1, idx1, name2, idx2, w, '0.0'])
+            if not rows:
+                return None
+            return {'rc_type': 'advanced', 'RC': rows}
+
+        # Fixed-shape: 2/3/4 atoms -> simple_distance/multiple_distance/
+        # multiple_distance*4atoms (matches how the writers themselves
+        # decide which shape to use -- see surface_scan.py/energy.py).
+        n = len(atom_pairs)
+        if n == 2:
+            rc_type = 'simple_distance'
+        elif n == 3:
+            rc_type = 'multiple_distance'
+        elif n >= 4:
+            rc_type = 'multiple_distance*4atoms'
+            atom_pairs = atom_pairs[:4]
+        else:
+            return None
+
+        atoms      = [int(idx) for idx, _name in atom_pairs]
+        atom_names = [name for _idx, name in atom_pairs]
+        return {'rc_type': rc_type, 'ATOMS': atoms, 'ATOM_NAMES': atom_names}
+
+    idx_c1 = text.index('Coordinate 1')
+    if 'Coordinate 2' in text:
+        idx_c2 = text.index('Coordinate 2')
+        rc1_section = text[idx_c1:idx_c2]
+        rc2_section = text[idx_c2:]
+    else:
+        rc1_section = text[idx_c1:]
+        rc2_section = None
+
+    rc1 = _parse_section(rc1_section)
+    rc2 = _parse_section(rc2_section) if rc2_section else None
+
+    if rc1 is None and rc2 is None:
+        return None
+
+    return {'RC1': rc1, 'RC2': rc2}
 
 
 

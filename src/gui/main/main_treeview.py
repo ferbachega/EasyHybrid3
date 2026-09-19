@@ -367,8 +367,8 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         column_text.set_resizable(True)
         column_text.set_spacing(10)
 
-        self.append_column(column_text)        
-        
+        self.append_column(column_text)
+
         # column
         renderer_toggle = Gtk.CellRendererToggle()
         renderer_toggle.connect("toggled", self.on_cell_visible_toggled)

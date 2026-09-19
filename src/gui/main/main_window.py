@@ -84,9 +84,8 @@ from gui.windows.simulation.geometry_optimization_window import GeometryOptimiza
 from gui.windows.simulation.transition_state_search_window import TransitionStateSearchWindow
 from gui.windows.simulation.reaction_path_window import ReactionPathWindow
 from gui.windows.simulation.conjugate_peak_refinement_window import ConjugatePeakRefinementWindow
-from gui.windows.simulation.PES_scan_window              import PotentialEnergyScanWindow 
-from gui.windows.simulation.PES_advanced_scan_window     import AdvancedPotentialEnergyScanWindow 
-from gui.windows.simulation.molecular_dynamics_window    import MolecularDynamicsWindow 
+from gui.windows.simulation.PES_scan_window              import PotentialEnergyScanWindow
+from gui.windows.simulation.molecular_dynamics_window    import MolecularDynamicsWindow
 from gui.windows.simulation.umbrella_sampling_window     import UmbrellaSamplingWindow 
 from gui.windows.simulation.chain_of_states_opt_window   import ChainOfStatesOptWindow 
 from gui.windows.simulation.normal_modes_window          import NormalModesWindow 
@@ -129,7 +128,6 @@ from pCore                     import Align                                     
 from gui.main.main_treeview import EasyHybridMainTreeView
 from gui.main.treeview_menu import TreeViewMenu
 from gui.main.bottom_notebook import BottomNoteBook
-from gui.main.preferences_window import PreferencesWindow
 
 class MainWindow:
     """
@@ -433,11 +431,13 @@ class MainWindow:
         self.cpr_window = ConjugatePeakRefinementWindow ( main = self )
         self.window_list.append(self.cpr_window)
         
+        # "Advanced Reaction Coordinate Scans" used to be a separate window
+        # (AdvancedPotentialEnergyScanWindow) -- merged into PES_scan_window
+        # itself via its checkbtn_advanced_mode toggle. See
+        # menuitem_advanced_rc_scans below and PotentialEnergyScanWindow.
+        # open_window(advanced=...).
         self.PES_scan_window              = PotentialEnergyScanWindow    ( main=  self)
         self.window_list.append(self.PES_scan_window)
-        
-        self.PES_advanced_scan_window              = AdvancedPotentialEnergyScanWindow ( main=  self)
-        self.window_list.append(self.PES_advanced_scan_window)
 
         self.selection_list_window        = SelectionListWindow          ( main = self, system_liststore =  self.system_liststore)
         self.window_list.append(self.selection_list_window)
@@ -1091,13 +1091,22 @@ class MainWindow:
             window = InfoWindow(system)
         
         elif menuitem == self.builder.get_object('menuitem_rename'):
-            e_id = self.p_session.active_id
-            v_id = -1
-            self.preferences = PreferencesWindow(main = self , 
-                                         e_id = e_id     ,
-                                         v_id = v_id     )
-        
-        
+            e_id   = self.p_session.active_id
+            system = self.p_session.psystem[e_id]
+            # [EN] BUG FIX: this used to construct its own PreferencesWindow
+            # directly (never calling .set_names(), so it opened showing the
+            # glade's placeholder text instead of the system's actual current
+            # name/tag) and stashed it in its own untracked self.preferences,
+            # completely independent of treeview_menu's rename_window_visible
+            # guard -- so a row-menu rename and a menu-bar rename could each
+            # open their own window at the same time. Routing both through
+            # the same open_rename_window() fixes both issues at once.
+            self.main_treeview.treeview_menu.open_rename_window(
+                e_id, -1, system.label, system.e_tag)
+
+        elif menuitem == self.builder.get_object('menuitem_change_working_folder'):
+            self.main_treeview.treeview_menu.change_working_folder_for_active_system()
+
         elif menuitem == self.builder.get_object('menuitem_qc_setup'):
             # [EN] Same bug/fix as 'toolbutton_setup_QCModel' above --
             # see that comment for the full traceback/reasoning.
@@ -1339,10 +1348,10 @@ class MainWindow:
             
         elif menuitem == self.builder.get_object('menuitem_rection_coordinate_scans'):
             self.PES_scan_window.open_window()
-        
+
         elif menuitem == self.builder.get_object('menuitem_advanced_rc_scans'):
-            self.PES_advanced_scan_window.open_window()
-            
+            self.PES_scan_window.open_window(advanced=True)
+
         elif menuitem == self.builder.get_object('menuitem_nudged_elastic_band'):
             self.chain_of_states_opt_window.open_window()
             
@@ -1782,41 +1791,63 @@ class MainWindow:
         self.p_session.psystem[e_id].e_tag = tag
 
     def rename (self, e_id = None, v_id = -1, name = None):
-        #print(name, v_id,  e_id)
-        #print(name)
+        """ Renames a system's own label (v_id == -1) or one of its
+        vismol objects (v_id != -1). Returns True on success, False if
+        the new name was rejected (name already taken by something else
+        -- an error dialog is shown before returning in that case, so
+        callers like PreferencesWindow.on_button_apply can just check the
+        return value instead of assuming this always works). """
         if v_id == -1: #.change the header
-            _iter = self.system_treeview_iters[e_id] 
+            # [EN] BUG FIX: systems had NO uniqueness check at all
+            # (unlike vobjects just below), so two systems could silently
+            # end up with the exact same displayed name/label.
+            for other_e_id, other_system in self.p_session.psystem.items():
+                if other_e_id != e_id and other_system is not None and other_system.label == name:
+                    self.simple_dialog.error(msg='A system named "{}" already exists.'.format(name))
+                    return False
+
+            _iter = self.system_treeview_iters[e_id]
             #_iter = self.p_session.psystem[e_id].e_treeview_iter
             self.main_treeview.treestore[_iter][2] = str(e_id)+' - '+ name
             self.p_session.psystem[e_id].label  = name
-            
+
             liststore_iter = self.system_liststore_iters[e_id]
             #liststore_iter = self.p_session.psystem[e_id].e_liststore_iter
             self.system_liststore[liststore_iter][0] = str(e_id)+' - '+ name
-  
+            return True
+
         else:
-            #print(self.vm_session.vobject_names.values())
+            vm_object = self.vm_session.vm_objects_dic[v_id]
+
+            # [EN] BUG FIX: this used to reject ANY name already present
+            # in vobject_names -- including the object's OWN current
+            # name, which is always already a key there. So clicking
+            # Apply without actually changing the name (or re-confirming
+            # the same name after editing something else) silently
+            # "failed" (dprint only, no dialog) while the caller closed
+            # the window anyway, looking like a successful no-op rename.
+            if name == vm_object.name:
+                return True
+
             if name in self.vm_session.vobject_names.keys():
-                dprint('Invalid name.')
+                self.simple_dialog.error(msg='An object named "{}" already exists.'.format(name))
                 return False
 
-            else:
-                _iter = self.vm_session.vm_objects_dic[v_id].e_treeview_iter
-                self.main_treeview.treestore[_iter][2] = name
-                
-                old_name = self.vm_session.vm_objects_dic[v_id].name          
-                self.vm_session.vobject_names.pop(old_name)
-                
+            _iter = vm_object.e_treeview_iter
+            self.main_treeview.treestore[_iter][2] = name
 
-                self.vm_session.vm_objects_dic[v_id].name = name
-                
-                self.vm_session.vobject_names[name] = self.vm_session.vm_objects_dic[v_id]
-                #print('aqui')
-                try:
-                    self.vobject_liststore_dict[e_id][self.vm_session.vm_objects_dic[v_id].liststore_iter][0] = name
-                except:
-                    #means that it is surface 
-                    pass
+            old_name = vm_object.name
+            self.vm_session.vobject_names.pop(old_name)
+
+            vm_object.name = name
+
+            self.vm_session.vobject_names[name] = vm_object
+            try:
+                self.vobject_liststore_dict[e_id][vm_object.liststore_iter][0] = name
+            except:
+                #means that it is surface
+                pass
+            return True
     
     def delete_system (self, system_e_id = None ):
         """Remove a system and its associated vobjects from the session.

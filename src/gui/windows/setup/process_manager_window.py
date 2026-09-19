@@ -882,7 +882,14 @@ class ProcessManagerWindow(Gtk.Window):
                 self.main.PES_scan_window.close_window(None, None)
             self.main.PES_scan_window.open_window()
             self.main.PES_scan_window.restore_the_parameters_to_the_window (parameters)
-            
+
+        if parameters['simulation_type'] == 'Advanced_Relaxed_Surface_Scan':
+            if self.main.PES_scan_window.Visible:
+                self.main.PES_scan_window.close_window(None, None)
+            self.main.PES_scan_window.open_window(advanced=True)
+            self.main.PES_scan_window.restore_the_parameters_to_the_window (parameters)
+
+
         if parameters['simulation_type'] == 'Umbrella_Sampling':
             if self.main.umbrella_sampling_window.Visible:
                 self.main.umbrella_sampling_window.close_window(None, None)

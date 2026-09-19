@@ -53,13 +53,23 @@ import numpy as np
 class FolderChooserButton:
     """ Class doc """
     
-    def __init__ (self, main = None, sel_type = 'folder', home  = None, parent = None):
-        """ Class initialiser """
+    def __init__ (self, main = None, sel_type = 'folder', home  = None, parent = None, on_folder_selected = None):
+        """ Class initialiser
+
+        on_folder_selected -- optional callable(folder_path), invoked only
+        when the user actually PICKS a folder through the dialog below (not
+        on the initial/default set_folder() call, and not on any later
+        programmatic set_folder() call e.g. from restore_the_parameters_to_the_window).
+        Used by windows that want to react to the user's own choice, e.g.
+        auto-detecting a reaction coordinate from an existing trajectory
+        folder's output.log (see UmbrellaSamplingWindow.on_trajectory_folder_selected).
+        """
         self.main     =  main
         self.btn      =  Gtk.Button()
         self.sel_type =  sel_type # file/folder
-        
-        
+        self.on_folder_selected = on_folder_selected
+
+
         if parent:
             self.parent = parent
         else:
@@ -157,8 +167,10 @@ class FolderChooserButton:
             
             self.set_folder(folder =folder)
             #print(os.path.dirname( dialog.get_filename() ))
+            if self.on_folder_selected:
+                self.on_folder_selected(folder)
 
-        
+
         elif response == Gtk.ResponseType.CANCEL:
             dprint("Cancel clicked")
 
