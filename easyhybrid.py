@@ -418,12 +418,12 @@ def main():
         #main_window.builder.get_object('menuitem_RMSD_tool')   .hide()
         
         
-        #main_window.builder.get_object('menuitem_rama')   .hide()
-        #main_window.builder.get_object('menuitem_transition_state_search').hide() # Baker method
-        #main_window.builder.get_object('menuitem_reaction_path')   .hide() # IRC / Reaction Path...
-        #main_window.builder.get_object('menuitem_cpr')   .hide() # Conjugate Peak Refinement...
-        #main_window.builder.get_object('menuitem_extras') .hide() # IR spectrum
-        #main_window.builder.get_object('menuitem_rdf_analysis')   .hide() # RDF Analysis (g(r))
+        main_window.builder.get_object('menuitem_rama')   .hide()
+        main_window.builder.get_object('menuitem_transition_state_search').hide() # Baker method
+        main_window.builder.get_object('menuitem_reaction_path')   .hide() # IRC / Reaction Path...
+        main_window.builder.get_object('menuitem_cpr')   .hide() # Conjugate Peak Refinement...
+        main_window.builder.get_object('menuitem_extras') .hide() # IR spectrum
+        main_window.builder.get_object('menuitem_rdf_analysis')   .hide() # RDF Analysis (g(r))
         
         main_window.builder.get_object('menuitem_advanced_rc_scans')   .hide() # RDF Analysis (g(r))
         
