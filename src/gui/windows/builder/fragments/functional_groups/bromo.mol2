@@ -1,0 +1,8 @@
+@<TRIPOS>MOLECULE
+bromo
+1 0
+SMALL
+NO_CHARGES
+
+@<TRIPOS>ATOM
+      1 Br1         0.0000    0.0000    0.0000 Br        1 FRAG1       0.0000

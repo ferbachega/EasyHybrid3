@@ -274,9 +274,10 @@ class TreeViewMenu:
                                 '_separator'              : ''                              ,
                                 'Merge With...'           : self._menu_merge_system         ,
                                 'Clone System'            : self._menu_clone_system         ,
-                                
+                                'Edit in Builder'         : self._menu_edit_in_builder      ,
+
                                 '_separator'              : ''                              ,
-                                
+
                                 'Delete'                  : self._menu_delete_system        ,
                                 #'test'  : self.f1 ,
                                 #'f1'    : self.f1 ,
@@ -700,13 +701,24 @@ class TreeViewMenu:
         self.main.p_session.set_psystem_coordinates_from_vobject(vobject   = vobject,
                                                                            system_id =  e_id  )
         #print(e_id)
-        self.main.p_session.clone_system( e_id    = e_id, 
-                                          vobject = vobject, 
-                                          name    = name, 
-                                          tag     = tag, 
+        self.main.p_session.clone_system( e_id    = e_id,
+                                          vobject = vobject,
+                                          name    = name,
+                                          tag     = tag,
                                           color   = color)
         self._save_backup_file()
-    
+
+    def _menu_edit_in_builder (self, widget):
+        """ Row-menu entry point (right-click on a system's row, "Edit in
+        Builder..." -- see system_menu_items above): opens the molecule
+        Builder on a temporary clone of the right-clicked system (self.
+        system_e_id, set by open_menu() right before this menu is popped
+        up) -- see empty_object.begin_editing_existing_system() for the
+        full clone/bootstrap/fold-back-or-keep-as-new-system design. """
+        from gui.windows.builder.empty_object import begin_editing_existing_system
+        begin_editing_existing_system ( self.main.vm_session, self.system_e_id )
+        self._save_backup_file()
+
     def _menu_go_to_atom (self, vobject = None):
         """ Function doc """
         ##print('f2')

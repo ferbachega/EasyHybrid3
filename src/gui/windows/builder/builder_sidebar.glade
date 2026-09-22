@@ -5,6 +5,17 @@
 <interface>
   <requires lib="gtk+" version="3.20"/>
 
+  <!-- Absolute dihedral angle, degrees, used by the "Rotate Dihedral"
+       tool's slider below. draw-value shows the current number directly
+       on the slider, so no separate value label is needed. -->
+  <object class="GtkAdjustment" id="dihedral_angle_adjustment">
+    <property name="lower">-180</property>
+    <property name="upper">180</property>
+    <property name="value">0</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+
   <object class="GtkWindow" id="window">
     <property name="can-focus">False</property>
     <property name="title" translatable="yes">Builder</property>
@@ -105,6 +116,50 @@
                 <signal name="toggled" handler="on_tool_changed" swapped="no"/>
               </object>
             </child>
+            <child>
+              <object class="GtkRadioButton" id="tool_bond_order_radio">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label" translatable="yes">Bond Order</property>
+                <property name="tooltip-text" translatable="yes">Click 2 atoms in sequence to set the order of the EXISTING bond between them to the current Bond order selection below.</property>
+                <property name="draw-indicator">False</property>
+                <property name="group">tool_add_radio</property>
+                <signal name="toggled" handler="on_tool_changed" swapped="no"/>
+              </object>
+            </child>
+            <child>
+              <object class="GtkRadioButton" id="tool_attach_fragment_radio">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label" translatable="yes">Fragment</property>
+                <property name="tooltip-text" translatable="yes">Click a hydrogen atom to replace it with whichever fragment is currently selected in the Fragment Library window.</property>
+                <property name="draw-indicator">False</property>
+                <property name="group">tool_add_radio</property>
+                <signal name="toggled" handler="on_tool_changed" swapped="no"/>
+              </object>
+            </child>
+            <child>
+              <object class="GtkRadioButton" id="tool_add_structure_radio">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label" translatable="yes">Structure</property>
+                <property name="tooltip-text" translatable="yes">Click anywhere to place whichever complete structure is currently selected in the Structure Library window.</property>
+                <property name="draw-indicator">False</property>
+                <property name="group">tool_add_radio</property>
+                <signal name="toggled" handler="on_tool_changed" swapped="no"/>
+              </object>
+            </child>
+            <child>
+              <object class="GtkRadioButton" id="tool_rotate_dihedral_radio">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label" translatable="yes">Dihedral</property>
+                <property name="tooltip-text" translatable="yes">Click 4 atoms in sequence (defining a dihedral) to arm the Dihedral angle slider below.</property>
+                <property name="draw-indicator">False</property>
+                <property name="group">tool_add_radio</property>
+                <signal name="toggled" handler="on_tool_changed" swapped="no"/>
+              </object>
+            </child>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -185,6 +240,17 @@
                 <signal name="toggled" handler="on_element_changed" swapped="no"/>
               </object>
             </child>
+            <child>
+              <object class="GtkRadioButton" id="element_other_radio">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label" translatable="yes">Other...</property>
+                <property name="tooltip-text" translatable="yes">Pick any element from the full periodic table (UFF-derived per-element data, same source pDynamo3's own DYFF force field uses).</property>
+                <property name="draw-indicator">False</property>
+                <property name="group">element_C_radio</property>
+                <signal name="toggled" handler="on_element_changed" swapped="no"/>
+              </object>
+            </child>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -203,6 +269,189 @@
           </packing>
         </child>
 
+        <!-- Bond order selector - same "radio buttons styled as flat
+             toggle buttons" technique, own separate group. Applies to
+             bonds CREATED from now on (drag-to-bond, 'b' key), AND to an
+             EXISTING bond via Ctrl+click on it (click_mode.
+             apply_selected_bond_order()) or via the "Set Bond Order"
+             button below (pk1/pk2 picking, click_mode.
+             handle_set_bond_order_picking()). Aromatic sets a separate
+             isAromatic flag alongside a plain single-order bond (see
+             atom_ops.add_bond()'s own docstring). -->
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="halign">start</property>
+            <property name="label" translatable="yes">Bond order</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox" id="bond_order_box">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="homogeneous">True</property>
+            <property name="spacing">4</property>
+            <child>
+              <object class="GtkRadioButton" id="bond_order_single_radio">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label" translatable="yes">Single</property>
+                <property name="draw-indicator">False</property>
+                <property name="active">True</property>
+                <signal name="toggled" handler="on_bond_order_changed" swapped="no"/>
+              </object>
+            </child>
+            <child>
+              <object class="GtkRadioButton" id="bond_order_double_radio">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label" translatable="yes">Double</property>
+                <property name="draw-indicator">False</property>
+                <property name="group">bond_order_single_radio</property>
+                <signal name="toggled" handler="on_bond_order_changed" swapped="no"/>
+              </object>
+            </child>
+            <child>
+              <object class="GtkRadioButton" id="bond_order_triple_radio">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label" translatable="yes">Triple</property>
+                <property name="draw-indicator">False</property>
+                <property name="group">bond_order_single_radio</property>
+                <signal name="toggled" handler="on_bond_order_changed" swapped="no"/>
+              </object>
+            </child>
+            <child>
+              <object class="GtkRadioButton" id="bond_order_aromatic_radio">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label" translatable="yes">Aromatic</property>
+                <property name="draw-indicator">False</property>
+                <property name="group">bond_order_single_radio</property>
+                <signal name="toggled" handler="on_bond_order_changed" swapped="no"/>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+
+        <!-- Applies the Bond order selection above to the EXISTING bond
+             between the 2 atoms currently picked (pk1/pk2, the same
+             measurement picking tool used for distances/angles/
+             dihedrals): an alternative to Ctrl+clicking the bond's
+             line directly in the 3D view, for someone who already has
+             pk1/pk2 selected. See click_mode.handle_set_bond_order_
+             picking() for the full behaviour (requires a bond to already
+             exist between pk1/pk2, and updates both atoms' hydrogens
+             afterwards). -->
+        <child>
+          <object class="GtkButton" id="set_bond_order_picking_button">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="label" translatable="yes">Set Bond Order (pk1/pk2)</property>
+            <property name="tooltip-text" translatable="yes">Applies the Bond order selection above to the existing bond between the 2 currently-picked atoms (pk1/pk2).</property>
+            <signal name="clicked" handler="on_set_bond_order_picking_button_clicked" swapped="no"/>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+
+        <child>
+          <object class="GtkSeparator">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+
+        <!-- Fragment Library -->
+        <child>
+          <object class="GtkButton" id="fragments_button">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="label" translatable="yes">Fragments...</property>
+            <signal name="clicked" handler="on_fragments_button_clicked" swapped="no"/>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+
+        <!-- Structure Library -- ready-made COMPLETE molecules, placed
+             onto empty space (no H reference needed, unlike Fragments) -->
+        <child>
+          <object class="GtkButton" id="structures_button">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="label" translatable="yes">Structures...</property>
+            <signal name="clicked" handler="on_structures_button_clicked" swapped="no"/>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+
+        <child>
+          <object class="GtkSeparator">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+
+        <!-- Dihedral angle, armed by the "Dihedral" tool above (click 4
+             atoms in sequence); drags the picked dihedral to the shown
+             value in degrees. Disabled until a dihedral is actually
+             armed (see builder_sidebar.py's arm_dihedral_slider()/
+             disarm_dihedral_slider()). -->
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="halign">start</property>
+            <property name="label" translatable="yes">Dihedral angle</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkScale" id="dihedral_angle_scale">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="sensitive">False</property>
+            <property name="adjustment">dihedral_angle_adjustment</property>
+            <property name="digits">0</property>
+            <property name="draw-value">True</property>
+            <property name="value-pos">right</property>
+            <signal name="value-changed" handler="on_dihedral_slider_value_changed" swapped="no"/>
+            <signal name="button-release-event" handler="on_dihedral_slider_released" swapped="no"/>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+
         <!-- Clean up structure -->
         <child>
           <object class="GtkButton" id="clean_up_button">
@@ -210,6 +459,68 @@
             <property name="can-focus">True</property>
             <property name="label" translatable="yes">Clean Up</property>
             <signal name="clicked" handler="on_clean_up_button_clicked" swapped="no"/>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkCheckButton" id="clean_up_adjust_hydrogens_checkbutton">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="label" translatable="yes">Adjust hydrogen count</property>
+            <property name="tooltip-text" translatable="yes">When on (default), Clean Up recomputes every heavy atom's hydrogens, adding/removing them to match standard valence. Turn off to only relax positions/angles and leave the current hydrogens exactly as they are.</property>
+            <property name="active">True</property>
+            <property name="draw-indicator">True</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+
+        <!-- Optimize geometry with a REAL force field (DYFF), unlike
+             Clean Up above which is only a geometric heuristic -->
+        <child>
+          <object class="GtkButton" id="optimize_dyff_button">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="label" translatable="yes">Optimize (DYFF)</property>
+            <property name="tooltip-text" translatable="yes">Runs a real DYFF force-field minimisation (up to 100 steps) on a disposable scratch system built from the current structure, then copies the optimised coordinates back and discards the scratch system.</property>
+            <signal name="clicked" handler="on_optimize_dyff_button_clicked" swapped="no"/>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+
+        <!-- Atom Types (user's own request: inspect/correct the DYFF
+             type perceived for the current viewing selection) -->
+        <child>
+          <object class="GtkButton" id="atom_types_button">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="label" translatable="yes">Atom Types...</property>
+            <property name="tooltip-text" translatable="yes">Shows the DYFF atom type perceived for the currently VIEW-selected atoms (shift+click / shift+drag), and lets you correct it by hand.</property>
+            <signal name="clicked" handler="on_atom_types_button_clicked" swapped="no"/>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+
+        <!-- Transform Selection (user's own request: translate/rotate the
+             current viewing selection with live X/Y/Z sliders) -->
+        <child>
+          <object class="GtkButton" id="transform_selection_button">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="label" translatable="yes">Transform Selection...</property>
+            <property name="tooltip-text" translatable="yes">Translate/rotate the currently VIEW-selected atoms (shift+click / shift+drag) with live X/Y/Z sliders, rotating around the selection's own centroid.</property>
+            <signal name="clicked" handler="on_transform_selection_button_clicked" swapped="no"/>
           </object>
           <packing>
             <property name="expand">False</property>

@@ -1,0 +1,98 @@
+@<TRIPOS>MOLECULE
+MOL2  : Made in Gabedit. mol2 file
+         43         44          1
+ SMALL
+ NO_CHARGES
+ ****
+ ****
+@<TRIPOS>ATOM
+      1 C           4.3813    2.8119    1.0494 CT      1  VALACYCLOVIR    0.0000
+      2 C           3.7983    1.7099    0.1634 CT      1  VALACYCLOVIR    0.0000
+      3 C           4.4973    1.7249   -1.1976 CT      1  VALACYCLOVIR    0.0000
+      4 C           4.0133    0.3509    0.8324 CT      1  VALACYCLOVIR    0.0000
+      5 C           3.4393   -0.7361   -0.0406 C       1  VALACYCLOVIR    0.0000
+      6 O           4.1293   -1.2651   -0.8786 O2      1  VALACYCLOVIR    0.0000
+      7 O           2.1603   -1.1151    0.1134 O2      1  VALACYCLOVIR    0.0000
+      8 C           1.6073   -2.1611   -0.7276 CT      1  VALACYCLOVIR    0.0000
+      9 C           0.1443   -2.3991   -0.3496 CT      1  VALACYCLOVIR    0.0000
+     10 O          -0.5987   -1.1931   -0.5396 OS      1  VALACYCLOVIR    0.0000
+     11 C          -1.9497   -1.4771   -0.1716 CT      1  VALACYCLOVIR    0.0000
+     12 N          -2.7667   -0.2741   -0.3446 N*      1  VALACYCLOVIR    0.0000
+     13 C          -2.3307    0.9399   -0.7866 CK      1  VALACYCLOVIR    0.0000
+     14 N          -3.3277    1.7769   -0.8166 NB      1  VALACYCLOVIR    0.0000
+     15 C          -4.4497    1.1469   -0.3976 CB      1  VALACYCLOVIR    0.0000
+     16 C          -4.1017   -0.1651   -0.0996 CB      1  VALACYCLOVIR    0.0000
+     17 N          -5.0727   -1.0221    0.3514 NA      1  VALACYCLOVIR    0.0000
+     18 C          -6.3537   -0.5951    0.5034 CA      1  VALACYCLOVIR    0.0000
+     19 N          -6.7247    0.6379    0.2334 NC      1  VALACYCLOVIR    0.0000
+     20 C          -5.8477    1.5489   -0.2176 C       1  VALACYCLOVIR    0.0000
+     21 O          -6.2057    2.6899   -0.4646 O       1  VALACYCLOVIR    0.0000
+     22 N          -7.2937   -1.4821    0.9554 N2      1  VALACYCLOVIR    0.0000
+     23 N           5.4523    0.1189    1.0184 N       1  VALACYCLOVIR    0.0000
+     24 H           4.2273    3.7799    0.5724 HC      1  VALACYCLOVIR    0.0000
+     25 H           3.8823    2.8009    2.0184 HC      1  VALACYCLOVIR    0.0000
+     26 H           5.4483    2.6409    1.1874 HC      1  VALACYCLOVIR    0.0000
+     27 H           2.7303    1.8809    0.0244 HC      1  VALACYCLOVIR    0.0000
+     28 H           5.5653    1.5529   -1.0586 HC      1  VALACYCLOVIR    0.0000
+     29 H           4.0823    0.9389   -1.8286 HC      1  VALACYCLOVIR    0.0000
+     30 H           4.3443    2.6929   -1.6736 HC      1  VALACYCLOVIR    0.0000
+     31 H           3.5153    0.3399    1.8014 H1      1  VALACYCLOVIR    0.0000
+     32 H           1.6683   -1.8581   -1.7726 H1      1  VALACYCLOVIR    0.0000
+     33 H           2.1743   -3.0811   -0.5826 H1      1  VALACYCLOVIR    0.0000
+     34 H          -0.2717   -3.1841   -0.9806 H1      1  VALACYCLOVIR    0.0000
+     35 H           0.0833   -2.7021    0.6954 H1      1  VALACYCLOVIR    0.0000
+     36 H          -2.3387   -2.2751   -0.8046 H4      1  VALACYCLOVIR    0.0000
+     37 H          -1.9837   -1.7931    0.8714 H4      1  VALACYCLOVIR    0.0000
+     38 H          -1.3147    1.1719   -1.0686 H5      1  VALACYCLOVIR    0.0000
+     39 H          -4.8437   -1.9411    0.5624 H       1  VALACYCLOVIR    0.0000
+     40 H          -8.2137   -1.1961    1.0714 H       1  VALACYCLOVIR    0.0000
+     41 H          -7.0397   -2.3951    1.1604 H       1  VALACYCLOVIR    0.0000
+     42 H           5.8703    0.1379    0.1004 H       1  VALACYCLOVIR    0.0000
+     43 H           5.8123    0.9189    1.5174 H       1  VALACYCLOVIR    0.0000
+@<TRIPOS>BOND
+     1     1     2    1
+     2     1    24    1
+     3     1    25    1
+     4     1    26    1
+     5     2     3    1
+     6     2     4    1
+     7     2    27    1
+     8     3    28    1
+     9     3    29    1
+    10     3    30    1
+    11     4     5    1
+    12     4    23    1
+    13     4    31    1
+    14     5     6    2
+    15     5     7    1
+    16     7     8    1
+    17     8     9    1
+    18     8    32    1
+    19     8    33    1
+    20     9    10    1
+    21     9    34    1
+    22     9    35    1
+    23    10    11    1
+    24    11    12    1
+    25    11    36    1
+    26    11    37    1
+    27    12    13    1
+    28    12    16    1
+    29    13    14    2
+    30    13    38    1
+    31    14    15    1
+    32    15    16    2
+    33    15    20    1
+    34    16    17    1
+    35    17    18    1
+    36    17    39    1
+    37    18    19    2
+    38    18    22    1
+    39    19    20    1
+    40    20    21    2
+    41    22    40    1
+    42    22    41    1
+    43    23    42    1
+    44    23    43    1
+@<TRIPOS>SUBSTRUCTURE
+    1 RES1       1

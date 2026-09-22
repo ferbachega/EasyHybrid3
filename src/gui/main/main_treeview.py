@@ -410,6 +410,26 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         """Callback triggered when a radio button in the TreeView is toggled."""
         selected_path = Gtk.TreePath(path)
 
+        # [EN] While the Builder is actively editing an object
+        # (vm_session.builder_atom_mode), block switching the app's
+        # "active system" away from the Builder's own target -- this
+        # toggle used to have no awareness of Builder mode at all, so
+        # clicking a different system's row mid-edit would silently
+        # change p_session.active_id out from under the Builder session,
+        # confusing any OTHER window that reads active_id while a
+        # molecule is still being drawn. Only the Builder's own row
+        # (once/if it has been promoted to a real system -- see
+        # empty_object.sync_pdynamo_system()) is still switchable to; if
+        # it hasn't been promoted yet (e_id is still None), no row
+        # matches, so every switch attempt is blocked -- correct, since
+        # there is no committed target yet to switch to.
+        if getattr(self.main.vm_session, "builder_atom_mode", False):
+            target_object = getattr(self.main.vm_session, "builder_target_object", None)
+            target_e_id = getattr(target_object, "e_id", None) if target_object is not None else None
+            clicked_e_id = self.treestore[selected_path][0]
+            if clicked_e_id != target_e_id:
+                return
+
         for row in self.treestore:
             # Store the system ID before switching to the new one
             active_id_before = self.main.p_session.active_id
@@ -551,6 +571,18 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         # Clear the TreeStore before repopulating
         self.treestore.clear()
 
+        # [EN] BUG FIX: add_new_system_to_treeview() below unconditionally
+        # appends to self.main.system_liststore (no per-e_id dedup check) --
+        # this method is called once per structural edit while the Builder
+        # is active (see empty_object.sync_pdynamo_system()), so without
+        # clearing it here first, the SAME system accumulated one stale
+        # duplicate row in system_liststore per edit, forever, for the rest
+        # of the session (the visible treestore was fine, since it WAS
+        # already cleared above -- only this second, flatter ListStore used
+        # by several other windows' comboboxes -- SelectionListWindow,
+        # GoToAtomWindow, RMSDAnalysisWindow, ... -- was never cleared).
+        self.main.system_liststore.clear()
+
         # Add all systems to the TreeView
         for e_id in self.main.p_session.psystem.keys():
             system = self.main.p_session.psystem[e_id]
@@ -560,3 +592,34 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         for v_obj_index in self.main.vm_session.vm_objects_dic.keys():
             vismol_object = self.main.vm_session.vm_objects_dic[v_obj_index]
             self.add_vismol_object_to_treeview(vismol_object)
+
+            # [EN] BUG FIX (found by live user testing -- "o objeto da
+            # edicao gerado nao aparece nas liststores de coordenadas"):
+            # add_new_system_to_treeview() above ALWAYS recreates
+            # self.main.vobject_liststore_dict[e_id] as a brand-new EMPTY
+            # ListStore (see that method's own "Create a ListStore for
+            # vismol objects of this system" line) -- but nothing in
+            # THIS loop was ever re-populating it, only the treestore.
+            # The normal registration path (session.py's
+            # _add_vismol_object_to_easyhybrid_session(), used by file
+            # loads/Clone System/Merge/Prune) adds a row via
+            # self.main.add_vobject_to_vobject_liststore_dict() once, at
+            # creation time -- but refresh() runs on EVERY structural
+            # Builder edit (empty_object.sync_pdynamo_system()) and wipes
+            # that row without ever restoring it, so ANY system ever
+            # touched by the Builder (blank-canvas or "Edit in Builder")
+            # permanently lost its row in every window that reads this
+            # dict for a "starting coordinates" combobox (Optimize
+            # Geometry, Single Point, Transition State Search, Molecular
+            # Dynamics, Conjugate Peak Refinement, ...) -- explaining why
+            # the user had to manually "Clone System" first (that path
+            # DOES call add_vobject_to_vobject_liststore_dict()) just to
+            # get a usable reference for a geometry optimization.
+            # Guarded the same way add_vismol_object_to_treeview() above
+            # already guards e_id is None (a Builder object not yet
+            # promoted to a real pDynamo system) -- add_vobject_to_
+            # vobject_liststore_dict() does an unconditional
+            # self.p_session.psystem[e_id] lookup with no such guard of
+            # its own, so calling it with e_id=None would raise.
+            if vismol_object.e_id is not None:
+                self.main.add_vobject_to_vobject_liststore_dict ( vismol_object )

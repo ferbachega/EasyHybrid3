@@ -109,6 +109,10 @@ from util.sequence_plot import GtkSequenceViewer
 from gui.windows.analysis.ramachandran_analysis_window import RamachandranAnalysisWindow
 
 from gui.windows.builder.builder_sidebar      import BuilderSidebarWindow
+from gui.windows.builder.fragment_library_window import FragmentLibraryWindow
+from gui.windows.builder.structure_library_window import StructureLibraryWindow
+from gui.windows.builder.atom_types_window import AtomTypesWindow
+from gui.windows.builder.transform_selection_window import TransformSelectionWindow
 
 
 from pdynamo.pDynamo2EasyHybrid import pDynamoSession
@@ -474,6 +478,10 @@ class MainWindow:
         self.trajectory_player_window  = TrajectoryPlayerWindow (main = self)
         self.terminal_window           = TerminalWindow  (main = self)
         self.builder_sidebar_window    = BuilderSidebarWindow (main = self)
+        self.fragment_library_window   = FragmentLibraryWindow (main = self)
+        self.structure_library_window  = StructureLibraryWindow (main = self)
+        self.atom_types_window         = AtomTypesWindow (main = self)
+        self.transform_selection_window = TransformSelectionWindow (main = self)
         
         self.molecular_dynamics_window  = MolecularDynamicsWindow(main = self)
         self.window_list.append(self.molecular_dynamics_window)
@@ -753,7 +761,15 @@ class MainWindow:
             # sidebar exists (gui/windows/builder/builder_sidebar.py),
             # this button opens it -- opening the sidebar IS entering
             # Builder editing mode, see that module's own design note.
-            self.builder_sidebar_window.open_window ( )
+            #
+            # [EN] DESIGN CHANGE (user's own explicit request): this
+            # generic toolbar trigger doesn't already know which molecule
+            # (if any) the user wants -- unlike the treeview's own
+            # per-row "Edit in Builder" menu item -- so it now asks New
+            # vs Edit Existing first (builder_entry_dialog.py) instead of
+            # always defaulting straight to a blank canvas.
+            from gui.windows.builder.builder_entry_dialog import choose_and_open_builder
+            choose_and_open_builder ( self )
             
         if button == self.builder.get_object('toolbutton_terminal'):
             if button.get_active ():
@@ -1224,9 +1240,17 @@ class MainWindow:
             #    self.simple_dialog.error(msg = msg )
         
         
-        elif menuitem == self.builder.get_object('menuitem_new_nb_model'): 
+        elif menuitem == self.builder.get_object('menuitem_new_nb_model'):
             self.p_session.define_NBModel()
             self.refresh_main_statusbar()
+
+        elif menuitem == self.builder.get_object('menuitem_force_field_dyff'):
+            ok, msg = self.p_session.define_MMModel ( force_field = 'DYFF' )
+            self.refresh_main_statusbar()
+            if ok:
+                self.bottom_notebook.status_teeview_add_new_item ( message = msg, system = self.p_session.psystem.get ( self.p_session.active_id ) )
+            else:
+                self.simple_dialog.error ( msg = msg )
             
             
             

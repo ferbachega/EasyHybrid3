@@ -1,0 +1,11 @@
+@<TRIPOS>MOLECULE
+hydroxyl
+2 1
+SMALL
+NO_CHARGES
+
+@<TRIPOS>ATOM
+      1 O1          0.0000    0.0000    0.0000 O.3       1 FRAG1       0.0000
+      2 H1         -0.7732    0.2398   -0.6432 H         1 FRAG1       0.0000
+@<TRIPOS>BOND
+     1     1     2    1
