@@ -1544,7 +1544,7 @@ class EasyHybridSession(VismolSession, GLMenu):
 
     def _selection_function_set(self, selected, _type=None, disable=True):
         """ Function doc """
-        
+
         #print('selected', selected)
         if self.picking_selection_mode: # True for picking mode
             if selected:
@@ -1554,7 +1554,26 @@ class EasyHybridSession(VismolSession, GLMenu):
             else:
                 self.picking_selections.selection_function_picking(None)
         else: # False for viewing mode
-            self.selections[self.current_selection].selection_function_viewing_set(selected, _type, disable)
+            # [EN] 2026-09-25, user's own explicit request: "enquanto o
+            # modo 'editing' estiver 'on', nao mostrar nenhuma selecao.
+            # Quando o builder estiver aberto e o modo editing estiver
+            # desligado, selecoes sao permitidas." -- builder_atom_mode
+            # is only ever True while the Builder sidebar is open AND
+            # its own "Editing: ON/OFF" toggle is on (builder_sidebar.py's
+            # open_window()/close_window()/on_placemode_toggled()), so a
+            # single check here already covers exactly the 2 cases the
+            # request describes. Skips calling selection_function_
+            # viewing_set() entirely -- shift+click/shift+drag genuinely
+            # can't CHANGE the viewing selection while actively editing,
+            # not just a rendering suppression (see vismol_glcore.py's
+            # render(), which separately hides whatever selection already
+            # existed from before Editing was turned back on -- this
+            # class's own EasyHybridSession._selection_function_set()
+            # override was the one actually reached at runtime, NOT
+            # vismol_session.VismolSession's own base-class copy, which
+            # was fixed first and turned out to be shadowed here).
+            if not getattr(self, "builder_atom_mode", False):
+                self.selections[self.current_selection].selection_function_viewing_set(selected, _type, disable)
         #this will refresh the sequence canvas
         self.main.bottom_notebook.seqview.text_drawing_area.queue_draw()
     

@@ -270,7 +270,20 @@ def _build_pdynamo_system_from_vismol_object ( vismol_object, label = None ):
     for atom_id in sorted ( vismol_object.atoms.keys ( ) ):
         atom = vismol_object.atoms[atom_id]
         atomic_number = PeriodicTable.AtomicNumber ( atom.symbol )
-        connectivity.AddNode ( Atom.WithOptions ( atomicNumber = atomic_number, label = atom.name ) )
+        # [EN] 2026-09-25: propagates the Builder's own formal_charge
+        # (atom_ops.protonate_atom()/deprotonate_atom()) into the real
+        # pDynamo Atom -- pMolecule.Atom already has a first-class
+        # `formalCharge` attribute (default 0, confirmed in pMolecule/
+        # Atom.py), read by DYFF's own ionic/charged pattern matching
+        # (see _apply_dyff_guanidinium_correction()'s own docstring for
+        # a worked example already in this codebase) and by anything
+        # that sums total system/QC-region charge. Previously ALWAYS 0
+        # here -- this was this project's own documented "no formal-
+        # charge UI" limitation (see project_dyff_force_field_assignment
+        # memory), now fixed.
+        formal_charge = int ( getattr ( atom, "formal_charge", 0 ) )
+        connectivity.AddNode ( Atom.WithOptions ( atomicNumber = atomic_number, label = atom.name,
+                                                   formalCharge = formal_charge ) )
 
     bond_type_by_order   = { 1: BondType.Single, 2: BondType.Double, 3: BondType.Triple }
     manual_bonds         = getattr ( vismol_object, "manual_bonds", None ) or set ( )
@@ -345,7 +358,39 @@ def sync_pdynamo_system ( vismol_object ):
 
         existing_e_id = getattr ( vismol_object, "e_id", None )
 
-        if existing_e_id is not None and existing_e_id in p_session.psystem:
+        # [EN] 2026-09-25 BUG FIX (user's own report: "quando eu deleto o
+        # sistema com o builder aberto, nao consigo mais criar um sistema
+        # novo" -- reproduced live): `existing_e_id in p_session.psystem`
+        # only checks the KEY exists, not that a real System actually
+        # occupies it -- but p_session.psystem[e_id] can legitimately be
+        # None (pDynamoSession's own startup convention, AND main_window.
+        # delete_system()'s own "no systems left" fallback -- see
+        # [[project_treeview_refresh_none_system_bug]]). If the Builder's
+        # OWN target object was still open and being edited when its
+        # underlying system got deleted out from under it (e_id stays
+        # set on the orphaned vismol_object), the NEXT edit's own sync
+        # would find `existing_e_id in psystem` True (the stale key is
+        # still there, just pointing at None) and take the SWAP branch
+        # below instead of this one -- _swap_rebuilt_system_into_psystem()
+        # only copies bookkeeping from an EXISTING system (a no-op when
+        # that slot is None), so the newly-built System ends up missing
+        # EVERY one-time 'e_'-prefixed attribute add_new_system_to_
+        # psession() normally sets up (e_color_palette, e_working_folder,
+        # e_selections, ...) -- the very next main_treeview.refresh()
+        # (called a few lines below, for EVERY system in psystem, not
+        # just this one) then crashes on THAT system's own missing
+        # e_color_palette while rendering its row, silently (caught by
+        # this function's own broad except) but PERMANENTLY, since the
+        # broken system is never removed from psystem and every FUTURE
+        # refresh() (for ANY reason, not just this object) hits the same
+        # crash before it can render anything -- an empty treeview
+        # forever after, even though brand-new systems keep registering
+        # correctly in psystem itself. Checking the VALUE (not just the
+        # key) correctly falls through to the full add_new_system_to_
+        # psession() registration instead, which sets up every required
+        # attribute from scratch, exactly as if this were a genuinely
+        # new system (which, functionally, it now is).
+        if existing_e_id is not None and p_session.psystem.get ( existing_e_id ) is not None:
             _swap_rebuilt_system_into_psystem ( p_session, existing_e_id, new_system )
         else:
             p_session.add_new_system_to_psession ( system = new_system, name = vismol_object.name )
@@ -378,11 +423,88 @@ def _swap_rebuilt_system_into_psystem ( p_session, e_id, new_system ):
     p_session.psystem[e_id] = new_system
 
 
-def begin_editing_existing_system ( vm_session, e_id ):
+def hide_other_vobjects_for_builder ( vm_session, keep_vobject ):
+    """ [EN] 2026-09-25, user's own explicit request: "quando um novo
+    vobject e criado para edicao, temos que desativar a visualizacao de
+    todos os outros objetos existentes" -- called from builder_sidebar.
+    py's open_window() (covers all 3 real callers: a blank "New" canvas,
+    and both "Edit in Builder" entry points via begin_editing_existing_
+    system(), which sets vm_session.builder_target_object BEFORE calling
+    sidebar.open_window()) right after the target object is resolved.
+
+    Deliberately HIDES (sets `.active = False`, the SAME flag render()'s
+    own top-level "for vm_object in vm_objects_dic.values(): if vm_
+    object.active: ..." loop already checks) rather than discarding
+    anything -- unlike the REMOVED confirm_and_discard_other_vobjects()
+    (see [[project_builder_edit_nondestructive_fix]] -- deleting a
+    system's other vobjects turned out to be destructive exactly when
+    editing became its own new system), this touches nothing about any
+    object's identity/data, only its OWN CURRENT visibility, and is
+    fully reversible by restore_hidden_vobjects_for_builder() below.
+    This is also what keeps the temp clone's own ORIGINAL vobject (a
+    near-identical geometric duplicate, for an "Edit in Builder"
+    session) from rendering doubled-up with the clone being edited.
+
+    Remembers exactly which vobjects IT deactivated (vm_session.
+    builder_hidden_vobjects) -- one that was ALREADY inactive for some
+    unrelated reason before this ran is left alone and never gets
+    reactivated by the restore step, avoiding a surprising side effect. """
+    hidden = [ ]
+    for vobject in vm_session.vm_objects_dic.values ( ):
+        if vobject is keep_vobject:
+            continue
+        if getattr ( vobject, "active", False ):
+            vobject.active = False
+            hidden.append ( vobject )
+    vm_session.builder_hidden_vobjects = hidden
+    if getattr ( vm_session, "vm_glcore", None ) is not None:
+        vm_session.vm_glcore.queue_draw ( )
+
+
+def restore_hidden_vobjects_for_builder ( vm_session ):
+    """ Counterpart to hide_other_vobjects_for_builder() above -- called
+    from builder_sidebar.py's close_window(). Reactivates exactly the
+    vobjects THIS Builder session deactivated (harmless no-op for any
+    that no longer exist, e.g. deleted mid-session -- just sets an
+    attribute on an orphaned Python object nothing renders anymore). """
+    hidden = getattr ( vm_session, "builder_hidden_vobjects", None ) or [ ]
+    for vobject in hidden:
+        vobject.active = True
+    vm_session.builder_hidden_vobjects = [ ]
+    if getattr ( vm_session, "vm_glcore", None ) is not None:
+        vm_session.vm_glcore.queue_draw ( )
+
+
+def begin_editing_existing_system ( vm_session, e_id, vismol_object = None ):
     """ [EN] Entry point for "Edit in Builder" on an already-loaded system
     (treeview_menu.py's _menu_edit_in_builder()) -- see the plan file
     (Builder: edit an existing system + dihedral rotation tool) for the
     full design.
+
+    `vismol_object`: 2026-09-24 addition -- the SPECIFIC VismolObject to
+    edit, when the caller already knows it (both "Edit in Builder" entry
+    points now show an explicit vobject picker, see each entry point's
+    own dialog in builder_entry_dialog.py). When None (old callers, or a
+    system that's already down to exactly one real vobject), falls back
+    to the OLD inline lookup below -- fixed to exclude is_surface objects
+    (it didn't before: a molecular-surface child object sharing the same
+    e_id as its parent could get picked as the "original" to edit purely
+    by dict-iteration-order/`.active` luck, since only `get_active_
+    vobject()` ever excluded surfaces, and this function had its own
+    separate, non-excluding copy of that same lookup).
+
+    [EN] 2026-09-25, user's own explicit request ("nao devemos misturar
+    os dois comportamentos... a operacao de 'criar novo sistema' deve
+    ser nao destrutiva: o sistema de origem deve permanecer exatamente
+    como estava"): this NO LONGER discards any OTHER vobject sharing
+    `e_id` before editing (a real, now-fixed bug: any sibling used to be
+    deleted unconditionally here, corrupting the original system even
+    when the edit ultimately became its own separate new system, per
+    finish_editing_existing_system()'s own atom-count-changed outcome --
+    see that function's own updated docstring for the 2 possible
+    outcomes). The original system, and every vobject in it, is left
+    completely alone by this function -- only a fresh CLONE is ever
+    touched during editing.
 
     Editing never touches the original system directly: this clones it
     first (p_session.clone_system() -- the SAME machinery the treeview's
@@ -417,16 +539,18 @@ def begin_editing_existing_system ( vm_session, e_id ):
             message = 'Edit in Builder: system {} no longer exists.'.format ( e_id ), system = None )
         return None
 
-    original_vobject = None
-    for candidate in vm_session.vm_objects_dic.values ( ):
-        if getattr ( candidate, "e_id", None ) == e_id and getattr ( candidate, "active", True ):
-            original_vobject = candidate
-            break
+    original_vobject = vismol_object
     if original_vobject is None:
         for candidate in vm_session.vm_objects_dic.values ( ):
-            if getattr ( candidate, "e_id", None ) == e_id:
+            if ( getattr ( candidate, "e_id", None ) == e_id and getattr ( candidate, "active", True )
+                 and not getattr ( candidate, "is_surface", False ) ):
                 original_vobject = candidate
                 break
+        if original_vobject is None:
+            for candidate in vm_session.vm_objects_dic.values ( ):
+                if getattr ( candidate, "e_id", None ) == e_id and not getattr ( candidate, "is_surface", False ):
+                    original_vobject = candidate
+                    break
     if original_vobject is None:
         main.bottom_notebook.status_teeview_add_new_item (
             message = 'Edit in Builder: no visible object for system {}.'.format ( e_id ), system = None )
@@ -483,6 +607,17 @@ def begin_editing_existing_system ( vm_session, e_id ):
 
     temp_vobject.builder_edit_source_e_id         = e_id
     temp_vobject.builder_edit_original_atom_count = len ( temp_vobject.atoms )
+    # [EN] 2026-09-25, user's own explicit request ("nao devemos misturar
+    # os dois comportamentos" -- see this module's own confirm_and_
+    # discard_other_vobjects()/its removal, below): a DIRECT reference to
+    # the SPECIFIC vobject the user actually picked to edit -- now that
+    # siblings sharing the same e_id are no longer discarded (a system
+    # can legitimately still have several), finish_editing_existing_
+    # system()'s own fold-back path needs to fold back onto THIS ONE
+    # specifically, not just "whichever vobject happens to match e_id
+    # first" (which would be ambiguous/wrong the moment more than one
+    # exists).
+    temp_vobject.builder_edit_source_vobject      = original_vobject
 
     # [EN] BUG FIX (found by live user testing): bootstrapping from
     # temp_vobject's OWN .bonds (the clone's freshly, independently
@@ -548,6 +683,25 @@ def finish_editing_existing_system ( vismol_object ):
     already has its own permanent e_id from clone_system()) simply
     becomes a normal, separate, permanent system.
 
+    [EN] 2026-09-25, user's own explicit request -- this IS the "Caso A"
+    (fold back onto the original -- "a edicao deve ocorrer no proprio
+    sistema... nao deve ser criado um novo sistema") vs "Caso B" (keep as
+    its own new system -- "o sistema original nao deve ser alterado")
+    split from the user's own message, still decided the SAME way it
+    already was (by whether the atom count changed -- folding back a
+    changed atom count is not just a preference, it would genuinely
+    desync every OTHER atom-indexed piece of app state, so this isn't a
+    free choice to begin with). What actually changed this round: the
+    ORIGINAL system's OTHER vobjects (if any) are no longer discarded
+    before editing even starts (see begin_editing_existing_system()'s own
+    updated docstring) -- so Case B now genuinely leaves the original
+    system, EVERY vobject in it, and every property on it, exactly as it
+    was, matching the user's own explicit Case B checklist. Case A's own
+    fold-back logic below already only ever touched `original_vobject`
+    (the ONE vobject actually being edited, via builder_edit_source_
+    vobject below) and the shared System object at `source_e_id` --
+    never anything ELSE the user might not have wanted touched.
+
     Either way, vm_session.builder_target_object is left for the caller
     to reset -- this function only deals with the two systems/vobjects
     involved. """
@@ -559,16 +713,34 @@ def finish_editing_existing_system ( vismol_object ):
     main       = vm_session.main
     p_session  = main.p_session
 
-    original_vobject = None
-    for candidate in vm_session.vm_objects_dic.values ( ):
-        if getattr ( candidate, "e_id", None ) == source_e_id:
-            original_vobject = candidate
-            break
+    # [EN] 2026-09-25: prefer the DIRECT reference to the exact vobject
+    # begin_editing_existing_system() started from (see its own comment
+    # on builder_edit_source_vobject) -- a system can have more than one
+    # vobject sharing source_e_id now that siblings are no longer auto-
+    # discarded, so "first match by e_id" alone would be ambiguous.
+    # Falls back to that old lookup only if the direct reference is
+    # missing (an older/edge-case object) or has itself since been
+    # removed from the session by something else in the meantime.
+    original_vobject = getattr ( vismol_object, "builder_edit_source_vobject", None )
+    if original_vobject is not None and original_vobject not in vm_session.vm_objects_dic.values ( ):
+        original_vobject = None
+    if original_vobject is None:
+        for candidate in vm_session.vm_objects_dic.values ( ):
+            if getattr ( candidate, "e_id", None ) == source_e_id:
+                original_vobject = candidate
+                break
 
     original_count = getattr ( vismol_object, "builder_edit_original_atom_count", None )
     atom_count_changed = ( original_count is None ) or ( len ( vismol_object.atoms ) != original_count )
 
-    if not atom_count_changed and original_vobject is not None and source_e_id in p_session.psystem:
+    # [EN] 2026-09-25: same fix as sync_pdynamo_system() above -- checks
+    # the VALUE at source_e_id is a real System, not just that the key
+    # exists (p_session.psystem[e_id] can legitimately be None). original_
+    # vobject is not None already rules out the most likely way to hit
+    # this (delete_system() removes the vobject too), but this stays
+    # correct even if some OTHER path ever leaves a vobject behind with
+    # no matching live system.
+    if not atom_count_changed and original_vobject is not None and p_session.psystem.get ( source_e_id ) is not None:
         from gui.windows.builder.atom_ops import ( _reapply_manual_bonds, _activate_new_sphere_representation,
                                                      set_atom_element )
 

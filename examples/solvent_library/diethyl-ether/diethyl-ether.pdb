@@ -1,0 +1,32 @@
+REMARK   1 Diethyl ether
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 C1   SOL A   1       2.325  -0.791   0.335  1.00  0.00           C
+HETATM    2 C2   SOL A   1       1.098  -0.555  -0.523  1.00  0.00           C
+HETATM    3 O3   SOL A   1       0.025  -0.155   0.325  1.00  0.00           O
+HETATM    4 C4   SOL A   1      -1.170   0.087  -0.415  1.00  0.00           C
+HETATM    5 C5   SOL A   1      -2.257   0.506   0.555  1.00  0.00           C
+HETATM    6 H6   SOL A   1       3.176  -1.101  -0.277  1.00  0.00           H
+HETATM    7 H7   SOL A   1       2.128  -1.565   1.084  1.00  0.00           H
+HETATM    8 H8   SOL A   1       2.595   0.119   0.881  1.00  0.00           H
+HETATM    9 H9   SOL A   1       1.304   0.233  -1.257  1.00  0.00           H
+HETATM   10 H10  SOL A   1       0.830  -1.476  -1.051  1.00  0.00           H
+HETATM   11 H11  SOL A   1      -1.471  -0.825  -0.941  1.00  0.00           H
+HETATM   12 H12  SOL A   1      -0.997   0.884  -1.147  1.00  0.00           H
+HETATM   13 H13  SOL A   1      -1.962   1.408   1.100  1.00  0.00           H
+HETATM   14 H14  SOL A   1      -2.429  -0.276   1.302  1.00  0.00           H
+HETATM   15 H15  SOL A   1      -3.195   0.702   0.028  1.00  0.00           H
+CONECT    1    2
+CONECT    2    3
+CONECT    3    4
+CONECT    4    5
+CONECT    1    6
+CONECT    1    7
+CONECT    1    8
+CONECT    2    9
+CONECT    2   10
+CONECT    4   11
+CONECT    4   12
+CONECT    5   13
+CONECT    5   14
+CONECT    5   15
+END

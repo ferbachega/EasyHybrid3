@@ -1,0 +1,19 @@
+{
+  "id": "heptane",
+  "name": "n-Heptane",
+  "formula": "C7H16",
+  "molecular_weight_g_mol": 100.205,
+  "smiles": "CCCCCCC",
+  "class": "apolar",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.684,
+  "boiling_point_C_approx": 98.4,
+  "geometry": {
+    "xyz": "heptane/heptane.xyz",
+    "pdb": "heptane/heptane.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/heptane/SDF?record_type=3d"
+}

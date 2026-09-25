@@ -113,6 +113,7 @@ from gui.windows.builder.fragment_library_window import FragmentLibraryWindow
 from gui.windows.builder.structure_library_window import StructureLibraryWindow
 from gui.windows.builder.atom_types_window import AtomTypesWindow
 from gui.windows.builder.transform_selection_window import TransformSelectionWindow
+from gui.windows.builder.dihedral_angle_window import DihedralAngleWindow
 
 
 from pdynamo.pDynamo2EasyHybrid import pDynamoSession
@@ -482,6 +483,7 @@ class MainWindow:
         self.structure_library_window  = StructureLibraryWindow (main = self)
         self.atom_types_window         = AtomTypesWindow (main = self)
         self.transform_selection_window = TransformSelectionWindow (main = self)
+        self.dihedral_angle_window      = DihedralAngleWindow (main = self)
         
         self.molecular_dynamics_window  = MolecularDynamicsWindow(main = self)
         self.window_list.append(self.molecular_dynamics_window)
@@ -729,6 +731,25 @@ class MainWindow:
             if getattr ( vobject, "e_id", None ) == e_id and not getattr ( vobject, "is_surface", False ):
                 return vobject
         return None
+
+    def get_vobjects_for_system ( self, e_id, include_surfaces = False ):
+        """ [EN] ALL VismolObjects belonging to system `e_id` -- unlike
+        get_active_vobject() above (which returns a single, non-surface
+        "the molecule" object), a system can genuinely have MORE than one:
+        several docking poses loaded under the same e_id, or one or more
+        molecular-surface child objects (is_surface=True, see util/
+        molecular_surface.py). `include_surfaces=False` (default) matches
+        get_active_vobject()'s own filtering, for callers that only care
+        about real, editable molecules (e.g. the Builder's "Edit in
+        Builder" own vobject picker, added 2026-09-24 -- see gui/windows/
+        builder/builder_entry_dialog.py's choose_and_open_builder()/
+        choose_vobject_and_edit()); pass True to also include surface
+        objects. No reusable helper for this existed before -- every
+        call site inlined its own ad hoc `[v for v in vm_objects_dic.
+        values() if v.e_id == e_id ...]` variant. """
+        return [ vobject for vobject in self.vm_session.vm_objects_dic.values ( )
+                 if getattr ( vobject, "e_id", None ) == e_id
+                 and ( include_surfaces or not getattr ( vobject, "is_surface", False ) ) ]
 
     def on_main_toolbar_clicked (self, button):
         """ Function doc """

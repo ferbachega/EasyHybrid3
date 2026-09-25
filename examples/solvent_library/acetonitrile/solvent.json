@@ -1,0 +1,19 @@
+{
+  "id": "acetonitrile",
+  "name": "Acetonitrile",
+  "formula": "C2H3N",
+  "molecular_weight_g_mol": 41.053,
+  "smiles": "CC#N",
+  "class": "polar_aprotic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.786,
+  "boiling_point_C_approx": 81.6,
+  "geometry": {
+    "xyz": "acetonitrile/acetonitrile.xyz",
+    "pdb": "acetonitrile/acetonitrile.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/acetonitrile/SDF?record_type=3d"
+}

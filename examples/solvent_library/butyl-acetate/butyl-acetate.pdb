@@ -1,0 +1,42 @@
+REMARK   1 Butyl acetate
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 C1   SOL A   1      -2.783  -0.972   0.002  1.00  0.00           C
+HETATM    2 C2   SOL A   1      -1.409  -0.602   0.539  1.00  0.00           C
+HETATM    3 C3   SOL A   1      -0.973   0.781   0.053  1.00  0.00           C
+HETATM    4 C4   SOL A   1       0.387   1.190   0.616  1.00  0.00           C
+HETATM    5 O5   SOL A   1       1.411   0.259   0.231  1.00  0.00           O
+HETATM    6 C6   SOL A   1       1.980   0.476  -0.986  1.00  0.00           C
+HETATM    7 O7   SOL A   1       1.694   1.379  -1.759  1.00  0.00           O
+HETATM    8 C8   SOL A   1       3.021  -0.567  -1.254  1.00  0.00           C
+HETATM    9 H9   SOL A   1      -2.783  -0.994  -1.093  1.00  0.00           H
+HETATM   10 H10  SOL A   1      -3.076  -1.963   0.362  1.00  0.00           H
+HETATM   11 H11  SOL A   1      -3.540  -0.253   0.331  1.00  0.00           H
+HETATM   12 H12  SOL A   1      -1.435  -0.619   1.635  1.00  0.00           H
+HETATM   13 H13  SOL A   1      -0.686  -1.361   0.220  1.00  0.00           H
+HETATM   14 H14  SOL A   1      -1.718   1.529   0.347  1.00  0.00           H
+HETATM   15 H15  SOL A   1      -0.931   0.773  -1.043  1.00  0.00           H
+HETATM   16 H16  SOL A   1       0.650   2.208   0.306  1.00  0.00           H
+HETATM   17 H17  SOL A   1       0.354   1.194   1.711  1.00  0.00           H
+HETATM   18 H18  SOL A   1       3.479  -0.381  -2.229  1.00  0.00           H
+HETATM   19 H19  SOL A   1       3.801  -0.518  -0.489  1.00  0.00           H
+HETATM   20 H20  SOL A   1       2.558  -1.557  -1.269  1.00  0.00           H
+CONECT    1    2
+CONECT    2    3
+CONECT    3    4
+CONECT    4    5
+CONECT    5    6
+CONECT    6    7
+CONECT    6    8
+CONECT    1    9
+CONECT    1   10
+CONECT    1   11
+CONECT    2   12
+CONECT    2   13
+CONECT    3   14
+CONECT    3   15
+CONECT    4   16
+CONECT    4   17
+CONECT    8   18
+CONECT    8   19
+CONECT    8   20
+END

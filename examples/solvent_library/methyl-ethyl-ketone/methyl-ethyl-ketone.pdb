@@ -1,0 +1,28 @@
+REMARK   1 2-Butanone
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 C1   SOL A   1       1.905   0.060  -0.021  1.00  0.00           C
+HETATM    2 C2   SOL A   1       0.480   0.051  -0.544  1.00  0.00           C
+HETATM    3 C3   SOL A   1      -0.550  -0.055   0.565  1.00  0.00           C
+HETATM    4 O4   SOL A   1      -0.244  -0.126   1.755  1.00  0.00           O
+HETATM    5 C5   SOL A   1      -1.993  -0.070   0.132  1.00  0.00           C
+HETATM    6 H6   SOL A   1       2.125  -0.858   0.534  1.00  0.00           H
+HETATM    7 H7   SOL A   1       2.071   0.907   0.653  1.00  0.00           H
+HETATM    8 H8   SOL A   1       2.615   0.138  -0.850  1.00  0.00           H
+HETATM    9 H9   SOL A   1       0.288   0.975  -1.100  1.00  0.00           H
+HETATM   10 H10  SOL A   1       0.343  -0.799  -1.220  1.00  0.00           H
+HETATM   11 H11  SOL A   1      -2.226   0.857  -0.397  1.00  0.00           H
+HETATM   12 H12  SOL A   1      -2.172  -0.930  -0.517  1.00  0.00           H
+HETATM   13 H13  SOL A   1      -2.641  -0.149   1.010  1.00  0.00           H
+CONECT    1    2
+CONECT    2    3
+CONECT    3    4
+CONECT    3    5
+CONECT    1    6
+CONECT    1    7
+CONECT    1    8
+CONECT    2    9
+CONECT    2   10
+CONECT    5   11
+CONECT    5   12
+CONECT    5   13
+END

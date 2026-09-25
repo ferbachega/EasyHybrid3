@@ -136,9 +136,11 @@ class EasyHybridPreferencesWindow():
 
             # [NOVO] estado inicial dos controles de cor unica das dynamic bonds
             self.set_dynamic_bonds_parameters()
-            
+
             self.set_sphere_parameters()
-            
+
+            self.set_cartoon_parameters()
+
             self.set_paths_and_folders()
             #-------------------------------------------------------------------------------------
             
@@ -263,10 +265,11 @@ class EasyHybridPreferencesWindow():
         self.__apply_light_parameters()
         self.__apply_sphere_parameters()
         self.__apply_stick_parameters()
-        self.__apply_lines_parameters() 
-        self.__apply_bond_parameters() 
-        self.__apply_viewer_selections_parameters() 
-        self.__apply_viewer_general_parameters() 
+        self.__apply_lines_parameters()
+        self.__apply_bond_parameters()
+        self.__apply_cartoon_parameters()
+        self.__apply_viewer_selections_parameters()
+        self.__apply_viewer_general_parameters()
         self.__apply_interface_general_parameters()
         self.vm_session.vm_glcore.queue_draw()
     
@@ -287,7 +290,13 @@ class EasyHybridPreferencesWindow():
             self.set_bond_parameters()
             self.set_stick_parameters()
             self.set_sphere_parameters()
+            self.set_cartoon_parameters()
             #-------------------------------------------------------------------------------------
+            # Cartoon geometry is baked at build time (unlike sticks/lines,
+            # read live from gl_parameters every frame), so resetting the
+            # widgets back to defaults above needs an explicit rebuild to
+            # actually show up on any already-built representation.
+            self._rebuild_active_cartoon_representations()
             self.vm_session.vm_glcore.queue_draw()
     
     def on_btn_apply_all_changes (self, widget):
@@ -878,6 +887,117 @@ class EasyHybridPreferencesWindow():
         self.entry_sphere_scale  .set_text(str(sphere_scale))
         self.entry_sphere_quality.set_text(str(sphere_quality))
         self.entry_sphere_type   .set_text(str(sphere_type))
+
+    def set_cartoon_parameters (self):
+        """ [EN] "Preferences > Cartoon" tab -- populates every widget
+        from this session's gl_parameters (see VismolConfig.__init__'s
+        own 'cartoon_*' defaults, which match vismol.utils.ribbon_
+        geometry.DEFAULT_CARTOON_SETTINGS exactly). User's own request:
+        adjustable ribbon thickness ("mais grossas ou mais finas") and a
+        "variable criterion" for helix/strand assignment. """
+        gp = self.vm_session.vm_config.gl_parameters
+
+        self.entry_cartoon_helix_width      = self.builder.get_object('entry_cartoon_helix_width')
+        self.entry_cartoon_helix_height     = self.builder.get_object('entry_cartoon_helix_height')
+        self.entry_cartoon_strand_width     = self.builder.get_object('entry_cartoon_strand_width')
+        self.entry_cartoon_strand_height    = self.builder.get_object('entry_cartoon_strand_height')
+        self.entry_cartoon_arrow_width      = self.builder.get_object('entry_cartoon_arrow_width')
+        self.entry_cartoon_coil_radius      = self.builder.get_object('entry_cartoon_coil_radius')
+        self.entry_cartoon_helix_tolerance  = self.builder.get_object('entry_cartoon_helix_tolerance')
+        self.entry_cartoon_strand_tolerance = self.builder.get_object('entry_cartoon_strand_tolerance')
+        self.entry_cartoon_min_run          = self.builder.get_object('entry_cartoon_min_run')
+
+        self.entry_cartoon_helix_width     .set_text(str(gp.get('cartoon_helix_width',      1.60)))
+        self.entry_cartoon_helix_height    .set_text(str(gp.get('cartoon_helix_height',     0.18)))
+        self.entry_cartoon_strand_width    .set_text(str(gp.get('cartoon_strand_width',     1.40)))
+        self.entry_cartoon_strand_height   .set_text(str(gp.get('cartoon_strand_height',    0.18)))
+        self.entry_cartoon_arrow_width     .set_text(str(gp.get('cartoon_arrow_width',      2.20)))
+        self.entry_cartoon_coil_radius     .set_text(str(gp.get('cartoon_coil_radius',      0.32)))
+        self.entry_cartoon_helix_tolerance .set_text(str(gp.get('cartoon_helix_tolerance',  100.0)))
+        self.entry_cartoon_strand_tolerance.set_text(str(gp.get('cartoon_strand_tolerance', 150.0)))
+        self.entry_cartoon_min_run         .set_text(str(gp.get('cartoon_min_run',          2)))
+
+        # [EN] User request (round 8 -- "cartoon dinamico ou nao, por
+        # padrao nao"): default OFF -- see CartoonRepresentation.rebuild()'s
+        # own docstring in representations.py for the full performance
+        # rationale (classify_secondary_structure() is ~45% of a
+        # rebuild's cost; skipping it on routine trajectory-frame changes
+        # roughly halves the per-frame rebuild time for the common case
+        # of a structurally rigid protein).
+        self.checkbox_cartoon_dynamic_ss = self.builder.get_object('checkbox_cartoon_dynamic_ss')
+        self.checkbox_cartoon_dynamic_ss.set_active(bool(gp.get('cartoon_dynamic_secondary_structure', False)))
+
+        self.color_btn_cartoon_helix  = self.builder.get_object('color_btn_cartoon_helix')
+        self.color_btn_cartoon_strand = self.builder.get_object('color_btn_cartoon_strand')
+        self.color_btn_cartoon_coil   = self.builder.get_object('color_btn_cartoon_coil')
+
+        color = gp.get('cartoon_color_helix', [0.90, 0.20, 0.55])
+        self.color_btn_cartoon_helix.set_rgba(Gdk.RGBA(color[0], color[1], color[2]))
+        color = gp.get('cartoon_color_strand', [0.95, 0.85, 0.15])
+        self.color_btn_cartoon_strand.set_rgba(Gdk.RGBA(color[0], color[1], color[2]))
+        color = gp.get('cartoon_color_coil', [0.85, 0.85, 0.85])
+        self.color_btn_cartoon_coil.set_rgba(Gdk.RGBA(color[0], color[1], color[2]))
+
+    def _rebuild_active_cartoon_representations (self):
+        """ [EN] Unlike sticks/lines/spheres (read live from gl_parameters
+        every frame via a shader uniform, so __apply_*_parameters() never
+        needs to touch already-built geometry), Cartoon's mesh is BAKED
+        at construction time -- see CartoonRepresentation.__init__ in
+        representations.py. A settings change here has no visible effect
+        on an already-open cartoon until it's explicitly rebuilt, so this
+        is called from both __apply_cartoon_parameters() (Apply) and
+        on_btn_reset_parms() (Reset) right after the gl_parameters values
+        themselves are updated. Representations that were never built
+        (rep_type never toggled on for that object) are correctly left
+        alone -- they'll pick up the current gl_parameters the first time
+        they ARE built, same as any other representation.
+
+        force_reclassify=True: a Preferences change -- including to the
+        helix/strand tolerance or minimum-run-length settings themselves
+        -- must always show its effect immediately here, regardless of
+        the "Dynamic secondary structure" setting (which only governs
+        whether TRAJECTORY FRAME changes reclassify, see
+        CartoonRepresentation.rebuild()'s own docstring); otherwise
+        changing the tolerance and hitting Apply while that setting is
+        OFF would silently keep showing the OLD classification. """
+        for vm_object in self.vm_session.vm_objects_dic.values():
+            rep = vm_object.representations.get('cartoon')
+            if rep is not None:
+                rep.rebuild(force_reclassify=True)
+
+    def __apply_cartoon_parameters (self):
+        """ Function doc """
+        gp = self.gl_parameters
+
+        gp['cartoon_helix_width']      = float(self.entry_cartoon_helix_width     .get_text())
+        gp['cartoon_helix_height']     = float(self.entry_cartoon_helix_height    .get_text())
+        gp['cartoon_strand_width']     = float(self.entry_cartoon_strand_width    .get_text())
+        gp['cartoon_strand_height']    = float(self.entry_cartoon_strand_height   .get_text())
+        gp['cartoon_arrow_width']      = float(self.entry_cartoon_arrow_width     .get_text())
+        gp['cartoon_coil_radius']      = float(self.entry_cartoon_coil_radius     .get_text())
+        gp['cartoon_helix_tolerance']  = float(self.entry_cartoon_helix_tolerance .get_text())
+        gp['cartoon_strand_tolerance'] = float(self.entry_cartoon_strand_tolerance.get_text())
+        gp['cartoon_min_run']          = int(float(self.entry_cartoon_min_run.get_text()))
+        gp['cartoon_dynamic_secondary_structure'] = self.checkbox_cartoon_dynamic_ss.get_active()
+
+        gp['cartoon_color_helix']  = list(self.color_btn_cartoon_helix .get_rgba())[:-1]
+        gp['cartoon_color_strand'] = list(self.color_btn_cartoon_strand.get_rgba())[:-1]
+        gp['cartoon_color_coil']   = list(self.color_btn_cartoon_coil  .get_rgba())[:-1]
+
+        self._rebuild_active_cartoon_representations()
+
+    # [EN] set_surface_parameters()/_rebuild_active_surface_representations()/
+    # __apply_surface_parameters() (a "Preferences > Surface" tab) removed
+    # 2026-09-23, per the user's own explicit follow-up request: "a opcao
+    # do tipo de superficie deve estar no menu, e nao no preferences, ao
+    # requisitar a representacao de superficies, uma janela com o setup ja
+    # pre-calculado aparece". Surface type/probe radius/grid spacing are
+    # now chosen in a setup dialog that opens directly from the treeview's
+    # 'Representation > Surface' menu entry (see gui/main/treeview_menu.py's
+    # _open_molecular_surface_setup_dialog()) instead of a standing
+    # Preferences tab. gl_parameters still stores 'surface_type'/
+    # 'surface_probe_radius'/'surface_grid_spacing' (as "last used", to
+    # pre-fill that dialog) -- only the Preferences-tab UI for them is gone.
 
     def set_paths_and_folders (self):
         """ Function doc """

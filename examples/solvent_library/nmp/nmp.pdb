@@ -1,0 +1,35 @@
+REMARK   1 N-Methyl-2-pyrrolidone
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 C1   SOL A   1       2.113   0.315  -0.181  1.00  0.00           C
+HETATM    2 N2   SOL A   1       0.690   0.213   0.040  1.00  0.00           N
+HETATM    3 C3   SOL A   1       0.072  -1.025   0.434  1.00  0.00           C
+HETATM    4 C4   SOL A   1      -1.374  -0.628   0.655  1.00  0.00           C
+HETATM    5 C5   SOL A   1      -1.602   0.479  -0.368  1.00  0.00           C
+HETATM    6 C6   SOL A   1      -0.227   1.078  -0.545  1.00  0.00           C
+HETATM    7 O7   SOL A   1       0.019   2.111  -1.145  1.00  0.00           O
+HETATM    8 H8   SOL A   1       2.640  -0.036   0.710  1.00  0.00           H
+HETATM    9 H9   SOL A   1       2.392   1.351  -0.390  1.00  0.00           H
+HETATM   10 H10  SOL A   1       2.381  -0.305  -1.041  1.00  0.00           H
+HETATM   11 H11  SOL A   1       0.541  -1.420   1.340  1.00  0.00           H
+HETATM   12 H12  SOL A   1       0.171  -1.744  -0.386  1.00  0.00           H
+HETATM   13 H13  SOL A   1      -1.499  -0.221   1.667  1.00  0.00           H
+HETATM   14 H14  SOL A   1      -2.068  -1.465   0.541  1.00  0.00           H
+HETATM   15 H15  SOL A   1      -1.936   0.072  -1.328  1.00  0.00           H
+HETATM   16 H16  SOL A   1      -2.312   1.226  -0.004  1.00  0.00           H
+CONECT    1    2
+CONECT    2    3
+CONECT    3    4
+CONECT    4    5
+CONECT    5    6
+CONECT    6    7
+CONECT    6    2
+CONECT    1    8
+CONECT    1    9
+CONECT    1   10
+CONECT    3   11
+CONECT    3   12
+CONECT    4   13
+CONECT    4   14
+CONECT    5   15
+CONECT    5   16
+END

@@ -108,20 +108,22 @@ class FragmentLibraryWindow ( ):
             self.status_label.set_text ( "Error: {}".format ( e ) )
             return
 
-        self.vm_session.builder_selected_fragment = fragment
-        self.vm_session.builder_tool = "attach_fragment"
-
-        # [EN] Keeps the Builder sidebar's own Tool radio group visually in
-        # sync, if that window happens to be open -- vm_session.builder_tool
-        # is the actual source of truth the click-dispatch logic reads (see
-        # vismol_glcore.py's render() hook), so the tool works correctly
-        # either way; this is purely so the sidebar doesn't show "Add"
-        # highlighted while the Builder is actually in fragment-attach mode.
+        # [EN] 2026-09-25: there is no longer a dedicated "Fragment" TOOL
+        # radio -- the user's own request merged it into "Add" (picking
+        # either an element OR a fragment now shares one radio group and
+        # both arm the "Add" tool, see builder_sidebar.py's on_element_
+        # changed()/on_fragment_quick_changed()). Sync "Add" active FIRST
+        # (it may itself fire on_tool_changed(), which would set
+        # vm_session.builder_tool = "add") so the more specific
+        # "attach_fragment" value set below always wins as the final state.
         sidebar = getattr ( self.main, "builder_sidebar_window", None )
         if sidebar is not None and getattr ( sidebar, "visible", False ):
-            radio = getattr ( sidebar, "tool_attach_fragment_radio", None )
+            radio = getattr ( sidebar, "tool_add_radio", None )
             if radio is not None:
                 radio.set_active ( True )
+
+        self.vm_session.builder_selected_fragment = fragment
+        self.vm_session.builder_tool = "attach_fragment"
 
         self.status_label.set_text ( "Selected: {} -- click a hydrogen atom in the Builder to attach it.".format ( fragment["name"] ) )
 

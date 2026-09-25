@@ -19,6 +19,8 @@
       <column type="gchararray"/>
       <!-- 5: tooltip text (valid type labels for this row's element) -->
       <column type="gchararray"/>
+      <!-- 6: formal charge (int), editable -->
+      <column type="gint"/>
     </columns>
   </object>
 
@@ -26,7 +28,7 @@
     <property name="can-focus">False</property>
     <property name="title" translatable="yes">Atom Types</property>
     <property name="type-hint">utility</property>
-    <property name="default-width">460</property>
+    <property name="default-width">560</property>
     <property name="default-height">360</property>
     <signal name="delete-event" handler="on_close_button_clicked" swapped="no"/>
     <child>
@@ -127,6 +129,21 @@
                     </child>
                   </object>
                 </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="charge_column">
+                    <property name="title" translatable="yes">Charge</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="charge_renderer">
+                        <property name="editable">True</property>
+                        <property name="xalign">1</property>
+                        <signal name="edited" handler="on_charge_cell_edited" swapped="no"/>
+                      </object>
+                      <attributes>
+                        <attribute name="text">6</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                </child>
               </object>
             </child>
           </object>
@@ -175,6 +192,32 @@
                 <property name="label" translatable="yes">Clear Override(s)</property>
                 <property name="tooltip-text" translatable="yes">Revert the selected row(s) back to the automatically perceived type.</property>
                 <signal name="clicked" handler="on_clear_override_button_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="protonate_button">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label" translatable="yes">Protonate (+H)</property>
+                <property name="tooltip-text" translatable="yes">Adds a hydrogen and +1 formal charge to the selected row(s) -- e.g. a neutral amine nitrogen (3 bonds) becomes a tetravalent ammonium nitrogen (4 bonds, charge +1).</property>
+                <signal name="clicked" handler="on_protonate_button_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="deprotonate_button">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label" translatable="yes">Deprotonate (-H)</property>
+                <property name="tooltip-text" translatable="yes">Removes a hydrogen and -1 formal charge from the selected row(s) -- e.g. a carboxylic acid -OH (2 bonds on O) becomes a carboxylate -O- (1 bond, charge -1).</property>
+                <signal name="clicked" handler="on_deprotonate_button_clicked" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>

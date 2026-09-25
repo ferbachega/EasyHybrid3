@@ -1,0 +1,19 @@
+{
+  "id": "ethanol",
+  "name": "Ethanol",
+  "formula": "C2H6O",
+  "molecular_weight_g_mol": 46.069,
+  "smiles": "CCO",
+  "class": "polar_protic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.789,
+  "boiling_point_C_approx": 78.4,
+  "geometry": {
+    "xyz": "ethanol/ethanol.xyz",
+    "pdb": "ethanol/ethanol.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ethanol/SDF?record_type=3d"
+}

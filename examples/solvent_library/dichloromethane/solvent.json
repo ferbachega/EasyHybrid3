@@ -1,0 +1,19 @@
+{
+  "id": "dichloromethane",
+  "name": "Dichloromethane",
+  "formula": "CH2Cl2",
+  "molecular_weight_g_mol": 84.933,
+  "smiles": "ClCCl",
+  "class": "halogenated",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 1.325,
+  "boiling_point_C_approx": 39.6,
+  "geometry": {
+    "xyz": "dichloromethane/dichloromethane.xyz",
+    "pdb": "dichloromethane/dichloromethane.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/dichloromethane/SDF?record_type=3d"
+}

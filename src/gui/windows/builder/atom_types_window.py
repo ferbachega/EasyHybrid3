@@ -58,9 +58,24 @@ class AtomTypesWindow ( ):
         fragment_library_window.py's own open_window() already uses),
         so re-selecting a different set of atoms and clicking the
         sidebar button again always shows the CURRENT selection, not
-        whatever was open before. """
+        whatever was open before.
+
+        [EN] 2026-09-25: stores the ATOM OBJECTS themselves (self.atoms),
+        not just their atom_id ints -- protonate_atom()/deprotonate_
+        atom() (see on_protonate_button_clicked()/_deprotonate_button_
+        clicked()) can REMOVE a hydrogen, which renumbers every atom_id
+        ABOVE it down by one (atom_ops.remove_atom()'s own docstring) --
+        but keeps the SAME Python object for every surviving atom, only
+        updating that object's OWN `.atom_id` attribute in place. Re-
+        deriving atom_ids from these objects' current `.atom_id` on every
+        _refresh_rows() call (instead of trusting a list of ints captured
+        once, here) keeps every row pointing at the atom the user
+        actually selected, even after a shift earlier in the same
+        multi-row batch. """
         self.target_object = target_object
-        self.atom_ids      = sorted ( atom_ids )
+        self.atoms = [ target_object.atoms[atom_id] for atom_id in sorted ( atom_ids )
+                        if atom_id in target_object.atoms ]
+        self.atom_ids = [ ]   # populated fresh by _refresh_rows() below
 
         if not self.visible:
             self.builder = Gtk.Builder ( )
@@ -85,9 +100,20 @@ class AtomTypesWindow ( ):
         """ Re-runs compute_atom_types() (fresh DYFF perception straight
         off the target object's CURRENT structure -- see atom_types.py's
         own docstring for why this doesn't need a prior real DYFF
-        assignment) and repopulates every row from scratch. """
+        assignment) and repopulates every row from scratch.
+
+        [EN] 2026-09-25: self.atom_ids is derived FRESH here from self.
+        atoms's own current `.atom_id` (see open_window()'s own comment)
+        -- an atom whose id now maps to a DIFFERENT object (this one was
+        actually deleted by something else, e.g. the Delete tool, and its
+        old id slot got reused by a later atom shifting down) is dropped,
+        same as the pre-existing "deleted by some other action" handling
+        further down already did for a stale int id. """
         if self.target_object is None:
             return
+
+        self.atom_ids = [ atom.atom_id for atom in self.atoms
+                           if self.target_object.atoms.get ( atom.atom_id ) is atom ]
 
         self.header_label.set_text ( "{} -- {} atom(s) selected".format (
                 self.target_object.name, len ( self.atom_ids ) ) )
@@ -127,6 +153,7 @@ class AtomTypesWindow ( ):
                     effective if effective is not None else "?",
                     "manual" if is_override else "auto",
                     tooltip,
+                    int ( getattr ( atom, "formal_charge", 0 ) ),
             ] )
 
         self.vm_session.builder_atom_types_labeled_atoms = labeled_atoms
@@ -200,6 +227,34 @@ class AtomTypesWindow ( ):
         self.status_label.set_text ( "Atom #{}: type manually set to \"{}\".".format ( atom_id, new_text ) )
         self._refresh_rows ( )
 
+    def on_charge_cell_edited ( self, renderer, path, new_text ):
+        """ [EN] 2026-09-25, user's own explicit request: "adicionar a
+        possibilidade de alterarmos estado de protonacao". A RAW override
+        -- sets atom.formal_charge directly, WITHOUT touching hydrogens
+        (unlike the Protonate/Deprotonate buttons below, which change
+        both together) -- same "manual correction, no automatic side
+        effects" philosophy as on_type_cell_edited() just above. Useful
+        for fixing a charge on an atom whose element isn't in atom_ops.
+        STANDARD_VALENCE at all (Protonate/Deprotonate can't touch those),
+        or for setting a charge with no accompanying H change. Rejects
+        non-integer text, leaving the cell/atom unchanged. """
+        new_text = new_text.strip ( )
+        atom_id  = self.liststore[path][0]
+        atom     = self.target_object.atoms.get ( atom_id ) if self.target_object else None
+        if atom is None:
+            return
+        try:
+            new_charge = int ( new_text )
+        except ValueError:
+            self.status_label.set_text ( "\"{}\" is not a valid integer charge.".format ( new_text ) )
+            return
+
+        atom.formal_charge = new_charge
+        from gui.windows.builder.empty_object import sync_pdynamo_system
+        sync_pdynamo_system ( self.target_object )
+        self.status_label.set_text ( "Atom #{}: formal charge set to {:+d}.".format ( atom_id, new_charge ) )
+        self._refresh_rows ( )
+
     def on_refresh_button_clicked ( self, button ):
         self._refresh_rows ( )
         self.status_label.set_text ( "Refreshed." )
@@ -219,6 +274,70 @@ class AtomTypesWindow ( ):
             self._refresh_rows ( )
         else:
             self.status_label.set_text ( "Select one or more rows first." )
+
+    def _protonation_atoms_from_selection ( self ):
+        """ [EN] Shared by on_protonate_button_clicked()/on_deprotonate_
+        button_clicked() below: resolves the treeview's CURRENTLY
+        selected row(s) to actual Atom OBJECTS (not bare atom_id ints).
+        This matters because atom_ops.deprotonate_atom() can REMOVE a
+        hydrogen with a LOWER atom_id than another still-pending selected
+        atom -- which shifts every atom_id above it down by one (see
+        atom_ops.remove_atom()'s own docstring) -- but the SAME Atom
+        object stays the same Python instance throughout (only its own
+        `.atom_id` attribute gets updated in place), so re-reading
+        `atom.atom_id` fresh right before each individual protonate/
+        deprotonate call (done by the callers below, not here) always
+        targets the correct, still-live atom regardless of how many
+        earlier removals in this same batch shifted ids around it. """
+        model, paths = self.treeview_selection.get_selected_rows ( )
+        atoms = [ ]
+        for path in paths:
+            atom_id = model[path][0]
+            atom = self.target_object.atoms.get ( atom_id ) if self.target_object else None
+            if atom is not None:
+                atoms.append ( atom )
+        return atoms
+
+    def on_protonate_button_clicked ( self, button ):
+        """ [EN] 2026-09-25, user's own explicit request: "adicionar a
+        possibilidade de alterarmos estado de protonacao, especialmente e
+        aminas, que em agua deveriam aceitar um nitrogenio tetravalente e
+        com carga total +1" -- calls atom_ops.protonate_atom() for every
+        currently SELECTED row (treeview selection, same multi-row
+        pattern as Clear Override(s) above). See _protonation_atoms_from_
+        selection()'s own docstring for why each atom is re-resolved to
+        its CURRENT atom_id (via the captured Atom object's own `.
+        atom_id`) right before each call, instead of using the atom_id
+        values captured before the loop started. """
+        atoms = self._protonation_atoms_from_selection ( )
+        if not atoms:
+            self.status_label.set_text ( "Select one or more rows first." )
+            return
+
+        from gui.windows.builder.atom_ops import protonate_atom
+        messages = [ ]
+        for atom in atoms:
+            ok, message = protonate_atom ( self.target_object, atom.atom_id )
+            messages.append ( message )
+        self.status_label.set_text ( "  |  ".join ( messages ) )
+        self._refresh_rows ( )
+
+    def on_deprotonate_button_clicked ( self, button ):
+        """ Symmetric counterpart to on_protonate_button_clicked() above
+        -- see that method's and atom_ops.deprotonate_atom()'s own
+        docstrings. """
+        atoms = self._protonation_atoms_from_selection ( )
+        if not atoms:
+            self.status_label.set_text ( "Select one or more rows first." )
+            return
+
+        from gui.windows.builder.atom_ops import deprotonate_atom
+        messages = [ ]
+        for atom in atoms:
+            ok, message = deprotonate_atom ( self.target_object, atom.atom_id )
+            messages.append ( message )
+        self.status_label.set_text ( "  |  ".join ( messages ) )
+        self._refresh_rows ( )
 
     def on_close_button_clicked ( self, *args ):
         """ Accepts *args so it can be connected directly to BOTH the

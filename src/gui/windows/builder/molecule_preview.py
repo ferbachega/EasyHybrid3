@@ -107,6 +107,30 @@ class MoleculePreview ( ):
         self.widget      = self.vm_session.vm_widget
         _install_zoom_and_rotate_only_filter ( self.vm_session.vm_glcore )
 
+        # [EN] REAL BUG FOUND AND FIXED, 2026-09-24 -- user's own report:
+        # "os sticks estao muito finos, quase invisiveis... representacao
+        # de ligacoes duplas e triplas [nao aparece]". Root cause: this
+        # bare VismolSession's own vismol.core.vismol_config.VismolConfig
+        # defaults `sticks_radius` to 0.010 -- 16x thinner than the main
+        # app's own gui.config.VismolConfig default (0.16, confirmed by
+        # reading both files directly). SAME root cause for BOTH symptoms,
+        # not two separate bugs: SticksRepresentation.draw_representation()
+        # (representations.py) sets the double/triple-bond PARALLEL-
+        # CYLINDER separation as `radius * 1.0` (a GL uniform, `u_sep_loc`)
+        # -- i.e. the multi-bond offset is directly proportional to this
+        # SAME radius, so at 0.010 the two/three cylinders of a double/
+        # triple bond sit only ~0.01 A apart, visually indistinguishable
+        # from a single stick even though the underlying bond-order data
+        # (already correct -- see atom_ops.add_structure_at_position()/
+        # attach_fragment_at_hydrogen(), which this preview reuses
+        # unchanged) was fine all along; `multiple_bonds` itself already
+        # defaults to True in this same bare config, so nothing there
+        # needed changing either. Fixed by overriding just THIS instance's
+        # own gl_parameters (not vismol_config.py's shared module-level
+        # default, which might be intentional for other bare-session use
+        # cases) to match the main app's own proven-visible value.
+        self.vm_session.vm_config.gl_parameters['sticks_radius'] = 0.16
+
     def show ( self, name, atoms, bonds ):
         """ atoms: [(symbol, x, y, z), ...]. bonds: [(i, j, order), ...]
         (fragment_library.load_fragment()'s own shape -- no aromaticity)

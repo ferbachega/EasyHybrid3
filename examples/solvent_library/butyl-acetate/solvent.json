@@ -1,0 +1,19 @@
+{
+  "id": "butyl-acetate",
+  "name": "Butyl acetate",
+  "formula": "C6H12O2",
+  "molecular_weight_g_mol": 116.16,
+  "smiles": "CCCCOC(C)=O",
+  "class": "ester",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.882,
+  "boiling_point_C_approx": 126.0,
+  "geometry": {
+    "xyz": "butyl-acetate/butyl-acetate.xyz",
+    "pdb": "butyl-acetate/butyl-acetate.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/butyl-acetate/SDF?record_type=3d"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "thf",
+  "name": "Tetrahydrofuran",
+  "formula": "C4H8O",
+  "molecular_weight_g_mol": 72.107,
+  "smiles": "C1CCOC1",
+  "class": "ether",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.889,
+  "boiling_point_C_approx": 66.0,
+  "geometry": {
+    "xyz": "thf/thf.xyz",
+    "pdb": "thf/thf.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/thf/SDF?record_type=3d"
+}

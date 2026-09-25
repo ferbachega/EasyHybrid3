@@ -1,0 +1,19 @@
+{
+  "id": "acetone",
+  "name": "Acetone",
+  "formula": "C3H6O",
+  "molecular_weight_g_mol": 58.08,
+  "smiles": "CC(C)=O",
+  "class": "polar_aprotic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.785,
+  "boiling_point_C_approx": 56.1,
+  "geometry": {
+    "xyz": "acetone/acetone.xyz",
+    "pdb": "acetone/acetone.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/acetone/SDF?record_type=3d"
+}

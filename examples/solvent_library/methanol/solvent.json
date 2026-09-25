@@ -1,0 +1,19 @@
+{
+  "id": "methanol",
+  "name": "Methanol",
+  "formula": "CH4O",
+  "molecular_weight_g_mol": 32.042,
+  "smiles": "CO",
+  "class": "polar_protic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.792,
+  "boiling_point_C_approx": 64.7,
+  "geometry": {
+    "xyz": "methanol/methanol.xyz",
+    "pdb": "methanol/methanol.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/methanol/SDF?record_type=3d"
+}

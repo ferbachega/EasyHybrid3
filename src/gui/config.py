@@ -165,6 +165,65 @@ class VismolConfig                       :
                                       # add_recent_file/get_recent_files/clear_recent_files
                                       # below and MainWindow's "Open Recent" submenu.
                                       'recent_files'        : [],
+
+                                      # [EN] Cartoon (ribbon) representation --
+                                      # "Preferences > Cartoon" tab (user
+                                      # request: adjustable ribbon thickness
+                                      # + a "variable criterion" for helix/
+                                      # strand assignment). Matches vismol.
+                                      # utils.ribbon_geometry.DEFAULT_
+                                      # CARTOON_SETTINGS exactly -- see
+                                      # representations.py's
+                                      # _cartoon_settings_from_gl_parameters()
+                                      # for how these get turned into an
+                                      # actual mesh. The 2 "*_tolerance"
+                                      # values are a PERCENTAGE (100 =
+                                      # published P-SEA thresholds as-is),
+                                      # matching what the Preferences entry
+                                      # field itself shows.
+                                      'cartoon_helix_width'        : 1.60,
+                                      'cartoon_helix_height'       : 0.18,
+                                      'cartoon_strand_width'       : 1.40,
+                                      'cartoon_strand_height'      : 0.18,
+                                      'cartoon_arrow_width'        : 2.20,
+                                      'cartoon_coil_radius'        : 0.32,
+                                      'cartoon_helix_tolerance'    : 100.0,
+                                      'cartoon_strand_tolerance'   : 150.0,
+                                      'cartoon_min_run'            : 2,
+                                      # Off by default: the helix/strand/coil
+                                      # assignment is computed once and
+                                      # reused for every trajectory frame
+                                      # (see CartoonRepresentation.rebuild()'s
+                                      # own docstring for the perf rationale --
+                                      # classification is ~45% of a rebuild's
+                                      # cost). On reclassifies every frame.
+                                      'cartoon_dynamic_secondary_structure' : False,
+
+                                      # [EN] Molecular surface (VDW/SAS/SES,
+                                      # EDTSurf-style -- user's own explicit
+                                      # request). 2026-09-23 follow-up: no
+                                      # longer a "Preferences > Surface" tab
+                                      # -- these are just the "last used"
+                                      # values that pre-fill the setup dialog
+                                      # opened from the treeview's own
+                                      # 'Representation > Surface' menu entry
+                                      # (see gui/main/treeview_menu.py's
+                                      # _open_molecular_surface_setup_dialog()).
+                                      # See util/molecular_surface.py's own
+                                      # DEFAULT_PROBE_RADIUS/DEFAULT_GRID_SPACING
+                                      # (same numeric defaults, kept in sync by
+                                      # hand since that module deliberately has
+                                      # no GTK/gl_parameters dependency of its
+                                      # own).
+                                      'surface_type'                : 'ses',
+                                      'surface_probe_radius'        : 1.4,
+                                      'surface_grid_spacing'        : 0.8,
+                                      'surface_taubin_enabled'      : False,
+                                      'surface_taubin_iterations'   : 15,
+                                      'surface_color_mode'          : 'atom',
+                                      'cartoon_color_helix'        : [0.90, 0.20, 0.55],
+                                      'cartoon_color_strand'       : [0.95, 0.85, 0.15],
+                                      'cartoon_color_coil'         : [0.85, 0.85, 0.85],
                                       }
                               
         self.n_proc = 2

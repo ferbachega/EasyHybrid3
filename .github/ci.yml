@@ -1,0 +1,85 @@
+name: CI
+
+# CI "basico", propositalmente sem GTK/OpenGL/display: compila as
+# extensoes Cython do submodulo graphics_engine (mesmo comando que
+# install.py ja usa) e roda a suite de testes de logica pura em tests/
+# -- ver tests/README.md para o que exatamente esta (e nao esta)
+# coberto por isso.
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:  # permite rodar manualmente pela aba Actions
+
+jobs:
+  syntax-check:
+    name: Syntax check (todo o repositorio, sem precisar importar nada)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (com submodulos)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # python -m compileall so' faz parsing/bytecode -- nao importa nem
+      # executa nada, entao pega erro de sintaxe ate' nos arquivos que
+      # dependem de GTK (easyhybrid_terminal.py, src/gui/**) sem precisar
+      # de GTK nenhum aqui.
+      #
+      # -x '/trash/' exclui duas pastas de codigo morto/abandonado
+      # (src/gui/windows/setup/trash, src/graphics_engine/src/vismol/
+      # model/trash) -- uma delas (elements2.py) tem um erro de sintaxe
+      # real (string triple-quote nao fechada) que faria este passo
+      # falhar por causa de um arquivo que, pelo proprio nome da pasta,
+      # nao e' usado por nada. Val vale considerar apagar essas pastas
+      # do repositorio de vez, em vez de so' excluir da checagem.
+      - name: Byte-compile everything (catches syntax errors project-wide)
+        run: python -m compileall -q -x '/trash/' src easyhybrid.py install.py tests
+
+  test:
+    name: Build extensions + run logic tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Validado manualmente so' com 3.12 ate' agora -- expandir esta
+        # matriz (ex. 3.10/3.11) e' um bom proximo passo, mas so' depois
+        # de confirmar que o build Cython/numpy tambem funciona nelas.
+        python-version: [ "3.12" ]
+
+    steps:
+      - name: Checkout (com submodulos)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Deliberadamente NAO instala requirements.txt inteiro aqui:
+      # PyGObject/pycairo precisam de headers de desenvolvimento do GTK3
+      # do sistema so' para COMPILAR (nao so' para rodar), e nao sao
+      # necessarios para os testes de logica pura desta suite -- ver
+      # tests/conftest.py e tests/README.md para o porque disso ser
+      # possivel.
+      - name: Install the (small) subset of deps these tests actually need
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy Cython freetype-py PyOpenGL
+          pip install -r requirements-dev.txt
+
+      - name: Compile the VisMol Cython extensions (same command install.py uses)
+        working-directory: src/graphics_engine
+        run: bash install.sh
+
+      - name: Run tests
+        run: python -m pytest tests/ -v

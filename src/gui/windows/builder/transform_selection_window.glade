@@ -8,7 +8,7 @@
   <requires lib="gtk+" version="3.20"/>
 
   <!-- Translate sliders: +/-5 Angstrom per drag gesture (resets to 0 on
-       release -- see transform_selection_window.py's own on_slider_
+       release; see transform_selection_window.py's own on_slider_
        released(), same "nudge, don't accumulate on the widget itself"
        convention every axis below shares). -->
   <object class="GtkAdjustment" id="translate_x_adjustment">

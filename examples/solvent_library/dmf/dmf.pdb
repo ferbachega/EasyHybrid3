@@ -1,0 +1,26 @@
+REMARK   1 N,N-Dimethylformamide
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 C1   SOL A   1       1.354   0.020  -0.245  1.00  0.00           C
+HETATM    2 N2   SOL A   1      -0.065   0.155   0.013  1.00  0.00           N
+HETATM    3 C3   SOL A   1      -0.758  -0.974   0.602  1.00  0.00           C
+HETATM    4 C4   SOL A   1      -0.775   1.247  -0.440  1.00  0.00           C
+HETATM    5 O5   SOL A   1      -1.987   1.400  -0.363  1.00  0.00           O
+HETATM    6 H6   SOL A   1       1.770   0.945  -0.653  1.00  0.00           H
+HETATM    7 H7   SOL A   1       1.505  -0.788  -0.967  1.00  0.00           H
+HETATM    8 H8   SOL A   1       1.865  -0.222   0.691  1.00  0.00           H
+HETATM    9 H9   SOL A   1      -1.804  -0.738   0.815  1.00  0.00           H
+HETATM   10 H10  SOL A   1      -0.258  -1.251   1.535  1.00  0.00           H
+HETATM   11 H11  SOL A   1      -0.718  -1.814  -0.097  1.00  0.00           H
+HETATM   12 H12  SOL A   1      -0.130   2.019  -0.892  1.00  0.00           H
+CONECT    1    2
+CONECT    2    3
+CONECT    2    4
+CONECT    4    5
+CONECT    1    6
+CONECT    1    7
+CONECT    1    8
+CONECT    3    9
+CONECT    3   10
+CONECT    3   11
+CONECT    4   12
+END

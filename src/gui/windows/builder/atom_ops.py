@@ -60,6 +60,7 @@ from util.debug import dprint
 def add_atom ( vismol_object, symbol, x, y, z, name = None,
                chain_id = "A", resi = 1, resn = "UNK",
                bonded_to = None, bond_order = 1, aromatic = False,
+               formal_charge = 0,
                recompute_bonds = True, update_representation = True ):
     """ Adds a single atom to vismol_object at position (x, y, z), in the
     same coordinate units/frame convention already used by the rest of
@@ -103,6 +104,14 @@ def add_atom ( vismol_object, symbol, x, y, z, name = None,
                "Aromatic bond types are not defined. Instead bonds
                themselves are flagged if they form part of an aromatic
                system." -- pMolecule/Bond.py's own comment).
+    formal_charge : integer formal/protonation charge (default 0) --
+               stored on the new Atom's own `formal_charge` attribute
+               (see vismol/model/atom.py's own comment distinguishing it
+               from `.charge`, the separate MM/QC partial-charge field).
+               Only ever nonzero here when _restore_builder_state()
+               rebuilds an atom that had one at snapshot time -- normal
+               callers add a neutral atom and protonate/deprotonate it
+               afterwards via atom_ops.protonate_atom()/deprotonate_atom().
     recompute_bonds : if True (default), rebuilds bonds/topology/molecule
                grouping from vismol_object.manual_bonds (via
                _reapply_manual_bonds()) after adding the atom. Set False
@@ -166,6 +175,7 @@ def add_atom ( vismol_object, symbol, x, y, z, name = None,
         atom_id       = atom_id,
     )
     atom.pos = np.array ( [ x, y, z ], dtype = np.float32 )
+    atom.formal_charge = formal_charge
     atom.unique_id = vm_session.atom_id_counter
     atom._generate_atom_unique_color_id ( )
     vm_session.atom_id_counter += 1
@@ -1545,6 +1555,7 @@ def _snapshot_builder_state ( vismol_object ):
             'resi'    : atom.residue.index if atom.residue is not None else 1,
             'resn'    : atom.residue.name if atom.residue is not None else 'UNK',
             'x'       : float ( pos[0] ), 'y': float ( pos[1] ), 'z': float ( pos[2] ),
+            'formal_charge': getattr ( atom, 'formal_charge', 0 ),
         } )
 
     return {
@@ -1610,6 +1621,7 @@ def _restore_builder_state ( vismol_object, snapshot ):
                    chain_id = atom_data['chain_id'],
                    resi     = atom_data['resi'],
                    resn     = atom_data['resn'],
+                   formal_charge = atom_data.get ( 'formal_charge', 0 ),
                    recompute_bonds       = False,
                    update_representation = False )
 
@@ -2110,6 +2122,33 @@ def _hydrogen_bond_length ( vismol_object, heavy_atom ):
     return float ( heavy_atom.cov_rad ) + float ( h_cov_rad )
 
 
+def builder_adjust_hydrogen_count_enabled ( vismol_object ):
+    """ [EN] 2026-09-25, user's own explicit request: "quando ele estiver
+    ativo, o novo atomo e o atomo ao qual este novo atomo estiver ligado
+    devem ter seus numeros de hidrogenios atualizados para uma
+    protonacao padrao. Quando desligado, ele deve permitir que, por
+    exemplo, um nitrogenio faca 4 ligacoes com hidrogenios (ions
+    amonio)". Shared switch (the sidebar's own "Adjust hydrogen count"
+    checkbutton, mirrored live into vm_session.builder_adjust_hydrogen_
+    count by builder_sidebar.py's on_adjust_hydrogen_count_toggled())
+    read by every AUTOMATIC post-edit adjust_hydrogens() call site in
+    click_mode.py and this module (add/bond/replace-element/change-bond-
+    order/attach-fragment) -- NOT by clean_up_structure() (which already
+    has its own, independently-driven adjust_hydrogen_count parameter),
+    and NOT by protonate_atom()/deprotonate_atom() (deliberate, explicit
+    user actions that must always run regardless of this switch -- it's
+    the ESCAPE HATCH for exactly the states this switch, when off, is
+    meant to let the user build by hand in the first place).
+
+    Defaults to True (matches this switch's own default-checked state in
+    the glade) if vismol_object has no vm_session, or the session has no
+    such attribute yet (e.g. a test harness that never opened the
+    sidebar) -- same "auto-adjust unless told otherwise" behaviour this
+    whole feature set already had before this switch existed. """
+    vm_session = getattr ( vismol_object, "vm_session", None )
+    return getattr ( vm_session, "builder_adjust_hydrogen_count", True )
+
+
 def adjust_hydrogens ( vismol_object, atom_id ):
     """ Recomputes ALL of atom_id's own hydrogens -- adding, removing,
     AND REPOSITIONING as needed -- so that (a) their COUNT matches
@@ -2139,6 +2178,18 @@ def adjust_hydrogens ( vismol_object, atom_id ):
     elements are left alone rather than guessed at), or if it needs (and
     already has) exactly zero hydrogens.
 
+    [EN] 2026-09-25, user's own explicit request: protonation state
+    ("especialmente aminas, que em agua deveriam aceitar um nitrogenio
+    tetravalente e com carga total +1") -- target_valence now adds
+    atom.formal_charge to the plain STANDARD_VALENCE lookup: a neutral N
+    wants 3 bonds (lone pair free), a +1 N wants 4 (lone pair used up by
+    the added proton) -- the same "+1 charge == 1 fewer lone pair == 1
+    more possible bond" rule applies with the opposite sign to
+    deprotonation (e.g. a carboxylic acid O- wants 1 bond instead of 2).
+    This is ALSO what makes atom_ops.protonate_atom()/deprotonate_atom()
+    below so simple -- they just change formal_charge by +-1 and call
+    this function to do the actual H add/remove + VSEPR placement.
+
     Returns the number of hydrogens added (positive) or removed
     (negative), or 0 if the count didn't change (positions may still
     have been adjusted even when this returns 0). """
@@ -2146,9 +2197,10 @@ def adjust_hydrogens ( vismol_object, atom_id ):
         return 0
 
     atom = vismol_object.atoms[atom_id]
-    target_valence = STANDARD_VALENCE.get ( atom.symbol.upper ( ) )
-    if target_valence is None:
+    base_valence = STANDARD_VALENCE.get ( atom.symbol.upper ( ) )
+    if base_valence is None:
         return 0
+    target_valence = base_valence + getattr ( atom, 'formal_charge', 0 )
 
     heavy_bond_order_sum = _bond_order_sum_excluding_symbol ( vismol_object, atom_id, exclude_symbol = 'H' )
     needed_h = max ( 0, target_valence - heavy_bond_order_sum )
@@ -2200,6 +2252,78 @@ def adjust_hydrogens ( vismol_object, atom_id ):
                    bonded_to = atom_id )
 
     return needed_h - initial_h_count
+
+
+# =====================================================================================
+#   Protonation state (formal charge + hydrogen count together)
+#   ------------------------------------------------------------------------------
+#   2026-09-25, user's own explicit request: "temos que adicionar a
+#   possibilidade de alterarmos estado de protonacao, especialmente e
+#   aminas, que em agua deveriam aceitar um nitrogenio tetravalente e
+#   com carga total +1." protonate_atom()/deprotonate_atom() are thin,
+#   symmetric wrappers around adjust_hydrogens() above -- ALL the actual
+#   chemistry (how many H, where to place them) is already handled by
+#   that function once formal_charge changes target_valence; these two
+#   just change formal_charge by +-1 (push a proton onto/off of a lone
+#   pair) and let adjust_hydrogens() do the rest. Wired into the Atom
+#   Types window (atom_types_window.py) as "Protonate"/"Deprotonate"
+#   buttons, reusing that window's existing per-atom selection UI rather
+#   than a new dedicated Builder click-tool.
+# =====================================================================================
+
+def protonate_atom ( vismol_object, atom_id ):
+    """ Adds one unit of positive formal charge to atom_id and lets
+    adjust_hydrogens() add the corresponding extra hydrogen (VSEPR-
+    placed, same as any other H this Builder adds). The canonical case
+    this was built for: a neutral amine nitrogen (3 bonds, 1 lone pair,
+    STANDARD_VALENCE['N'] == 3) becomes a tetravalent ammonium nitrogen
+    (4 bonds, formal_charge +1) -- but works for any element in
+    STANDARD_VALENCE, symmetrically.
+
+    Pushes ONE undo snapshot for the whole operation (charge change +
+    hydrogen add together undo as a single step). Returns (ok, message)
+    -- ok is False (no snapshot pushed, nothing changed) if atom_id
+    doesn't exist or its element has no STANDARD_VALENCE entry (adjust_
+    hydrogens() couldn't place a new hydrogen for it anyway). """
+    if atom_id not in vismol_object.atoms:
+        return False, "Atom #{} no longer exists.".format ( atom_id )
+    atom = vismol_object.atoms[atom_id]
+    if atom.symbol.upper ( ) not in STANDARD_VALENCE:
+        return False, "No standard valence known for element {} -- can't auto-place a new hydrogen.".format ( atom.symbol )
+
+    push_undo_snapshot ( vismol_object )
+    atom.formal_charge = getattr ( atom, 'formal_charge', 0 ) + 1
+    delta = adjust_hydrogens ( vismol_object, atom_id )
+
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( vismol_object )
+
+    return True, "Atom #{} ({}): charge now {:+d}, {} hydrogen(s) added.".format (
+            atom_id, atom.symbol, atom.formal_charge, max ( 0, delta ) )
+
+
+def deprotonate_atom ( vismol_object, atom_id ):
+    """ Symmetric counterpart to protonate_atom() above -- removes one
+    unit of positive formal charge (i.e. subtracts 1, so a neutral atom
+    goes negative, matching e.g. a carboxylic acid's -OH losing its
+    proton to become -O-) and lets adjust_hydrogens() remove the
+    corresponding hydrogen. Same undo/return-value conventions as
+    protonate_atom(). """
+    if atom_id not in vismol_object.atoms:
+        return False, "Atom #{} no longer exists.".format ( atom_id )
+    atom = vismol_object.atoms[atom_id]
+    if atom.symbol.upper ( ) not in STANDARD_VALENCE:
+        return False, "No standard valence known for element {} -- can't auto-remove a hydrogen.".format ( atom.symbol )
+
+    push_undo_snapshot ( vismol_object )
+    atom.formal_charge = getattr ( atom, 'formal_charge', 0 ) - 1
+    delta = adjust_hydrogens ( vismol_object, atom_id )
+
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( vismol_object )
+
+    return True, "Atom #{} ({}): charge now {:+d}, {} hydrogen(s) removed.".format (
+            atom_id, atom.symbol, atom.formal_charge, max ( 0, -delta ) )
 
 
 # =====================================================================================
@@ -2819,13 +2943,38 @@ def attach_fragment_at_hydrogen ( vismol_object, target_h_atom_id, fragment ):
     local_outward = _complete_vsepr_directions ( existing_dirs, total_count, ideal_angle )[0]
     local_outward = local_outward / np.linalg.norm ( local_outward )
 
-    # [EN] Rigid rotation mapping local_outward (fragment space) onto
-    # outward_dir (target space) -- standard axis/angle construction,
-    # with the 2 degenerate cases (already aligned, or exactly opposite)
-    # handled explicitly since cross(a, a) / cross(a, -a) are both zero
-    # vectors and can't supply a rotation axis on their own.
-    cos_theta = float ( np.clip ( np.dot ( local_outward, outward_dir ), -1.0, 1.0 ) )
-    axis = np.cross ( local_outward, outward_dir )
+    # [EN] 2026-09-25 BUG FIX (user's own report: "a orientacao do
+    # atomos dos fragmentos parece invertida... parece haver uma
+    # inversao no vetor que orienta o fragmento"): local_outward means
+    # "direction FROM the fragment's root atom TOWARD its own missing
+    # substituent" (same convention adjust_hydrogens() uses for THIS
+    # EXACT _complete_vsepr_directions() output -- there it's used
+    # UNNEGATED because it's applied directly as pos + offset_dir *
+    # bond_length, i.e. "from the atom to its NEW substituent"). Here,
+    # that "missing substituent" IS the attachment point -- i.e.
+    # local_outward is root's own "root -> parent" direction, in
+    # fragment-local coordinates. The REAL-WORLD equivalent of
+    # "root -> parent" is NOT outward_dir (parent -> H, i.e. AWAY from
+    # parent) -- it's the OPPOSITE, parent_pos - new_root_pos, which
+    # normalises to exactly -outward_dir. Aligning local_outward with
+    # +outward_dir (the old code) pointed the fragment's own
+    # "attachment-facing" side AWAY from parent instead of back toward
+    # it -- a 180-degree flip of the whole fragment around its root,
+    # independent of which real molecule/position it was attached to
+    # (matching the user's own "independentemente de qual posicao...
+    # parece haver uma inversao"). Verified against a real hexyl chain
+    # attachment: before this fix the chain folded back toward the
+    # parent atom instead of extending away from it.
+    attachment_target_dir = -outward_dir
+
+    # Rigid rotation mapping local_outward (fragment space) onto
+    # attachment_target_dir (target space) -- standard axis/angle
+    # construction, with the 2 degenerate cases (already aligned, or
+    # exactly opposite) handled explicitly since cross(a, a) / cross(a,
+    # -a) are both zero vectors and can't supply a rotation axis on
+    # their own.
+    cos_theta = float ( np.clip ( np.dot ( local_outward, attachment_target_dir ), -1.0, 1.0 ) )
+    axis = np.cross ( local_outward, attachment_target_dir )
     axis_norm = float ( np.linalg.norm ( axis ) )
     if axis_norm < 1e-8:
         if cos_theta > 0:
@@ -2894,8 +3043,9 @@ def attach_fragment_at_hydrogen ( vismol_object, target_h_atom_id, fragment ):
     # crashes the next picking pass.
     _refresh_bond_dependent_representations ( vismol_object )
 
-    adjust_hydrogens ( vismol_object, parent_atom.atom_id )
-    adjust_hydrogens ( vismol_object, root_new_id )
+    if builder_adjust_hydrogen_count_enabled ( vismol_object ):
+        adjust_hydrogens ( vismol_object, parent_atom.atom_id )
+        adjust_hydrogens ( vismol_object, root_new_id )
 
     vm_session = vismol_object.vm_session
     if getattr ( vm_session, "vm_glcore", None ) is not None:

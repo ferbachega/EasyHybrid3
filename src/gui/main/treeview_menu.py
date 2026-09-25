@@ -167,33 +167,47 @@ class TreeViewMenu:
                                 '_separator'            : ''      ,
                                 'Show / Hide Cell'      : self.show_or_hide_cell,
                                 
-                                # [EN] User request: add Cartoon as a
-                                # selectable representation option in
-                                # EasyHybrid. No existing menu here let
-                                # you pick a representation type at all
-                                # (only Rename/Frames/Go To Atom/Export/
-                                # Delete existed) -- this submenu covers
-                                # the representations already wired into
-                                # VismolObject.create_representation()
-                                # (see vismol_object.py), Cartoon
-                                # included (now that its secondary-
-                                # structure bug is fixed -- see
-                                # cartoon_BCK.py). Each entry toggles
-                                # that representation on/off for the
-                                # object that was right-clicked -- see
-                                # _menu_toggle_representation() below.
-                                
-                                #'''
-                                #'Representation': {
-                                #                  'Lines'      : lambda mi, rep='lines'     : self._menu_toggle_representation(mi, rep),
-                                #                  'Sticks'     : lambda mi, rep='sticks'    : self._menu_toggle_representation(mi, rep),
-                                #                  'Nonbonded'  : lambda mi, rep='nonbonded' : self._menu_toggle_representation(mi, rep),
-                                #                  'Dots'       : lambda mi, rep='dots'      : self._menu_toggle_representation(mi, rep),
-                                #                  '_separator' : None,
-                                #                  'Cartoon'    : lambda mi, rep='cartoon'   : self._menu_toggle_representation(mi, rep),
-                                #                  },
-                                ##'''
-                                
+                                # [EN] Re-enabled (was commented out
+                                # entirely -- no existing menu let you pick
+                                # a representation type at all): this
+                                # submenu covers the representations
+                                # already wired into VismolObject.
+                                # create_representation() (see
+                                # vismol_object.py), Cartoon included (now
+                                # a from-scratch, independent ribbon
+                                # implementation -- see CartoonRepresentation
+                                # in representations.py and vismol.utils.
+                                # ribbon_backbone/ribbon_geometry). Each
+                                # entry toggles that representation on/off
+                                # for the object that was right-clicked --
+                                # see _menu_toggle_representation() below,
+                                # already fully implemented, just never
+                                # reachable from the GUI until now.
+                                'Representation': {
+                                                  'Lines'      : lambda mi, rep='lines'     : self._menu_toggle_representation(mi, rep),
+                                                  'Sticks'     : lambda mi, rep='sticks'    : self._menu_toggle_representation(mi, rep),
+                                                  'Nonbonded'  : lambda mi, rep='nonbonded' : self._menu_toggle_representation(mi, rep),
+                                                  'Dots'       : lambda mi, rep='dots'      : self._menu_toggle_representation(mi, rep),
+                                                  '_separator' : None,
+                                                  'Cartoon'    : lambda mi, rep='cartoon'   : self._menu_toggle_representation(mi, rep),
+                                                  # [EN] 2026-09-23, 2nd follow-up: EDTSurf-style
+                                                  # molecular surface (VDW/SAS/SES, see util/
+                                                  # molecular_surface.py) now works like the QC
+                                                  # (orbital/density/MEP) surfaces already do --
+                                                  # each generation creates its OWN new VismolObject
+                                                  # (is_surface=True, nested as a child of this row
+                                                  # in the treeview), so more than one surface (even
+                                                  # several of the SAME type) can coexist on one
+                                                  # object. So this is no longer a toggle -- it
+                                                  # ALWAYS opens the setup dialog and ALWAYS creates
+                                                  # a new row; show/hide and further per-surface
+                                                  # setup (Taubin/decimate/wireframe/opacity) happen
+                                                  # on that new row itself (right-click -> Setup,
+                                                  # reusing _surf_setup -- the same generic dialog
+                                                  # the QC tool already uses), not here anymore.
+                                                  'New Surface...' : lambda mi: self._open_molecular_surface_setup_dialog ( [ self.treeview.main.vm_session.vm_objects_dic[self.vobject_index] ] ),
+                                                  },
+
                                 '_separator'            : ''      ,
                                 'Frames': {
                                         'Edit': {
@@ -268,6 +282,30 @@ class TreeViewMenu:
                                 'Change Working Folder...': self._menu_change_working_folder,
                                 'Import Data...'          : self._menu_load_data_to_system  ,
                                 'Reference Color'         : self._menu_change_color_palette ,
+
+                                # [EN] User request: the same "Representation"
+                                # submenu already on the per-object (vobject)
+                                # right-click menu (vobject_menu_items above),
+                                # now ALSO on the System row's own menu -- so
+                                # a user right-clicking the top-level System
+                                # row (not a specific molecule under it) can
+                                # toggle representations too, without having
+                                # to expand and pick the object first. Applies
+                                # to every vobject belonging to this system
+                                # (normally just one) -- see
+                                # _menu_toggle_representation_for_system().
+                                'Representation': {
+                                                  'Lines'      : lambda mi, rep='lines'     : self._menu_toggle_representation_for_system(mi, rep),
+                                                  'Sticks'     : lambda mi, rep='sticks'    : self._menu_toggle_representation_for_system(mi, rep),
+                                                  'Nonbonded'  : lambda mi, rep='nonbonded' : self._menu_toggle_representation_for_system(mi, rep),
+                                                  'Dots'       : lambda mi, rep='dots'      : self._menu_toggle_representation_for_system(mi, rep),
+                                                  '_separator' : None,
+                                                  'Cartoon'    : lambda mi, rep='cartoon'   : self._menu_toggle_representation_for_system(mi, rep),
+                                                  # [EN] see the per-object 'New Surface...' entry
+                                                  # above for why this is no longer a toggle.
+                                                  'New Surface...' : self._menu_new_surface_for_system,
+                                                  },
+
                                 #'Edit Parameters'        : self.f2                         ,
                                 'Export As...'            : self._menu_export_data_window    ,
                                 
@@ -714,9 +752,17 @@ class TreeViewMenu:
         Builder on a temporary clone of the right-clicked system (self.
         system_e_id, set by open_menu() right before this menu is popped
         up) -- see empty_object.begin_editing_existing_system() for the
-        full clone/bootstrap/fold-back-or-keep-as-new-system design. """
-        from gui.windows.builder.empty_object import begin_editing_existing_system
-        begin_editing_existing_system ( self.main.vm_session, self.system_e_id )
+        full clone/bootstrap/fold-back-or-keep-as-new-system design.
+
+        [EN] 2026-09-24: a System can have more than one real vobject
+        (several docking poses sharing one e_id) or surface children
+        (util/molecular_surface.py), so which one to edit is no longer
+        assumed here -- delegates to builder_entry_dialog.choose_vobject_
+        and_edit(), which shows the (always-visible) vobject picker and
+        the discard-with-warning step for any other object in the same
+        system, before actually calling begin_editing_existing_system(). """
+        from gui.windows.builder.builder_entry_dialog import choose_vobject_and_edit
+        choose_vobject_and_edit ( self.main, self.system_e_id )
         self._save_backup_file()
 
     def _menu_go_to_atom (self, vobject = None):
@@ -1157,6 +1203,294 @@ class TreeViewMenu:
         else:
             rep.active = not rep.active
         self.treeview.main.vm_session.vm_glcore.queue_draw()
+
+    def _menu_new_surface_for_system ( self, menu_item = None ):
+        """ [EN] System-row counterpart of the per-object 'New Surface...'
+        entry -- every VismolObject belonging to this system (self.
+        system_e_id, set by open_menu()) shares ONE setup dialog/click
+        (see _open_molecular_surface_setup_dialog()), each getting its
+        own new child surface object. """
+        vm_session = self.treeview.main.vm_session
+        vismol_objects = [ v for v in vm_session.vm_objects_dic.values ( )
+                            if v.e_id == self.system_e_id and not getattr ( v, "is_surface", False ) ]
+        if vismol_objects:
+            self._open_molecular_surface_setup_dialog ( vismol_objects )
+
+    def _open_molecular_surface_setup_dialog ( self, vismol_objects ):
+        """ [EN] Setup dialog for generating a molecular surface (VDW/SAS/
+        SES, see util/molecular_surface.py -- the user's own EDTSurf-style
+        request). 2026-09-23, 2nd follow-up request: "assim como para
+        superficies de orbitais e densidade eletronica, criamos um novo
+        objeto associado a um vobject, vamos fazer o mesmo para
+        superficies, permitindo criar mais de uma para um unico objeto" +
+        "extenda para todos os frames" -- so EVERY click on 'New Surface...'
+        opens this dialog and, on "Generate", creates a brand-new child
+        VismolObject (is_surface=True, nested under the parent row in the
+        treeview -- the EXACT SAME mechanism surface_analysis_window.py's
+        own on_render_button() already uses for orbital/density/MEP
+        surfaces, see that file's VismolObject(...)+_add_vismol_object(...)+
+        add_vismol_object_to_treeview(...) sequence) rather than writing
+        onto (and overwriting) a single 'surface' slot on the PARENT
+        object -- so several surfaces, even several of the SAME type, can
+        coexist on one molecule, each its own row, each independently
+        shown/hidden/deleted/renamed/reconfigured (right-click -> Setup,
+        reusing _surf_setup, above -- already generic enough to work
+        unmodified here).
+
+        Per-FRAME, not just per-object: `molecular_surface.
+        build_surface_trajectory()` now builds a real mesh for EVERY frame
+        of the parent's trajectory (in parallel via multiprocessing.Pool
+        when there's more than one -- the exact same pattern
+        surface_analysis_window.py's own generate_grid_parallel() already
+        uses for QC surfaces), instead of copying one static frame's mesh
+        into every frame slot -- so navigating a trajectory now actually
+        updates the surface, not just its host object's transform.
+
+        `vismol_objects`: every PARENT VismolObject to generate a new
+        surface for -- a single-element list for the per-object menu
+        entry, or every real (non-surface) object belonging to a system
+        for the per-system one (_menu_new_surface_for_system), all
+        sharing this one dialog/click. "Cancel" closes without creating
+        anything."""
+        gl_parameters = self.treeview.main.vm_session.vm_config.gl_parameters
+        vm_glcore     = self.treeview.main.vm_session.vm_glcore
+
+        window = Gtk.Window ( title = "Surface Setup" )
+        window.set_border_width ( 10 )
+        window.set_default_size ( 300, -1 )
+        window.set_keep_above ( True )
+        self._molecular_surface_setup_window = window   # keeps a live reference (pattern already used by self.preferences etc. in this file)
+
+        vbox = Gtk.Box ( orientation = Gtk.Orientation.VERTICAL, spacing = 8 )
+        window.add ( vbox )
+
+        label_type = Gtk.Label ( label = "Surface type:" )
+        label_type.set_xalign ( 0 )
+        combo_type = Gtk.ComboBoxText ( )
+        combo_type.append ( "vws", "Van der Waals (VWS)" )
+        combo_type.append ( "sas", "Solvent-Accessible (SAS)" )
+        combo_type.append ( "ses", "Solvent-Excluded / Connolly (SES)" )
+        if combo_type.set_active_id ( gl_parameters.get ( 'surface_type', 'ses' ) ) is False:
+            combo_type.set_active_id ( 'ses' )
+        vbox.pack_start ( label_type, False, False, 0 )
+        vbox.pack_start ( combo_type, False, False, 0 )
+
+        label_probe = Gtk.Label ( label = "Probe radius (Å, SAS/SES only):" )
+        label_probe.set_xalign ( 0 )
+        entry_probe = Gtk.Entry ( )
+        entry_probe.set_text ( str ( gl_parameters.get ( 'surface_probe_radius', 1.4 ) ) )
+        vbox.pack_start ( label_probe, False, False, 0 )
+        vbox.pack_start ( entry_probe, False, False, 0 )
+
+        label_spacing = Gtk.Label ( label = "Grid spacing (Å -- smaller = finer & slower):" )
+        label_spacing.set_xalign ( 0 )
+        entry_spacing = Gtk.Entry ( )
+        entry_spacing.set_text ( str ( gl_parameters.get ( 'surface_grid_spacing', 0.8 ) ) )
+        vbox.pack_start ( label_spacing, False, False, 0 )
+        vbox.pack_start ( entry_spacing, False, False, 0 )
+
+        # [EN] 2026-09-23, 4th follow-up request: "outras opcoes de cores,
+        # por exemplo, by chain, usar as cores dos carbonos do sistema, e
+        # outros (deixe em aberto para receber o potencial eletrostatico
+        # depois)" -- see util/molecular_surface.py's own _resolve_atom_
+        # colors() docstring for the full derivation/architecture note on
+        # keeping this open for a future electrostatic-potential mode.
+        label_color = Gtk.Label ( label = "Color by:" )
+        label_color.set_xalign ( 0 )
+        combo_color = Gtk.ComboBoxText ( )
+        combo_color.append ( "atom",   "Atom colors" )
+        combo_color.append ( "chain",  "Chain" )
+        combo_color.append ( "carbon", "Carbon color (system)" )
+        if combo_color.set_active_id ( gl_parameters.get ( 'surface_color_mode', 'atom' ) ) is False:
+            combo_color.set_active_id ( 'atom' )
+        vbox.pack_start ( label_color, False, False, 0 )
+        vbox.pack_start ( combo_color, False, False, 0 )
+
+        vbox.pack_start ( Gtk.Separator ( orientation = Gtk.Orientation.HORIZONTAL ), False, False, 4 )
+
+        hbox_taubin = Gtk.Box ( orientation = Gtk.Orientation.HORIZONTAL, spacing = 6 )
+        chk_taubin = Gtk.CheckButton ( label = "Smooth (Taubin), iterations:" )
+        chk_taubin.set_active ( bool ( gl_parameters.get ( 'surface_taubin_enabled', False ) ) )
+        entry_taubin_iters = Gtk.Entry ( )
+        entry_taubin_iters.set_width_chars ( 6 )
+        entry_taubin_iters.set_text ( str ( gl_parameters.get ( 'surface_taubin_iterations', 15 ) ) )
+        entry_taubin_iters.set_sensitive ( chk_taubin.get_active ( ) )
+        chk_taubin.connect ( "toggled", lambda w: entry_taubin_iters.set_sensitive ( w.get_active ( ) ) )
+        hbox_taubin.pack_start ( chk_taubin, False, False, 0 )
+        hbox_taubin.pack_start ( entry_taubin_iters, False, False, 0 )
+        vbox.pack_start ( hbox_taubin, False, False, 0 )
+
+        vbox.pack_start ( Gtk.Separator ( orientation = Gtk.Orientation.HORIZONTAL ), False, False, 4 )
+
+        label_status = Gtk.Label ( label = "" )
+        label_status.set_xalign ( 0 )
+
+        hbox_buttons = Gtk.Box ( orientation = Gtk.Orientation.HORIZONTAL, spacing = 6 )
+        btn_generate = Gtk.Button ( label = "Generate" )
+        btn_cancel   = Gtk.Button ( label = "Cancel" )
+        btn_cancel.connect ( "clicked", lambda w: window.destroy ( ) )
+
+        def on_generate_clicked ( w ):
+            try:
+                probe_radius = float ( entry_probe.get_text ( ).strip ( ).replace ( ',', '.' ) )
+                grid_spacing = float ( entry_spacing.get_text ( ).strip ( ).replace ( ',', '.' ) )
+                if grid_spacing <= 0.0 or probe_radius < 0.0:
+                    raise ValueError ( "values must be positive" )
+                taubin_enabled = chk_taubin.get_active ( )
+                taubin_iterations = 0
+                if taubin_enabled:
+                    taubin_iterations = int ( float ( entry_taubin_iters.get_text ( ).strip ( ).replace ( ',', '.' ) ) )
+                    if taubin_iterations <= 0:
+                        raise ValueError ( "Taubin iterations must be positive" )
+            except ValueError as error:
+                label_status.set_text ( "Invalid value: {}".format ( error ) )
+                return
+
+            surface_type = combo_type.get_active_id ( ) or 'ses'
+            color_mode   = combo_color.get_active_id ( ) or 'atom'
+
+            # remember as the new "last used" defaults -- still pre-fills
+            # the NEXT time this dialog opens, just no longer exposed via
+            # a standing Preferences tab.
+            gl_parameters['surface_type']             = surface_type
+            gl_parameters['surface_probe_radius']      = probe_radius
+            gl_parameters['surface_grid_spacing']      = grid_spacing
+            gl_parameters['surface_taubin_enabled']    = taubin_enabled
+            gl_parameters['surface_color_mode']        = color_mode
+            if taubin_enabled:
+                gl_parameters['surface_taubin_iterations'] = taubin_iterations
+
+            n_frames_total = sum ( int ( v.frames.shape[0] ) for v in vismol_objects )
+            btn_generate.set_sensitive ( False )
+            btn_cancel.set_sensitive ( False )
+            label_status.set_text (
+                "Generating {} frame(s){}...".format (
+                    n_frames_total, " across {} object(s)".format ( len ( vismol_objects ) ) if len ( vismol_objects ) > 1 else ""
+                )
+            )
+            while Gtk.events_pending ( ):
+                Gtk.main_iteration ( )
+
+            try:
+                for parent_object in vismol_objects:
+                    self._create_molecular_surface_object (
+                        parent_object, surface_type = surface_type,
+                        probe_radius = probe_radius, grid_spacing = grid_spacing,
+                        taubin_iterations = taubin_iterations, color_mode = color_mode,
+                    )
+            except Exception as error:
+                label_status.set_text ( "Generation failed: {}".format ( error ) )
+                btn_generate.set_sensitive ( True )
+                btn_cancel.set_sensitive ( True )
+                return
+
+            self.treeview.main.refresh_widgets ( )
+            vm_glcore.queue_draw ( )
+            window.destroy ( )
+
+        btn_generate.connect ( "clicked", on_generate_clicked )
+        hbox_buttons.pack_start ( btn_generate, True, True, 0 )
+        hbox_buttons.pack_start ( btn_cancel, True, True, 0 )
+        vbox.pack_start ( hbox_buttons, False, False, 0 )
+        vbox.pack_start ( label_status, False, False, 0 )
+
+        window.show_all ( )
+
+    def _create_molecular_surface_object ( self, parent_object, surface_type, probe_radius, grid_spacing, taubin_iterations, color_mode = "atom" ):
+        """ [EN] Creates ONE new child VismolObject holding a molecular
+        surface (VWS/SAS/SES) generated from `parent_object`'s own atoms --
+        the exact same "new object, nested under the parent row, is_surface
+        =True, borrows model_mat/trans_mat/frames from the parent, empty
+        atoms/colors of its own" pattern surface_analysis_window.py's own
+        on_render_button() already uses for orbital/density/MEP surfaces
+        (see that file, e.g. its density branch ~line 1483) -- ported here
+        so several molecular surfaces (even several of the same type) can
+        coexist on one parent, each independently shown/hidden/deleted/
+        reconfigured via its own treeview row. """
+        from vismol.core.vismol_object import VismolObject
+        from vismol.libgl.representations import SurfaceRepresentation
+        from util.molecular_surface import build_surface_trajectory, compute_surface_area
+
+        main = self.treeview.main
+        vm_session = main.vm_session
+
+        surf_name = "surface"
+        trajectory = build_surface_trajectory (
+            parent_object, surface_type = surface_type, probe_radius = probe_radius,
+            grid_spacing = grid_spacing, taubin_iterations = taubin_iterations, surf_name = surf_name,
+            color_mode = color_mode,
+        )
+        # [EN] User's own explicit request, 2026-09-24: "vamos tambem
+        # mostrar a area total de superficie ... podemos colocar o valor
+        # de area no terminal, por hora" -- a real GUI display (a label
+        # in the setup dialog / _surf_setup, or a treeview column) is
+        # deliberately NOT built yet ("por hora" -- for now), matching
+        # this feature's own established "ship the simplest thing that
+        # answers the request, add UI polish only when asked" pattern.
+        # compute_surface_area()'s own `triangle_mask` parameter is
+        # already there for a future "area of just a piece" query (the
+        # user's own explicit "ja prepare para o calculo fazer para um
+        # pedaco dela tambem") -- not used here, no caller needs it yet.
+        areas = [ compute_surface_area ( frame_dict[ surf_name ] ) for frame_dict in trajectory ]
+
+        child_object = VismolObject ( name = surface_type.upper ( ), index = -1,
+                                       vismol_session = vm_session, trajectory = [ ],
+                                       bonds_pair_of_indexes = [ 0, 1 ] )
+        child_object.model_mat = parent_object.model_mat
+        child_object.trans_mat = parent_object.trans_mat
+        child_object.surface_trajectory = trajectory
+        child_object.representations[ surf_name ] = SurfaceRepresentation (
+            vismol_object = child_object, vismol_glcore = vm_session.vm_glcore,
+            name = 'surface', active = True, indexes = [ ], is_dynamic = False,
+            surface_name = surf_name,
+        )
+        child_object.representations[ surf_name ].set_shading_mode ( "smooth" )   # see molecular_surface.py's own top-of-file note -- normal data is already smooth, this just turns shading on
+        child_object.frames       = parent_object.frames
+        child_object.active       = True
+        child_object.is_surface   = True
+        child_object.surface_type = surface_type   # read by _surf_setup()'s own type label
+        child_object.e_id         = parent_object.e_id
+
+        vm_session._add_vismol_object ( child_object, show_molecule = False, autocenter = False )
+        main.main_treeview.add_vismol_object_to_treeview ( child_object, parent_object.e_treeview_iter )
+        main.add_vobject_to_vobject_liststore_dict ( child_object )
+
+        if len ( areas ) == 1:
+            print ( "Surface '{}' ({}): total area = {:.2f} Å²".format (
+                child_object.name, surface_type.upper ( ), areas[0]
+            ) )
+        else:
+            print ( "Surface '{}' ({}): total area per frame (Å²) = {}".format (
+                child_object.name, surface_type.upper ( ),
+                ", ".join ( "{:.2f}".format ( a ) for a in areas )
+            ) )
+
+        return child_object
+
+    def _menu_toggle_representation_for_system (self, menu_item, rep_type):
+        """ [EN] System-row counterpart of _menu_toggle_representation()
+        above -- the system that was right-clicked (self.system_e_id, set
+        by open_menu()) has no single associated vobject of its own (that
+        menu pops up with vobject_index == -1, see open_menu()), so this
+        toggles `rep_type` for EVERY VismolObject whose .e_id matches this
+        system instead (normally just one -- a system with more than one
+        loaded vobject, e.g. several docking poses, gets all of them
+        toggled together). Each object keeps its OWN independent
+        create-or-flip logic (same as the per-object version), so if one
+        already has the representation and another doesn't, they can end
+        up with different .active states after one click -- acceptable,
+        matches how e.g. per-object cartoon SS geometry already can't be
+        shared anyway. """
+        vm_session = self.treeview.main.vm_session
+        for vismol_object in vm_session.vm_objects_dic.values():
+            if vismol_object.e_id != self.system_e_id:
+                continue
+            rep = vismol_object.representations.get(rep_type)
+            if rep is None:
+                vismol_object.create_representation(rep_type=rep_type)
+            else:
+                rep.active = not rep.active
+        vm_session.vm_glcore.queue_draw()
 
     def open_rename_window (self, e_id, v_id, old_name, tag):
         """ Shared rename-window opener used by BOTH the row-level

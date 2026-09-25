@@ -1,0 +1,19 @@
+{
+  "id": "cyclohexane",
+  "name": "Cyclohexane",
+  "formula": "C6H12",
+  "molecular_weight_g_mol": 84.162,
+  "smiles": "C1CCCCC1",
+  "class": "apolar",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.779,
+  "boiling_point_C_approx": 80.7,
+  "geometry": {
+    "xyz": "cyclohexane/cyclohexane.xyz",
+    "pdb": "cyclohexane/cyclohexane.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/cyclohexane/SDF?record_type=3d"
+}

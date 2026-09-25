@@ -53,6 +53,7 @@
 # ============================================================================
 import os
 from vismol.utils.elements import PeriodicTable
+from vismol.utils.debug import dprint
 
 
 # [EN] Every element symbol vismol's own PeriodicTable knows, keyed by its
@@ -264,7 +265,58 @@ def load_structure ( path ):
         if order is None:
             raise StructureError ( "{}: bond {}-{} has unsupported type {!r}.".format (
                     path, i + 1, j + 1, code ) )
-        bonds.append ( ( i, j, order, normalized_code in _MOL2_AROMATIC_CODES ) )
+        bonds.append ( [ i, j, order, normalized_code in _MOL2_AROMATIC_CODES ] )
+
+    # [EN] REAL BUG FOUND AND FIXED, 2026-09-24 -- user's own report: "as
+    # ligacoes nao estao devidamente atribuidas, todas estao como simples,
+    # desrespeitando a ordem de ligacao do mol2". Traced end to end
+    # (parsing -> atom_ops.add_structure_at_position() -> manual_bond_
+    # orders -> rendering): explicit "1"/"2"/"3" mol2 bond codes were
+    # ALREADY passing through correctly (verified against real files:
+    # nitrile.mol2's C#N "3", urea.mol2's C=O "2"). The actual cause: "ar"
+    # (aromatic) bonds are, BY DESIGN (see this module's own top-of-file
+    # note), stored as order=1 + a separate aromatic flag -- mirroring the
+    # Builder's own manual "Aromatic" sidebar tool -- but nothing ever
+    # Kekulizes that flag into a concrete alternating single/double
+    # pattern for RENDERING (SticksRepresentation only ever reads `bond.
+    # bond_order`, never the aromatic flag -- see representations.py).
+    # Since most of this library's own shipped content (benzene rings,
+    # pyridines, purines, fused medchem scaffolds...) is essentially 100%
+    # "ar"-coded on their ring bonds, placing one of THOSE structures
+    # really did show "every bond single", exactly matching the report --
+    # while an explicit-double/triple structure (urea, nitrile) already
+    # rendered correctly, which is why this looked inconsistent rather
+    # than uniformly broken.
+    #
+    # Fixed by reusing this app's OWN already-proven Wang&Case bond-order
+    # perceiver (vismol.core.bond_order_perception.perceive_bond_orders --
+    # the exact same one atom_ops.bootstrap_manual_bonds_from_existing()
+    # already uses to Kekulize a whole "Edit in Builder" molecule from
+    # scratch) over this structure's OWN local atoms/bonds, but ONLY to
+    # resolve the "ar"-coded ones -- explicit "1"/"2"/"3" bonds from the
+    # file are left untouched (already correct, no reason to second-guess
+    # the file's own explicit data), while still feeding the perceiver the
+    # WHOLE local bond graph (not just the aromatic subset) so its own
+    # valence-penalty minimisation has full context to alternate correctly
+    # around the ring. Same "never let a perception failure block loading"
+    # guard as bootstrap_manual_bonds_from_existing() -- falls back to the
+    # OLD order=1 behaviour (not a crash) if perception itself raises.
+    if any ( is_aromatic for ( _i, _j, _order, is_aromatic ) in bonds ):
+        try:
+            from vismol.core.bond_order_perception import perceive_bond_orders
+            symbols = [ atom[0] for atom in atoms ]
+            pairs = [ ( i, j ) for ( i, j, _order, _arom ) in bonds ]
+            order_map, _tps = perceive_bond_orders ( symbols, pairs )
+            for entry in bonds:
+                i, j, order, is_aromatic = entry
+                if is_aromatic:
+                    key = ( i, j ) if i < j else ( j, i )
+                    entry[2] = int ( order_map.get ( key, order ) )
+        except Exception as exc:
+            dprint ( "WARNING structure_library.load_structure: bond order perception "
+                    "failed for {} ({}) -- aromatic bonds kept as plain single order.".format ( path, exc ) )
+
+    bonds = [ tuple ( entry ) for entry in bonds ]
 
     return {
         "name"  : os.path.splitext ( os.path.basename ( path ) )[0],

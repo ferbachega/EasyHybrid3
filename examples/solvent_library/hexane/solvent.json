@@ -1,0 +1,19 @@
+{
+  "id": "hexane",
+  "name": "n-Hexane",
+  "formula": "C6H14",
+  "molecular_weight_g_mol": 86.178,
+  "smiles": "CCCCCC",
+  "class": "apolar",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.655,
+  "boiling_point_C_approx": 68.7,
+  "geometry": {
+    "xyz": "hexane/hexane.xyz",
+    "pdb": "hexane/hexane.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/hexane/SDF?record_type=3d"
+}

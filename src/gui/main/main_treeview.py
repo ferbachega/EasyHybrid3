@@ -586,6 +586,27 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         # Add all systems to the TreeView
         for e_id in self.main.p_session.psystem.keys():
             system = self.main.p_session.psystem[e_id]
+            # [EN] 2026-09-25 BUG FIX: psystem[e_id] can legitimately be
+            # None -- both pDynamoSession's own startup state AND
+            # MainWindow.delete_system()'s own "no systems left" fallback
+            # (`self.p_session.psystem[0] = None`) use exactly this
+            # convention to mean "no system in this slot". Before this
+            # fix, refresh() (called after EVERY Builder structural edit,
+            # via empty_object.sync_pdynamo_system()) crashed here with
+            # AttributeError ('NoneType' has no attribute 'e_id', inside
+            # add_new_system_to_treeview()) the FIRST time it ran after
+            # the last remaining system was deleted -- caught silently by
+            # sync_pdynamo_system()'s own broad try/except (so no visible
+            # error), but treestore.clear() a few lines above had already
+            # run, so the crash left the WHOLE treeview permanently empty
+            # from then on, even though the new pDynamo system itself had
+            # already registered successfully just before this call.
+            # Reproduced live: build a system, delete it (via the
+            # treeview's own "Delete" -- leaves psystem == {0: None}),
+            # build a second one from scratch -- treeview ends up with 0
+            # rows despite psystem correctly holding the new system.
+            if system is None:
+                continue
             self.add_new_system_to_treeview(system)
 
         # Add all vobjects to the TreeView

@@ -44,9 +44,38 @@ from gi.repository import Gtk
 from gui.windows.builder.empty_object import create_empty_vismol_object
 from gui.windows.builder.empty_object import discard_builder_object_if_unused
 from gui.windows.builder.empty_object import finish_editing_existing_system
+from gui.windows.builder.empty_object import hide_other_vobjects_for_builder
+from gui.windows.builder.empty_object import restore_hidden_vobjects_for_builder
 from gui.windows.builder.atom_ops     import undo as atom_ops_undo
 from gui.windows.builder.atom_ops     import clean_up_structure
 from gui.windows.builder.atom_ops     import optimize_geometry_dyff
+from gui.windows.builder.fragment_library import load_fragment, FragmentError
+
+# [EN] 2026-09-24/25: quick-pick fragment row (sidebar's own
+# fragment_grid) -- maps each radio's widget attribute name to the
+# ".mol2" file it loads (fragments/functional_groups/, same starter set
+# the full Fragment Library browses). Only the 7 fragments confirmed
+# loadable under fragment_library.py's own non-hypervalent
+# _STANDARD_VALENCE table (see that module's docstring) are mapped here
+# -- carboxylate/-SO2/-PO3/-NO2/-CON (this round's own "-CON" button,
+# frag_con_radio1, was added to the glade with no signal handler wired
+# yet either) need either a second attachment point or a charged/
+# hypervalent atom this Builder doesn't support yet. 2026-09-25, user's
+# own explicit request: "podemos linkar os fragmentos aos botoes em si
+# mais tarde" -- fragment_grid now has MORE buttons than real mappings
+# (see builder_sidebar.glade -- frag_coo_radio/frag_con_radio1/
+# frag_coo_radio1/frag_coo_radio2), left deliberately unmapped/inert for
+# now rather than guessed at; on_fragment_quick_changed() below already
+# no-ops safely on any button with no entry here.
+_QUICK_FRAGMENT_FILES = {
+    "frag_cooh_radio": "carboxyl.mol2",
+    "frag_nco_radio":  "isocyanate.mol2",
+    "frag_ome_radio":  "methoxy.mol2",
+    "frag_hex_radio":  "hexyl.mol2",
+    "frag_pent_radio": "pentyl.mol2",
+    "frag_benz_radio": "phenyl.mol2",
+    "frag_furo_radio": "furyl.mol2",
+}
 
 
 class BuilderSidebarWindow ( ):
@@ -79,23 +108,49 @@ class BuilderSidebarWindow ( ):
         self.tool_delete_radio = self.builder.get_object ( 'tool_delete_radio' )
         self.tool_move_radio   = self.builder.get_object ( 'tool_move_radio' )
         self.tool_bond_order_radio = self.builder.get_object ( 'tool_bond_order_radio' )
-        self.tool_attach_fragment_radio = self.builder.get_object ( 'tool_attach_fragment_radio' )
+        # [EN] 2026-09-25: no more dedicated "Fragment" TOOL radio -- see
+        # this module's own _QUICK_FRAGMENT_FILES comment above.
         self.tool_add_structure_radio   = self.builder.get_object ( 'tool_add_structure_radio' )
         self.tool_rotate_dihedral_radio = self.builder.get_object ( 'tool_rotate_dihedral_radio' )
-        self.dihedral_angle_scale = self.builder.get_object ( 'dihedral_angle_scale' )
-        self.fragments_button = self.builder.get_object ( 'fragments_button' )
-        self.structures_button = self.builder.get_object ( 'structures_button' )
         self.element_C_radio   = self.builder.get_object ( 'element_C_radio' )
         self.element_N_radio   = self.builder.get_object ( 'element_N_radio' )
         self.element_O_radio   = self.builder.get_object ( 'element_O_radio' )
         self.element_H_radio   = self.builder.get_object ( 'element_H_radio' )
+        # [EN] 2026-09-24, user's own explicit request: "Adicionei os
+        # elmentos: B, P, S, F, Cl, Br, I" -- 7 new quick-pick element
+        # radios alongside the original C/N/O/H/Other... set (see
+        # builder_sidebar.glade's own element_grid, 4 columns x 3 rows).
+        self.element_B_radio   = self.builder.get_object ( 'element_B_radio' )
+        self.element_P_radio   = self.builder.get_object ( 'element_P_radio' )
+        self.element_S_radio   = self.builder.get_object ( 'element_S_radio' )
+        self.element_F_radio   = self.builder.get_object ( 'element_F_radio' )
+        self.element_Cl_radio  = self.builder.get_object ( 'element_Cl_radio' )
+        self.element_Br_radio  = self.builder.get_object ( 'element_Br_radio' )
+        self.element_I_radio   = self.builder.get_object ( 'element_I_radio' )
         self.element_other_radio = self.builder.get_object ( 'element_other_radio' )
         self._other_element_symbol = None
+        # [EN] 2026-09-24/25: quick-pick fragment row (user's own hand-
+        # edited glade -- see _QUICK_FRAGMENT_FILES above). Fetching refs
+        # for ALL 12 current fragment_grid buttons, not just the 7 that
+        # already have a real .mol2 mapping -- the rest (frag_coo_radio/
+        # frag_con_radio1/frag_coo_radio1/frag_coo_radio2) are kept as
+        # inert placeholders per the user's own "podemos linkar os
+        # fragmentos aos botoes em si mais tarde".
+        self.frag_cooh_radio   = self.builder.get_object ( 'frag_cooh_radio' )
+        self.frag_coo_radio    = self.builder.get_object ( 'frag_coo_radio' )
+        self.frag_con_radio1   = self.builder.get_object ( 'frag_con_radio1' )
+        self.frag_nco_radio    = self.builder.get_object ( 'frag_nco_radio' )
+        self.frag_ome_radio    = self.builder.get_object ( 'frag_ome_radio' )
+        self.frag_hex_radio    = self.builder.get_object ( 'frag_hex_radio' )
+        self.frag_pent_radio   = self.builder.get_object ( 'frag_pent_radio' )
+        self.frag_benz_radio   = self.builder.get_object ( 'frag_benz_radio' )
+        self.frag_furo_radio   = self.builder.get_object ( 'frag_furo_radio' )
+        self.frag_coo_radio1   = self.builder.get_object ( 'frag_coo_radio1' )
+        self.frag_coo_radio2   = self.builder.get_object ( 'frag_coo_radio2' )
+        self.frag_other_radio  = self.builder.get_object ( 'frag_other_radio' )
         self.bond_order_single_radio   = self.builder.get_object ( 'bond_order_single_radio' )
         self.bond_order_double_radio   = self.builder.get_object ( 'bond_order_double_radio' )
         self.bond_order_triple_radio   = self.builder.get_object ( 'bond_order_triple_radio' )
-        self.bond_order_aromatic_radio = self.builder.get_object ( 'bond_order_aromatic_radio' )
-        self.set_bond_order_picking_button = self.builder.get_object ( 'set_bond_order_picking_button' )
         self.transform_selection_button = self.builder.get_object ( 'transform_selection_button' )
         self.undo_button       = self.builder.get_object ( 'undo_button' )
         self.clean_up_button   = self.builder.get_object ( 'clean_up_button' )
@@ -105,6 +160,20 @@ class BuilderSidebarWindow ( ):
         if getattr ( self.vm_session, "builder_target_object", None ) is None:
             vismol_object = create_empty_vismol_object ( self.vm_session, name = "builder_molecule" )
             self.vm_session.builder_target_object = vismol_object
+
+        # [EN] 2026-09-25, user's own explicit request: "quando um novo
+        # vobject e criado para edicao, temos que desativar a
+        # visualizacao de todos os outros objetos existentes" -- hides
+        # (not discards -- see hide_other_vobjects_for_builder()'s own
+        # docstring) every OTHER currently-visible object, so the 3D view
+        # stays focused on just what's being edited (this is ALSO what
+        # keeps an "Edit in Builder" session's own ORIGINAL vobject from
+        # rendering doubled-up with the temp clone now being edited).
+        # Covers all 3 real callers of open_window() uniformly (a blank
+        # "New" canvas, and both "Edit in Builder" entry points, which
+        # set builder_target_object before calling this). Reversed in
+        # close_window() below.
+        hide_other_vobjects_for_builder ( self.vm_session, self.vm_session.builder_target_object )
 
         self.vm_session.builder_atom_mode          = True
         self.vm_session.builder_tool               = "add"
@@ -116,6 +185,33 @@ class BuilderSidebarWindow ( ):
         self.vm_session.builder_dihedral_axis        = None
         self.vm_session.builder_dihedral_subgroup    = None
         self.vm_session.builder_atom_types_labeled_atoms = [ ]
+        # [EN] 2026-09-25, user's own explicit request: "quando ele
+        # estiver ativo, o novo atomo e o atomo ao qual este novo atomo
+        # estiver ligado devem ter seus numeros de hidrogenios
+        # atualizados para uma protonacao padrao. Quando desligado, ele
+        # deve permitir que, por exemplo, um nitrogenio faca 4 ligacoes
+        # com hidrogenios (ions amonio)" -- this checkbox used to be
+        # read ONLY at Clean Up click-time (a local widget read, see on_
+        # clean_up_button_clicked() below, UNCHANGED). Mirrored here into
+        # a live vm_session flag too, so click_mode.py's/atom_ops.py's
+        # own AUTOMATIC post-edit hydrogen adjustment (every normal add/
+        # bond/replace-element/change-bond-order/attach-fragment
+        # operation) can respect the SAME switch -- when OFF, those
+        # operations keep whatever bonds the user manually creates
+        # exactly as-is, instead of always auto-correcting back to
+        # standard valence, letting non-standard states like a 4-bond
+        # ammonium nitrogen be built by hand, one bond/click at a time.
+        self.vm_session.builder_adjust_hydrogen_count = True
+        # [EN] 2026-09-25: elements and fragments now share ONE radio
+        # group (element_C_radio's -- see builder_sidebar.glade's
+        # element_grid/fragment_grid, user's own explicit request: "o
+        # botao 'Add' fica atrelado aos elementos e fragmentos, portanto,
+        # apenas um botao dentre os elementos e fragmentos pode estar
+        # ativo"), so a fresh Builder session starts on plain Carbon
+        # (element_C_radio, the group's own documented default in the
+        # glade), NOT a pre-armed fragment -- no fragment is selected
+        # until the user actually picks one.
+        self.vm_session.builder_selected_fragment = None
 
         # reflete o estado inicial nos widgets sem disparar os handlers
         # de "toggled" de novo (eles ja rodariam com os valores certos,
@@ -125,6 +221,7 @@ class BuilderSidebarWindow ( ):
         self.tool_add_radio.set_active ( True )
         self.element_C_radio.set_active ( True )
         self.bond_order_single_radio.set_active ( True )
+        self.clean_up_adjust_hydrogens_checkbutton.set_active ( True )
 
         self.window.show_all ( )
         self.visible = True
@@ -142,18 +239,35 @@ class BuilderSidebarWindow ( ):
 
         [EN] Also discards the Builder's target object if no structural
         edit ever happened during this session (see
-        discard_builder_object_if_unused()'s own docstring) -- and, ONLY
-        in that case, clears vm_session.builder_target_object back to
-        None too, so the *next* open_window() creates a genuinely fresh
-        object instead of "resuming" a dangling reference to one that
-        was just removed from the session. When a real edit DID happen,
-        builder_target_object is deliberately left set, matching this
-        module's existing "closing the sidebar pauses editing, reopening
-        it resumes the same molecule" design. """
+        discard_builder_object_if_unused()'s own docstring).
+        vm_session.builder_target_object is ALWAYS reset to None below,
+        regardless of which case applied -- so the *next* open_window()
+        always creates a genuinely fresh blank object, never silently
+        "resumes" whatever this session happened to leave behind.
+
+        [EN] 2026-09-25 BUG FIX (user's own report: "a opcao de criar um
+        novo sistema pelo builder... so funciona uma vez"): this used to
+        leave builder_target_object SET (not None) after a blank-canvas
+        session that DID receive a real edit (is_builder_only flips to
+        False the moment sync_pdynamo_system() first runs -- see empty_
+        object.py) -- neither branch below matched that case, so the
+        reset at the bottom never ran. The NEXT time the user asked for
+        a brand-new blank system (builder_entry_dialog.choose_and_open_
+        builder()'s "New" option), open_window()'s own "only create a
+        blank object when builder_target_object is still None" guard
+        would find it very much NOT None -- and silently reopen the
+        PREVIOUS (already-committed, already-promoted) system instead of
+        starting fresh, matching the user's exact "works once" report.
+        Checked every caller of open_window() before making this
+        unconditional: the ONLY place that legitimately wants a "resume"
+        (empty_object.begin_editing_existing_system()) always explicitly
+        sets builder_target_object itself, immediately before calling
+        open_window() -- completely independent of whatever this method
+        leaves behind -- so there is no real caller left to preserve the
+        old "leave it set" behaviour for. """
         target_object = getattr ( self.vm_session, "builder_target_object", None )
         if target_object is not None and getattr ( target_object, "is_builder_only", False ):
             discard_builder_object_if_unused ( target_object )
-            self.vm_session.builder_target_object = None
         elif target_object is not None and getattr ( target_object, "builder_edit_source_e_id", None ) is not None:
             # [EN] "Edit in Builder" session on an already-loaded system
             # (see empty_object.begin_editing_existing_system()) -- unlike
@@ -162,18 +276,30 @@ class BuilderSidebarWindow ( ):
             # ever promoted" question; finish_editing_existing_system()
             # decides whether to fold it back onto the original (atom
             # count unchanged) or keep it as its own new system (atom
-            # count changed) -- either way this Builder session is over,
-            # so builder_target_object is reset to None unconditionally,
-            # not left set for a "reopen resumes" pause like the
-            # blank-canvas case.
+            # count changed).
             finish_editing_existing_system ( target_object )
-            self.vm_session.builder_target_object = None
+        self.vm_session.builder_target_object = None
+
+        # [EN] 2026-09-25: counterpart to hide_other_vobjects_for_
+        # builder() in open_window() above -- makes every object this
+        # session hid visible again (whatever happened to target_object
+        # itself above is unrelated to this; some OTHER vobject the user
+        # was simply not editing may have been hidden purely so the 3D
+        # view stayed focused during this session).
+        restore_hidden_vobjects_for_builder ( self.vm_session )
 
         self.vm_session.builder_atom_mode = False
         self.vm_session.builder_bond_pick_first_atom = None
         self.vm_session.builder_dihedral_pick_atoms  = [ ]
         self.vm_session.builder_dihedral_axis        = None
         self.vm_session.builder_dihedral_subgroup    = None
+        # [EN] 2026-09-24: the Dihedral Angle window is now its own
+        # top-level window (see dihedral_angle_window.py), not a widget
+        # nested inside this one -- unlike the old inline slider (which
+        # got destroyed for free along with this window), it needs an
+        # explicit close here, or it would be left dangling open after
+        # the Builder itself closes.
+        self.disarm_dihedral_slider ( )
         # [EN] The Atom Types window's own 3D-view index-label overlay
         # (see atom_types_window.py's _refresh_rows()) points at atoms
         # belonging to the object THIS Builder session was editing --
@@ -201,7 +327,20 @@ class BuilderSidebarWindow ( ):
         """ [EN] GtkRadioButton fires "toggled" for BOTH the button that
         just became active AND the one that just became inactive -- only
         act on the one reporting active=True, otherwise this runs TWICE
-        per click, the second time with the (now wrong) previous tool. """
+        per click, the second time with the (now wrong) previous tool.
+
+        [EN] 2026-09-25: there is no longer a dedicated "Fragment" TOOL
+        radio (user's own explicit request -- "o botao 'Add' fica
+        atrelado aos elementos e fragmentos"). vm_session.builder_tool
+        can still become "attach_fragment" internally (that's the exact
+        string value vismol_glcore.py's render() hook dispatches on --
+        see handle_click_to_attach_fragment()), it's just set by on_
+        element_changed()/on_fragment_quick_changed() below (whichever
+        of the merged element/fragment radio group was picked last)
+        instead of by a click on THIS tool_add_radio branch. Clicking
+        "Add" directly here always resets to plain "add" (single-atom)
+        mode, even if a fragment still looks selected in the row below --
+        a deliberate, simple manual override, not yet unified further. """
         if not button.get_active ( ):
             return
         if button is self.tool_add_radio:
@@ -212,10 +351,9 @@ class BuilderSidebarWindow ( ):
             self.vm_session.builder_tool = "move"
         elif button is self.tool_bond_order_radio:
             self.vm_session.builder_tool = "bond_order"
-        elif button is self.tool_attach_fragment_radio:
-            self.vm_session.builder_tool = "attach_fragment"
         elif button is self.tool_add_structure_radio:
             self.vm_session.builder_tool = "add_structure"
+            self.main.structure_library_window.open_window ( )
         elif button is self.tool_rotate_dihedral_radio:
             self.vm_session.builder_tool = "rotate_dihedral"
 
@@ -257,7 +395,19 @@ class BuilderSidebarWindow ( ):
         instead of leaving an ambiguous "Other..." selected with no
         real symbol behind it -- cancelling a RE-pick (something was
         already chosen here before) just keeps that previous choice
-        active, unchanged. """
+        active, unchanged.
+
+        [EN] 2026-09-25, user's own explicit request: "o botao 'Add'
+        fica atrelado aos elementos e fragmentos" -- element_grid now
+        shares ONE radio group with fragment_grid (see builder_sidebar.
+        glade), so picking an element here also means "Add" is the
+        governing tool again (overriding whatever "attach_fragment" tool
+        state a previously-picked fragment may have left armed). Synced
+        FIRST, before the final builder_tool assignment below, since
+        tool_add_radio.set_active() can itself fire on_tool_changed()
+        (which sets builder_tool = "add") -- setting builder_tool
+        explicitly afterwards keeps this method's own value as the one
+        that actually sticks, regardless of signal-firing order. """
         if not button.get_active ( ):
             return
 
@@ -267,29 +417,111 @@ class BuilderSidebarWindow ( ):
             if symbol is not None:
                 self._other_element_symbol = symbol
                 self.element_other_radio.set_label ( symbol )
+                self.tool_add_radio.set_active ( True )
                 self.vm_session.builder_atom_symbol = symbol
+                self.vm_session.builder_tool = "add"
             elif self._other_element_symbol is None:
                 self.element_C_radio.set_active ( True )   # nothing chosen yet -- fall back to the default
             return
 
         symbol_by_button = {
-            self.element_C_radio: "C",
-            self.element_N_radio: "N",
-            self.element_O_radio: "O",
-            self.element_H_radio: "H",
+            self.element_C_radio:  "C",
+            self.element_N_radio:  "N",
+            self.element_O_radio:  "O",
+            self.element_H_radio:  "H",
+            self.element_B_radio:  "B",
+            self.element_P_radio:  "P",
+            self.element_S_radio:  "S",
+            self.element_F_radio:  "F",
+            self.element_Cl_radio: "Cl",
+            self.element_Br_radio: "Br",
+            self.element_I_radio:  "I",
         }
         symbol = symbol_by_button.get ( button )
         if symbol is not None:
+            self.tool_add_radio.set_active ( True )
             self.vm_session.builder_atom_symbol = symbol
+            self.vm_session.builder_tool = "add"
+
+    def on_fragment_quick_changed ( self, button ):
+        """ [EN] 2026-09-24/25, user's own explicit request: "vamos
+        colocar abaixo do elementos os fragmentos mais importantes na
+        forma de botoes (com isso vamos deixar janela de fragmentos
+        apenas para quando o usuario chamar o botao 'other')" -- and,
+        2026-09-25: "o botao 'Add' fica atrelado aos elementos e
+        fragmentos, portanto, apenas um botao dentre os elementos e
+        fragmentos pode estar ativo" -- fragment_grid now shares ONE
+        radio group with element_grid (see builder_sidebar.glade), so
+        picking a fragment here automatically deactivates whichever
+        element radio was active, and vice versa -- pure native GTK
+        group exclusivity, no extra bookkeeping needed for that part.
+        Same "only act on the newly-active one" reasoning as on_tool_
+        changed()/on_element_changed() above.
+
+        Picking one of the mapped quick fragments (see this module's own
+        _QUICK_FRAGMENT_FILES) mirrors exactly what fragment_library_
+        window.py's own _load_and_select() already does when a fragment
+        is chosen from the full Library (set builder_selected_fragment,
+        force builder_tool to "attach_fragment", and sync the Tool
+        grid's own "Add" radio -- there is no separate "Fragment" tool
+        radio anymore) -- so a quick-pick click is immediately ready to
+        attach, no extra step. Buttons with no entry in _QUICK_FRAGMENT_
+        FILES (the user's own newer, not-yet-linked ones -- see that
+        dict's own comment) simply no-op here, same as clicking nothing.
+        "Other..." does none of the fragment-loading itself -- it only
+        opens the full Fragment Library window, which sets all of the
+        above the moment something is actually chosen inside it. """
+        if not button.get_active ( ):
+            return
+
+        if button is self.frag_other_radio:
+            self.main.fragment_library_window.open_window ( )
+            return
+
+        filename = None
+        for attr_name, mol2_name in _QUICK_FRAGMENT_FILES.items ( ):
+            if button is getattr ( self, attr_name, None ):
+                filename = mol2_name
+                break
+        if filename is None:
+            return
+
+        file_path = os.path.join ( self.main.home, "src/gui/windows/builder/fragments/functional_groups", filename )
+        try:
+            fragment = load_fragment ( file_path )
+        except FragmentError as error:
+            self.main.simple_dialog.error ( msg = str ( error ) )
+            return
+
+        # [EN] Sync "Add" active FIRST -- it may itself fire on_tool_
+        # changed() (which sets builder_tool = "add") -- so the more
+        # specific "attach_fragment" value set below always wins as the
+        # final state, regardless of signal-firing order.
+        self.tool_add_radio.set_active ( True )
+        self.vm_session.builder_selected_fragment = fragment
+        self.vm_session.builder_tool = "attach_fragment"
+        if getattr ( self.main, "statusbar_main", None ) is not None:
+            self.main.statusbar_main.push ( 1, "Selected: {} -- click a hydrogen atom in the Builder to attach it.".format ( fragment["name"] ) )
 
     def on_bond_order_changed ( self, button ):
         """ Same "only act on the newly-active one" reasoning as
-        on_tool_changed()/on_element_changed() above. Sets the order AND
-        aromatic flag together -- this selection applies to bonds
-        CREATED from now on (drag-to-bond, 'b' key), to an EXISTING bond
-        via Ctrl+click on it (click_mode.apply_selected_bond_order()),
-        and to an existing bond via the "Set Bond Order (pk1/pk2)"
-        button below (on_set_bond_order_picking_button_clicked()). """
+        on_tool_changed()/on_element_changed() above. This selection
+        applies to bonds CREATED from now on (drag-to-bond, 'b' key), to
+        an EXISTING bond via Ctrl+click on it (click_mode.apply_
+        selected_bond_order()), and to an existing bond via the "Bond
+        Order" click-tool above (click_mode.handle_click_to_set_bond_
+        order()).
+
+        [EN] 2026-09-25, user's own explicit request: "vamos descartar
+        as ligacoes tipo aromaticas" -- the "Aromatic" option is gone
+        from this row (bond_order_grid now only has Single/Double/
+        Triple). builder_bond_aromatic stays False from here on (its
+        init in open_window() is unchanged) -- other code that still
+        reads it (click_mode.py/vismol_glcore.py, e.g. drag-distance
+        preview colouring, aromatic PERCEPTION on import) all does so
+        via getattr(..., False), so leaving the variable itself in place
+        but permanently False from the UI's side is safe, not a partial
+        removal. """
         if not button.get_active ( ):
             return
         if button is self.bond_order_single_radio:
@@ -301,44 +533,17 @@ class BuilderSidebarWindow ( ):
         elif button is self.bond_order_triple_radio:
             self.vm_session.builder_bond_order    = 3
             self.vm_session.builder_bond_aromatic = False
-        elif button is self.bond_order_aromatic_radio:
-            self.vm_session.builder_bond_order    = 1
-            self.vm_session.builder_bond_aromatic = True
 
-    def on_set_bond_order_picking_button_clicked ( self, button ):
-        """ Applies the "Bond order" selection above to the EXISTING bond
-        between the 2 atoms currently picked via the measurement picking
-        tool (pk1/pk2) -- see click_mode.handle_set_bond_order_picking()
-        for the full behaviour (requires pk1/pk2 to already be bonded,
-        updates both atoms' hydrogens afterwards). Shows the resulting
-        status string (success or why it couldn't be done, e.g. "pick 2
-        atoms first") on the main window's status bar, same as how
-        terminal commands report their own results. """
-        from gui.windows.builder.click_mode import handle_set_bond_order_picking
-        msg = handle_set_bond_order_picking ( self.vm_session )
-        if getattr ( self.main, "statusbar_main", None ) is not None:
-            self.main.statusbar_main.push ( 1, msg )
-
-    def on_fragments_button_clicked ( self, button ):
-        """ Opens the Fragment Library browser (fragment_library_window.
-        FragmentLibraryWindow, instantiated once on main_window -- see
-        main_window.py's own __init__) -- picking a fragment there sets
-        vm_session.builder_selected_fragment and switches builder_tool to
-        "attach_fragment" (see that window's own _load_and_select()), so
-        the next click on a hydrogen atom here attaches it. """
-        self.main.fragment_library_window.open_window ( )
-
-    def on_structures_button_clicked ( self, button ):
-        """ Opens the Structure Library browser (structure_library_window.
-        StructureLibraryWindow, instantiated once on main_window -- see
-        main_window.py's own __init__), same pattern as on_fragments_
-        button_clicked() above -- picking a structure there sets vm_session.
-        builder_selected_structure and switches builder_tool to
-        "add_structure" (see that window's own _load_and_select()), so the
-        next click ANYWHERE here places it (no hydrogen reference needed,
-        unlike Fragments -- see click_mode.handle_click_to_add_structure()'s
-        own docstring). """
-        self.main.structure_library_window.open_window ( )
+    def on_adjust_hydrogen_count_toggled ( self, button ):
+        """ [EN] 2026-09-25, user's own explicit request -- see open_
+        window()'s own comment on vm_session.builder_adjust_hydrogen_
+        count for the full reasoning. Keeps that live flag in sync with
+        the checkbox's own state, read directly by click_mode.py's/
+        atom_ops.py's automatic post-edit hydrogen adjustment (on_clean_
+        up_button_clicked() below still reads the widget directly at
+        click-time, unchanged -- both always agree since it's the SAME
+        checkbox). """
+        self.vm_session.builder_adjust_hydrogen_count = button.get_active ( )
 
     def on_atom_types_button_clicked ( self, button ):
         """ Opens the Atom Types window (atom_types_window.
@@ -388,82 +593,26 @@ class BuilderSidebarWindow ( ):
         self.main.transform_selection_window.open_window ( target_object, atom_ids )
 
     def arm_dihedral_slider ( self, angle_deg ):
-        """ Called by click_mode.handle_click_to_pick_dihedral_atom() (via
-        vm_session.main.builder_sidebar_window, the same cross-window-sync
-        pattern fragment_library_window.py already uses for THIS sidebar's
-        Tool radio) once a full 4-atom dihedral pick succeeds: sets the
-        slider to the dihedral's CURRENT measured angle (so dragging away
-        from it is relative to where it already is, not some arbitrary
-        0) and enables it. The suppress flag stops this programmatic
-        set_value() from itself triggering on_dihedral_slider_value_
-        changed() below as if the user had dragged it. """
-        if self.dihedral_angle_scale is None:
-            return
-        self._suppress_dihedral_slider_signal = True
-        self.dihedral_angle_scale.set_value ( angle_deg )
-        self._suppress_dihedral_slider_signal = False
-        self.dihedral_angle_scale.set_sensitive ( True )
+        """ [EN] 2026-09-24: the inline slider this method used to drive
+        directly was extracted into its own window (dihedral_angle_
+        window.DihedralAngleWindow -- user's own explicit request, "a
+        edicao do diedro deve ser feita em uma janela a parte, como
+        acontece em 'Transform Selections'") -- this now just opens/
+        updates that window instead. Still called the exact same way by
+        click_mode.handle_click_to_pick_dihedral_atom() (via vm_session.
+        main.builder_sidebar_window, the same cross-window-sync pattern
+        fragment_library_window.py already uses for THIS sidebar's Tool
+        radio), so no change needed at that call site. """
+        self.main.dihedral_angle_window.open_window ( angle_deg )
 
     def disarm_dihedral_slider ( self ):
-        """ Counterpart to arm_dihedral_slider() -- disables the slider
-        again (tool switched away, pick cancelled, sidebar closed). Does
-        NOT reset its displayed value -- there's nothing meaningful to
-        reset it TO once disarmed, and leaving the last angle visible is
-        harmless since it's not readable as "live" while disabled. """
-        if self.dihedral_angle_scale is None:
-            return
-        self.dihedral_angle_scale.set_sensitive ( False )
-
-    def on_dihedral_slider_value_changed ( self, scale ):
-        """ Rotates the currently-armed dihedral (vm_session.
-        builder_dihedral_axis/builder_dihedral_subgroup, set by click_mode.
-        handle_click_to_pick_dihedral_atom()) so its CURRENT angle
-        (re-measured fresh every call via util.geometric_analysis.
-        get_dihedral() -- never trusted/accumulated, so this always means
-        "set the dihedral to exactly this value") becomes the slider's new
-        value. No pDynamo sync here -- see on_dihedral_slider_released()
-        below for why that only happens once, at drag end. """
-        if getattr ( self, "_suppress_dihedral_slider_signal", False ):
-            return
-
-        target_object = getattr ( self.vm_session, "builder_target_object", None )
-        axis          = getattr ( self.vm_session, "builder_dihedral_axis", None )
-        subgroup      = getattr ( self.vm_session, "builder_dihedral_subgroup", None )
-        picked        = getattr ( self.vm_session, "builder_dihedral_pick_atoms", None )
-        if target_object is None or axis is None or subgroup is None or not picked or len ( picked ) < 4:
-            return
-
-        from util.geometric_analysis import get_dihedral
-        atom_ids = [ a.atom_id for a in picked ]
-        try:
-            current_angle = get_dihedral ( target_object, *atom_ids )
-        except ValueError:
-            return
-
-        delta_deg = scale.get_value ( ) - current_angle
-        while delta_deg > 180.0:
-            delta_deg -= 360.0
-        while delta_deg <= -180.0:
-            delta_deg += 360.0
-        if abs ( delta_deg ) < 1e-9:
-            return
-
-        import math
-        from gui.windows.builder.atom_ops import rotate_atoms_around_bond
-        rotate_atoms_around_bond ( target_object, axis[0], axis[1], subgroup, math.radians ( delta_deg ) )
-
-    def on_dihedral_slider_released ( self, widget, event ):
-        """ Syncs the linked pDynamo system exactly once, at drag END --
-        NOT on every value-changed event during the drag, matching the
-        project's own "don't rebuild a whole pDynamo System per mouse-
-        motion event" rule (move_atom() follows the same pattern; see
-        empty_object.py's module docstring). Returns False so GTK's own
-        default GtkScale button-release handling still runs. """
-        target_object = getattr ( self.vm_session, "builder_target_object", None )
-        if target_object is not None:
-            from gui.windows.builder.empty_object import sync_pdynamo_system
-            sync_pdynamo_system ( target_object )
-        return False
+        """ Counterpart to arm_dihedral_slider() above -- closes the
+        Dihedral Angle window (tool switched away, pick cancelled, or
+        this sidebar itself closing). A no-op if it's already closed
+        (e.g. the user closed it by hand mid-edit). """
+        dihedral_window = getattr ( self.main, "dihedral_angle_window", None )
+        if dihedral_window is not None and dihedral_window.visible:
+            dihedral_window.close_window ( )
 
     def on_undo_button_clicked ( self, button ):
         """ Calls atom_ops.undo() on the CURRENT target object -- see

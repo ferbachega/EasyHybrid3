@@ -39,10 +39,28 @@ import numpy as np
 import sys
 
 try:
-    from util.colormaps import COLOR_MAPS  
+    from util.colormaps import COLOR_MAPS
 except:
     from colormaps import COLOR_MAPS
 from pprint import pprint
+
+
+def _point_segment_distance ( px, py, x1, y1, x2, y2 ):
+    """ [EN] Shortest distance, in whatever units px/py/x1/y1/x2/y2 are
+    given in (pixels, here), from point (px, py) to the line SEGMENT
+    (x1, y1)-(x2, y2) -- not the infinite line. Standard projection-and-
+    clamp formula: projects the point onto the segment's line, clamps the
+    projection parameter t to [0, 1] so it can't fall outside the actual
+    segment, then returns the distance to that clamped point. """
+    dx, dy = x2 - x1, y2 - y1
+    if dx == 0 and dy == 0:
+        return math.hypot ( px - x1, py - y1 )
+    t = ( ( px - x1 ) * dx + ( py - y1 ) * dy ) / ( dx * dx + dy * dy )
+    t = max ( 0.0, min ( 1.0, t ) )
+    proj_x = x1 + t * dx
+    proj_y = y1 + t * dy
+    return math.hypot ( px - proj_x, py - proj_y )
+
 
 class XYPlot(Gtk.DrawingArea):
     """ Class doc """
@@ -132,10 +150,34 @@ class XYPlot(Gtk.DrawingArea):
         
         self.bglines_color  = bl_color
         self.bx = 100#80
-        self.by = 50#50 
+        self.by = 50#50
 
         self.y_botton = -1
         self.y_top    =  1
+
+        # [EN] Same "live hover readout" convention ImagePlot already has
+        # (easyplot/image_plot.py's own self.RC_label -- see that class'
+        # __init__ and on_motion()): if a caller sets this to a widget
+        # exposing .set_text(str) (a Gtk.Label, or a small Gtk.Statusbar
+        # adapter -- see analysis_mixin.py's own WHAM results windows),
+        # on_motion() below pushes the live x/y data value there instead
+        # of only dprint()'ing it. None by default -- existing callers
+        # that never set this keep today's dprint()-only behaviour
+        # unchanged.
+        self.RC_label = None
+
+        # [EN] User's own request -- "ao clicar no grafico (sobre uma das
+        # gaussianas) ele reconhece qual gaussiana/janela foi
+        # selecionada": click-to-identify-a-curve support. selected_curve_
+        # index (drawn thicker in on_draw() below, see the per-curve line-
+        # width there) and on_curve_click_callback (an optional caller
+        # hook, invoked as callback(index, label) from on_mouse_button_
+        # press() -- see find_curve_at_pixel()) are both None/inert by
+        # default, so every OTHER existing XYPlot user (Ramachandran/
+        # sequence/PES-analysis plots, none of which asked for this) keeps
+        # today's "click does nothing" behaviour completely unchanged.
+        self.selected_curve_index   = None
+        self.on_curve_click_callback = None
 
     
     def data_update (self, data):
@@ -157,11 +199,20 @@ class XYPlot(Gtk.DrawingArea):
         return data
 
 
-    def add (self, X = None, Y = None, 
-              symbol = 'dot', sym_color = [1,1,1], sym_fill = True, 
-              line = 'solid', line_color = [1,1,1], energy_label = None):
-        
-        """ Function doc """
+    def add (self, X = None, Y = None,
+              symbol = 'dot', sym_color = [1,1,1], sym_fill = True,
+              line = 'solid', line_color = [1,1,1], energy_label = None,
+              label = None):
+
+        """ Function doc
+
+        label : [EN] optional per-curve identity (e.g. the source file/
+        window name), stored on the dataset itself and returned by
+        find_curve_at_pixel()/read back via self.data[i]['label'] -- used
+        by find_curve_at_pixel()'s callers (see WHAM's own histogram
+        click-to-identify-window feature, analysis_mixin.py) to report
+        WHICH curve was picked, not just its index. None by default, same
+        as every existing add() call site that doesn't pass it. """
 
         data = {
                 'X'          : X     ,
@@ -174,7 +225,8 @@ class XYPlot(Gtk.DrawingArea):
                 'sym_color'  : sym_color,
                 'sym_fill'   : sym_fill,
                 'line'       : line  ,
-                'line_color' : line_color
+                'line_color' : line_color,
+                'label'      : label
                }
 
         data = self.data_update( data)
@@ -519,12 +571,32 @@ class XYPlot(Gtk.DrawingArea):
                     #color = [0,0,0]
                     #cr.set_source_rgb( color[0], color[1], color[2])
                     
-                    cr.line_to (x*self.x_box_size + cx, 
+                    cr.line_to (x*self.x_box_size + cx,
                             #(self.new_Ymax + self.y_box_size + self.by ) - (y+self.y_box_size))
                             (1*self.y_box_size + self.by) - (y*self.y_box_size))
                 cr.stroke ()
-            #---------------------------------------------------------------- 
-            #                          DOTS                                  
+
+            # [EN] User's own request -- clicked curve gets highlighted:
+            # re-stroked, thicker, ON TOP of every other curve (a second,
+            # separate pass AFTER the loop above, not a special-cased
+            # width inside it) so the highlight is never hidden underneath
+            # a curve added later, regardless of add() order.
+            if ( self.selected_curve_index is not None
+                 and 0 <= self.selected_curve_index < len ( self.data ) ):
+                sel_data  = self.data[self.selected_curve_index]
+                sel_color = sel_data['line_color']
+                cx = self.bx - sel_data['Xnorm'][0]
+                cr.set_source_rgb ( sel_color[0], sel_color[1], sel_color[2] )
+                cr.set_line_width ( 5.0 )
+                for i in range ( len ( sel_data['Ynorm'] ) ):
+                    x = sel_data['Xnorm'][i]
+                    y = sel_data['Ynorm'][i]
+                    cr.line_to ( x * self.x_box_size + cx,
+                                 ( 1 * self.y_box_size + self.by ) - ( y * self.y_box_size ) )
+                cr.stroke ( )
+                cr.set_line_width ( 2.0 )
+            #----------------------------------------------------------------
+            #                          DOTS
             #---------------------------------------------------------------- 
             #'''
             for data in self.data:
@@ -560,22 +632,92 @@ class XYPlot(Gtk.DrawingArea):
     def on_motion(self, widget, event):
         '''(i/self.x_major_ticks)*self.deltaX + self.Xmin'''
         if self.data == []:
-            return False 
-        
+            return False
+
         else:
             (x, y) = int(event.x), int(event.y)
-            
-            dprint("Mouse moved to:", 'x = {:10.5f} y = {:10.5f}'.format( 
-                
-                ((((x-self.bx)) / self.x_box_size)  *  self.deltaX + self.Xmin),
-                
-                ((self.y_box_size-(y-self.by)) / self.y_box_size)  *  self.deltaY + self.Ymin)
-                )
-    
-    
+
+            x_data = ((((x-self.bx)) / self.x_box_size)  *  self.deltaX + self.Xmin)
+            y_data = ((self.y_box_size-(y-self.by)) / self.y_box_size)  *  self.deltaY + self.Ymin
+
+            text = 'x = {:10.5f}    y = {:10.5f}'.format(x_data, y_data)
+            if self.RC_label is not None:
+                self.RC_label.set_text(text)
+            else:
+                dprint("Mouse moved to:", text)
+
+
+    def find_curve_at_pixel ( self, x, y, max_pixel_distance = 8.0 ):
+        """ [EN] Which curve in self.data (if any) is under screen pixel
+        (x, y) -- geometric "click near a line" picking, in PIXEL space
+        (chosen over color-based picking -- see the discussion this
+        feature came out of: XYPlot has no offscreen surface to read a
+        rendered pixel color back from the way ImagePlot does, and thin
+        antialiased lines with today's fully-random per-curve colors make
+        exact/near color matching fragile and ambiguous right where two
+        curves cross -- geometric nearest-segment distance handles a
+        crossing correctly by just picking whichever curve's LINE is
+        physically closer to the click, with a generous, forgiving pixel
+        tolerance instead of needing to land on an exact pixel).
+
+        Reuses the EXACT SAME data-space -> pixel transform on_draw()'s
+        own line-drawing loop uses (cx = self.bx - data['Xnorm'][0], then
+        x*self.x_box_size + cx / (self.y_box_size+self.by) - y*self.
+        y_box_size) -- so a click is tested against precisely what's
+        actually rendered on screen, not a re-derived approximation of it.
+
+        Returns the winning curve's index into self.data, or None if no
+        curve's line comes within max_pixel_distance pixels of (x, y), or
+        if no draw pass has happened yet (Xnorm/Ynorm -- set by on_draw()
+        -- not present on a dataset yet). """
+        if not self.data or not hasattr ( self, "x_box_size" ):
+            return None
+
+        best_index    = None
+        best_distance = max_pixel_distance
+        for index, data in enumerate ( self.data ):
+            if "Xnorm" not in data or "Ynorm" not in data:
+                continue
+            x_norm = data["Xnorm"]
+            y_norm = data["Ynorm"]
+            if len ( x_norm ) < 1:
+                continue
+            cx = self.bx - x_norm[0]
+            pixels = [ ( xn * self.x_box_size + cx,
+                         ( 1 * self.y_box_size + self.by ) - ( yn * self.y_box_size ) )
+                       for xn, yn in zip ( x_norm, y_norm ) ]
+            if len ( pixels ) == 1:
+                distance = math.hypot ( x - pixels[0][0], y - pixels[0][1] )
+            else:
+                distance = min ( _point_segment_distance ( x, y, x1, y1, x2, y2 )
+                                  for ( x1, y1 ), ( x2, y2 ) in zip ( pixels, pixels[1:] ) )
+            if distance < best_distance:
+                best_distance = distance
+                best_index    = index
+
+        return best_index
+
+
     def on_mouse_button_press (self, widget, event):
-        """ Function doc """
-        pass
+        """ [EN] User's own request -- click a curve to identify WHICH
+        one (e.g. which WHAM umbrella window a histogram belongs to).
+        Highlighting (selected_curve_index, drawn thicker by on_draw()) is
+        handled entirely HERE, generic to any XYPlot -- WHAM-specific
+        behaviour (showing the picked window's identity somewhere) lives
+        entirely in on_curve_click_callback, set by the caller (analysis_
+        mixin.py), never referenced by this generic widget beyond calling
+        it. A click that hits no curve (find_curve_at_pixel() returns
+        None) clears any previous highlight, same as clicking empty space
+        on a real selection UI would. """
+        x, y = int ( event.x ), int ( event.y )
+        index = self.find_curve_at_pixel ( x, y )
+        if index == self.selected_curve_index:
+            return
+        self.selected_curve_index = index
+        self.queue_draw ( )
+        if self.on_curve_click_callback is not None:
+            label = self.data[index].get ( "label" ) if index is not None else None
+            self.on_curve_click_callback ( index, label )
 
 
 class XYScatterPlot(Gtk.DrawingArea) :

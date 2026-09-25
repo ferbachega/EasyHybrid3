@@ -199,14 +199,15 @@ def handle_bond_shortcut ( vm_session, bond_order = 1, aromatic = False ):
     if atom_a.vm_object is not atom_b.vm_object:
         return "The 2 selected atoms must belong to the same object."
 
-    from gui.windows.builder.atom_ops import add_bond, adjust_hydrogens, push_undo_snapshot
+    from gui.windows.builder.atom_ops import add_bond, adjust_hydrogens, push_undo_snapshot, builder_adjust_hydrogen_count_enabled
     push_undo_snapshot ( atom_a.vm_object )
     try:
         created = add_bond ( atom_a.vm_object, atom_a.atom_id, atom_b.atom_id, bond_order = bond_order, aromatic = aromatic )
     except ValueError as e:
         return str ( e )
-    adjust_hydrogens ( atom_a.vm_object, atom_a.atom_id )
-    adjust_hydrogens ( atom_a.vm_object, atom_b.atom_id )
+    if builder_adjust_hydrogen_count_enabled ( atom_a.vm_object ):
+        adjust_hydrogens ( atom_a.vm_object, atom_a.atom_id )
+        adjust_hydrogens ( atom_a.vm_object, atom_b.atom_id )
 
     from gui.windows.builder.empty_object import sync_pdynamo_system
     sync_pdynamo_system ( atom_a.vm_object )
@@ -466,7 +467,7 @@ def handle_click_to_delete_atom ( vm_glcore ):
     if atom is None:
         return None
 
-    from gui.windows.builder.atom_ops import remove_atom, push_undo_snapshot
+    from gui.windows.builder.atom_ops import remove_atom, push_undo_snapshot, builder_adjust_hydrogen_count_enabled
     vismol_object = atom.vm_object
     atom_id = atom.atom_id
     # [EN] BUG FIX: every other Builder mutation in this file pushes an undo
@@ -474,7 +475,47 @@ def handle_click_to_delete_atom ( vm_glcore ):
     # never be undone (Undo either did nothing or reverted an unrelated
     # earlier action, and the deleted atom never came back).
     push_undo_snapshot ( vismol_object )
+
+    # [EN] 2026-09-25, user's own explicit request: "ao deletar um atomo
+    # com 'Adjust Hydrogen Count', nao devem restar hidrogenios
+    # remanescentes do atomo deletado (protons livres)" -- gather the
+    # deleted atom's OWN hydrogens BEFORE removing it (their bond info
+    # only exists while the parent atom is still there); if the atom
+    # being deleted is itself a hydrogen, this is simply empty (nothing
+    # else to clean up), so a deliberate single-H deletion is untouched.
+    # Gated by the SAME "Adjust hydrogen count" switch as every other
+    # automatic post-edit adjustment (atom_ops.builder_adjust_hydrogen_
+    # count_enabled()'s own docstring) -- off leaves the orphaned
+    # hydrogens exactly where they are, matching that switch's own
+    # "build non-standard states by hand" philosophy.
+    orphaned_h_atoms = [ ]
+    if builder_adjust_hydrogen_count_enabled ( vismol_object ) and vismol_object.bonds:
+        for bond in vismol_object.bonds.values ( ):
+            if bond.atom_index_i != atom_id and bond.atom_index_j != atom_id:
+                continue
+            other_id = bond.atom_index_j if bond.atom_index_i == atom_id else bond.atom_index_i
+            other_atom = vismol_object.atoms[other_id]
+            if other_atom.symbol == 'H':
+                orphaned_h_atoms.append ( other_atom )
+
     remove_atom ( vismol_object, atom_id )
+
+    # [EN] Removes every orphaned hydrogen too -- re-sorts by each
+    # object's CURRENT .atom_id right before every single removal
+    # (remove_atom() renumbers every id ABOVE the one just removed,
+    # mutating every SURVIVING atom's own .atom_id IN PLACE -- same
+    # "re-read from the live object" convention adjust_hydrogens()/
+    # finish_bond_drag() already use), always removing the currently-
+    # highest one first so an earlier removal in this same batch never
+    # invalidates a not-yet-processed one.
+    while orphaned_h_atoms:
+        orphaned_h_atoms.sort ( key = lambda a: a.atom_id, reverse = True )
+        h_atom = orphaned_h_atoms.pop ( 0 )
+        remove_atom ( vismol_object, h_atom.atom_id )
+
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( vismol_object )
+
     vm_glcore.atom_picked = None
     return atom_id
 
@@ -706,14 +747,19 @@ def handle_click_to_place_atom ( vm_glcore, mouse_x, mouse_y ):
                     picked_atom.atom_id, symbol ) )
             return picked_atom
 
-        from gui.windows.builder.atom_ops import set_atom_element, push_undo_snapshot, adjust_hydrogens
+        from gui.windows.builder.atom_ops import set_atom_element, push_undo_snapshot, adjust_hydrogens, builder_adjust_hydrogen_count_enabled
         push_undo_snapshot ( vismol_object )
         atom = set_atom_element ( vismol_object, picked_atom.atom_id, symbol )
         # [EN] The new element's standard valence is (almost always)
         # different from the old one's -- adjust THIS atom's own
         # hydrogens to match (its neighbours' bond orders to it are
         # unchanged, so THEY don't need adjusting, only this atom does).
-        adjust_hydrogens ( vismol_object, atom.atom_id )
+        # Gated by the sidebar's own "Adjust hydrogen count" switch (see
+        # atom_ops.builder_adjust_hydrogen_count_enabled()'s own
+        # docstring) -- off leaves the replaced atom's hydrogens exactly
+        # as they were before the replacement.
+        if builder_adjust_hydrogen_count_enabled ( vismol_object ):
+            adjust_hydrogens ( vismol_object, atom.atom_id )
         from gui.windows.builder.empty_object import sync_pdynamo_system
         sync_pdynamo_system ( vismol_object )
         dprint ( "DEBUG click_mode: replaced atom #{} -> '{}'".format ( atom.atom_id, symbol ) )
@@ -744,8 +790,9 @@ def handle_click_to_place_atom ( vm_glcore, mouse_x, mouse_y ):
     # element, bond-drag finish, cycle bond order, delete atom/bond --
     # see each of those call sites' own comment), instead of being a
     # one-off special case just for this one interaction.
-    from gui.windows.builder.atom_ops import adjust_hydrogens
-    adjust_hydrogens ( vismol_object, atom.atom_id )
+    from gui.windows.builder.atom_ops import adjust_hydrogens, builder_adjust_hydrogen_count_enabled
+    if builder_adjust_hydrogen_count_enabled ( vismol_object ):
+        adjust_hydrogens ( vismol_object, atom.atom_id )
 
     from gui.windows.builder.empty_object import sync_pdynamo_system
     sync_pdynamo_system ( vismol_object )
@@ -1052,7 +1099,7 @@ def finish_bond_drag ( vm_glcore ):
     origin_atom   = vm_session.builder_bond_drag_origin_atom
     new_atom      = vm_session.builder_bond_drag_new_atom
 
-    from gui.windows.builder.atom_ops import add_bond, remove_atom, adjust_hydrogens
+    from gui.windows.builder.atom_ops import add_bond, remove_atom, adjust_hydrogens, builder_adjust_hydrogen_count_enabled
 
     # [EN] The order/aromaticity picked in the Builder sidebar applies to
     # every bond CREATED by this drag -- this is the single, authoritative
@@ -1144,8 +1191,18 @@ def finish_bond_drag ( vm_glcore ):
     # .atom_id IN PLACE, so reading it fresh off the object is always
     # correct regardless of what the first call did, even though a
     # lower-numbered atom may have been removed in between the two calls.
-    adjust_hydrogens ( vismol_object, origin_atom.atom_id )
-    adjust_hydrogens ( vismol_object, finalised_atom.atom_id )
+    #
+    # [EN] 2026-09-25, user's own explicit request: gated by the
+    # sidebar's own "Adjust hydrogen count" switch -- this is the
+    # EXACT "new atom + the atom it's bonded to" scenario the request
+    # named directly (drag FROM an existing atom TO create a new bonded
+    # one). Off leaves both atoms' hydrogens exactly as the drag itself
+    # left them -- e.g. dragging out a 4th hydrogen onto an already-
+    # fully-substituted nitrogen builds a real ammonium ion instead of
+    # being silently stripped back down to 3 bonds right here.
+    if builder_adjust_hydrogen_count_enabled ( vismol_object ):
+        adjust_hydrogens ( vismol_object, origin_atom.atom_id )
+        adjust_hydrogens ( vismol_object, finalised_atom.atom_id )
 
     from gui.windows.builder.empty_object import sync_pdynamo_system
     sync_pdynamo_system ( vismol_object )
@@ -1394,8 +1451,8 @@ def apply_selected_bond_order ( vm_glcore, vismol_object, bond ):
     Ctrl+clicked -- become", and an existing bond can now also be set to
     Aromatic this way (impossible with plain numeric cycling, since
     aromaticity was never part of that 1-2-3 cycle). See also
-    handle_set_bond_order_picking() below -- the same idea, for someone
-    who prefers picking 2 atoms (pk1/pk2) over clicking the bond's line.
+    handle_click_to_set_bond_order() below -- a dedicated click-TOOL for
+    the same idea (click 2 atoms in sequence, no Ctrl needed).
 
     Persists the new order in vismol_object.manual_bond_orders (keyed by
     the normalized (min,max) atom-id pair), and the aromatic flag in
@@ -1425,7 +1482,7 @@ def apply_selected_bond_order ( vm_glcore, vismol_object, bond ):
     new_order    = getattr ( vm_session, "builder_bond_order", 1 )
     new_aromatic = getattr ( vm_session, "builder_bond_aromatic", False )
 
-    from gui.windows.builder.atom_ops import _reapply_manual_bonds, push_undo_snapshot, adjust_hydrogens
+    from gui.windows.builder.atom_ops import _reapply_manual_bonds, push_undo_snapshot, adjust_hydrogens, builder_adjust_hydrogen_count_enabled
     push_undo_snapshot ( vismol_object )
 
     # capturados ANTES de qualquer ajuste de hidrogenio -- ver comentario
@@ -1464,8 +1521,9 @@ def apply_selected_bond_order ( vm_glcore, vismol_object, bond ):
     # drag()'s own hydrogen-adjustment call -- adjusting atom_a_obj first
     # might remove a lower-numbered hydrogen than atom_b_obj, which would
     # shift atom_b_obj's own id if we used a stale cached int instead.
-    adjust_hydrogens ( vismol_object, atom_a_obj.atom_id )
-    adjust_hydrogens ( vismol_object, atom_b_obj.atom_id )
+    if builder_adjust_hydrogen_count_enabled ( vismol_object ):
+        adjust_hydrogens ( vismol_object, atom_a_obj.atom_id )
+        adjust_hydrogens ( vismol_object, atom_b_obj.atom_id )
 
     from gui.windows.builder.empty_object import sync_pdynamo_system
     sync_pdynamo_system ( vismol_object )
@@ -1478,10 +1536,9 @@ def apply_selected_bond_order ( vm_glcore, vismol_object, bond ):
 
 
 def _apply_sidebar_bond_order_between ( vm_session, atom_a, atom_b ):
-    """ [EN] Shared core for handle_set_bond_order_picking() (pk1/pk2
-    button) and handle_click_to_set_bond_order() (the "Bond Order" tool
-    -- plain click on 2 atoms in sequence, no separate picking step)
-    below: applies the sidebar's CURRENT Bond order selection
+    """ [EN] Core used by handle_click_to_set_bond_order() below (the
+    "Bond Order" tool -- plain click on 2 atoms in sequence): applies
+    the sidebar's CURRENT Bond order selection
     (vm_session.builder_bond_order/builder_bond_aromatic) to the
     EXISTING bond between atom_a and atom_b, then updates both atoms'
     hydrogens. Callers are responsible for their OWN validation of
@@ -1504,11 +1561,12 @@ def _apply_sidebar_bond_order_between ( vm_session, atom_a, atom_b ):
     new_order    = getattr ( vm_session, "builder_bond_order", 1 )
     new_aromatic = getattr ( vm_session, "builder_bond_aromatic", False )
 
-    from gui.windows.builder.atom_ops import set_bond_order, adjust_hydrogens, push_undo_snapshot
+    from gui.windows.builder.atom_ops import set_bond_order, adjust_hydrogens, push_undo_snapshot, builder_adjust_hydrogen_count_enabled
     push_undo_snapshot ( vismol_object )
     set_bond_order ( vismol_object, atom_a.atom_id, atom_b.atom_id, bond_order = new_order, aromatic = new_aromatic )
-    adjust_hydrogens ( vismol_object, atom_a.atom_id )
-    adjust_hydrogens ( vismol_object, atom_b.atom_id )
+    if builder_adjust_hydrogen_count_enabled ( vismol_object ):
+        adjust_hydrogens ( vismol_object, atom_a.atom_id )
+        adjust_hydrogens ( vismol_object, atom_b.atom_id )
 
     from gui.windows.builder.empty_object import sync_pdynamo_system
     sync_pdynamo_system ( vismol_object )
@@ -1517,45 +1575,15 @@ def _apply_sidebar_bond_order_between ( vm_session, atom_a, atom_b ):
     return "Bond order between atom {} and atom {} set to {}.".format ( atom_a.atom_id, atom_b.atom_id, order_word )
 
 
-def handle_set_bond_order_picking ( vm_session ):
-    """ [EN] Sidebar-button equivalent of apply_selected_bond_order()
-    above, for someone who prefers picking two atoms (pk1/pk2 -- the
-    measurement picking tool, vm_session.picking_selections, same as
-    handle_bond_picking()/handle_unbond_picking()) over clicking directly
-    on the bond's line in the 3D view. See also handle_click_to_set_
-    bond_order() below -- a DIRECT-CLICK alternative to this one, added
-    after the user found BOTH the Ctrl+click and this pk1/pk2 button
-    approach "muito ruim" (too fiddly) for changing an existing bond.
-
-    Deliberately DIFFERENT from handle_bond_picking() in two ways, even
-    though both end up calling atom_ops.set_bond_order() (see
-    _apply_sidebar_bond_order_between() above, the shared core):
-      - REQUIRES a bond to already exist between pk1/pk2.
-      - DOES call adjust_hydrogens() for both atoms afterwards, unlike
-        handle_bond_picking() (which deliberately doesn't, since IT is
-        meant to also work on normally-loaded, non-Builder structures
-        where auto-adding/removing hydrogens as a side effect would be
-        unwelcome -- see that function's own docstring).
-
-    Returns a short status string (never raises) -- same contract as
-    handle_bond_picking()/handle_bond_shortcut(). """
-    ps = getattr ( vm_session, "picking_selections", None )
-    if ps is None:
-        return "Picking selections unavailable."
-
-    atom_a = ps.picking_selections_list[0] if len ( ps.picking_selections_list ) > 0 else None
-    atom_b = ps.picking_selections_list[1] if len ( ps.picking_selections_list ) > 1 else None
-
-    if atom_a is None or atom_b is None:
-        return "Pick 2 atoms first (pk1, pk2) before changing a bond's order."
-    if atom_a is atom_b:
-        return "pk1 and pk2 must be two different atoms."
-    if atom_a.vm_object is not atom_b.vm_object:
-        return "pk1 and pk2 must belong to the same object."
-
-    result = _apply_sidebar_bond_order_between ( vm_session, atom_a, atom_b )
-    _clear_pk_pair ( vm_session )
-    return result
+# [EN] 2026-09-24: handle_set_bond_order_picking() (the pk1/pk2
+# "Set Bond Order" sidebar button's own handler) was removed here --
+# user's own explicit request: "Nao precisamos do botao 'Set Bond
+# order (pk1/pk2)', vamos retirar" -- superseded by handle_click_to_
+# set_bond_order() below (the "Bond Order" click-tool), which already
+# covers the same "change an existing bond's order" need without the
+# extra pk1/pk2 picking step. _apply_sidebar_bond_order_between()
+# above (the shared core) is UNCHANGED -- handle_click_to_set_bond_
+# order() still uses it.
 
 
 def handle_click_to_set_bond_order ( vm_glcore ):

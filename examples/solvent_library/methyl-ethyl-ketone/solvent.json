@@ -1,0 +1,19 @@
+{
+  "id": "methyl-ethyl-ketone",
+  "name": "2-Butanone",
+  "formula": "C4H8O",
+  "molecular_weight_g_mol": 72.107,
+  "smiles": "CCC(C)=O",
+  "class": "polar_aprotic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.805,
+  "boiling_point_C_approx": 79.6,
+  "geometry": {
+    "xyz": "methyl-ethyl-ketone/methyl-ethyl-ketone.xyz",
+    "pdb": "methyl-ethyl-ketone/methyl-ethyl-ketone.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/methyl-ethyl-ketone/SDF?record_type=3d"
+}

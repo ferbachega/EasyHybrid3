@@ -81,10 +81,10 @@
           </packing>
         </child>
 
-        <!-- 3D preview (user's own request) -- a SEPARATE, disposable
+        <!-- 3D preview (user's own request): a SEPARATE, disposable
              vismol instance (molecule_preview.MoleculePreview), zoom +
              rotation only. This GtkFrame+GtkBox is just a sized
-             placeholder -- the actual GL widget is packed into
+             placeholder: the actual GL widget is packed into
              preview_box programmatically in Python (open_window()),
              same "placeholder + pack_start() in code" pattern
              gui/main/MainWindow.glade itself uses for the app's main
