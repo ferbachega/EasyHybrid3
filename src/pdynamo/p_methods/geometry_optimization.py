@@ -111,7 +111,13 @@ class GeometryOptimization:
         
         elif parameters['optimizer'] == 'FIRE':
             self._run_FIRE(parameters)
-        
+
+        elif parameters['optimizer'] == 'BakerSaddle':
+            self._run_baker_saddle(parameters)
+
+        elif parameters['optimizer'] == 'ReactionPath':
+            self._run_reaction_path(parameters)
+
         else:
             dprint('Geometry Optimization method not found!' )
         
@@ -209,9 +215,95 @@ class GeometryOptimization:
                                          log                  = self.logFile2   )
         else:
 
-            FIREMinimize_SystemGeometry( parameters['system']                                                ,                
+            FIREMinimize_SystemGeometry( parameters['system']                                                ,
                                          logFrequency         = parameters['logFrequency']                  ,
                                          trajectories         = [(self.trajectory, parameters['save_frequency'])] ,
                                          maximumIterations    = parameters['maximumIterations']                  ,
                                          rmsGradientTolerance = parameters['rmsGradientTolerance']                    ,
                                          log                  = self.logFile2                                   )
+
+    def _run_baker_saddle(self, parameters):
+        """ Baker eigenvector-following transition-state search (Baker,
+            J. Comput. Chem. 4, 385-95, 1986) -- BakerSaddleOptimize_
+            SystemGeometry() itself already fixes numberOfNegativeModes=1
+            and defaults hessianUpdatingOption to "BOFILL" whenever
+            findMinimum is not requested (see pSimulation/
+            GeometryOptimization.py), so this window's job is only ever
+            "search for a saddle point", never Baker's own alternative
+            minimum-finding mode -- findMinimum is deliberately not a
+            parameter this class exposes at all.
+        """
+        common = {
+            "logFrequency"         : parameters['logFrequency'],
+            "maximumIterations"    : parameters['maximumIterations'],
+            "rmsGradientTolerance" : parameters['rmsGradientTolerance'],
+            "followMode"           : parameters['followMode'],
+            "analyticFrequency"    : parameters['analyticFrequency'],
+            "hessianUpdatingOption": parameters['hessianUpdatingOption'],
+            "log"                  : self.logFile2,
+        }
+        if parameters['trajectory_name'] is not None:
+            common["trajectories"] = [(self.trajectory, parameters['save_frequency'])]
+        BakerSaddleOptimize_SystemGeometry(parameters['system'], **common)
+
+    def _run_reaction_path(self, parameters):
+        """ Intrinsic-reaction-coordinate-like path (pSimulation.
+            SteepestDescentReactionPath.SteepestDescentPath_SystemGeometry)
+            starting from a first-order saddle point -- e.g. the structure
+            produced by a converged BakerSaddle search above. With
+            fromSaddle=True (the default this window always uses), the
+            backend computes the system's own Hessian at the starting
+            structure, requires exactly one negative eigenvalue, and
+            follows that eigenvector downhill in BOTH directions
+            (reactant-side and product-side branches, one after the
+            other) into the SAME trajectory -- see SteepestDescentPath
+            FinderState/Continue() in pScientific.ObjectiveFunctionIterators
+            for exactly how the branch switch happens.
+
+            [EN] Unlike every other branch in this class,
+            SteepestDescentPath_SystemGeometry takes a single
+            trajectory=/saveFrequency= pair rather than the
+            trajectories=[(traj, freq)] list every other optimizer here
+            uses -- so this method cannot reuse the "common" dict pattern
+            as-is for that one key.
+        """
+        common = {
+            "fromSaddle"       : parameters['fromSaddle'],
+            "functionStep"     : parameters['functionStep'],
+            "pathStep"         : parameters['pathStep'],
+            "useMassWeighting" : parameters['useMassWeighting'],
+            "logFrequency"     : parameters['logFrequency'],
+            "maximumIterations": parameters['maximumIterations'],
+            "log"              : self.logFile2,
+        }
+        if parameters['trajectory_name'] is not None:
+            common["trajectory"]    = self.trajectory
+            common["saveFrequency"] = parameters['save_frequency']
+
+        # [EN] BUG FIX (reported by the user: changing pathStep/
+        # functionStep/maximumIterations/mass-weighting kept producing
+        # "the same result" no matter what). SteepestDescentPathFinder
+        # traps its own internal errors (e.g. "The starting point is not
+        # a first-order saddle point" when the Hessian at the starting
+        # structure doesn't have exactly one negative eigenvalue --
+        # verified with a standalone 2D test harness against the exact
+        # same pDynamo3 classes) into its returned report dict's "Error"
+        # key WITHOUT ever raising a Python exception -- the loop simply
+        # exits after doing almost nothing, before any of the
+        # user-chosen parameters above ever get used. Silently ignoring
+        # the return value (as this method used to) means the job
+        # "succeeds" with an unchanged/near-unchanged structure every
+        # time, regardless of what the user sets those parameters to.
+        # Raising here instead routes the real reason through the
+        # existing Geometry_Optimization error path (_run() -> Job
+        # exception -> _simulation_target_process()'s except block ->
+        # _MSG_ERROR), so it reaches the Process Manager like any other
+        # failed job instead of masquerading as a no-op success.
+        report = SteepestDescentPath_SystemGeometry(parameters['system'], **common)
+        if report.get('Error') is not None:
+            raise ValueError(
+                "Reaction path failed: {} (the starting structure must be a "
+                "converged first-order saddle point -- e.g. the direct output "
+                "of a Search Transition State (Baker) run -- with a Hessian "
+                "that has EXACTLY one negative eigenvalue).".format(report['Error'])
+            )

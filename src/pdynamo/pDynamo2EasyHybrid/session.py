@@ -29,6 +29,7 @@
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
+from util.pdb_tools import dedupe_pdb_atom_names
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
@@ -383,7 +384,35 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             #    print(i, atom.atomicNumber, atom.label)
             
         elif system_type == 3 or system_type == 4 :
-            system = ImportSystem (input_files['coordinates'])
+            coordinates_path = input_files['coordinates']
+            temp_dedupe_path = None
+            if coordinates_path.lower().endswith('.pdb'):
+                # . pDynamo3's own PDB reader silently DROPS every atom
+                #   past the first one sharing a name within a residue
+                #   ("Duplicate ATOM/HETATM record", only visible with
+                #   EASYHYBRID_DEBUG=1) -- confirmed against a real
+                #   OpenBabel-generated small-molecule PDB (atoms
+                #   plainly named "C"/"C"/"C"/"O"/"Cl" with no
+                #   disambiguating numbers): only 4 of its 10 atoms
+                #   survived import, with no error shown anywhere. A
+                #   residue with no name collision is untouched here
+                #   (dedupe_pdb_atom_names() is a no-op for one -- no
+                #   file is even written in that case), so this is safe
+                #   to run on every plain-PDB import, not just
+                #   docking-related ones. Copied into a TEMP file first
+                #   so the fix (when it does need to rewrite something)
+                #   never touches the user's own original PDB on disk.
+                import tempfile
+                fd, temp_dedupe_path = tempfile.mkstemp(suffix='.pdb', prefix='easyhybrid_dedupe_')
+                os.close(fd)
+                shutil.copy(coordinates_path, temp_dedupe_path)
+                dedupe_pdb_atom_names(temp_dedupe_path)
+                coordinates_path = temp_dedupe_path
+            try:
+                system = ImportSystem (coordinates_path)
+            finally:
+                if temp_dedupe_path is not None:
+                    os.remove(temp_dedupe_path)
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format(input_files['coordinates']), system = None)
         else:
             pass
@@ -405,6 +434,15 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         if name == None:
             name = getattr (system, 'label', None)
             tag  = getattr (system,'e_tag', None)
+        # . A minimal/headerless PDB (e.g. a small-molecule pose with no
+        #   TITLE/HEADER record -- confirmed via a docked ligand pose
+        #   extracted by AutoDock Vina/OpenBabel) leaves system.label
+        #   itself None too, which used to crash the len() check below
+        #   with "object of type 'NoneType' has no len()", surfacing to
+        #   the user only as a generic "Failed to load system file"
+        #   dialog with no indication of the real cause.
+        if name is None:
+            name = 'System'
         if len(name) > 70:
             name = name[-70:]
         
@@ -429,9 +467,23 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system =system)
         
         # Add the system as a vismol object to the easyhybrid session
-        self._add_vismol_object_to_easyhybrid_session (system, True)  
-        
-        
+        self._add_vismol_object_to_easyhybrid_session (system, True)
+
+        # A system loaded directly from a .pkl/.pdb/etc (as opposed to
+        # inside a .easy project -- see load_easyhybrid_serialization_file
+        # in io_data.py, which already does this per system it restores)
+        # can just as easily already carry an XTB/ORCA/DFTB+ QC model
+        # whose scratch/executable/skfPath no longer exist on THIS
+        # machine (e.g. a .pkl someone else pickled, or one of this
+        # machine's own older runs). Same check+auto-redirect+dialog as
+        # the .easy path -- see util/qc_engine_check.py and
+        # io_data.py's _get_qc_engine_report_entries()/
+        # _show_qc_engine_report_dialog() (shared via the pDynamoSession
+        # mixin, both methods live on LoadAndSaveData in io_data.py).
+        self._show_qc_engine_report_dialog(
+            self._get_qc_engine_report_entries(system),
+            title='QC Engine Path Check -- "{}"'.format(system.label))
+
         #self.main.refresh_active_system_liststore()
         #self.main.refresh_system_liststore ()
         ''' '''
@@ -1250,6 +1302,161 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         # -------------------------------------------------------------------------
         return vm_object
 
+    def _refresh_vobject_from_pdynamo_system(self, vm_object=None, system=None):
+        """ Rebuilds `vm_object`'s chains/residues/atoms/frames/bonds
+            FROM `system`, IN PLACE -- same identity (.index/.name/
+            .e_treeview_iter/.liststore_iter/.model_matrix/.active all
+            preserved), instead of constructing a brand-new VismolObject
+            the way _build_vobject_from_pdynamo_system() above always
+            does.
+
+            Written for the "Add Missing Hydrogens" tool
+            (util/hydrogen_builder.py): adding atoms to a pDynamo System
+            requires a full System rebuild (System.atoms/coordinates3
+            have no in-place resize -- confirmed directly against
+            pDynamo3's own Cython array types), but the DISPLAYED
+            VismolObject the user already has selected/positioned/
+            represented on screen should stay the SAME object, not be
+            discarded and replaced -- there was no existing precedent
+            for this in the codebase (every other caller of the sibling
+            _build_vobject_from_pdynamo_system() either registers a
+            brand-new object, or -- the Builder's own
+            empty_object.sync_pdynamo_system() -- goes the OPPOSITE
+            direction, replacing the pDynamo System but never touching
+            an existing VismolObject's own atoms).
+
+            Caller is responsible for `p_session.psystem[vm_object.e_id]
+            = system` (system.e_id must already equal vm_object.e_id --
+            not set here, since assigning into psystem is bookkeeping
+            for the SESSION, not the VismolObject itself).
+
+            Clears the CURRENT selection across the whole session first
+            -- the old Atom objects this call discards may be referenced
+            by vm_session.selections[...].selected_atoms, and there is
+            no cheap way to know in advance which OTHER objects' own
+            selections (if any) would need to survive untouched, so
+            selection is reset globally rather than left dangling on
+            stale objects. A known, acceptable v1 limitation (documented
+            here rather than silently done).
+        """
+        active_selection = self.vm_session.selections[self.vm_session.current_selection]
+        old_selected_atoms = set(active_selection.selected_atoms)
+        if old_selected_atoms:
+            active_selection.selection_function_viewing_set(None)
+            for a in old_selected_atoms:
+                a.selected = False
+
+        # . Deregister the OLD atoms' unique ids from the session-wide
+        # picking dictionary before they're discarded -- avoids leaving
+        # stale entries pointing at Atom objects with no corresponding
+        # frame data left in vm_object.frames.
+        for old_atom in vm_object.atoms.values():
+            self.vm_session.atom_dic_id.pop(getattr(old_atom, 'unique_id', None), None)
+
+        # . `system.atoms.Reindex()` -- confirmed necessary, not just
+        # defensive: hydrogen_builder.rebuild_system_with_added_hydrogens()
+        # REUSES the same Atom objects for everything that already
+        # existed (so the OLD system's own Bond objects, which reference
+        # those same objects, stay valid with no translation needed --
+        # see that module's own docstring). But Atom.index is a single
+        # mutable attribute on that SHARED object -- building the NEW
+        # system overwrites it to the new system's own layout, so if the
+        # caller later goes back to using this OLDER `system` again (the
+        # "Undo" path), its atoms' own .index values not longer match
+        # their row position in THIS system's own coordinates3, even
+        # though system.atoms' own container order never changed.
+        # Reindex() restores index = position-in-this-container,
+        # matching how Sequence.FromAtomPaths/System.FromSequence
+        # themselves always leave a FRESHLY-built system (confirmed:
+        # this exact mismatch reproduced live as `TypeError: 'float'
+        # object is not subscriptable` from
+        # system.coordinates3[atom.index] landing on the wrong row type
+        # once index values had drifted out of range/meaning for this
+        # container).
+        system.atoms.Reindex()
+
+        sequence = self._get_sequence_from_pdynamo_system(system)
+
+        atoms = []
+        atom_qtty = len(system.atoms.items)
+        coords = np.empty([1, atom_qtty, 3], dtype=np.float32)
+        for j, atom in enumerate(system.atoms.items):
+            xyz = system.coordinates3[atom.index]
+            coords[0, j, :] = np.float32(xyz[0]), np.float32(xyz[1]), np.float32(xyz[2])
+            is_from_mol2 = getattr(system, 'sequence_from_mol2', False)
+            atoms.append(self._get_atom_info_from_pdynamo_atom_obj(
+                sequence=sequence, atom=atom, is_from_mol2=is_from_mol2))
+
+        vm_object.chains = {}
+        vm_object.atoms = {}
+        atom_id = 0
+        for _atom in atoms:
+            if _atom["chain"] not in vm_object.chains.keys():
+                vm_object.chains[_atom["chain"]] = Chain(vm_object, name=_atom["chain"])
+            _chain = vm_object.chains[_atom["chain"]]
+            if _atom["resi"] not in _chain.residues.keys():
+                _r = Residue(vm_object, name=_atom["resn"], index=_atom["resi"], chain=_chain)
+                _chain.residues[_atom["resi"]] = _r
+            _residue = _chain.residues[_atom["resi"]]
+            atom = Atom(
+                vismol_object=vm_object, name=_atom["name"], index=_atom["index"],
+                symbol=_atom["symbol"], residue=_residue, chain=_chain, atom_id=atom_id,
+                occupancy=_atom["occupancy"], bfactor=_atom["bfactor"], charge=_atom["charge"])
+            atom.unique_id = self.vm_session.atom_id_counter
+            atom._generate_atom_unique_color_id()
+            self.vm_session.atom_dic_id[atom.unique_id] = atom
+            _residue.atoms[atom_id] = atom
+            vm_object.atoms[atom_id] = atom
+            atom_id += 1
+            self.vm_session.atom_id_counter += 1
+
+        vm_object.frames = coords
+        vm_object.mass_center = np.mean(vm_object.frames[0], axis=0)
+
+        # . These are all sized/cached against the OLD atom count from
+        # this object's first build (or a previous refresh) --
+        # find_bonded_and_nonbonded_atoms() only rebuilds
+        # cov_radii_array/electronegativity_array "if None", and treats
+        # a non-None index_bonds as "already computed, don't touch" (a
+        # CRITICAL log warning, not a hard stop) -- confirmed live: left
+        # alone, this caused an IndexError inside the Cython grid code
+        # (stale arrays sized to the OLD atom count fed alongside
+        # NEW-atom-count indexes/positions). Same reset the Builder's
+        # own add_atom() already performs after ITS OWN mutations
+        # (src/gui/windows/builder/atom_ops.py:214-218).
+        vm_object.cov_radii_array = None
+        vm_object.electronegativity_array = None
+        vm_object.index_bonds = None
+        vm_object.bonds = None
+        vm_object.non_bonded_atoms = None
+
+        is_mmState = getattr(system, 'mmState', None)
+        index_bonds = None
+        if is_mmState:
+            for term in system.mmState.mmTerms:
+                if term.label == 'Harmonic Bond':
+                    index_bonds = term.Get12Indices()
+            if index_bonds:
+                vm_object.define_bonds_from_external(index_bonds=index_bonds, bond_orders=None)
+            else:
+                vm_object.find_bonded_and_nonbonded_atoms()
+        else:
+            vm_object.find_bonded_and_nonbonded_atoms()
+
+        vm_object._generate_color_vectors(self.vm_session.atom_id_counter)
+
+        # . Refresh representations for the new atom count -- same
+        # mechanism the Builder's own add_atom() already uses after a
+        # mutation (src/gui/windows/builder/atom_ops.py:221-240).
+        vm_object.create_representation(rep_type="lines")
+        vm_object.create_representation(rep_type="nonbonded")
+        vm_object.core_representations["picking_dots"] = None
+        vm_object.core_representations["picking_text"] = None
+        if getattr(self.vm_session, "vm_glcore", None) is not None:
+            self.vm_session.vm_glcore.queue_draw()
+
+        return vm_object
+
 
     def delete_system (self, system_e_id = None):
         """ Function doc """
@@ -1779,9 +1986,14 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             its own more specific dialog already, raised from inside the
             impl (see below); this generic handler is the catch-all for
             everything else.
+
+            [EN] Also confirms SUCCESS with a dialog now (previously only
+            failure showed any feedback at all -- a successful QC region
+            definition happened silently, with nothing but the 3D view's
+            own QC representation to notice it by).
         """
         try:
-            return self._define_a_new_QCModel_impl(system = system, parameters = parameters, vismol_object = vismol_object)
+            result = self._define_a_new_QCModel_impl(system = system, parameters = parameters, vismol_object = vismol_object)
         except Exception as error:
             traceback.print_exc()
             call_message_dialog(
@@ -1790,6 +2002,21 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 transient_for = self.main.window,
             )
             return False
+
+        if result:
+            # Resolves the same target system _define_a_new_QCModel_impl
+            # itself just used (same fallback chain), to report how many
+            # atoms ended up in the QC region and with which engine.
+            target_system = system if system else (
+                self.psystem[vismol_object.e_id] if vismol_object else self.psystem[self.active_id])
+            n_qc_atoms = len(getattr(target_system, 'e_qc_table', None) or [])
+            call_message_dialog(
+                text1 = 'QC Model defined successfully',
+                text2 = '{} atom(s) set as the QC region, using the {} engine.'.format(
+                    n_qc_atoms, parameters.get('qcengine', '?') if parameters else '?'),
+                transient_for = self.main.window,
+            )
+        return result
 
     def _define_a_new_QCModel_impl (self, system = None, parameters = None, vismol_object = None):
         """ Function doc """

@@ -1,0 +1,503 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.38.2 -->
+<!-- Ramachandran (phi/psi) analysis window: pick a System/Object, then
+     Run computes backbone phi/psi for every protein residue and plots
+     it (see util/ramachandran.py for the math, util/rama_plot.py for
+     the plot widget packed into box_plot below). Modelled on
+     RMSF_analysis.glade (System/Object combos, frame-range controls,
+     "save results to text file" frame) with the fixed-size single
+     GtkFrame swapped for a resizable window with a plot area. -->
+<interface>
+  <requires lib="gtk+" version="3.24"/>
+  <object class="GtkWindow" id="window">
+    <property name="can-focus">False</property>
+    <property name="default-width">560</property>
+    <property name="default-height">760</property>
+    <property name="resizable">True</property>
+    <signal name="delete-event" handler="close_window" swapped="no"/>
+    <signal name="destroy" handler="close_window" swapped="no"/>
+    <signal name="destroy-event" handler="close_window" swapped="no"/>
+    <child>
+      <object class="GtkAlignment">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="top-padding">5</property>
+        <property name="bottom-padding">5</property>
+        <property name="left-padding">5</property>
+        <property name="right-padding">5</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="vexpand">True</property>
+            <property name="orientation">vertical</property>
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkFrame">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="hexpand">True</property>
+                <property name="label-xalign">0.5</property>
+                <property name="shadow-type">in</property>
+                <child>
+                  <object class="GtkAlignment">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="top-padding">6</property>
+                    <property name="bottom-padding">6</property>
+                    <property name="left-padding">6</property>
+                    <property name="right-padding">6</property>
+                    <child>
+                      <!-- n-columns=2 n-rows=2 -->
+                      <object class="GtkGrid">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="row-spacing">6</property>
+                        <property name="column-spacing">6</property>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="halign">start</property>
+                            <property name="label" translatable="yes">System:</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkBox" id="box_system">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="hexpand">True</property>
+                            <child>
+                              <placeholder/>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="halign">start</property>
+                            <property name="label" translatable="yes">Object:</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkBox" id="box_coordinates">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="hexpand">True</property>
+                            <child>
+                              <placeholder/>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">1</property>
+                          </packing>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child type="label">
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes">Pick an Object below. Every protein residue (identified by having N, CA and C backbone atoms) is analysed by default -- check "Limit to current viewer selection" to only plot residues that have at least one atom currently selected in the 3D view.</property>
+                    <property name="label" translatable="yes">Trajectory</property>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkFrame">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label-xalign">0.5</property>
+                <property name="shadow-type">in</property>
+                <child>
+                  <object class="GtkAlignment">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="top-padding">6</property>
+                    <property name="bottom-padding">6</property>
+                    <property name="left-padding">6</property>
+                    <property name="right-padding">6</property>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">6</property>
+                        <child>
+                          <object class="GtkCheckButton" id="chk_limit_to_selection">
+                            <property name="label" translatable="yes">Limit to current viewer selection</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">False</property>
+                            <property name="tooltip-text" translatable="yes">Unchecked (default): plot every protein residue of the Object above. Checked: only residues with at least one atom currently selected in the 3D view (must belong to that same Object) -- phi/psi are still computed using each residue's full backbone context (including neighbouring residues), only the final list of PLOTTED points is filtered.</property>
+                            <property name="draw-indicator">True</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkCheckButton" id="chk_all_frames">
+                            <property name="label" translatable="yes">Use all trajectory frames</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">False</property>
+                            <property name="tooltip-text" translatable="yes">Unchecked (default): plot only the current frame. Checked: every frame in the range below contributes its own phi/psi point per residue (a scatter over conformations -- phi/psi are circular quantities and are never averaged across frames).</property>
+                            <property name="draw-indicator">True</property>
+                            <signal name="toggled" handler="on_all_frames_checkbox" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child type="label">
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Selection</property>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkFrame" id="frame_range">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="sensitive">False</property>
+                <property name="label-xalign">0.5</property>
+                <property name="shadow-type">in</property>
+                <child>
+                  <object class="GtkAlignment">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="top-padding">5</property>
+                    <property name="bottom-padding">5</property>
+                    <property name="left-padding">5</property>
+                    <property name="right-padding">5</property>
+                    <child>
+                      <!-- n-columns=4 n-rows=2 -->
+                      <object class="GtkGrid">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="row-spacing">5</property>
+                        <property name="column-spacing">5</property>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="label" translatable="yes">to:</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">2</property>
+                            <property name="top-attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkEntry" id="entry_frame_last">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="hexpand">True</property>
+                            <property name="width-chars">5</property>
+                            <property name="text" translatable="yes">-1</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">3</property>
+                            <property name="top-attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkEntry" id="entry_frame_init">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="hexpand">True</property>
+                            <property name="width-chars">5</property>
+                            <property name="text" translatable="yes">0</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="label" translatable="yes">Frames from:</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkCheckButton" id="chk_step_size">
+                            <property name="label" translatable="yes">Step Size:</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">False</property>
+                            <property name="active">True</property>
+                            <property name="draw-indicator">True</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkEntry" id="entry_step_size">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="width-chars">5</property>
+                            <property name="text" translatable="yes">1</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">1</property>
+                          </packing>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child type="label">
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Frame range</property>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkFrame" id="frame_save_output">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label-xalign">0</property>
+                <property name="shadow-type">in</property>
+                <child>
+                  <object class="GtkAlignment">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="top-padding">6</property>
+                    <property name="bottom-padding">6</property>
+                    <property name="left-padding">6</property>
+                    <property name="right-padding">6</property>
+                    <child>
+                      <!-- n-columns=2 n-rows=2 -->
+                      <object class="GtkGrid" id="grid_save_output">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="sensitive">False</property>
+                        <property name="row-spacing">6</property>
+                        <property name="column-spacing">6</property>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="halign">start</property>
+                            <property name="label" translatable="yes">Folder:</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkBox" id="box_output_folder">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="hexpand">True</property>
+                            <child>
+                              <placeholder/>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="halign">start</property>
+                            <property name="label" translatable="yes">File name:</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkEntry" id="entry_output_filename">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="hexpand">True</property>
+                            <property name="text" translatable="yes">ramachandran.txt</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">1</property>
+                          </packing>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child type="label">
+                  <object class="GtkCheckButton" id="chk_save_file">
+                    <property name="label" translatable="yes">Save results to text file</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="draw-indicator">True</property>
+                    <property name="tooltip-text" translatable="yes">Writes a tab-separated file (chain, residue, phi, psi, category) right after the analysis finishes. Defaults to the system's own working folder.</property>
+                    <signal name="toggled" handler="on_save_file_checkbox" swapped="no"/>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">3</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="label_status">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">start</property>
+                <property name="label" translatable="yes">Escolha um Objeto e clique em "Run". Passe o mouse sobre um ponto do gráfico para identificar o resíduo.</property>
+                <property name="wrap">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">4</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkFrame">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="vexpand">True</property>
+                <property name="shadow-type">in</property>
+                <child>
+                  <object class="GtkBox" id="box_plot">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="vexpand">True</property>
+                    <property name="hexpand">True</property>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">5</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButtonBox">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="spacing">5</property>
+                <property name="layout-style">end</property>
+                <child>
+                  <object class="GtkButton" id="btn_close">
+                    <property name="label" translatable="yes">Close</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="btn_export_png">
+                    <property name="label" translatable="yes">Export PNG…</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                    <signal name="clicked" handler="on_btn_export_png_clicked" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="btn_run">
+                    <property name="label" translatable="yes">Run</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                    <signal name="clicked" handler="on_btn_run_analysis" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">6</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

@@ -213,6 +213,48 @@ class SimpleDialog:
         dialog.set_border_width(15)
         dialog.show_all()
 
+    def finished_with_import(self, msg=None, title='Finished!', modal=False, on_import=None):
+        """ Same shape as info() (an INFO Gtk.MessageDialog, OK to
+            dismiss), but with an extra "Import..." button -- used by
+            ProcessManagerWindow.set_status() when a job finishes, so
+            the user can jump straight into the "Import Data" window
+            (pre-filled with this job's own output folder/log -- see
+            ProcessManagerWindow._open_import_prefilled()) instead of
+            having to open it from the menu and browse to the right
+            file/folder by hand afterward.
+
+            `on_import`, if given, is called with no arguments ONLY
+            when the user actually clicks "Import..." (not on OK/close).
+        """
+        flags = Gtk.DialogFlags.MODAL if modal else 0
+        dialog = Gtk.MessageDialog(
+            title=title,
+            parent=self.main.window,
+            flags=flags,
+            type=Gtk.MessageType.INFO,
+            buttons=Gtk.ButtonsType.NONE,
+            message_format=msg
+        )
+        dialog.add_button("Import...", Gtk.ResponseType.APPLY)
+        dialog.add_button(Gtk.STOCK_OK, Gtk.ResponseType.OK)
+        dialog.set_default_response(Gtk.ResponseType.OK)
+
+        if modal:
+            # . dialog.run() blocks and returns the response id directly
+            # -- handled here rather than via the "response" signal
+            # (connecting both would double-destroy the dialog).
+            response_id = dialog.run()
+            dialog.destroy()
+            if response_id == Gtk.ResponseType.APPLY and on_import is not None:
+                on_import()
+        else:
+            def _on_response(d, response_id):
+                d.destroy()
+                if response_id == Gtk.ResponseType.APPLY and on_import is not None:
+                    on_import()
+            dialog.connect("response", _on_response)
+            dialog.show_all()
+
     def info(self, msg = None, modal = True, title = 'Title' ):
         """ 
         Show an information dialog with an OK button. 

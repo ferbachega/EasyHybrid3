@@ -62,6 +62,14 @@ from gui.windows.setup.windows_and_dialogs import TrajectoryPlayerWindow
 from gui.windows.setup.windows_and_dialogs import InfoWindow
 from gui.windows.setup.windows_and_dialogs import MergeSystemWindow
 from gui.windows.setup.windows_and_dialogs import SolvateSystemWindow
+from gui.windows.setup.windows_and_dialogs import PrepareAmberSystemWindow
+from gui.windows.setup.windows_and_dialogs import PrepareLigandAntechamberWindow
+from gui.windows.setup.windows_and_dialogs import PrepareNamdRunWindow
+from gui.windows.setup.windows_and_dialogs import PrepareSMDWindow
+from gui.windows.setup.windows_and_dialogs import PreparePackmolWindow
+from gui.windows.setup.windows_and_dialogs import PrepareVinaDockingWindow
+from gui.windows.setup.windows_and_dialogs import PrepareAutoDockGPUWindow
+from gui.windows.setup.windows_and_dialogs import PrepareAddHydrogensWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
 from gui.windows.setup.edit_frames_dialog import EditFrameDialog
 from gui.windows.setup.edit_cell          import EditCellWindow
@@ -73,9 +81,11 @@ from gui.windows.setup.process_manager_window import ProcessManagerWindow
 
 from gui.windows.simulation.single_point_window          import SinglePointWindow
 from gui.windows.simulation.geometry_optimization_window import GeometryOptimization
-from gui.windows.simulation.PES_scan_window              import PotentialEnergyScanWindow 
-from gui.windows.simulation.PES_advanced_scan_window     import AdvancedPotentialEnergyScanWindow 
-from gui.windows.simulation.molecular_dynamics_window    import MolecularDynamicsWindow 
+from gui.windows.simulation.transition_state_search_window import TransitionStateSearchWindow
+from gui.windows.simulation.reaction_path_window import ReactionPathWindow
+from gui.windows.simulation.conjugate_peak_refinement_window import ConjugatePeakRefinementWindow
+from gui.windows.simulation.PES_scan_window              import PotentialEnergyScanWindow
+from gui.windows.simulation.molecular_dynamics_window    import MolecularDynamicsWindow
 from gui.windows.simulation.umbrella_sampling_window     import UmbrellaSamplingWindow 
 from gui.windows.simulation.chain_of_states_opt_window   import ChainOfStatesOptWindow 
 from gui.windows.simulation.normal_modes_window          import NormalModesWindow 
@@ -89,12 +99,14 @@ from gui.windows.analysis.PES_analysis_window                     import Potenti
 from gui.windows.analysis.distance_angle_dihedral_analysis_window import DistanceAngleDihedralAnalysisWindow
 from gui.windows.analysis.RMSD_tool                               import RMSDToolWindow
 from gui.windows.analysis.RMSD_analysis_window                    import RMSDAnalysisWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
+from gui.windows.analysis.RMSF_analysis_window                    import RMSFAnalysisWindow
+from gui.windows.analysis.RDF_analysis_window                      import RDFAnalysisWindow
 from gui.windows.analysis.align_trajectory                        import AlignTrajectoryWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
 from gui.windows.analysis.reimaging_trajectory                    import ReimagingTrajectoryWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
 
 from util.geometric_analysis import get_simple_distance
 from util.sequence_plot import GtkSequenceViewer
-from util.rama_plot import RamachandranWindow
+from gui.windows.analysis.ramachandran_analysis_window import RamachandranAnalysisWindow
 
 from gui.windows.builder.builder_sidebar      import BuilderSidebarWindow
 
@@ -116,7 +128,6 @@ from pCore                     import Align                                     
 from gui.main.main_treeview import EasyHybridMainTreeView
 from gui.main.treeview_menu import TreeViewMenu
 from gui.main.bottom_notebook import BottomNoteBook
-from gui.main.preferences_window import PreferencesWindow
 
 class MainWindow:
     """
@@ -172,7 +183,16 @@ class MainWindow:
             str,               # 5: status
             GdkPixbuf.Pixbuf,  # 6: color/icon
             int,               # 7: e_id
-            int                # 8: step counter
+            int,               # 8: step counter
+            str                # 9: system tag (e_tag) -- appended at the
+                                #    end deliberately, not inserted after
+                                #    column 0, so every EXISTING column-index
+                                #    reference elsewhere (process_manager_
+                                #    window.py has many) stays correct; the
+                                #    "Tag" column's VISUAL position (right
+                                #    after "System Name") is controlled by
+                                #    treeview column insertion order, which
+                                #    is independent of liststore column order.
         )
 
         # -------------------- GTK BUILDER --------------------
@@ -401,12 +421,23 @@ class MainWindow:
         
         self.geometry_optimization_window = GeometryOptimization  ( main = self )
         self.window_list.append(self.geometry_optimization_window)
+
+        self.transition_state_search_window = TransitionStateSearchWindow ( main = self )
+        self.window_list.append(self.transition_state_search_window)
+
+        self.reaction_path_window = ReactionPathWindow ( main = self )
+        self.window_list.append(self.reaction_path_window)
+
+        self.cpr_window = ConjugatePeakRefinementWindow ( main = self )
+        self.window_list.append(self.cpr_window)
         
+        # "Advanced Reaction Coordinate Scans" used to be a separate window
+        # (AdvancedPotentialEnergyScanWindow) -- merged into PES_scan_window
+        # itself via its checkbtn_advanced_mode toggle. See
+        # menuitem_advanced_rc_scans below and PotentialEnergyScanWindow.
+        # open_window(advanced=...).
         self.PES_scan_window              = PotentialEnergyScanWindow    ( main=  self)
         self.window_list.append(self.PES_scan_window)
-        
-        self.PES_advanced_scan_window              = AdvancedPotentialEnergyScanWindow ( main=  self)
-        self.window_list.append(self.PES_advanced_scan_window)
 
         self.selection_list_window        = SelectionListWindow          ( main = self, system_liststore =  self.system_liststore)
         self.window_list.append(self.selection_list_window)
@@ -461,6 +492,9 @@ class MainWindow:
         
 
         self.rmsd_analysis_window = RMSDAnalysisWindow (main = self, system_liststore = self.system_liststore)
+        self.rmsf_analysis_window = RMSFAnalysisWindow (main = self)
+        self.rdf_analysis_window  = RDFAnalysisWindow  (main = self)
+        self.ramachandran_analysis_window = RamachandranAnalysisWindow (main = self)
         
         self.align_trajectory_window = AlignTrajectoryWindow (main = self, system_liststore = self.system_liststore)
         
@@ -479,6 +513,14 @@ class MainWindow:
         self.edit_frames_dialog = EditFrameDialog(main = self)
         self.merge_system_window = MergeSystemWindow(main = self)
         self.solvate_system_window = SolvateSystemWindow(main = self)
+        self.prepare_amber_system_window = PrepareAmberSystemWindow(main = self)
+        self.prepare_ligand_antechamber_window = PrepareLigandAntechamberWindow(main = self)
+        self.prepare_namd_run_window = PrepareNamdRunWindow(main = self)
+        self.prepare_smd_window = PrepareSMDWindow(main = self)
+        self.prepare_packmol_window = PreparePackmolWindow(main = self)
+        self.prepare_vina_docking_window = PrepareVinaDockingWindow(main = self)
+        self.prepare_autodock_gpu_window = PrepareAutoDockGPUWindow(main = self)
+        self.prepare_add_hydrogens_window = PrepareAddHydrogensWindow(main = self)
         self.preferences_window = EasyHybridPreferencesWindow(main = self)
 
         self.make_solvent_box_window = MakeSolventBoxWindow(main = self)
@@ -486,6 +528,15 @@ class MainWindow:
         self.edit_cell_window = EditCellWindow(main = self)
         self.window_list.append(self.edit_cell_window)
         '''#- - - - - - - - - - - - - - - -  - - - - - - - - - - - - - - -#'''
+
+        # -------------------- OPEN RECENT MENU --------------------
+        # Populated dynamically (not in the .glade) from vm_config's
+        # persisted 'recent_files' list -- see gui/config.py. Refreshed
+        # on the submenu's own "show" signal so a file that was removed
+        # from disk since it was recorded gets pruned right before display.
+        self.recent_files_submenu = self.builder.get_object('menu_open_recent')
+        self.recent_files_submenu.connect('show', self.on_recent_files_menu_show)
+        self.refresh_recent_files_menu()
 
         # -------------------- WINDOW SIGNALS --------------------
         #self.window.connect("destroy", Gtk.main_quit)
@@ -501,7 +552,6 @@ class MainWindow:
         # once the main loop is idle) -- not gated to macOS.
         self.window.present()
         GLib.idle_add(self.vm_session.vm_widget.queue_draw)
-
 
     def on_drag_data_received(self, widget, drag_context,
                               x, y, data, info, time):
@@ -1041,13 +1091,22 @@ class MainWindow:
             window = InfoWindow(system)
         
         elif menuitem == self.builder.get_object('menuitem_rename'):
-            e_id = self.p_session.active_id
-            v_id = -1
-            self.preferences = PreferencesWindow(main = self , 
-                                         e_id = e_id     ,
-                                         v_id = v_id     )
-        
-        
+            e_id   = self.p_session.active_id
+            system = self.p_session.psystem[e_id]
+            # [EN] BUG FIX: this used to construct its own PreferencesWindow
+            # directly (never calling .set_names(), so it opened showing the
+            # glade's placeholder text instead of the system's actual current
+            # name/tag) and stashed it in its own untracked self.preferences,
+            # completely independent of treeview_menu's rename_window_visible
+            # guard -- so a row-menu rename and a menu-bar rename could each
+            # open their own window at the same time. Routing both through
+            # the same open_rename_window() fixes both issues at once.
+            self.main_treeview.treeview_menu.open_rename_window(
+                e_id, -1, system.label, system.e_tag)
+
+        elif menuitem == self.builder.get_object('menuitem_change_working_folder'):
+            self.main_treeview.treeview_menu.change_working_folder_for_active_system()
+
         elif menuitem == self.builder.get_object('menuitem_qc_setup'):
             # [EN] Same bug/fix as 'toolbutton_setup_QCModel' above --
             # see that comment for the full traceback/reasoning.
@@ -1188,10 +1247,34 @@ class MainWindow:
             self.refresh_widgets()
 
         
-        elif menuitem == self.builder.get_object('menuitem_solvate'): 
+        elif menuitem == self.builder.get_object('menuitem_solvate'):
             self.solvate_system_window.open_window()
-        
-        elif menuitem == self.builder.get_object('menuitem_merge'): 
+
+        elif menuitem == self.builder.get_object('menuitem_prepare_amber_tleap'):
+            self.prepare_amber_system_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_prepare_ligand_antechamber'):
+            self.prepare_ligand_antechamber_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_run_namd'):
+            self.prepare_namd_run_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_run_smd'):
+            self.prepare_smd_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_run_packmol'):
+            self.prepare_packmol_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_run_vina'):
+            self.prepare_vina_docking_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_run_autodock_gpu'):
+            self.prepare_autodock_gpu_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_add_missing_hydrogens'):
+            self.prepare_add_hydrogens_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_merge'):
             """ Function doc """
             system = self.p_session.psystem[self.p_session.active_id]
             e_id = system.e_id
@@ -1247,7 +1330,16 @@ class MainWindow:
             
         elif menuitem == self.builder.get_object('menuitem_geometry_optimization'):
             self.geometry_optimization_window.open_window()
-            
+
+        elif menuitem == self.builder.get_object('menuitem_transition_state_search'):
+            self.transition_state_search_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_reaction_path'):
+            self.reaction_path_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_cpr'):
+            self.cpr_window.open_window()
+
         elif menuitem == self.builder.get_object('menuitem_molecular_dynamics'):
             self.molecular_dynamics_window.open_window()
             
@@ -1256,10 +1348,10 @@ class MainWindow:
             
         elif menuitem == self.builder.get_object('menuitem_rection_coordinate_scans'):
             self.PES_scan_window.open_window()
-        
+
         elif menuitem == self.builder.get_object('menuitem_advanced_rc_scans'):
-            self.PES_advanced_scan_window.open_window()
-            
+            self.PES_scan_window.open_window(advanced=True)
+
         elif menuitem == self.builder.get_object('menuitem_nudged_elastic_band'):
             self.chain_of_states_opt_window.open_window()
             
@@ -1301,11 +1393,17 @@ class MainWindow:
             self.distance_angle_dihedral_analysis_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_rama'):
-            rama = RamachandranWindow()
+            self.ramachandran_analysis_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_RMSD_tool'):
             #self.rmsd_tool_window.open_window()
             self.rmsd_analysis_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_rmsf_analysis'):
+            self.rmsf_analysis_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_rdf_analysis'):
+            self.rdf_analysis_window.open_window()
         
         elif menuitem == self.builder.get_object('test_histograms'):
             from util.easyplot import ImagePlot, XYPlot
@@ -1584,6 +1682,55 @@ class MainWindow:
         if filename:
             self.vm_session.load(filename)
 
+    def refresh_recent_files_menu (self):
+        """ Rebuilds the "Open Recent" submenu from vm_config's persisted
+            list. Called once at startup and every time the submenu is
+            about to be shown (see on_recent_files_menu_show) -- cheap
+            enough (at most max_entries items) to just rebuild from
+            scratch rather than diffing. """
+        for child in self.recent_files_submenu.get_children():
+            self.recent_files_submenu.remove(child)
+
+        recent = self.vm_session.vm_config.get_recent_files()
+
+        if not recent:
+            placeholder = Gtk.MenuItem(label="(no recent files)")
+            placeholder.set_sensitive(False)
+            placeholder.show()
+            self.recent_files_submenu.append(placeholder)
+            return
+
+        for entry in recent:
+            path  = entry.get('path', '')
+            label = "{}  [{}]".format(os.path.basename(path), entry.get('type', '?'))
+            item  = Gtk.MenuItem(label=label)
+            item.set_tooltip_text(path)
+            item.connect('activate', self.on_recent_file_item_activate, path)
+            item.show()
+            self.recent_files_submenu.append(item)
+
+        separator = Gtk.SeparatorMenuItem()
+        separator.show()
+        self.recent_files_submenu.append(separator)
+
+        clear_item = Gtk.MenuItem(label="Clear Recent")
+        clear_item.connect('activate', self.on_recent_files_clear_activate)
+        clear_item.show()
+        self.recent_files_submenu.append(clear_item)
+
+    def on_recent_files_menu_show (self, submenu):
+        """ Function doc """
+        self.refresh_recent_files_menu()
+
+    def on_recent_file_item_activate (self, menuitem, path):
+        """ Function doc """
+        self.vm_session.load(path)
+
+    def on_recent_files_clear_activate (self, menuitem):
+        """ Function doc """
+        self.vm_session.vm_config.clear_recent_files()
+        self.refresh_recent_files_menu()
+
     def run_dialog_set_QC_atoms (self, _type = None, vismol_object = None):
         """ Function doc """
         dialog = EasyHybridDialogSetQCAtoms(self.window)
@@ -1644,41 +1791,63 @@ class MainWindow:
         self.p_session.psystem[e_id].e_tag = tag
 
     def rename (self, e_id = None, v_id = -1, name = None):
-        #print(name, v_id,  e_id)
-        #print(name)
+        """ Renames a system's own label (v_id == -1) or one of its
+        vismol objects (v_id != -1). Returns True on success, False if
+        the new name was rejected (name already taken by something else
+        -- an error dialog is shown before returning in that case, so
+        callers like PreferencesWindow.on_button_apply can just check the
+        return value instead of assuming this always works). """
         if v_id == -1: #.change the header
-            _iter = self.system_treeview_iters[e_id] 
+            # [EN] BUG FIX: systems had NO uniqueness check at all
+            # (unlike vobjects just below), so two systems could silently
+            # end up with the exact same displayed name/label.
+            for other_e_id, other_system in self.p_session.psystem.items():
+                if other_e_id != e_id and other_system is not None and other_system.label == name:
+                    self.simple_dialog.error(msg='A system named "{}" already exists.'.format(name))
+                    return False
+
+            _iter = self.system_treeview_iters[e_id]
             #_iter = self.p_session.psystem[e_id].e_treeview_iter
             self.main_treeview.treestore[_iter][2] = str(e_id)+' - '+ name
             self.p_session.psystem[e_id].label  = name
-            
+
             liststore_iter = self.system_liststore_iters[e_id]
             #liststore_iter = self.p_session.psystem[e_id].e_liststore_iter
             self.system_liststore[liststore_iter][0] = str(e_id)+' - '+ name
-  
+            return True
+
         else:
-            #print(self.vm_session.vobject_names.values())
+            vm_object = self.vm_session.vm_objects_dic[v_id]
+
+            # [EN] BUG FIX: this used to reject ANY name already present
+            # in vobject_names -- including the object's OWN current
+            # name, which is always already a key there. So clicking
+            # Apply without actually changing the name (or re-confirming
+            # the same name after editing something else) silently
+            # "failed" (dprint only, no dialog) while the caller closed
+            # the window anyway, looking like a successful no-op rename.
+            if name == vm_object.name:
+                return True
+
             if name in self.vm_session.vobject_names.keys():
-                dprint('Invalid name.')
+                self.simple_dialog.error(msg='An object named "{}" already exists.'.format(name))
                 return False
 
-            else:
-                _iter = self.vm_session.vm_objects_dic[v_id].e_treeview_iter
-                self.main_treeview.treestore[_iter][2] = name
-                
-                old_name = self.vm_session.vm_objects_dic[v_id].name          
-                self.vm_session.vobject_names.pop(old_name)
-                
+            _iter = vm_object.e_treeview_iter
+            self.main_treeview.treestore[_iter][2] = name
 
-                self.vm_session.vm_objects_dic[v_id].name = name
-                
-                self.vm_session.vobject_names[name] = self.vm_session.vm_objects_dic[v_id]
-                #print('aqui')
-                try:
-                    self.vobject_liststore_dict[e_id][self.vm_session.vm_objects_dic[v_id].liststore_iter][0] = name
-                except:
-                    #means that it is surface 
-                    pass
+            old_name = vm_object.name
+            self.vm_session.vobject_names.pop(old_name)
+
+            vm_object.name = name
+
+            self.vm_session.vobject_names[name] = vm_object
+            try:
+                self.vobject_liststore_dict[e_id][vm_object.liststore_iter][0] = name
+            except:
+                #means that it is surface
+                pass
+            return True
     
     def delete_system (self, system_e_id = None ):
         """Remove a system and its associated vobjects from the session.
@@ -1733,6 +1902,24 @@ class MainWindow:
             
             # Remove the system from p_session and update the graphical view.
             a = self.p_session.delete_system(system_e_id)
+
+            # [BUG FIX] active_id was never updated here -- if the system
+            # just removed was the active one (the common case), active_id
+            # kept pointing at a key delete_system() had just popped from
+            # psystem. Nothing crashed immediately, but the very next
+            # thing that touched "the active system" (e.g. File > Save As
+            # -> get_active_system_text_from_textbuffer()) blew up with
+            # KeyError instead. Point active_id at another remaining
+            # system if there is one, otherwise reset to the same empty
+            # placeholder state used by pDynamoSession.__init__/restart().
+            if self.p_session.active_id not in self.p_session.psystem:
+                remaining_ids = list(self.p_session.psystem.keys())
+                if remaining_ids:
+                    self.p_session.active_id = remaining_ids[-1]
+                else:
+                    self.p_session.active_id = 0
+                    self.p_session.psystem[0] = None
+
             self.vm_session.vm_glcore.queue_draw()
 
     def delete_vm_object (self, vm_object_index = None):

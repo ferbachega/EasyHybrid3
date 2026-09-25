@@ -120,8 +120,20 @@ class ImportTrajectoryWindow:
         
         self.folder_type_list = ['pklfolder', 'pklfolder2D', 'pdbfolder']
 
-    def open_window (self, sys_selected = None):
-        """ Function doc """
+    def open_window (self, sys_selected = None, prefill_data_path = None,
+                      prefill_data_type_index = None, prefill_logfile = None,
+                      prefill_new_vobj_name = None):
+        """ Function doc
+
+            The four `prefill_*` kwargs are ALL optional (default None,
+            no-op) -- used by ProcessManagerWindow's "Finished!" dialog
+            ("Import..." button, see its own _open_import_prefilled())
+            to open this window already pointed at a just-finished
+            job's own output folder/log/suggested type, instead of
+            leaving the user to browse to it from scratch. The normal
+            "Import Data..." menu path is entirely unaffected -- it
+            never passes these, so every branch below is a no-op then.
+        """
         if self.Visible  ==  False:
             '''--------------------------------------------------------------------------------------------'''
             self.builder = Gtk.Builder()
@@ -214,7 +226,20 @@ class ImportTrajectoryWindow:
     
             self.folder_chooser_button.btn.connect('clicked', self.update_logfile_chooser_btn)
             self.on_combobox_pdynamo_system(None)
-            self.combox.set_active(0)
+            self.combox.set_active(prefill_data_type_index if prefill_data_type_index is not None else 0)
+
+            # . Pre-fill overrides -- applied AFTER the normal setup
+            # above (which already set sane defaults, e.g. the folder
+            # chooser to the system's own working folder) so these win
+            # when given.
+            if prefill_data_path:
+                self.folder_chooser_button.set_folder(prefill_data_path)
+            if prefill_logfile:
+                self.builder.get_object('file_chooser_btn_logfile').set_filename(prefill_logfile)
+            if prefill_new_vobj_name:
+                self.builder.get_object('radiobutton_import_as_new_object').set_active(True)
+                self.builder.get_object('entry_create_a_new_vobj').set_text(prefill_new_vobj_name)
+
             self.window.show_all()
             self.Visible  = True
         

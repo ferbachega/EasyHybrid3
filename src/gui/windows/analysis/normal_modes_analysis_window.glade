@@ -122,7 +122,19 @@
               </packing>
             </child>
             <child>
-              <placeholder/>
+              <object class="GtkButton" id="button_plot_ir_spectrum">
+                <property name="label" translatable="yes">Plot IR Spectrum</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <property name="tooltip-text" translatable="yes">Plots the imported modes' frequencies against their infrared intensity (only available for modes computed with "Compute IR intensities" enabled in the Run Normal Modes window).</property>
+                <signal name="clicked" handler="on_button_plot_ir_spectrum" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
             </child>
             <child>
               <object class="GtkScrolledWindow">

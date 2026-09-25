@@ -237,8 +237,16 @@ class UmbrellaSampling:
                 parameters['RC1']['RC'] = [[atom1_name, atom1, atom2_name, atom2, weight1, 1.0]]
                 parameters['RC1']['RC'].append([atom3_name, atom3, atom4_name, atom4, weight2, 1.0])
                 #--------------------------------------------------------------------
+            elif parameters['RC1']["rc_type"] == 'dihedral':
+                # A dihedral angle isn't expressible as a weighted sum of
+                # distances -- leave RC1 in its original (rc_type/ATOMS)
+                # shape instead of building an 'RC' list; the actual
+                # restraint-building functions below check for
+                # rc_type == 'dihedral' explicitly and build a
+                # RestraintDihedral instead of RestraintMultipleDistance.
+                pass
             else:
-                pass        
+                pass
 
         if parameters['RC2'] is not None:
             if 'RC' in parameters['RC2'].keys():
@@ -276,8 +284,10 @@ class UmbrellaSampling:
                     parameters['RC2']['RC'] = [[atom1_name, atom1, atom2_name, atom2, weight1, 1.0]]
                     parameters['RC2']['RC'].append([atom3_name, atom3, atom4_name, atom4, weight2, 1.0])
                     #--------------------------------------------------------------------
+                elif parameters['RC2']["rc_type"] == 'dihedral':
+                    pass  # see the matching RC1 comment above
                 else:
-                    pass        
+                    pass
                
         full_path_trajectory = os.path.join(parameters['folder'], 
                                             parameters['traj_folder_name'])
@@ -656,25 +666,39 @@ class UmbrellaSampling:
         
         arq = self.write_header(parameters)
         data = []
-        
-        #----------------------------------------------------------------- 
-        RC = parameters['RC1']['RC']                                       
-        RC1 = []                                                           
-        distance = 0.0                                                     
-        for rc in RC:                                                      
-            dist = parameters['system'].coordinates3.Distance(int(rc[1]),  int(rc[3]))   
-            dist = dist*float(rc[4]) #weighted distance                    
-            distance += dist                                                                                                                          
-            RC1.append([ int(rc[1]),  int(rc[3]), float(rc[4]) ])          
-        #----------------------------------------------------------------- 
-        
-        
-        for i in range(parameters['RC1']['nsteps']):       
-            
-            distance = parameters['RC1']['dminimum'] + ( parameters['RC1']['dincre'] * float(i) )
-            rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
-            restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances = RC1)
-            restraints["RC1"] = restraint            
+
+        is_dihedral_rc1 = parameters['RC1'].get('rc_type') == 'dihedral'
+
+        if not is_dihedral_rc1:
+            #-----------------------------------------------------------------
+            RC = parameters['RC1']['RC']
+            RC1 = []
+            distance = 0.0
+            for rc in RC:
+                dist = parameters['system'].coordinates3.Distance(int(rc[1]),  int(rc[3]))
+                dist = dist*float(rc[4]) #weighted distance
+                distance += dist
+                RC1.append([ int(rc[1]),  int(rc[3]), float(rc[4]) ])
+            #-----------------------------------------------------------------
+
+
+        for i in range(parameters['RC1']['nsteps']):
+
+            target = parameters['RC1']['dminimum'] + ( parameters['RC1']['dincre'] * float(i) )
+
+            if is_dihedral_rc1:
+                # A dihedral angle isn't a weighted sum of distances --
+                # RestraintDihedral needs period=360.0 for the angle to
+                # wrap correctly (unlike a distance-based restraint).
+                atoms             = parameters['RC1']['ATOMS']
+                rmodel            = RestraintEnergyModel.Harmonic(target, parameters['RC1']['force_constant'], period = 360.0)
+                restraint         = RestraintDihedral.WithOptions(energyModel = rmodel,
+                                                                   point1 = atoms[0], point2 = atoms[1],
+                                                                   point3 = atoms[2], point4 = atoms[3])
+            else:
+                rmodel            = RestraintEnergyModel.Harmonic(target, parameters['RC1']['force_constant'])
+                restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances = RC1)
+            restraints["RC1"] = restraint
             #--------------------------------------------------------------------
                
             
@@ -813,22 +837,33 @@ def _run_advanced_parallel_umbrella_sampling_2D (job):
     #----------------------------------------------------------------------------------------
     #                                       R C 1
     #----------------------------------------------------------------------------------------
-    RC = parameters['RC1']['RC']
-    RC1 = []
-    distance = 0.0
-    for rc in RC:
-        dist = system.coordinates3.Distance(int(rc[1]),  int(rc[3]))
-        
-        dist = dist*float(rc[4]) #weighted distance
-        distance += dist
-            
-        RC1.append([ int(rc[1]),  int(rc[3]), float(rc[4]) ])
-    #----------------------------------------------------------------------------------------
-    '''reaction coordinate 1  '''
-    rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
-    restraint         = RestraintMultipleDistance.WithOptions( energyModel  = rmodel, 
-                                                                  distances = RC1   )
-    restraints["RC1"] = restraint            
+    if parameters['RC1'].get('rc_type') == 'dihedral':
+        # This window's geometry (imported above from its own pkl) already
+        # sits at whatever dihedral value it was generated at -- restrain
+        # AT that value, same convention as the weighted-distance case
+        # below. period=360.0 lets the angle wrap correctly.
+        atoms             = parameters['RC1']['ATOMS']
+        angle             = system.coordinates3.Dihedral(*atoms)
+        rmodel            = RestraintEnergyModel.Harmonic(angle, parameters['RC1']['force_constant'], period = 360.0)
+        restraint         = RestraintDihedral.WithOptions(energyModel = rmodel,
+                                                            point1 = atoms[0], point2 = atoms[1],
+                                                            point3 = atoms[2], point4 = atoms[3])
+    else:
+        RC = parameters['RC1']['RC']
+        RC1 = []
+        distance = 0.0
+        for rc in RC:
+            dist = system.coordinates3.Distance(int(rc[1]),  int(rc[3]))
+
+            dist = dist*float(rc[4]) #weighted distance
+            distance += dist
+
+            RC1.append([ int(rc[1]),  int(rc[3]), float(rc[4]) ])
+        '''reaction coordinate 1  '''
+        rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+        restraint         = RestraintMultipleDistance.WithOptions( energyModel  = rmodel,
+                                                                      distances = RC1   )
+    restraints["RC1"] = restraint
     #----------------------------------------------------------------------------------------
 
 
@@ -836,23 +871,27 @@ def _run_advanced_parallel_umbrella_sampling_2D (job):
     #----------------------------------------------------------------------------------------
     #                                       R C 2
     #----------------------------------------------------------------------------------------
-    RC  = parameters['RC2']['RC']
-    RC2 = []
-    distance2 = 0.0
-    for rc in RC:
-        dist = system.coordinates3.Distance(int(rc[1]),  int(rc[3]))
-        
-        dist = dist*float(rc[4]) #weighted distance
-        distance2 += dist
-            
-        RC2.append([ int(rc[1]),  int(rc[3]), float(rc[4]) ])
-    #----------------------------------------------------------------------------------------
+    if parameters['RC2'].get('rc_type') == 'dihedral':
+        atoms2            = parameters['RC2']['ATOMS']
+        angle2            = system.coordinates3.Dihedral(*atoms2)
+        rmodel            = RestraintEnergyModel.Harmonic(angle2, parameters['RC2']['force_constant'], period = 360.0)
+        restraint         = RestraintDihedral.WithOptions(energyModel = rmodel,
+                                                            point1 = atoms2[0], point2 = atoms2[1],
+                                                            point3 = atoms2[2], point4 = atoms2[3])
+    else:
+        RC  = parameters['RC2']['RC']
+        RC2 = []
+        distance2 = 0.0
+        for rc in RC:
+            dist = system.coordinates3.Distance(int(rc[1]),  int(rc[3]))
 
-    
-    #----------------------------------------------------------------------------------------
-    rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'])
-    restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances = RC2 )
-    restraints["RC2"] = restraint            
+            dist = dist*float(rc[4]) #weighted distance
+            distance2 += dist
+
+            RC2.append([ int(rc[1]),  int(rc[3]), float(rc[4]) ])
+        rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'])
+        restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances = RC2 )
+    restraints["RC2"] = restraint
     #----------------------------------------------------------------------------------------
    
    
@@ -928,35 +967,42 @@ def _run_advanced_parallel_umbrella_sampling_1D (job):
     #----------------------------------------------------------------------------------------
 
     #----------------------------------------------------------------------------------------
-    RC = parameters['RC1']['RC']
-    RC1 = []
-    distance = 0.0
-    #print('here:', RC)
-    
     pprint(parameters)
-    
-    for rc in parameters['RC1']['RC']:
-        #print('\n\n\nlen(rc)',len(rc), rc)
-        #print(a1, a2)
-        a1 = int(rc[1])
-        a2 = int(rc[3])
-        dist = system.coordinates3.Distance( a1,  a2 )
-        
-        dist = dist*float(rc[4]) #weighted distance
-        distance += dist
-            
-        RC1.append([ int(rc[1]),  int(rc[3]), float(rc[4]) ])
-    #----------------------------------------------------------------------------------------
-    #distance_a1_a2 = system.coordinates3.Distance( atom1, atom2)
-    #distance_a2_a3 = system.coordinates3.Distance( atom2, atom3)
-    #distance = (weight1 * distance_a1_a2) - (weight2 * distance_a2_a3*-1)
-    #----------------------------------------------------------------------------------------
 
+    if parameters['RC1'].get('rc_type') == 'dihedral':
+        # Same convention as _run_advanced_parallel_umbrella_sampling_2D:
+        # restrain AT this window's own (already-generated) dihedral value.
+        atoms             = parameters['RC1']['ATOMS']
+        angle             = system.coordinates3.Dihedral(*atoms)
+        rmodel            = RestraintEnergyModel.Harmonic(angle, parameters['RC1']['force_constant'], period = 360.0)
+        restraint         = RestraintDihedral.WithOptions(energyModel = rmodel,
+                                                            point1 = atoms[0], point2 = atoms[1],
+                                                            point3 = atoms[2], point4 = atoms[3])
+    else:
+        RC = parameters['RC1']['RC']
+        RC1 = []
+        distance = 0.0
+        #print('here:', RC)
 
-    rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
-    restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, 
-                                                                 distances = RC1 )
-    restraints["RC1"] = restraint            
+        for rc in parameters['RC1']['RC']:
+            #print('\n\n\nlen(rc)',len(rc), rc)
+            #print(a1, a2)
+            a1 = int(rc[1])
+            a2 = int(rc[3])
+            dist = system.coordinates3.Distance( a1,  a2 )
+
+            dist = dist*float(rc[4]) #weighted distance
+            distance += dist
+
+            RC1.append([ int(rc[1]),  int(rc[3]), float(rc[4]) ])
+        #distance_a1_a2 = system.coordinates3.Distance( atom1, atom2)
+        #distance_a2_a3 = system.coordinates3.Distance( atom2, atom3)
+        #distance = (weight1 * distance_a1_a2) - (weight2 * distance_a2_a3*-1)
+
+        rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
+        restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel,
+                                                                     distances = RC1 )
+    restraints["RC1"] = restraint
 
 
 

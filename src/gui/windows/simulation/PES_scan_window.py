@@ -33,13 +33,14 @@ import os
 import pprint
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gtk, Gdk
 #from GTKGUI.gtkWidgets.filechooser import FileChooser
 #from easyhybrid.pDynamoMethods.pDynamo2Vismol import *
 import gc
 from gui.widgets.custom_widgets import FolderChooserButton
 from gui.widgets.custom_widgets import CoordinatesComboBox
 from gui.widgets.custom_widgets import ReactionCoordinateBox
+from gui.widgets.custom_widgets import AdvancedReactionCoordinateBox
 from gui.windows.setup.windows_and_dialogs import ExportScriptDialog
 
 #from gui.windows.geometry_optimization_window import  FolderChooserButton
@@ -69,13 +70,31 @@ class PotentialEnergyScanWindow:
             4: "FIRE",
         }
 
+        # Backing stores for the "Advanced mode" (weighted distance list) RC
+        # boxes -- see AdvancedReactionCoordinateBox / build_advanced_treeviews.
+        # Columns: atom1 name, atom1 index, atom2 name, atom2 index, weight, dist.
+        self.rc_liststore1 = Gtk.ListStore(str, str, str, str, str, str)
+        self.rc_liststore2 = Gtk.ListStore(str, str, str, str, str, str)
+        self.rc_liststore1.connect("row-inserted", self.on_row_inserted)
+        self.rc_liststore1.connect("row-deleted", self.on_row_deleted)
+        self.rc_liststore2.connect("row-inserted", self.on_row_inserted)
+        self.rc_liststore2.connect("row-deleted", self.on_row_deleted)
+
         self.sym_tag: str = "PES_scan"
         self.last_parameters: dict | None = None  # store last used parameters
 
-    def open_window(self) -> None:
-        """Open the PES setup window."""
+    def open_window(self, advanced: bool = False) -> None:
+        """Open the PES setup window.
+
+        `advanced=True` opens it already switched to Advanced mode
+        (weighted distance list) -- used by the "Advanced Reaction
+        Coordinate Scans" menu entry, which used to open a separate
+        window (AdvancedPotentialEnergyScanWindow) before the two were
+        merged into this one via the checkbtn_advanced_mode toggle.
+        """
         if self.Visible:
             self.window.present()
+            self.builder.get_object("checkbtn_advanced_mode").set_active(advanced)
             return
 
         self.builder = Gtk.Builder()
@@ -87,12 +106,25 @@ class PotentialEnergyScanWindow:
         self.window = self.builder.get_object("pes_scan_window")
         self.window.set_title("Reaction Coordinate Scans")
         self.window.set_keep_above(True)
-
-        # Reaction coordinate boxes
+        #self.window.set_default_size(700, 750)
+        # Reaction coordinate boxes -- "simple" (fixed-shape: distance/
+        # multiple-distance/dihedral) and "advanced" (arbitrary weighted
+        # distance list) share the same Alignment placeholder; only one
+        # of each pair is visible at a time (see on_advanced_mode_toggled).
         self.RC_box1 = ReactionCoordinateBox(self.main)
-        self.builder.get_object("rc1_aligment").add(self.RC_box1)
+        self.RC_box1_adv = AdvancedReactionCoordinateBox(main=self.main, liststore=self.rc_liststore1)
+        rc1_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        rc1_box.pack_start(self.RC_box1, True, True, 0)
+        rc1_box.pack_start(self.RC_box1_adv, True, True, 0)
+        self.builder.get_object("rc1_aligment").add(rc1_box)
+
         self.RC_box2 = ReactionCoordinateBox(self.main)
-        self.builder.get_object("rc2_aligment").add(self.RC_box2)
+        self.RC_box2_adv = AdvancedReactionCoordinateBox(main=self.main, liststore=self.rc_liststore2)
+        rc2_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        rc2_box.pack_start(self.RC_box2, True, True, 0)
+        rc2_box.pack_start(self.RC_box2_adv, True, True, 0)
+        self.builder.get_object("rc2_aligment").add(rc2_box)
+        self.build_advanced_treeviews()
 
         # Optimizer methods combobox
         self.method_store = Gtk.ListStore(str)
@@ -143,6 +175,9 @@ class PotentialEnergyScanWindow:
         self.builder.get_object("checkbtn_TS-centered_mode").connect(
             "toggled", self.change_check_button_TS_centered_mode
         )
+        self.builder.get_object("checkbtn_advanced_mode").connect(
+            "toggled", self.on_advanced_mode_toggled
+        )
 
         self.change_check_button_reaction_coordinate(None)
 
@@ -152,6 +187,11 @@ class PotentialEnergyScanWindow:
         self.RC_box2.set_rc_mode(rc_mode=0)
         self.RC_box1.set_rc_type(0)
         self.RC_box2.set_rc_type(0)
+        self.RC_box1_adv.set_rc_mode(rc_mode=0)
+        self.RC_box2_adv.set_rc_mode(rc_mode=0)
+
+        self.builder.get_object("checkbtn_advanced_mode").set_active(advanced)
+        self.on_advanced_mode_toggled(None)
         self.Visible = True
 
     def close_window(self, *args) -> None:
@@ -170,8 +210,99 @@ class PotentialEnergyScanWindow:
         """Enable/disable second reaction coordinate."""
         active = self.builder.get_object("label_check_button_reaction_coordinate2").get_active()
         self.RC_box2.set_sensitive(active)
+        self.RC_box2_adv.set_sensitive(active)
         self.builder.get_object("n_CPUs_spinbutton").set_sensitive(active)
         self.builder.get_object("n_CPUs_label").set_sensitive(active)
+
+    def on_advanced_mode_toggled(self, widget) -> None:
+        """Switches both RC boxes between "simple" (fixed-shape) and
+        "advanced" (weighted distance list) mode."""
+        advanced = self.builder.get_object("checkbtn_advanced_mode").get_active()
+
+        self.RC_box1.set_visible(not advanced)
+        self.RC_box1_adv.set_visible(advanced)
+        self.RC_box2.set_visible(not advanced)
+        self.RC_box2_adv.set_visible(advanced)
+
+        # TS-centered mode has no meaning for the advanced (weighted-list)
+        # RC, and Advanced_Relaxed_Surface_Scan's own backend doesn't
+        # implement it either (see p_methods/surface_scan.py --
+        # _is_ts_centered=True combined with RC2 set is a silent no-op
+        # there). Hide it in advanced mode -- same as the old standalone
+        # advanced window did -- and force it off so a stale checked
+        # state left over from simple mode can't leak into an advanced run.
+        ts_checkbtn = self.builder.get_object("checkbtn_TS-centered_mode")
+        ts_checkbtn.set_visible(not advanced)
+        if advanced:
+            ts_checkbtn.set_active(False)
+
+    def build_advanced_treeviews(self) -> None:
+        """Builds the two weighted-distance-list treeviews backing the
+        "advanced" RC boxes (ported from the old standalone
+        AdvancedPotentialEnergyScanWindow -- see
+        AdvancedReactionCoordinateBox.get_rc_data for the row shape)."""
+        self.treeview1 = Gtk.TreeView(model=self.rc_liststore1)
+        self.treeview2 = Gtk.TreeView(model=self.rc_liststore2)
+
+        columns = {
+            "atm1": 0,
+            "idx1": 1,
+            "atm2": 2,
+            "idx2": 3,
+            "weight": 4,
+            "dist": 5,
+        }
+        for title, i in columns.items():
+            renderer = Gtk.CellRendererText()
+            renderer.set_property("editable", True)
+            renderer.connect("edited", self.on_cell_edited1, i)
+            self.treeview1.append_column(Gtk.TreeViewColumn(title, renderer, text=i))
+
+        for title, i in columns.items():
+            renderer = Gtk.CellRendererText()
+            renderer.set_property("editable", True)
+            renderer.connect("edited", self.on_cell_edited2, i)
+            self.treeview2.append_column(Gtk.TreeViewColumn(title, renderer, text=i))
+
+        self.treeview1.connect("key-press-event", self.on_key_press)
+        self.treeview2.connect("key-press-event", self.on_key_press)
+
+        self.RC_box1_adv.scrolledbox.add(self.treeview1)
+        self.RC_box2_adv.scrolledbox.add(self.treeview2)
+        self.RC_box1_adv.treeview = self.treeview1
+        self.RC_box2_adv.treeview = self.treeview2
+
+    def on_key_press(self, widget, event):
+        """Deletes the selected row of an advanced RC treeview on Delete."""
+        if event.keyval == Gdk.KEY_Delete:
+            selection = widget.get_selection()
+            model, treeiter = selection.get_selected()
+            if treeiter is not None:
+                model.remove(treeiter)
+            return True
+        return False
+
+    def on_row_inserted(self, model, path, iter):
+        """Function doc"""
+        if model is self.rc_liststore1:
+            self.RC_box1_adv.refresh_dmininum()
+        else:
+            self.RC_box2_adv.refresh_dmininum()
+
+    def on_row_deleted(self, model, path):
+        """Function doc"""
+        if model is self.rc_liststore1:
+            self.RC_box1_adv.refresh_dmininum()
+        else:
+            self.RC_box2_adv.refresh_dmininum()
+
+    def on_cell_edited1(self, widget, path, new_text, column_index):
+        """Function doc"""
+        self.rc_liststore1[path][column_index] = new_text
+
+    def on_cell_edited2(self, widget, path, new_text, column_index):
+        """Function doc"""
+        self.rc_liststore2[path][column_index] = new_text
 
     def run_dialog(self, text = None, secondary_text = None):
         """Show error dialog."""
@@ -216,8 +347,10 @@ class PotentialEnergyScanWindow:
 
     def get_parameters(self) -> dict:
         """Extract user-defined PES scan parameters from GUI."""
+        advanced = self.builder.get_object("checkbtn_advanced_mode").get_active()
+
         parameters: dict = {
-            "simulation_type": "Relaxed_Surface_Scan",
+            "simulation_type": "Advanced_Relaxed_Surface_Scan" if advanced else "Relaxed_Surface_Scan",
             "logFrequency": 50,
         }
         parameters["optimizer"] = self.opt_methods[self.methods_combo.get_active()]
@@ -234,16 +367,21 @@ class PotentialEnergyScanWindow:
         vobject_id = self.combobox_starting_coordinates.get_vobject_id()
         vobject = self.main.vm_session.vm_objects_dic[vobject_id]
         parameters['obj1_key6'] = vobject.key6
-        
+
         self.main.p_session.set_psystem_coordinates_from_vobject(vobject)
         parameters["initial_coordinates"] = vobject.name
 
-        ts_mode = self.builder.get_object("checkbtn_TS-centered_mode").get_active()
+        # TS-centered mode isn't available in advanced mode (hidden/forced
+        # off -- see on_advanced_mode_toggled).
+        ts_mode = False if advanced else self.builder.get_object("checkbtn_TS-centered_mode").get_active()
         parameters["_is_ts_centered"] = ts_mode
-        parameters["RC1"] = self.RC_box1.get_rc_data(ts_mode)
+
+        rc_box1 = self.RC_box1_adv if advanced else self.RC_box1
+        rc_box2 = self.RC_box2_adv if advanced else self.RC_box2
+        parameters["RC1"] = rc_box1.get_rc_data(ts_mode)
 
         if self.builder.get_object("label_check_button_reaction_coordinate2").get_active():
-            parameters["RC2"] = self.RC_box2.get_rc_data(ts_mode)
+            parameters["RC2"] = rc_box2.get_rc_data(ts_mode)
             parameters["NmaxThreads"] = int(
                 self.builder.get_object("n_CPUs_spinbutton").get_value()
             )
@@ -300,11 +438,15 @@ class PotentialEnergyScanWindow:
         if not parameters:
             dprint("No previous PES scan parameters available to rerun.")
             return
-        
+
+        advanced = parameters.get("simulation_type") == "Advanced_Relaxed_Surface_Scan"
+        self.builder.get_object("checkbtn_advanced_mode").set_active(advanced)
+        self.on_advanced_mode_toggled(None)
+
         #--------------------------------------------------------------
         self.combobox_starting_coordinates.set_active(parameters['cb1_active'])
-        #--------------------------------------------------------------        
-        
+        #--------------------------------------------------------------
+
         # Optimizer
         opt_map = {v: k for k, v in self.opt_methods.items()}
         self.methods_combo.set_active(opt_map.get(parameters["optimizer"], 0))
@@ -321,22 +463,46 @@ class PotentialEnergyScanWindow:
         # Folder chooser
         self.folder_chooser_button.set_folder(parameters["folder"])
 
-        # TS-centered mode
-        self.builder.get_object("checkbtn_TS-centered_mode").set_active(
-            parameters.get("_is_ts_centered", False)
-        )
+        # TS-centered mode (simple mode only -- see on_advanced_mode_toggled)
+        if not advanced:
+            self.builder.get_object("checkbtn_TS-centered_mode").set_active(
+                parameters.get("_is_ts_centered", False)
+            )
 
         # Reaction coordinates
+        rc_box1 = self.RC_box1_adv if advanced else self.RC_box1
+        rc_box2 = self.RC_box2_adv if advanced else self.RC_box2
+
         if parameters.get("RC1"):
-            self.RC_box1.set_rc_data(parameters["RC1"])
+            if advanced:
+                self._restore_advanced_rc_data(rc_box1, self.rc_liststore1, parameters["RC1"])
+            else:
+                rc_box1.set_rc_data(parameters["RC1"])
         if parameters.get("RC2"):
             self.builder.get_object("label_check_button_reaction_coordinate2").set_active(True)
-            self.RC_box2.set_rc_data(parameters["RC2"])
+            if advanced:
+                self._restore_advanced_rc_data(rc_box2, self.rc_liststore2, parameters["RC2"])
+            else:
+                rc_box2.set_rc_data(parameters["RC2"])
             self.builder.get_object("n_CPUs_spinbutton").set_value(
                 parameters.get("NmaxThreads", 1)
             )
         else:
             self.builder.get_object("label_check_button_reaction_coordinate2").set_active(False)
+
+    def _restore_advanced_rc_data(self, rc_box, liststore, data) -> None:
+        """Repopulates an AdvancedReactionCoordinateBox's weighted-distance
+        table and summary fields from a previously saved RC1/RC2 dict (see
+        AdvancedReactionCoordinateBox.get_rc_data for the shape)."""
+        liststore.clear()
+        for row in data.get("RC", []):
+            liststore.append(list(row))
+        rc_box.builder.get_object("entry_dmin_coord1").set_text(str(data.get("dminimum", 0.0)))
+        rc_box.builder.get_object("entry_nsteps1").set_text(str(data.get("nsteps", 0)))
+        rc_box.builder.get_object("entry_FORCE_coord1").set_text(str(data.get("force_constant", 0.0)))
+        step_size_entry = rc_box.builder.get_object("entry_step_size1")
+        if step_size_entry:
+            step_size_entry.set_text(str(data.get("dincre", 0.0)))
 
 
 

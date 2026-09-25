@@ -29,9 +29,10 @@
 #      to facilitate QM/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
+from util.qc_engine_check import fix_qc_engine_paths, describe_qc_engine_report
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib
+from gi.repository import Gtk, GLib, Pango
 import multiprocessing
 
 import glob, math, os, os.path, sys, shutil
@@ -112,6 +113,46 @@ from pdynamo.p_methods import WHAMAnalysis
 from pdynamo.LogFileWriter import LogFileReader
 
 from gui.windows.setup.windows_and_dialogs import call_message_dialog
+from gui.windows.setup.windows_and_dialogs import TextDialog
+
+
+def _ensure_numpy_pickle_compat():
+    """ A .easy file pickles VismolObject.frames (and a few other
+        arrays) as REAL numpy.ndarray objects -- confirmed real: a
+        session saved under numpy>=2.0 embeds a class reference to
+        'numpy._core.multiarray._reconstruct' (numpy 2.0's renamed
+        internal module), and unpickling that under an older numpy
+        (<2.0, which has no 'numpy._core' at all) fails outright with
+        "ModuleNotFoundError: No module named 'numpy._core'" -- this is
+        exactly what several of this project's own working .easy files
+        hit here (they were evidently saved under a newer numpy than
+        the one this environment currently runs, e.g. from a different
+        machine/OS setup), reported by the user as "não estou
+        conseguindo abrir os arquivos .easy antigos".
+
+        numpy>=2.0 itself keeps 'numpy.core' as a working (deprecated)
+        alias precisely for this kind of backwards compatibility, so
+        the reverse direction (old file, new numpy) already works with
+        no help needed. There is no equivalent built forwards, so under
+        an old numpy we register the alias ourselves -- purely so
+        pickle's own class lookup can resolve the name; this never
+        changes the numpy version or API used anywhere else in the app,
+        and is a no-op (the `hasattr` check returns immediately) once
+        numpy itself is upgraded past 2.0 here.
+    """
+    if hasattr(np, '_core'):
+        return
+    import sys
+    import numpy.core
+    import numpy.core.multiarray
+    sys.modules.setdefault('numpy._core', numpy.core)
+    sys.modules.setdefault('numpy._core.multiarray', numpy.core.multiarray)
+    try:
+        import numpy.core._multiarray_umath
+        sys.modules.setdefault('numpy._core._multiarray_umath', numpy.core._multiarray_umath)
+    except ImportError:
+        pass
+
 
 class LoadAndSaveData:
     """ Class doc """
@@ -176,7 +217,24 @@ class LoadAndSaveData:
         '''- - - - - - - - - - - - - - - - - - - - - - - - - - - - - '''
         self.main.bottom_notebook.get_active_system_text_from_textbuffer()
         easyhybrid_session_data['systems'] = [ ]
-        
+
+        '''- - - - - - - - - - main window size - - - - - - - - - - '''
+        # Saved separately from 'camera' below (window size is a plain
+        # top-level GtkWindow property, not part of the 3D view's own
+        # state) so that on load the window itself can be resized via
+        # the normal, safe Gtk.Window.resize() -- restoring the window
+        # to (close to) the size it was saved at means the GLArea child
+        # naturally ends up at (close to) its own saved size too, from
+        # ordinary layout, with no need to ever force a specific size
+        # onto the GLArea widget directly (see the 'camera'/glarea_width
+        # handling below, and its own BUG FIX note, for why that specific
+        # approach silently broke the main treeview's rendering).
+        window_width, window_height = self.main.window.get_size()
+        easyhybrid_session_data['window'] = {
+            'width' : int(window_width),
+            'height': int(window_height),
+        }
+
         '''- - - - - - - - - - camera/view orientation - - - - - - - - - - '''
         # Captures the state that fully determines how the scene is framed:
         # model_mat (world rotation/pan - every VismolObject inherits this
@@ -356,8 +414,9 @@ class LoadAndSaveData:
         if tmp:
             pass
         else:
-            self.main.bottom_notebook.status_teeview_add_new_item(message = ':  {}  saved'.format(filename), 
+            self.main.bottom_notebook.status_teeview_add_new_item(message = ':  {}  saved'.format(filename),
                                                                system =  system )
+            self.vm_session.vm_config.add_recent_file(filename, 'project')
         
         #'''- - - - - - - - - - - - vismol obejcts - - - - - - - - - - - '''
         #vobjects = {}
@@ -385,11 +444,25 @@ class LoadAndSaveData:
                                                                system =  None )
         if filename is None:
             return None
+        _ensure_numpy_pickle_compat()
         with open(filename, "rb") as f:
             # Load the object from the file
             easyhybrid_session_data = pickle.load(f)
         #print(easyhybrid_session_data)
-        
+
+        '''- - - - - - - - - - main window size - - - - - - - - - - '''
+        # Older .easy files won't have this key -- .get() returns None
+        # and this is skipped, keeping whatever size the window already
+        # has (same compatibility pattern as 'camera' below).
+        # Gtk.Window.resize() only ever resizes the TOP-LEVEL window
+        # itself -- unlike the GLArea-specific set_size_request() this
+        # module used to also call (see the BUG FIX note below), there
+        # is no shared-layout child widget whose geometry gets forced
+        # here, so this does not carry that same risk.
+        window_data = easyhybrid_session_data.get('window')
+        if window_data is not None:
+            self.main.window.resize(window_data['width'], window_data['height'])
+
         '''- - - - - - - - - - camera/view orientation - - - - - - - - - - '''
         # Older .easy files won't have this key - skip restoring and keep
         # whatever default view vm_glcore already has in that case.
@@ -406,33 +479,101 @@ class LoadAndSaveData:
             glcamera.z_far  = camera_data['z_far']
             glcamera.update_fog()
             
-            # [NEW - OPTIONAL property] .easy files saved before this
-            # change do not have 'glarea_width'/'glarea_height' -- .get() returns
-            # None and the block below is skipped, without breaking anything (same
-            # compatibility pattern as the 'camera' block above).
+            # [OPTIONAL property] .easy files saved before this change do
+            # not have 'glarea_width'/'glarea_height' -- .get() returns
+            # None and the block below is skipped, without breaking
+            # anything (same compatibility pattern as the 'camera' block
+            # above).
             #
-            # When present: tries to resize the GLArea to the same size
-            # as when it was saved (set_size_request -- 'best effort', the
-            # GTK container may not respect it 100% depending on the layout) and,
-            # more importantly to actually eliminate distortion, recomputes the
-            # aspect ratio/projection_matrix via resize_window() using that
-            # SAME saved size (with z_near/z_far already restored above) --
-            # the raw projection_matrix restored just above was computed
-            # for the aspect ratio AT SAVE TIME, which may not match
-            # the current window's; resize_window ensures consistency.
+            # When present: recomputes the aspect ratio/projection_matrix
+            # via resize_window() using that SAME saved size (with
+            # z_near/z_far already restored above) -- the raw
+            # projection_matrix restored just above was computed for the
+            # aspect ratio AT SAVE TIME, which may not match the current
+            # window's; resize_window ensures consistency. This is pure
+            # matrix math, no widget geometry involved, so it is always
+            # safe to do.
+            #
+            # [BUG FIX] This used to ALSO call
+            # vm_widget.set_size_request(glarea_w, glarea_h) first, to
+            # literally resize the GLArea to its saved pixel size. That
+            # call is the confirmed root cause of the main object
+            # treeview rendering completely blank after loading a .easy
+            # file with a saved camera (i.e. any session actually saved
+            # from a real, sized window) -- confirmed by a direct A/B
+            # test: the SAME .easy file, in the SAME running process,
+            # populates and renders the treeview correctly with this one
+            # call skipped, and renders it blank with it present, despite
+            # every introspectable treeview/widget property (model
+            # contents, allocation, column widths, cell areas, colors,
+            # realized/mapped/visible flags) being individually normal
+            # either way -- i.e. a real GTK/GL widget-geometry side
+            # effect, not a data or treeview-construction bug. Forcing a
+            # GtkGLArea to a specific, likely-stale (saved at a different
+            # window size) pixel size via set_size_request() during
+            # startup is not needed for correctness anyway: resize_window()
+            # alone already fixes the distortion this was meant to solve,
+            # without touching any widget's actual allocated geometry.
+            # [BUG FIX] The saved glarea_width/glarea_height reflect THIS
+            # .easy's own window/paned proportions AT SAVE TIME, which can
+            # differ from the CURRENT session's (e.g. a different
+            # main_window_paned_v_ratio persisted in .config.json since
+            # then -- see main_window.py's window_resize()/paned_V). Using
+            # them instead of "whatever this session's viewport actually
+            # is right now" is exactly what produced the reported bug:
+            # camera distance/orientation restore correctly, but the image
+            # looks slightly stretched, until the user manually resizes
+            # any paned -- which forces vismol_gtkwidget.py's own reshape()
+            # (the GLArea's native "resize" signal handler) to recompute
+            # the projection matrix from the REAL current allocation,
+            # "fixing" it. So: prefer the GLArea's own current real
+            # allocation whenever it's already available (>0); glarea_w/h
+            # is now only a fallback for the (early-startup) case where
+            # the widget hasn't been allocated any real size at all yet.
             glarea_w = camera_data.get('glarea_width')
             glarea_h = camera_data.get('glarea_height')
-            if glarea_w and glarea_h:
-                vm_widget = getattr(self.vm_session, 'vm_widget', None)
-                if vm_widget is not None:
-                    try:
-                        vm_widget.set_size_request(int(glarea_w), int(glarea_h))
-                    except Exception as e:
-                        dprint('Could not resize GLArea on session load:', e)
+            vm_widget = self.vm_session.vm_widget
+            current_w = vm_widget.get_allocated_width()
+            current_h = vm_widget.get_allocated_height()
+            if current_w > 0 and current_h > 0:
+                vm_glcore.resize_window(current_w, current_h)
+            elif glarea_w and glarea_h:
                 vm_glcore.resize_window(glarea_w, glarea_h)
-            
+
             vm_glcore.queue_draw()
-        
+
+            # self.main.window.resize() above only QUEUES a resize -- GTK
+            # applies it (and cascades into vm_widget's own reallocation,
+            # and window_resize()'s own paned_V repositioning from the
+            # persisted main_window_paned_v_ratio) on a LATER main-loop
+            # iteration. The synchronous recompute just above can therefore
+            # still see the OLD (pre-resize) allocation when the window
+            # actually needs to change size on load; re-running the same
+            # recompute once via GLib.idle_add (i.e. after the pending
+            # resize/allocate/paned-reposition cascade has been processed,
+            # which happens at a higher priority than idle callbacks)
+            # closes that remaining race without guessing at timings.
+            def _resync_projection_after_layout_settles():
+                w = vm_widget.get_allocated_width()
+                h = vm_widget.get_allocated_height()
+                if w > 0 and h > 0:
+                    vm_glcore.resize_window(w, h)
+                    vm_glcore.queue_draw()
+                return False
+            GLib.idle_add(_resync_projection_after_layout_settles)
+
+        # Collected across every system this load restores -- a system
+        # pickled on one machine (or even just an older run on THIS
+        # machine, before env vars/scratch paths changed) can easily have
+        # a QC engine (XTB/ORCA/DFTB+) scratch folder, executable path or
+        # (DFTB+) Slater-Koster folder that no longer exists; none of this
+        # is checked anywhere else until an actual QC calculation is
+        # attempted. See util/qc_engine_check.py -- fix_qc_engine_paths()
+        # auto-redirects scratch/skfPath to a known-good folder on THIS
+        # machine when possible (never the executable -- no safe way to
+        # guess "the right" binary).
+        qc_engine_entries = []
+
         for data  in easyhybrid_session_data['systems']:
             system = data['system']
             
@@ -452,7 +593,10 @@ class LoadAndSaveData:
                 self.main.main_treeview.add_new_system_to_treeview (system)
                 ff  =  getattr(system.mmModel, 'forceField', "None")
                 self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system = system)
-                
+
+                qc_engine_entries.extend(self._get_qc_engine_report_entries(system))
+
+
                 for vobj  in data['vobjects']:
                     frames = vobj['frames']
                     name   = vobj['name']
@@ -501,7 +645,90 @@ class LoadAndSaveData:
         else:
             self.main.session_filename = filename
         self.main.process_manager_window.build_liststore_from_job_history (clear = True)
-        
+
+        # . Verification pass: confirms every system/object this load
+        #   just added to the session actually has a row in the main
+        #   treeview, rather than trusting that silently -- see
+        #   verify_tree_matches_session()'s own docstring for the exact
+        #   silent-failure case this is meant to catch.
+        problems = self.main.main_treeview.verify_tree_matches_session()
+        if problems:
+            dprint('Treeview verification found {} problem(s) after loading "{}":'.format(len(problems), filename))
+            for problem in problems:
+                dprint('  -', problem)
+            self.main.simple_dialog.info(
+                msg='The session "{}" was loaded, but the treeview does not fully reflect it:\n\n{}'.format(
+                    filename, '\n'.join(problems)))
+
+        # . QC engine (XTB/ORCA/DFTB+) scratch-folder/executable/skfPath
+        #   check, collected above while restoring each system -- see
+        #   util/qc_engine_check.py and _get_qc_engine_report_entries()/
+        #   _show_qc_engine_report_dialog() below (shared with
+        #   load_a_new_pDynamo_system_from_dict() in session.py, for the
+        #   direct-system-file, non-.easy load path).
+        if qc_engine_entries:
+            dprint('QC engine check found {} item(s) after loading "{}":'.format(
+                len(qc_engine_entries), filename))
+            self._show_qc_engine_report_dialog(
+                qc_engine_entries, title='QC Engine Path Check -- "{}"'.format(os.path.basename(filename)))
+
+    def _get_qc_engine_report_entries (self, system):
+        """Runs fix_qc_engine_paths() on `system` (auto-redirects scratch/
+        skfPath to a working folder on this machine when possible) and
+        returns the resulting report entries (see describe_qc_engine_report)
+        -- empty if the system has no QC model, or is already fully ok with
+        nothing to redirect."""
+        qc_report, qc_fixes = fix_qc_engine_paths(system)
+        if qc_report is None or (not qc_fixes and qc_report['ok']):
+            return []
+        return describe_qc_engine_report(system.label, qc_report, qc_fixes)
+
+    def _show_qc_engine_report_dialog (self, entries, title):
+        """Shows `entries` (see _get_qc_engine_report_entries/
+        describe_qc_engine_report) as a warning DIALOG (OK button, modal)
+        whose content is a scrollable TextView -- not a plain
+        Gtk.MessageDialog -- since a session with many systems can produce
+        a long report; each auto-redirected path is highlighted so it
+        stands out from the surrounding text. No-ops if `entries` is empty."""
+        if not entries:
+            return
+
+        for entry in entries:
+            dprint('  -', entry['text'])
+
+        combined_text = '\n\n'.join(entry['text'] for entry in entries)
+        qc_report_dialog = TextDialog(text=combined_text, title=title, parent=self.main.window)
+        # TextDialog defaults to no wrapping (fine for the fixed-width
+        # pDynamo logs TextWindow/TextDialog are normally used for) --
+        # these messages are free-form and path-heavy, so wrap them
+        # instead of relying on horizontal scrolling to read a
+        # redirected path.
+        qc_report_dialog.textview.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+
+        buffer = qc_report_dialog.textbuffer
+        highlight_tag = buffer.get_tag_table().lookup('qc_redirect_new_path')
+        if highlight_tag is None:
+            highlight_tag = buffer.create_tag(
+                'qc_redirect_new_path', foreground='#1E8449', weight=Pango.Weight.BOLD)
+
+        start, end = buffer.get_bounds()
+        full_text = buffer.get_text(start, end, True)
+        for entry in entries:
+            highlight = entry.get('highlight')
+            if not highlight:
+                continue
+            search_from = 0
+            while True:
+                idx = full_text.find(highlight, search_from)
+                if idx == -1:
+                    break
+                tag_start = buffer.get_iter_at_offset(idx)
+                tag_end   = buffer.get_iter_at_offset(idx + len(highlight))
+                buffer.apply_tag(highlight_tag, tag_start, tag_end)
+                search_from = idx + len(highlight)
+
+        qc_report_dialog.show()
+
     def _rebuild_surface_vobject_from_saved_data (self, system, vobj):
         """ Reconstroi um VismolObject de superficie (orbital/densidade/
             potencial/MEP/cubo externo -- ver surface_analysis_window.py)

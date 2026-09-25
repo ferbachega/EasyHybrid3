@@ -1262,6 +1262,11 @@ class EasyHybridSession(VismolSession, GLMenu):
                         self.main_session.p_session.load_easyhybrid_serialization_file(
                             target_file, tmp=yes_or_no
                         )
+                        # Recorded under the ORIGINAL (non-"~") path -- that's
+                        # the project the user thinks of, and the one "Open
+                        # Recent" should reopen next time (not the transient
+                        # recovery file).
+                        self.vm_config.add_recent_file(filename, 'project')
                     except Exception as e:
                         mensagem = str(e)
                         dprint("Error:", mensagem)
@@ -1272,6 +1277,7 @@ class EasyHybridSession(VismolSession, GLMenu):
                     # No temp file, load normally
                     try:
                         self.main_session.p_session.load_easyhybrid_serialization_file(filename)
+                        self.vm_config.add_recent_file(filename, 'project')
                     except Exception as e:
                         mensagem = str(e)
                         dprint("Error:", mensagem)
@@ -1282,6 +1288,9 @@ class EasyHybridSession(VismolSession, GLMenu):
             elif filename.endswith(".easy~"):
                 try:
                     self.main_session.p_session.load_easyhybrid_serialization_file(filename)
+                    # Normalize back to the real "<name>.easy" path when possible
+                    # (the "~" file is just its transient recovery copy).
+                    self.vm_config.add_recent_file(filename[:-1], 'project')
                 except Exception as e:
                     mensagem = str(e)
                     dprint("Error:", mensagem)
@@ -1294,6 +1303,7 @@ class EasyHybridSession(VismolSession, GLMenu):
                 systemtype = 3  # Hardcoded system type (could be parameterized later)
                 try:
                     self.main_session.p_session.load_a_new_pDynamo_system_from_dict(files, systemtype)
+                    self.vm_config.add_recent_file(filename, 'system')
                 except Exception as e:
                     mensagem = str(e)
                     dprint("Error:", mensagem)

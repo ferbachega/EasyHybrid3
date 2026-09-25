@@ -909,17 +909,34 @@ class RelaxedSurfaceScan:
                 #--------------------------------------------------------------------
                 atom_RC1_3   = parameters['RC1']['ATOMS'][2]
                 weight1 = parameters['RC1']['sigma_pk1pk3'] #self.sigma_a1_a3[0]
-                weight2 = parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0] 
-                
+                weight2 = parameters['RC1']['sigma_pk3pk1'] #self.sigma_a3_a1[0]
+
                 rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'])
-                restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom_RC1_2, atom_RC1_1, weight1 ], 
-                                                                                                              [ atom_RC1_2, atom_RC1_3, weight2 ] 
+                restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom_RC1_2, atom_RC1_1, weight1 ],
+                                                                                                              [ atom_RC1_2, atom_RC1_3, weight2 ]
                                                                                                             ] )
-                restraints["RC1"] = restraint            
+                restraints["RC1"] = restraint
+                #--------------------------------------------------------------------
+
+            elif parameters['RC1']["rc_type"] == 'dihedral':
+                # [EN] Mirrors _run_scan_1D's own working dihedral branch
+                # -- period=360.0 is required for a dihedral restraint
+                # (periodic angle wrap), unlike the distance-based
+                # rc_types above.
+                #--------------------------------------------------------------------
+                atom_RC1_3 = parameters['RC1']['ATOMS'][2]
+                atom_RC1_4 = parameters['RC1']['ATOMS'][3]
+                rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['RC1']['force_constant'], period = 360.0)
+                restraint         = RestraintDihedral.WithOptions( energyModel = rmodel,
+                                                                    point1      = atom_RC1_1,
+                                                                    point2      = atom_RC1_2,
+                                                                    point3      = atom_RC1_3,
+                                                                    point4      = atom_RC1_4 )
+                restraints["RC1"] = restraint
                 #--------------------------------------------------------------------
             else:
                 pass
-                
+
 
 
             '''reaction coordinate 2 - ONLY at 0 first'''
@@ -956,14 +973,25 @@ class RelaxedSurfaceScan:
                 rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'])
                 restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ 
                                                                                                               [ atom_RC2_2, atom_RC2_1, weight1 ], 
-                                                                                                              [ atom_RC2_2, atom_RC2_3, weight2 ] 
+                                                                                                              [ atom_RC2_2, atom_RC2_3, weight2 ]
                                                                                                               ] )
-                restraints["RC2"] = restraint            
+                restraints["RC2"] = restraint
                 #--------------------------------------------------------------------
-           
-            
-            
-            
+
+            elif parameters['RC2']["rc_type"] == 'dihedral':
+                # [EN] Mirrors the RC1 dihedral branch above / _run_scan_1D's own.
+                #--------------------------------------------------------------------
+                atom_RC2_3 = parameters['RC2']['ATOMS'][2]
+                atom_RC2_4 = parameters['RC2']['ATOMS'][3]
+                rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['RC2']['force_constant'], period = 360.0)
+                restraint         = RestraintDihedral.WithOptions( energyModel = rmodel,
+                                                                    point1      = atom_RC2_1,
+                                                                    point2      = atom_RC2_2,
+                                                                    point3      = atom_RC2_3,
+                                                                    point4      = atom_RC2_4 )
+                restraints["RC2"] = restraint
+                #--------------------------------------------------------------------
+
             try:
                 #-------------------------------------------------------------------------------------------------------------
                 ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
@@ -982,37 +1010,46 @@ class RelaxedSurfaceScan:
             #--------------------------------------------------------------------------------------
             #                     Calculating the reaction coordinate 1
             #--------------------------------------------------------------------------------------
-            distance1 = parameters['system'].coordinates3.Distance( atom_RC1_1 , atom_RC1_2  )
-            
-            if parameters['RC1']["rc_type"] == 'multiple_distance':
-                distance2 = parameters['system'].coordinates3.Distance( atom_RC1_2,  atom_RC1_3  )
-
-            elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
-                distance2 = parameters['system'].coordinates3.Distance( atom_RC1_3,  atom_RC1_4  )
-            
+            if parameters['RC1']["rc_type"] == 'dihedral':
+                # [EN] A dihedral angle is reported directly (same as
+                # _run_scan_1D's own dihedral branch) -- it isn't a
+                # "difference of two distances" like the other rc_types.
+                RC1_d1_minus_d2 = parameters['system'].coordinates3.Dihedral( atom_RC1_1, atom_RC1_2, atom_RC1_3, atom_RC1_4 )
             else:
-                distance2 = 0
-            
-            RC1_d1_minus_d2 = distance1 - distance2
+                distance1 = parameters['system'].coordinates3.Distance( atom_RC1_1 , atom_RC1_2  )
+
+                if parameters['RC1']["rc_type"] == 'multiple_distance':
+                    distance2 = parameters['system'].coordinates3.Distance( atom_RC1_2,  atom_RC1_3  )
+
+                elif parameters['RC1']["rc_type"] == 'multiple_distance*4atoms':
+                    distance2 = parameters['system'].coordinates3.Distance( atom_RC1_3,  atom_RC1_4  )
+
+                else:
+                    distance2 = 0
+
+                RC1_d1_minus_d2 = distance1 - distance2
             #--------------------------------------------------------------------------------------
-            
-            
-            
+
+
+
             #--------------------------------------------------------------------------------------
             #                     Calculating the reaction coordinate 2
             #--------------------------------------------------------------------------------------
-            distance1 = parameters['system'].coordinates3.Distance( atom_RC2_1 , atom_RC2_2  )
-            
-            if parameters['RC2']["rc_type"] == 'multiple_distance':
-                distance2 = parameters['system'].coordinates3.Distance( atom_RC2_2,  atom_RC2_3  )
-            
-            elif parameters['RC2']["rc_type"] == 'multiple_distance*4atoms':
-                distance2 = parameters['system'].coordinates3.Distance( atom_RC2_3,  atom_RC2_4  )
-            
+            if parameters['RC2']["rc_type"] == 'dihedral':
+                RC2_d1_minus_d2 = parameters['system'].coordinates3.Dihedral( atom_RC2_1, atom_RC2_2, atom_RC2_3, atom_RC2_4 )
             else:
-                distance2 = 0
-            
-            RC2_d1_minus_d2 = distance1 - distance2
+                distance1 = parameters['system'].coordinates3.Distance( atom_RC2_1 , atom_RC2_2  )
+
+                if parameters['RC2']["rc_type"] == 'multiple_distance':
+                    distance2 = parameters['system'].coordinates3.Distance( atom_RC2_2,  atom_RC2_3  )
+
+                elif parameters['RC2']["rc_type"] == 'multiple_distance*4atoms':
+                    distance2 = parameters['system'].coordinates3.Distance( atom_RC2_3,  atom_RC2_4  )
+
+                else:
+                    distance2 = 0
+
+                RC2_d1_minus_d2 = distance1 - distance2
             #--------------------------------------------------------------------------------------
             
             
@@ -1445,13 +1482,29 @@ def _run_second_coordinate_in_parallel (job):
             #--------------------------------------------------------------------
             atom_RC1_3   = parameters['ATOMS_RC1'][2]
             weight1 = parameters['sigma_pk1pk3_rc1'] #self.sigma_a1_a3[0]
-            weight2 = parameters['sigma_pk3pk1_rc1'] #self.sigma_a3_a1[0] 
-            
+            weight2 = parameters['sigma_pk3pk1_rc1'] #self.sigma_a3_a1[0]
+
             rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['force_constant_1'])
-            restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom_RC1_2, atom_RC1_1, weight1 ], 
-                                                                                                          [ atom_RC1_2, atom_RC1_3, weight2 ] 
+            restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ [ atom_RC1_2, atom_RC1_1, weight1 ],
+                                                                                                          [ atom_RC1_2, atom_RC1_3, weight2 ]
                                                                                                         ] )
-            restraints["RC1"] = restraint            
+            restraints["RC1"] = restraint
+            #--------------------------------------------------------------------
+
+        elif parameters["rc_type_1"] == 'dihedral':
+            # [EN] Mirrors RelaxedSurfaceScan._run_scan_1D/_run_scan_2D's
+            # own dihedral branches -- period=360.0 required (periodic
+            # angle wrap).
+            #--------------------------------------------------------------------
+            atom_RC1_3 = parameters['ATOMS_RC1'][2]
+            atom_RC1_4 = parameters['ATOMS_RC1'][3]
+            rmodel            = RestraintEnergyModel.Harmonic(distance, parameters['force_constant_1'], period = 360.0)
+            restraint         = RestraintDihedral.WithOptions( energyModel = rmodel,
+                                                                point1      = atom_RC1_1,
+                                                                point2      = atom_RC1_2,
+                                                                point3      = atom_RC1_3,
+                                                                point4      = atom_RC1_4 )
+            restraints["RC1"] = restraint
             #--------------------------------------------------------------------
         else:
             pass
@@ -1488,19 +1541,32 @@ def _run_second_coordinate_in_parallel (job):
             #--------------------------------------------------------------------
             atom_RC2_3 = parameters['ATOMS_RC2'][2]
             weight1 = parameters['sigma_pk1pk3_rc2'] #self.sigma_a1_a3[0]
-            weight2 = parameters['sigma_pk3pk1_rc2'] #self.sigma_a3_a1[0] 
-            
+            weight2 = parameters['sigma_pk3pk1_rc2'] #self.sigma_a3_a1[0]
+
             rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['force_constant_2'])
-            restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [ 
-                                                                                                          [ atom_RC2_2, atom_RC2_1, weight1 ], 
-                                                                                                          [ atom_RC2_2, atom_RC2_3, weight2 ] 
+            restraint         = RestraintMultipleDistance.WithOptions( energyModel = rmodel, distances= [
+                                                                                                          [ atom_RC2_2, atom_RC2_1, weight1 ],
+                                                                                                          [ atom_RC2_2, atom_RC2_3, weight2 ]
                                                                                                           ] )
-            restraints["RC2"] = restraint            
+            restraints["RC2"] = restraint
             #--------------------------------------------------------------------
-       
+
+        elif parameters["rc_type_2"] == 'dihedral':
+            #--------------------------------------------------------------------
+            atom_RC2_3 = parameters['ATOMS_RC2'][2]
+            atom_RC2_4 = parameters['ATOMS_RC2'][3]
+            rmodel            = RestraintEnergyModel.Harmonic(distance2, parameters['force_constant_2'], period = 360.0)
+            restraint         = RestraintDihedral.WithOptions( energyModel = rmodel,
+                                                                point1      = atom_RC2_1,
+                                                                point2      = atom_RC2_2,
+                                                                point3      = atom_RC2_3,
+                                                                point4      = atom_RC2_4 )
+            restraints["RC2"] = restraint
+            #--------------------------------------------------------------------
+
         else:
             pass
-        
+
         ##-------------------------------------------------------------------------------------------------------------
         #ConjugateGradientMinimize_SystemGeometry(system                                ,                
         #                                         logFrequency           = parameters['logFrequency'],
@@ -1526,25 +1592,33 @@ def _run_second_coordinate_in_parallel (job):
         #--------------------------------------------------------------------------------------
         #                     Calculating the reaction coordinate 1
         #--------------------------------------------------------------------------------------
-        distance1 = system.coordinates3.Distance( atom_RC1_1 , atom_RC1_2  )
-        if parameters["rc_type_1"] == 'multiple_distance':
-            distance2 = system.coordinates3.Distance( atom_RC1_2,  atom_RC1_3  )
+        if parameters["rc_type_1"] == 'dihedral':
+            # [EN] Reported directly, same as _run_scan_1D/_run_scan_2D's
+            # own dihedral branches -- not a "difference of distances".
+            RC1_d1_minus_d2 = system.coordinates3.Dihedral( atom_RC1_1, atom_RC1_2, atom_RC1_3, atom_RC1_4 )
         else:
-            distance2 = 0
-        RC1_d1_minus_d2 = distance1 - distance2
+            distance1 = system.coordinates3.Distance( atom_RC1_1 , atom_RC1_2  )
+            if parameters["rc_type_1"] == 'multiple_distance':
+                distance2 = system.coordinates3.Distance( atom_RC1_2,  atom_RC1_3  )
+            else:
+                distance2 = 0
+            RC1_d1_minus_d2 = distance1 - distance2
         #--------------------------------------------------------------------------------------
-        
-        
-        
+
+
+
         #--------------------------------------------------------------------------------------
         #                     Calculating the reaction coordinate 2
         #--------------------------------------------------------------------------------------
-        distance1 = system.coordinates3.Distance( atom_RC2_1 , atom_RC2_2  )
-        if parameters["rc_type_2"] == 'multiple_distance':
-            distance2 = system.coordinates3.Distance( atom_RC2_2,  atom_RC2_3  )
+        if parameters["rc_type_2"] == 'dihedral':
+            RC2_d1_minus_d2 = system.coordinates3.Dihedral( atom_RC2_1, atom_RC2_2, atom_RC2_3, atom_RC2_4 )
         else:
-            distance2 = 0
-        RC2_d1_minus_d2 = distance1 - distance2
+            distance1 = system.coordinates3.Distance( atom_RC2_1 , atom_RC2_2  )
+            if parameters["rc_type_2"] == 'multiple_distance':
+                distance2 = system.coordinates3.Distance( atom_RC2_2,  atom_RC2_3  )
+            else:
+                distance2 = 0
+            RC2_d1_minus_d2 = distance1 - distance2
         #--------------------------------------------------------------------------------------
         
         

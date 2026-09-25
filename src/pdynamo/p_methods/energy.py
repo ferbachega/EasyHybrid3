@@ -66,6 +66,7 @@ def compute_reaction_coordinate(coordinates3, rc):
         - simple_distance            -> (distance, None)
         - multiple_distance          -> (dist(atom1,atom2), dist(atom2,atom3))
         - multiple_distance*4atoms   -> (dist(atom1,atom2), dist(atom3,atom4))
+        - advanced                   -> (weighted sum of distances, None)
 
     NOTE: the original code had two copies (2D pklfolder / 2D vobject branches)
     with a typo: `dist1 = didist_RC1_1 - dist_RC1_2` (undefined name
@@ -74,20 +75,33 @@ def compute_reaction_coordinate(coordinates3, rc):
     that broken code path entirely.
     """
     rc_type = rc['rc_type']
-    atoms   = rc['ATOMS']
 
     if rc_type == 'simple_distance':
+        atoms = rc['ATOMS']
         return coordinates3.Distance(atoms[0], atoms[1]), None
 
     elif rc_type == 'multiple_distance':
+        atoms = rc['ATOMS']
         d1 = coordinates3.Distance(atoms[0], atoms[1])
         d2 = coordinates3.Distance(atoms[1], atoms[2])
         return d1, d2
 
     elif rc_type == 'multiple_distance*4atoms':
+        atoms = rc['ATOMS']
         d1 = coordinates3.Distance(atoms[0], atoms[1])
         d2 = coordinates3.Distance(atoms[2], atoms[3])
         return d1, d2
+
+    elif rc_type == 'advanced':
+        # Arbitrary weighted sum of distances -- same "RC" row shape as
+        # AdvancedReactionCoordinateBox.get_rc_data() / the RestraintMultipleDistance
+        # construction in p_methods/surface_scan.py: rows of
+        # [atom1_name, atom1_idx, atom2_name, atom2_idx, weight, dist].
+        total = 0.0
+        for row in rc['RC']:
+            i, j, w = int(row[1]), int(row[3]), float(row[4])
+            total += w * coordinates3.Distance(i, j)
+        return total, None
 
     return None, None
 
@@ -389,7 +403,7 @@ class EnergyRefinement:
         lines = []
         for frame_id in sorted(results):
             energy, d1, d2 = results[frame_id]
-            if rc_type == 'simple_distance':
+            if rc_type in ('simple_distance', 'advanced'):
                 lines.append("\nDATA %9i       %13.12f        %13.12f"
                              % (frame_id, float(d1), float(energy)))
             elif rc_type in ('multiple_distance', 'multiple_distance*4atoms'):
@@ -520,6 +534,24 @@ class EnergyRefinement:
             text += "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC1']['ATOMS'][3]    , parameters['RC1']['ATOM_NAMES'][3] )
             text += "\n--------------------------------------------------------------------------------"
 
+        elif parameters['RC1']["rc_type"] == 'advanced':
+            text += "\n"
+            text += "\n------------------ Coordinate 1 - Advanced (weighted distances) ----------------"
+            # Same "ATOMn = idx  ATOM NAMEn = name" line shape the other RC
+            # shapes use above (numbered sequentially, two atoms per pair) so
+            # LogFileWriter.get_data()'s generic "if 'ATOM' in line" scraping
+            # still picks these atom indices up for axis labelling; the
+            # weight itself is on its own WEIGHT line, which that scraper
+            # ignores (no 'ATOM' substring), so it can't be mistaken for one.
+            n = 0
+            for row in parameters['RC1']['RC']:
+                n += 1
+                text += "\nATOM%-2d                 =%15s  ATOM NAME%-2d            =%15s" % (n, row[1], n, row[0])
+                n += 1
+                text += "\nATOM%-2d                 =%15s  ATOM NAME%-2d            =%15s" % (n, row[3], n, row[2])
+                text += "\nWEIGHT                  =%15s" % (row[4],)
+            text += "\n--------------------------------------------------------------------------------"
+
         # ---- Coordinate 2 ---------------------------------------------------------------
         if parameters['RC2'] is not None :
             if parameters['RC2']["rc_type"] == 'simple_distance':
@@ -546,6 +578,18 @@ class EnergyRefinement:
                 text += "\nATOM4                  =%15i  ATOM NAME4             =%15s"     % (parameters['RC2']['ATOMS'][3]    , parameters['RC2']['ATOM_NAMES'][3] )
                 text += "\n--------------------------------------------------------------------------------"
 
+            elif parameters['RC2']["rc_type"] == 'advanced':
+                text += "\n"
+                text += "\n------------------ Coordinate 2 - Advanced (weighted distances) ----------------"
+                n = 0
+                for row in parameters['RC2']['RC']:
+                    n += 1
+                    text += "\nATOM%-2d                 =%15s  ATOM NAME%-2d            =%15s" % (n, row[1], n, row[0])
+                    n += 1
+                    text += "\nATOM%-2d                 =%15s  ATOM NAME%-2d            =%15s" % (n, row[3], n, row[2])
+                    text += "\nWEIGHT                  =%15s" % (row[4],)
+                text += "\n--------------------------------------------------------------------------------"
+
         # ---- Data table header -----------------------------------------------------------
         if parameters['RC2'] is not None :
             text += "\n\n--------------------------------------------------------------------------------"
@@ -555,6 +599,11 @@ class EnergyRefinement:
             if parameters['RC1']["rc_type"] == 'simple_distance':
                 text += "\n\n-------------------------------------------------------------"
                 text += "\n           Frame    dist-ATOM1-ATOM2             Energy      "
+                text += "\n-------------------------------------------------------------"
+
+            elif parameters['RC1']["rc_type"] == 'advanced':
+                text += "\n\n-------------------------------------------------------------"
+                text += "\n           Frame    Reaction Coordinate         Energy      "
                 text += "\n-------------------------------------------------------------"
 
             elif parameters['RC1']["rc_type"] == 'multiple_distance':

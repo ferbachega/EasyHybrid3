@@ -40,7 +40,8 @@
 #      │   ├── simple_dialog.py       SimpleDialog, call_message_dialog
 #      │   ├── text_info_windows.py   TextWindow, InfoWindow
 #      │   ├── export_dialogs.py      ExportScriptDialog, ExportDataWindow
-#      │   └── restraint_dialog.py    AddHarmonicRestraintDialog
+#      │   ├── restraint_dialog.py    AddHarmonicRestraintDialog
+#      │   └── packmol_component_dialog.py  AddPackmolComponentDialog
 #      ├── qc_setup/
 #      │   ├── setup_sparrow.py       SetupSPARROWWindow
 #      │   ├── setup_mopac.py         SetupMOPACWindow
@@ -53,6 +54,13 @@
 #      │   ├── import_trajectory.py   ImportTrajectoryWindow
 #      │   ├── merge_system.py        MergeSystemWindow
 #      │   ├── solvate_system.py      SolvateSystemWindow, MakeSolventBoxWindow
+#      │   ├── prepare_amber_system.py PrepareAmberSystemWindow
+#      │   ├── prepare_ligand_antechamber.py PrepareLigandAntechamberWindow
+#      │   ├── prepare_namd_run.py     PrepareNamdRunWindow
+#      │   ├── prepare_smd_run.py      PrepareSMDWindow
+#      │   ├── prepare_packmol_run.py  PreparePackmolWindow
+#      │   ├── prepare_vina_docking.py PrepareVinaDockingWindow
+#      │   ├── prepare_autodock_gpu.py PrepareAutoDockGPUWindow
 #      │   └── trajectory_player.py   TrajectoryPlayerWindow
 #      └── selection_windows/
 #          ├── selection.py          EasyHybridSelectionWindow, PDynamoSelectionWindow
@@ -62,10 +70,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 from gui.windows.setup.windows_and_dialogs.dialogs.simple_dialog import call_message_dialog, SimpleDialog
-from gui.windows.setup.windows_and_dialogs.dialogs.text_info_windows import TextWindow, InfoWindow, TabbedLogWindow
+from gui.windows.setup.windows_and_dialogs.dialogs.text_info_windows import TextWindow, TextDialog, InfoWindow, TabbedLogWindow
 from gui.windows.setup.windows_and_dialogs.dialogs.export_dialogs import ExportScriptDialog, ExportDataWindow
 from gui.windows.setup.windows_and_dialogs.dialogs.restraint_dialog import AddHarmonicRestraintDialog
 from gui.windows.setup.windows_and_dialogs.dialogs.restraint_dialog import AddPositionHarmonicRestraintDialog
+from gui.windows.setup.windows_and_dialogs.dialogs.packmol_component_dialog import AddPackmolComponentDialog
 from gui.windows.setup.windows_and_dialogs.qc_setup.setup_sparrow import SetupSPARROWWindow
 from gui.windows.setup.windows_and_dialogs.qc_setup.setup_mopac import SetupMOPACWindow
 from gui.windows.setup.windows_and_dialogs.qc_setup.setup_xtb import SetupXTBWindow
@@ -76,6 +85,14 @@ from gui.windows.setup.windows_and_dialogs.system_windows.import_system import I
 from gui.windows.setup.windows_and_dialogs.system_windows.import_trajectory import ImportTrajectoryWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.merge_system import MergeSystemWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.solvate_system import SolvateSystemWindow, MakeSolventBoxWindow
+from gui.windows.setup.windows_and_dialogs.system_windows.prepare_amber_system import PrepareAmberSystemWindow
+from gui.windows.setup.windows_and_dialogs.system_windows.prepare_ligand_antechamber import PrepareLigandAntechamberWindow
+from gui.windows.setup.windows_and_dialogs.system_windows.prepare_namd_run import PrepareNamdRunWindow
+from gui.windows.setup.windows_and_dialogs.system_windows.prepare_smd_run import PrepareSMDWindow
+from gui.windows.setup.windows_and_dialogs.system_windows.prepare_packmol_run import PreparePackmolWindow
+from gui.windows.setup.windows_and_dialogs.system_windows.prepare_vina_docking import PrepareVinaDockingWindow
+from gui.windows.setup.windows_and_dialogs.system_windows.prepare_autodock_gpu import PrepareAutoDockGPUWindow
+from gui.windows.setup.windows_and_dialogs.system_windows.prepare_add_hydrogens import PrepareAddHydrogensWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.trajectory_player import TrajectoryPlayerWindow
 from gui.windows.setup.windows_and_dialogs.selection_windows.selection import EasyHybridSelectionWindow, PDynamoSelectionWindow
 from gui.windows.setup.windows_and_dialogs.selection_windows.go_to_atom import EasyHybridGoToAtomWindow

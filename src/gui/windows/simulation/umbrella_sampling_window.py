@@ -43,7 +43,9 @@ from gui.widgets.custom_widgets import AdvancedReactionCoordinateBox
 
 from gui.windows.setup.windows_and_dialogs import ExportScriptDialog
 
-from gui.windows.simulation.PES_scan_window            import compute_sigma_a1_a3 
+from pdynamo.LogFileWriter import detect_reaction_coordinates_from_log
+
+from gui.windows.simulation.PES_scan_window            import compute_sigma_a1_a3
 from util.geometric_analysis            import get_dihedral 
 from util.geometric_analysis            import get_angle 
 from util.geometric_analysis            import get_distance 
@@ -166,7 +168,8 @@ class UmbrellaSamplingWindow(Gtk.Window):
             #----------------------------------------------------------------------------------------------
             # - - - - - - - - - - - - - Folder Chooser Button - - - - - - - - - - - - - - - - -
             #----------------------------------------------------------------------------------------------
-            self.folder_chooser_button = FolderChooserButton(main =  self.main, sel_type = 'folder', home =  self.home)
+            self.folder_chooser_button = FolderChooserButton(main =  self.main, sel_type = 'folder', home =  self.home,
+                                                              on_folder_selected = self.on_trajectory_folder_selected)
             self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
             system_id      = self.p_session.active_id
             #----------------------------------------------------------------------------------------------
@@ -196,15 +199,25 @@ class UmbrellaSamplingWindow(Gtk.Window):
             #----------------------------------------------------------------------------------------------
             # - - - - - - - - - - - - - Reaction Coordinates 1 ComboBox - - - - - - - - - - - - - - - - -
             #----------------------------------------------------------------------------------------------
-            #self.RC_box1 = ReactionCoordinateBox(main = self.main, mode = 1)
-            #self.builder.get_object('rc1_aligment').add(self.RC_box1)
-            #self.RC_box2 = ReactionCoordinateBox(main = self.main, mode = 1)
-            #self.builder.get_object('rc2_aligment').add(self.RC_box2)
-            #----------------------------------------------------------------------------------------------
-            self.RC_box1 = AdvancedReactionCoordinateBox(main = self.main, liststore = self.rc_liststore1, mode = 0)
-            self.builder.get_object("rc1_aligment").add(self.RC_box1)
-            self.RC_box2 = AdvancedReactionCoordinateBox(main = self.main, liststore = self.rc_liststore2, mode = 0)
-            self.builder.get_object("rc2_aligment").add(self.RC_box2)
+            # "Simple" (fixed-shape: distance/multiple-distance/dihedral) and
+            # "advanced" (arbitrary weighted distance list) share the same
+            # Alignment placeholder; only one of each pair is visible at a
+            # time (see on_advanced_mode_toggled). Advanced is the default,
+            # matching this window's own behavior before the simple box was
+            # re-enabled (its construction used to be commented out below).
+            self.RC_box1 = ReactionCoordinateBox(main = self.main, mode = 1)
+            self.RC_box1_adv = AdvancedReactionCoordinateBox(main = self.main, liststore = self.rc_liststore1, mode = 0)
+            rc1_box = Gtk.Box(orientation = Gtk.Orientation.VERTICAL)
+            rc1_box.pack_start(self.RC_box1, True, True, 0)
+            rc1_box.pack_start(self.RC_box1_adv, True, True, 0)
+            self.builder.get_object("rc1_aligment").add(rc1_box)
+
+            self.RC_box2 = ReactionCoordinateBox(main = self.main, mode = 1)
+            self.RC_box2_adv = AdvancedReactionCoordinateBox(main = self.main, liststore = self.rc_liststore2, mode = 0)
+            rc2_box = Gtk.Box(orientation = Gtk.Orientation.VERTICAL)
+            rc2_box.pack_start(self.RC_box2, True, True, 0)
+            rc2_box.pack_start(self.RC_box2_adv, True, True, 0)
+            self.builder.get_object("rc2_aligment").add(rc2_box)
         
         
             #----------------------------------------------------------------------------------------------
@@ -245,38 +258,47 @@ class UmbrellaSamplingWindow(Gtk.Window):
             #---------------------------------------------------------------------------------------------
             self.builder.get_object('checkbox_reaction_coordinate2').connect("clicked", self.on_checkbox_reaction_coordinate2)
             self.builder.get_object('checkbox_geometry_optimization').connect("clicked", self.on_checkbox_geometry_optimization)
-            
+            self.builder.get_object('checkbtn_advanced_mode').connect("toggled", self.on_advanced_mode_toggled)
+
             self.RC_box2.set_sensitive(False)
+            self.RC_box2_adv.set_sensitive(False)
             self.builder.get_object('frame_geometry_optimization').set_sensitive(False)
-            
+
             self.builder.get_object('button_run').connect("clicked", self.run)
             self.builder.get_object('button_cancel').connect('clicked', self.close_window)
             self.builder.get_object('button_export').connect('clicked', self.on_btn_export)
             #---------------------------------------------------------------------------------------------
-            
-            
-            
+
+
+
             #self._starting_coordinates_model_update()
-            self.build_treeview()
+            self.build_advanced_treeviews()
             self.window.show_all()
-            
+
             self.input_type_combo.set_active(0)
 
             self.opt_methods_combo.set_active(0)
             self.md_integrators_combobox.set_active(0)
             self.update_working_folder_chooser ( )
-            
+
             if  self.p_session.psystem[self.p_session.active_id]:
                 output_name = self.p_session.get_output_filename_from_system(self.sym_tag)
                 self.builder.get_object('entry_traj_name').set_text(output_name)
             else:
                 pass
-            
+
             self.RC_box1.set_rc_mode(rc_mode=0)
             self.RC_box2.set_rc_mode(rc_mode=0)
-            #self.RC_box1.set_rc_type(0)
-            #self.RC_box2.set_rc_type(0)
-            self.Visible  = True   
+            self.RC_box1_adv.set_rc_mode(rc_mode=0)
+            self.RC_box2_adv.set_rc_mode(rc_mode=0)
+            self.RC_box1.set_rc_type(0)
+            self.RC_box2.set_rc_type(0)
+
+            # Advanced mode is the default -- matches this window's own
+            # behavior before the simple box was re-enabled.
+            self.builder.get_object('checkbtn_advanced_mode').set_active(True)
+            self.on_advanced_mode_toggled(None)
+            self.Visible  = True
 
         else:
             self.window.present()
@@ -286,18 +308,18 @@ class UmbrellaSamplingWindow(Gtk.Window):
         self.window.destroy()
         self.Visible    =  False
 
-    def build_treeview (self):
+    def build_advanced_treeviews (self):
         """ Function doc """
-        
+
         self.treeview1 = Gtk.TreeView(model = self.rc_liststore1)
         self.treeview2 = Gtk.TreeView(model = self.rc_liststore2)
-        
-        columns = {"atm1"     : 0, 
+
+        columns = {"atm1"     : 0,
                    'idx1'    : 1,
-                   "atm2"     : 2, 
+                   "atm2"     : 2,
                    "idx2"    : 3,
-                   "weight"    : 4,                  
-                   "dist"    : 5,                  
+                   "weight"    : 4,
+                   "dist"    : 5,
                    }
         #treeview 2
         for title in columns.keys():
@@ -307,7 +329,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             renderer.connect("edited", self.on_cell_edited1, i)
             column = Gtk.TreeViewColumn(title, renderer, text=i)
             self.treeview1.append_column(column)
- 
+
         #treeview 2
         for title in columns.keys():
             renderer = Gtk.CellRendererText()
@@ -320,30 +342,40 @@ class UmbrellaSamplingWindow(Gtk.Window):
         # Enable context menu on right-click
         #self.treeview1.connect("button-press-event", self.on_button_press_event)
         #self.treeview2.connect("button-press-event", self.on_button_press_event)
-        
+
         self.treeview1.connect("key-press-event", self.on_key_press)
         self.treeview2.connect("key-press-event", self.on_key_press)
-        
+
         #self.scrolledbox
-        self.RC_box1.scrolledbox.add(self.treeview1)
-        self.RC_box2.scrolledbox.add(self.treeview2)
-        self.RC_box1.treeview = self.treeview1
-        self.RC_box2.treeview = self.treeview2
+        self.RC_box1_adv.scrolledbox.add(self.treeview1)
+        self.RC_box2_adv.scrolledbox.add(self.treeview2)
+        self.RC_box1_adv.treeview = self.treeview1
+        self.RC_box2_adv.treeview = self.treeview2
+
+    def on_advanced_mode_toggled (self, widget) -> None:
+        """Switches both RC boxes between "simple" (fixed-shape) and
+        "advanced" (weighted distance list) mode."""
+        advanced = self.builder.get_object('checkbtn_advanced_mode').get_active()
+
+        self.RC_box1.set_visible(not advanced)
+        self.RC_box1_adv.set_visible(advanced)
+        self.RC_box2.set_visible(not advanced)
+        self.RC_box2_adv.set_visible(advanced)
 
     def on_row_inserted(self, model, path, iter):
         if model is  self.rc_liststore1:
-            #print("Linha inserida em:", path)  
-            self.RC_box1.refresh_dmininum()
+            #print("Linha inserida em:", path)
+            self.RC_box1_adv.refresh_dmininum()
         else:
-            self.RC_box2.refresh_dmininum()
+            self.RC_box2_adv.refresh_dmininum()
 
     def on_row_deleted(self, model, path):
         dprint("Row removed at:", path)
         if model is  self.rc_liststore1:
-            #print("Linha inserida em:", path)  
-            self.RC_box1.refresh_dmininum()
+            #print("Linha inserida em:", path)
+            self.RC_box1_adv.refresh_dmininum()
         else:
-            self.RC_box2.refresh_dmininum()
+            self.RC_box2_adv.refresh_dmininum()
     
     def on_row_changed(self, model, path, iter):
         pass
@@ -378,62 +410,45 @@ class UmbrellaSamplingWindow(Gtk.Window):
 
         return False
 
+    def _set_rc_input_fields_sensitive (self, sensitive) -> None:
+        """Enables/disables the per-window step-size/nsteps/dmin fields on
+        ALL FOUR RC boxes (simple + advanced, RC1 + RC2) -- both
+        ReactionCoordinateBox and AdvancedReactionCoordinateBox expose the
+        same entry_step_size/entry_nsteps/entry_dmin_coord/label_step_size
+        attribute names, so this applies uniformly regardless of which
+        pair is currently visible (see on_advanced_mode_toggled)."""
+        for rc_box in (self.RC_box1, self.RC_box1_adv, self.RC_box2, self.RC_box2_adv):
+            rc_box.entry_step_size .set_sensitive(sensitive)
+            rc_box.entry_nsteps    .set_sensitive(sensitive)
+            rc_box.entry_dmin_coord.set_sensitive(sensitive)
+            rc_box.label_step_size .set_sensitive(sensitive)
+
     def on_combobox_inputtype (self, combobox):
         """ Function doc """
-        _type =  combobox.get_active()  
-        
+        _type =  combobox.get_active()
+
         if _type == 0:
             self.builder.get_object('label_input_trajectory').hide()
             self.builder.get_object('folder_chooser_box').hide()
             self.builder.get_object('label_number_of_cpus').hide()
             self.builder.get_object('ncpus_spinbutton').hide()
-            
+
             self.builder.get_object('label_starting_coordinates').show()
             self.combobox_starting_coordinates.show()
-        
-            self.RC_box1.entry_step_size .set_sensitive(True)
-            self.RC_box1.entry_nsteps    .set_sensitive(True)
-            self.RC_box1.entry_dmin_coord.set_sensitive(True)
-            self.RC_box2.entry_step_size .set_sensitive(True)
-            self.RC_box2.entry_nsteps    .set_sensitive(True)
-            self.RC_box2.entry_dmin_coord.set_sensitive(True)
-        
-            self.RC_box1.label_step_size     .set_sensitive(True)
-            #self.RC_box1.label_nsteps        .set_sensitive(True)        
-            #self.RC_box1.label_force_constant.set_sensitive(True)        
-            #self.RC_box1.label_dmin          .set_sensitive(True)        
-            
-            self.RC_box2.label_step_size     .set_sensitive(True)
-            #self.RC_box2.label_nsteps        .set_sensitive(True)        
-            #self.RC_box2.label_force_constant.set_sensitive(True)        
-            #self.RC_box2.label_dmin          .set_sensitive(True)        
-        
-        
-        
+
+            self._set_rc_input_fields_sensitive(True)
+
         if _type == 1:
             self.builder.get_object('label_input_trajectory').show()
             self.builder.get_object('folder_chooser_box').show()
             self.builder.get_object('label_number_of_cpus').show()
             self.builder.get_object('ncpus_spinbutton').show()
-            
+
             self.builder.get_object('label_starting_coordinates').hide()
             self.combobox_starting_coordinates.hide()
-            
-            self.RC_box1.entry_step_size .set_sensitive(False)
-            self.RC_box1.entry_nsteps    .set_sensitive(False)
-            self.RC_box1.entry_dmin_coord.set_sensitive(False)
-            self.RC_box2.entry_step_size .set_sensitive(False)
-            self.RC_box2.entry_nsteps    .set_sensitive(False)
-            self.RC_box2.entry_dmin_coord.set_sensitive(False)
 
+            self._set_rc_input_fields_sensitive(False)
 
-            self.RC_box1.label_step_size.set_sensitive(False)
-            #self.RC_box1.label_nsteps   .set_sensitive(False)        
-            #self.RC_box1.label_dmin     .set_sensitive(False)        
-            
-            self.RC_box2.label_step_size.set_sensitive(False)
-            #self.RC_box2.label_nsteps   .set_sensitive(False)        
-            #self.RC_box2.label_dmin     .set_sensitive(False)
 
 
     def on_md_integrator_combobox (self, widget = None):
@@ -592,11 +607,89 @@ class UmbrellaSamplingWindow(Gtk.Window):
 
     def on_checkbox_reaction_coordinate2 (self, widget):
         """ Function doc """
-        if widget.get_active():
-            self.RC_box2.set_sensitive(True)
-        else:
-            self.RC_box2.set_sensitive(False) 
+        active = widget.get_active()
+        self.RC_box2.set_sensitive(active)
+        self.RC_box2_adv.set_sensitive(active)
 
+    def on_trajectory_folder_selected (self, folder):
+        """ Auto-detects the reaction coordinate(s) used to produce the
+        trajectory in a freshly-picked "From Trajectory" input folder, by
+        parsing its own 'output.log' (written by whichever job created it
+        -- see LogFileWriter.detect_reaction_coordinates_from_log for the
+        recognized formats: RelaxedSurfaceScan/AdvancedRelaxedSurfaceScan's
+        PES scans, or EnergyRefinement), and pre-fills RC1/RC2 with them so
+        the user doesn't have to redefine the same atoms that already
+        define this trajectory's reaction coordinate.
+
+        Silently does nothing if output.log doesn't exist or isn't a
+        recognizable EasyHybrid scan log -- this is a convenience, not a
+        requirement; the user can still enter the RC by hand exactly as
+        before.
+        """
+        detected = detect_reaction_coordinates_from_log(os.path.join(folder, 'output.log'))
+        if not detected:
+            return
+
+        rc1 = detected.get('RC1')
+        rc2 = detected.get('RC2')
+        if not (rc1 or rc2):
+            return
+
+        advanced = (rc1 or rc2)['rc_type'] == 'advanced'
+        self.builder.get_object('checkbtn_advanced_mode').set_active(advanced)
+        self.on_advanced_mode_toggled(None)
+
+        if rc1:
+            if advanced:
+                self._apply_detected_advanced_rc(self.rc_liststore1, rc1)
+            else:
+                self._apply_detected_simple_rc(self.RC_box1, rc1)
+
+        if rc2:
+            checkbox2 = self.builder.get_object('checkbox_reaction_coordinate2')
+            checkbox2.set_active(True)
+            self.on_checkbox_reaction_coordinate2(checkbox2)
+            if advanced:
+                self._apply_detected_advanced_rc(self.rc_liststore2, rc2)
+            else:
+                self._apply_detected_simple_rc(self.RC_box2, rc2)
+
+    def _apply_detected_simple_rc (self, rc_box, data):
+        """ Fills ONLY a ReactionCoordinateBox's coordinate-type combobox
+        and atom index/name entries from a detect_reaction_coordinates_from_log()
+        result -- deliberately does NOT touch force_constant/nsteps/
+        dincre/dminimum (unlike ReactionCoordinateBox.set_rc_data(), which
+        would reset those to 0/0.0 since the detected dict never carries
+        them -- they belong to the run that's being newly configured, not
+        to the trajectory that's being imported as its input). """
+        type_map = {
+            'simple_distance': 0,
+            'multiple_distance': 1,
+            'multiple_distance*4atoms': 2,
+            'dihedral': 3,
+        }
+        rc_box.combobox_reaction_coord1.set_active(type_map.get(data['rc_type'], 0))
+        rc_box.change_cb_coordType1(rc_box.combobox_reaction_coord1)
+
+        for i, (atom_index, atom_name) in enumerate(zip(data['ATOMS'], data['ATOM_NAMES']), start=1):
+            entry_index = rc_box.builder.get_object('entry_atom{}_index_coord1'.format(i))
+            entry_name  = rc_box.builder.get_object('entry_atom{}_name_coord1'.format(i))
+            if entry_index:
+                entry_index.set_text(str(atom_index))
+            if entry_name:
+                entry_name.set_text(str(atom_name))
+
+    def _apply_detected_advanced_rc (self, liststore, data):
+        """ Fills ONLY an AdvancedReactionCoordinateBox's weighted-distance
+        treeview (via its backing liststore) from a
+        detect_reaction_coordinates_from_log() result -- same "clear and
+        repopulate the liststore" approach PotentialEnergyScanWindow's own
+        _restore_advanced_rc_data uses, minus the force_constant/nsteps/
+        dincre/dminimum fields for the same reason as
+        _apply_detected_simple_rc above. """
+        liststore.clear()
+        for row in data['RC']:
+            liststore.append(list(row))
 
     def on_checkbox_geometry_optimization (self, widget):
         """ Function doc """
@@ -652,18 +745,22 @@ class UmbrellaSamplingWindow(Gtk.Window):
         - Else: sequetial
         
         '''
-        parameters["RC1"] = self.RC_box1.get_rc_data()
+        advanced = self.builder.get_object('checkbtn_advanced_mode').get_active()
+        rc_box1  = self.RC_box1_adv if advanced else self.RC_box1
+        rc_box2  = self.RC_box2_adv if advanced else self.RC_box2
+
+        parameters["RC1"] = rc_box1.get_rc_data()
         if self.builder.get_object('checkbox_reaction_coordinate2').get_active():
-            parameters["RC2"] = self.RC_box2.get_rc_data()
+            parameters["RC2"] = rc_box2.get_rc_data()
             parameters["NmaxThreads"] =  int(self.builder.get_object('ncpus_spinbutton').get_value())
         else:
             parameters["RC2"] = None
-            
+
             if parameters['input_type'] == 1:
                 parameters["NmaxThreads"] = int(self.builder.get_object('ncpus_spinbutton').get_value())
             else:
                 parameters["NmaxThreads"] = 1
-            
+
         
         
         #----------------------------------------------------------------------
@@ -856,16 +953,50 @@ class UmbrellaSamplingWindow(Gtk.Window):
         # ----------------------------
         # Reaction Coordinates
         # ----------------------------
+        # 'RC' present -> this job was set up in advanced (weighted
+        # distance list) mode; 'rc_type' present -> simple (fixed-shape,
+        # possibly dihedral) mode. Mirrors the same check
+        # UmbrellaSampling.run() itself uses (p_methods/umbrella_sampling.py).
+        rc1_advanced = bool(parameters.get('RC1')) and 'RC' in parameters['RC1']
+        self.builder.get_object('checkbtn_advanced_mode').set_active(rc1_advanced)
+        self.on_advanced_mode_toggled(None)
+
         if 'RC1' in parameters and parameters['RC1'] is not None:
-            self.RC_box1.set_rc_data(parameters['RC1'])
+            if rc1_advanced:
+                self._restore_advanced_rc_data(self.RC_box1_adv, self.rc_liststore1, parameters['RC1'])
+            else:
+                self.RC_box1.set_rc_data(parameters['RC1'])
 
         if 'RC2' in parameters and parameters['RC2'] is not None:
-            self.RC_box2.set_rc_data(parameters['RC2'])
+            if rc1_advanced:
+                self._restore_advanced_rc_data(self.RC_box2_adv, self.rc_liststore2, parameters['RC2'])
+            else:
+                self.RC_box2.set_rc_data(parameters['RC2'])
             self.builder.get_object('checkbox_reaction_coordinate2').set_active(True)
             self.RC_box2.set_sensitive(True)
+            self.RC_box2_adv.set_sensitive(True)
         else:
             self.builder.get_object('checkbox_reaction_coordinate2').set_active(False)
             self.RC_box2.set_sensitive(False)
+            self.RC_box2_adv.set_sensitive(False)
+
+    def _restore_advanced_rc_data(self, rc_box, liststore, data) -> None:
+        """Repopulates an AdvancedReactionCoordinateBox's weighted-distance
+        table and summary fields from a previously saved RC1/RC2 dict (see
+        AdvancedReactionCoordinateBox.get_rc_data for the shape). NOT the
+        same as (the broken, dead) AdvancedReactionCoordinateBox.set_rc_data
+        -- that method references combobox_reaction_coord1, which only
+        exists on the SIMPLE ReactionCoordinateBox and would raise
+        AttributeError if it were ever actually called."""
+        liststore.clear()
+        for row in data.get("RC", []):
+            liststore.append(list(row))
+        rc_box.builder.get_object("entry_dmin_coord1").set_text(str(data.get("dminimum", 0.0)))
+        rc_box.builder.get_object("entry_nsteps1").set_text(str(data.get("nsteps", 0)))
+        rc_box.builder.get_object("entry_FORCE_coord1").set_text(str(data.get("force_constant", 0.0)))
+        step_size_entry = rc_box.builder.get_object("entry_step_size1")
+        if step_size_entry:
+            step_size_entry.set_text(str(data.get("dincre", 0.0)))
 
         # ----------------------------
         # Geometry Optimization

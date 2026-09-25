@@ -1,0 +1,395 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.38.2 -->
+<!-- "Run Packmol" window: generic multi-component packing tool (each
+     component: a structure file, a copy count, and a geometric
+     constraint), built on top of the real `packmol` executable. See
+     util/packmol_runner.py for the .inp generation / subprocess side. -->
+<interface>
+  <requires lib="gtk+" version="3.20"/>
+  <object class="GtkAdjustment" id="adjustment_seed">
+    <property name="upper">999999999</property>
+    <property name="value">12345</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">1000</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment_tolerance">
+    <property name="lower">0.10</property>
+    <property name="upper">50</property>
+    <property name="value">2</property>
+    <property name="step-increment">0.10</property>
+    <property name="page-increment">1</property>
+  </object>
+  <object class="GtkListStore" id="liststore_components">
+    <columns>
+      <!-- column-name structure_file -->
+      <column type="gchararray"/>
+      <!-- column-name number -->
+      <column type="gint"/>
+      <!-- column-name constraint -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkWindow" id="window">
+    <property name="can-focus">False</property>
+    <property name="title" translatable="yes">Run Packmol</property>
+    <property name="default-width">640</property>
+    <property name="default-height">600</property>
+    <child>
+      <object class="GtkBox" id="box_main">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="border-width">10</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">8</property>
+        <child>
+          <!-- n-columns=2 n-rows=5 -->
+          <object class="GtkGrid" id="grid_settings">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="row-spacing">6</property>
+            <property name="column-spacing">9</property>
+            <child>
+              <object class="GtkLabel" id="label_work_folder">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">start</property>
+                <property name="label" translatable="yes">Working folder:</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox" id="box_work_folder">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="hexpand">True</property>
+                <child>
+                  <placeholder/>
+                </child>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="label_system_name">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">start</property>
+                <property name="label" translatable="yes">System name:</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="entry_system_name">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="hexpand">True</property>
+                <property name="text" translatable="yes">packmol_system</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="label_packmol_command">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">start</property>
+                <property name="label" translatable="yes">Packmol executable:</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="entry_packmol_command">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="hexpand">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="label_tolerance">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">start</property>
+                <property name="label" translatable="yes">Tolerance (Å):</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">3</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkSpinButton" id="spinbtn_tolerance">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="adjustment">adjustment_tolerance</property>
+                <property name="digits">2</property>
+                <property name="value">2</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">3</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="checkbox_use_seed">
+                <property name="label" translatable="yes">Use fixed random seed:</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="draw-indicator">True</property>
+                <signal name="toggled" handler="on_checkbox_use_seed_toggled" swapped="no"/>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">4</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkSpinButton" id="spinbtn_seed">
+                <property name="visible">True</property>
+                <property name="sensitive">False</property>
+                <property name="can-focus">True</property>
+                <property name="adjustment">adjustment_seed</property>
+                <property name="value">12345</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">4</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkFrame" id="frame_components">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label-xalign">0</property>
+            <child>
+              <object class="GtkAlignment">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="top-padding">6</property>
+                <property name="bottom-padding">6</property>
+                <property name="left-padding">10</property>
+                <property name="right-padding">10</property>
+                <child>
+                  <object class="GtkBox" id="box_components">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">6</property>
+                    <child>
+                      <object class="GtkScrolledWindow" id="scrolledwindow_components">
+                        <property name="height-request">160</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="shadow-type">in</property>
+                        <child>
+                          <object class="GtkTreeView" id="treeview_components">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="tooltip-text" translatable="yes">Right-click a row to edit, duplicate, remove, reorder, or clear the list. Order matters: earlier components are packed first (a "Fixed" solute should usually be the first row).</property>
+                            <property name="model">liststore_components</property>
+                            <property name="headers-clickable">False</property>
+                            <signal name="button-press-event" handler="_on_components_treeview_button_press" swapped="no"/>
+                            <child internal-child="selection">
+                              <object class="GtkTreeSelection"/>
+                            </child>
+                            <child>
+                              <object class="GtkTreeViewColumn">
+                                <property name="resizable">True</property>
+                                <property name="title" translatable="yes">Structure file</property>
+                                <property name="expand">True</property>
+                                <child>
+                                  <object class="GtkCellRendererText"/>
+                                  <attributes>
+                                    <attribute name="text">0</attribute>
+                                  </attributes>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkTreeViewColumn">
+                                <property name="resizable">True</property>
+                                <property name="title" translatable="yes">Copies</property>
+                                <child>
+                                  <object class="GtkCellRendererText"/>
+                                  <attributes>
+                                    <attribute name="text">1</attribute>
+                                  </attributes>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkTreeViewColumn">
+                                <property name="resizable">True</property>
+                                <property name="title" translatable="yes">Constraint</property>
+                                <property name="expand">True</property>
+                                <child>
+                                  <object class="GtkCellRendererText"/>
+                                  <attributes>
+                                    <attribute name="text">2</attribute>
+                                  </attributes>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="spacing">6</property>
+                        <child>
+                          <object class="GtkButton" id="button_add_component">
+                            <property name="label" translatable="yes">Add Component...</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">True</property>
+                            <signal name="clicked" handler="on_button_add_component_clicked" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child type="label">
+              <object class="GtkLabel" id="label_frame_components">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">Components</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkScrolledWindow" id="scrolledwindow_log">
+            <property name="height-request">130</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="shadow-type">in</property>
+            <child>
+              <object class="GtkTextView" id="textview_log">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="editable">False</property>
+                <property name="left-margin">4</property>
+                <property name="top-margin">4</property>
+                <property name="cursor-visible">False</property>
+                <property name="monospace">True</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_info">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Add one or more components, then click "Run Packmol".</property>
+            <property name="wrap">True</property>
+            <property name="xalign">0</property>
+            <style>
+              <class name="dim-label"/>
+            </style>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButtonBox">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="spacing">6</property>
+            <property name="layout-style">end</property>
+            <child>
+              <object class="GtkButton" id="button_cancel">
+                <property name="label" translatable="yes">Close</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <signal name="clicked" handler="on_button_cancel_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="button_run">
+                <property name="label" translatable="yes">Run Packmol</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <signal name="clicked" handler="on_button_run_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">4</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

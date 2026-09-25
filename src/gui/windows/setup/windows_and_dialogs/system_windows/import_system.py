@@ -253,9 +253,11 @@ class ImportANewSystemWindow(Gtk.Window):
             
             
             tag = self.vm_session.gen_random_tag_string()
-            self.builder.get_object('entry_system_tag').set_text(tag)
-            
-            
+            self.entry_system_tag = self.builder.get_object('entry_system_tag')
+            self.entry_system_tag.set_text(tag)
+            self.entry_system_tag.connect('changed', self.on_entry_widget_change)
+
+
             # --------------------------------------------------------------------------------------------
             # Configure working folder widgets
             self.entry_working_folder = self.builder.get_object('entry_working_folder')
@@ -551,9 +553,11 @@ class ImportANewSystemWindow(Gtk.Window):
     def set_working_folder_path (self, path = None):
         """ Function doc """
         system_name = self.entry_system_name.get_text()
-        
+        tag         = self.entry_system_tag.get_text().strip()
+
         folder = self.vm_session.vm_config.gl_parameters["workspace_path"]
-        path  = os.path.join(folder, system_name)
+        folder_name = "{}_{}".format(system_name, tag) if tag else system_name
+        path  = os.path.join(folder, folder_name)
         self.entry_working_folder.set_text(path)
  
     def on_cb_create_folder_change (self, widget):

@@ -526,7 +526,18 @@ def export_special_PDB (vobject = None, frame = -1, output = 'temp.pdb'):
         #           HETATM63640  H1  WAT  1916       7.005  19.149   8.699  0.00  0.00          H   
         #           ATOM    116 S116 CYS  9         23.989  35.368   6.299  1.00  1.00      S   
         #           HETATM63640  H1         WAT  1916       7.005  19.149   8.699  0.00  0.00          H   
-        ATOMLINE = "{:<6s}{:5d} {:<4s} {:3s} {:1s}{:>4s}    {:8.3f}{:8.3f}{:8.3f}{:6.2f}{:6.2f}          {:<4s}\n".format(
+        # . Element symbol MUST be right-justified in columns 77-78 per
+        #   the PDB spec -- the previous "{:<4s}" left-justified it
+        #   starting at column 77 instead (e.g. "N   " rather than
+        #   " N  "/"N " -- wrong for a right-justified 2-char field
+        #   either way), which pDynamo3's own (permissive) reader never
+        #   minded but made OpenBabel reject the file outright ("columns
+        #   77-78 should contain the element symbol... found 'N '"),
+        #   producing a silently EMPTY output file for any tool relying
+        #   on OpenBabel to read one of these PDBs (confirmed: this is
+        #   why "Prepare Receptor(s)" from a loaded Object -- not a
+        #   folder of externally-made PDBs -- produced an empty PDBQT).
+        ATOMLINE = "{:<6s}{:5d} {:<4s} {:3s} {:1s}{:>4s}    {:8.3f}{:8.3f}{:8.3f}{:6.2f}{:6.2f}          {:>2s}\n".format(
         #HETATM
         'ATOM  ',
         index+1,

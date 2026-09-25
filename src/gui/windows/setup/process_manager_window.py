@@ -155,6 +155,18 @@ class ProcessManagerWindow(Gtk.Window):
         self.p_session           = main.p_session
         self.home                = main.home
         self.Visible             = False
+        # . Real, pre-existing bug found while adding the "Finished!"
+        # dialog's own Import button (see set_status()): SimpleDialog(self)
+        # passes THIS object as its own "main", and reads
+        # `self.main.window` for the dialog's parent -- crashed with
+        # AttributeError if a job finished before the Process Manager
+        # window had EVER been opened once this session (self.window
+        # only gets created inside open_window()). Defaulting it to
+        # None here means Gtk.MessageDialog just gets no transient-for
+        # relationship in that case (valid, harmless) instead of
+        # crashing the whole "job finished" notification outright.
+        self.window              = None
+        self._import_queue       = []
 
     def open_window (self):
         """
@@ -178,7 +190,11 @@ class ProcessManagerWindow(Gtk.Window):
             scrolled = Gtk.ScrolledWindow()
             scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
             scrolled.add(self.treeview)
-            self.window.add(scrolled)
+
+            outer_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+            outer_box.pack_start(self.build_system_filter_combo(), False, False, 0)
+            outer_box.pack_start(scrolled, True, True, 0)
+            self.window.add(outer_box)
 
             # Connect signals
             self.window.connect("destroy", self.close_window)
@@ -207,9 +223,10 @@ class ProcessManagerWindow(Gtk.Window):
 
         Provides the following options:
             - View Log
+            - Import Data (one or more selected rows)
             - Rerun a job
             - Abort a job
-            - Remove a job from the list
+            - Remove a job from the list (one or more selected rows)
             - Clear the entire job list
         """
         # Criar popup menu
@@ -222,6 +239,19 @@ class ProcessManagerWindow(Gtk.Window):
         menu_item0.connect("activate", self.on_view_log_activate)
         self.popup_menu.append(menu_item0)
 
+        # Import Data -- same pre-filled Import Data window the
+        # "Finished!" dialog's own "Import..." button already opens
+        # (_open_import_prefilled()), now reachable directly from
+        # whichever row(s) are selected here, since the data paths a
+        # job produced are already sitting right there in
+        # system.e_job_history, backing this very treeview. Works on
+        # multiple selected rows the same way Remove does (see its own
+        # docstring) -- see on_import_data_activate()'s own docstring
+        # for how multi-row import is actually handled.
+        menu_item_import = Gtk.MenuItem(label="Import Data...")
+        menu_item_import.connect("activate", self.on_import_data_activate)
+        self.popup_menu.append(menu_item_import)
+
         self.popup_menu.append(Gtk.SeparatorMenuItem())
 
         # Rerun job
@@ -233,7 +263,7 @@ class ProcessManagerWindow(Gtk.Window):
         menu_item2 = Gtk.MenuItem(label="Abort")
         menu_item2.connect("activate", self.on_stop_activate)
         self.popup_menu.append(menu_item2)
-        
+
         # Remove job
         menu_item3 = Gtk.MenuItem(label="Remove")
         menu_item3.connect("activate", self.on_remove_activate)
@@ -254,27 +284,48 @@ class ProcessManagerWindow(Gtk.Window):
         includes the following columns:
             - Job ID
             - System Name (with pixbuf icon)
+            - Tag
             - Job Type
             - Job Index
             - Potential
             - Status
             - Start Time
             - End Time
+
+        Model stack (bottom to top): main.job_history_liststore (the
+        REAL, shared data -- other code mutates this directly by
+        treeiter, e.g. set_status()/set_time()) -> self.model_filter
+        (a Gtk.TreeModelFilter, for the "filter by system" combo --
+        read-only, restricts which rows are VISIBLE without touching
+        the shared store) -> self.model_sort (a Gtk.TreeModelSort,
+        needed because Gtk.TreeModelFilter does not implement
+        GtkTreeSortable itself -- without this extra layer, the
+        existing click-to-sort-by-column behavior these columns already
+        had would silently stop working the moment filtering was
+        added). The treeview is attached to the TOP of this stack
+        (model_sort); anywhere that needs to MUTATE the real store
+        (only on_remove_activate(), via Gtk.TreeModelFilter/-Sort being
+        read-only) must convert back down via _to_real_iter().
         """
-        
-        self.treeview = Gtk.TreeView(model = self.main.job_history_liststore)
-        
+        self._filter_e_id = None  # None = show every system (default)
+        self.model_filter = self.main.job_history_liststore.filter_new()
+        self.model_filter.set_visible_func(self._filter_visible_func)
+        self.model_sort = Gtk.TreeModelSort(model=self.model_filter)
+
+        self.treeview = Gtk.TreeView(model = self.model_sort)
+        self.treeview.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+
         #---------------------------------------------------------------
         renderer_int = Gtk.CellRendererText()
         column_int = Gtk.TreeViewColumn("id", renderer_int, text=7)
         column_int.set_sort_column_id(0)
         self.treeview.append_column(column_int)
-        
+
         #------------------ system name --------------------------------
         renderer_pixbuf = Gtk.CellRendererPixbuf()
         renderer_text   = Gtk.CellRendererText()
         column_text     = Gtk.TreeViewColumn("System Name")#, renderer_text, text=2)
-        
+
         column_text.pack_start(renderer_pixbuf, False)
         column_text.add_attribute(renderer_pixbuf, "pixbuf", 6)
         column_text.pack_start(renderer_text, True)
@@ -282,15 +333,22 @@ class ProcessManagerWindow(Gtk.Window):
         column_text.set_sort_column_id(0)
         self.treeview.append_column(column_text)
         #---------------------------------------------------------------
-        
-        columns = {"Job Type"  : 1, 
+
+        #------------------ tag (right after System Name) --------------
+        renderer_tag = Gtk.CellRendererText()
+        column_tag = Gtk.TreeViewColumn("Tag", renderer_tag, text=9)
+        column_tag.set_sort_column_id(9)
+        self.treeview.append_column(column_tag)
+        #---------------------------------------------------------------
+
+        columns = {"Job Type"  : 1,
                    'job'       : 8,
-                   "Potential" : 2, 
+                   "Potential" : 2,
                    "Status"    : 5,
-                   "Started"   : 3, 
-                   "Ended"     : 4  
-                   #"Status"    : 
-                   
+                   "Started"   : 3,
+                   "Ended"     : 4
+                   #"Status"    :
+
                    }
         for title in columns.keys():
             renderer = Gtk.CellRendererText()
@@ -301,6 +359,79 @@ class ProcessManagerWindow(Gtk.Window):
 
         # Enable context menu on right-click
         self.treeview.connect("button-press-event", self.on_button_press_event)
+
+    def _filter_visible_func (self, model, treeiter, data=None):
+        """ Gtk.TreeModelFilter visibility predicate -- see the "System"
+            combo built in build_system_filter_combo()/
+            on_filter_system_changed(). None (the default, "All
+            Systems") shows every row.
+        """
+        if self._filter_e_id is None:
+            return True
+        return model[treeiter][7] == self._filter_e_id
+
+    def _to_real_iter (self, view_iter):
+        """ Converts a Gtk.TreeIter from whatever model is actually
+            ATTACHED to the treeview (self.model_sort, per the model
+            stack documented in build_treeview()'s own docstring) back
+            down to a real, mutable main.job_history_liststore iter --
+            needed anywhere a selected row must be REMOVED (both
+            Gtk.TreeModelSort and Gtk.TreeModelFilter are read-only
+            proxies; only the bottom-of-the-stack Gtk.ListStore supports
+            .remove()).
+        """
+        filter_iter = self.model_sort.convert_iter_to_child_iter(view_iter)
+        return self.model_filter.convert_iter_to_child_iter(filter_iter)
+
+    def _get_single_selected_view_iter (self):
+        """ First selected row's iterator (in view-model/self.model_sort
+            space -- fine for read-only access via model[iter][col]) --
+            for the actions that only ever target ONE row at a time
+            (View Log, Rerun, Abort) even though the treeview itself now
+            allows selecting several (SelectionMode.MULTIPLE, needed for
+            bulk Remove). Returns (model, None) if nothing is selected.
+        """
+        model, paths = self.treeview.get_selection().get_selected_rows()
+        if not paths:
+            return model, None
+        return model, model.get_iter(paths[0])
+
+    def build_system_filter_combo (self):
+        """ "System:" combo at the top of the window -- "All Systems"
+            (default) plus one entry per system currently loaded,
+            snapshotted from main.system_liststore at window-open time
+            (this window already rebuilds all of its widgets fresh on
+            every open_window() call -- same convention, not a new
+            live-sync mechanism).
+        """
+        self.filter_combo_liststore = Gtk.ListStore(str, int, GdkPixbuf.Pixbuf)
+        self.filter_combo_liststore.append(["All Systems", -1, None])
+        for row in self.main.system_liststore:
+            self.filter_combo_liststore.append([row[0], row[1], row[2]])
+
+        self.filter_combo = Gtk.ComboBox(model=self.filter_combo_liststore)
+        renderer_pixbuf = Gtk.CellRendererPixbuf()
+        self.filter_combo.pack_start(renderer_pixbuf, False)
+        self.filter_combo.add_attribute(renderer_pixbuf, "pixbuf", 2)
+        renderer_text = Gtk.CellRendererText()
+        self.filter_combo.pack_start(renderer_text, True)
+        self.filter_combo.add_attribute(renderer_text, "text", 0)
+        self.filter_combo.set_active(0)
+        self.filter_combo.connect("changed", self.on_filter_system_changed)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        box.set_border_width(4)
+        box.pack_start(Gtk.Label(label="System:"), False, False, 0)
+        box.pack_start(self.filter_combo, False, False, 0)
+        return box
+
+    def on_filter_system_changed (self, combo):
+        treeiter = combo.get_active_iter()
+        if treeiter is None:
+            return
+        e_id = self.filter_combo_liststore[treeiter][1]
+        self._filter_e_id = None if e_id == -1 else e_id
+        self.model_filter.refilter()
 
     def add_new_process (self,
                          system    = None, 
@@ -364,8 +495,9 @@ class ProcessManagerWindow(Gtk.Window):
         
         # Append new process entry to the job history ListStore.
         treeiter = self.main.job_history_liststore.append([
-            name, _type, potential, start, end, status, sqr_color,  
-            system.e_id, step_counter 
+            name, _type, potential, start, end, status, sqr_color,
+            system.e_id, step_counter,
+            getattr(system, 'e_tag', '') or ''
             ])
         
         return treeiter
@@ -393,13 +525,102 @@ class ProcessManagerWindow(Gtk.Window):
                 #f"Status: {status}"
                 )            
             dialog = SimpleDialog(self )
-            dialog.info(msg = msg, modal = False, title = 'Finished!' )
-            #dialog.error_details (parent = self, msg = msg, details = '', title ='Error!')
-            
-            
-            #dialog = dialog.create_finished_dialog( msg1 = msg, msg2 = msg2,  modal = False)
-            #dialog.show_all()
-            
+            dialog.finished_with_import(
+                msg = msg, modal = False, title = 'Finished!',
+                on_import = lambda: self._open_import_prefilled(sys_num, job_num))
+
+    def _open_import_prefilled (self, e_id, step_counter):
+        """ "Import..." button of the just-finished-job dialog (see
+            set_status() above) -- opens the "Import Data" window
+            (ImportTrajectoryWindow) pre-filled with THIS job's own
+            output, so the user only has to confirm/adjust instead of
+            browsing to it from scratch.
+
+            Best-effort guess, not a guarantee -- different simulation
+            types (MD/geometry optimization/surface scan/normal modes/
+            energy/...) write their trajectory under slightly different
+            conventions (see p_methods/*.py), and this deliberately
+            does NOT try to special-case every one of them. It only
+            relies on `job['logfile']`, which every runner already
+            corrects to its own REAL path by the time the job finishes
+            (see simulations_mixin.py's own _configure_logfile()
+            docstring) -- a folder ending in ".ptGeo" is pDynamo3's own
+            multi-frame trajectory format (used by geometry
+            optimization/MD/NEB/CPR/surface scan), so that whole folder
+            is guessed as a 'pklfolder' import; anything else defaults
+            to 'pklfile' (a single-result guess, e.g. Energy/Normal
+            Modes) -- the window itself still shows every option, so a
+            wrong guess here is just one combobox click to fix, not a
+            dead end.
+        """
+        system = self.p_session.psystem.get(e_id)
+        if system is None:
+            self.main.simple_dialog.error(
+                msg="Could not find the system for this job (internal id {}).".format(e_id))
+            return
+        job = system.e_job_history.get(step_counter, {})
+        logfile = job.get('logfile')
+
+        data_path = None
+        data_type_index = None
+        if logfile:
+            folder = os.path.dirname(logfile)
+            data_path = folder
+            data_type_index = 1 if folder.endswith('.ptGeo') else 0
+
+        simulation_type = job.get('simulation_type', 'result')
+        new_vobj_name = '{}_{}_{}'.format(system.label.strip(), simulation_type, step_counter)
+
+        self.main.import_trajectory_window.open_window(
+            sys_selected = e_id,
+            prefill_data_path = data_path,
+            prefill_data_type_index = data_type_index,
+            prefill_logfile = logfile,
+            prefill_new_vobj_name = new_vobj_name)
+
+    def on_import_data_activate (self, widget):
+        """ Popup menu 'Import Data...' -- works on every currently
+            selected row (SelectionMode.MULTIPLE, same as Remove),
+            reusing _open_import_prefilled() (the exact same pre-fill
+            logic the "Finished!" dialog's own "Import..." button
+            already uses for one job).
+
+            ImportTrajectoryWindow is ONE reusable window, not one
+            instance per job -- re-opening it while already open just
+            calls .present() and does NOT re-apply new pre-fill values
+            (see its own open_window()). So with more than one row
+            selected, jobs are opened ONE AT A TIME: the next queued
+            job's own pre-filled review opens automatically as soon as
+            the user closes (or finishes importing from) the current
+            one -- chained off the window's own "destroy" signal, which
+            its glade file already fires on every close path (the X
+            button, a future "Close" button, or close_window() called
+            programmatically).
+        """
+        model, paths = self.treeview.get_selection().get_selected_rows()
+        if not paths:
+            return
+        self._import_queue = [(model[model.get_iter(p)][7], model[model.get_iter(p)][8]) for p in paths]
+        self._start_next_queued_import()
+
+    def _start_next_queued_import (self):
+        if not self._import_queue:
+            return
+        e_id, step_counter = self._import_queue.pop(0)
+        self._open_import_prefilled(e_id, step_counter)
+        win = self.main.import_trajectory_window
+        if self._import_queue and win.Visible:
+            win.window.connect('destroy', self._on_queued_import_window_closed)
+
+    def _on_queued_import_window_closed (self, widget):
+        # . close_window() (connected first, via the glade file's own
+        # "destroy" signal + connect_signals()) has already run and
+        # reset ImportTrajectoryWindow.Visible to False by the time this
+        # fires -- GLib.idle_add() so the NEXT open_window() call starts
+        # cleanly after the current destroy sequence fully unwinds,
+        # rather than re-entering GTK widget teardown from inside it.
+        GLib.idle_add(self._start_next_queued_import)
+
     def set_time (self, treeiter, start = False, end = False):
         """ Function doc """
         e_id = self.main.job_history_liststore[treeiter][7]
@@ -432,12 +653,22 @@ class ProcessManagerWindow(Gtk.Window):
         
     def on_button_press_event(self, widget, event):
         if event.type == Gdk.EventType.BUTTON_PRESS and event.button == 3:
-            # Select the row clicked with the right button
+            # Select the row clicked with the right button -- UNLESS it's
+            # already part of a bigger selection the user made on purpose
+            # (multi-select is on now, see build_treeview()'s
+            # SelectionMode.MULTIPLE), in which case right-clicking
+            # inside it must NOT collapse that selection down to just
+            # this one row before "Remove" (or any other menu action)
+            # runs. Same convention most multi-select UIs use (right-
+            # click inside the selection keeps it; right-click outside
+            # it replaces it with just the clicked row).
             path_info = widget.get_path_at_pos(int(event.x), int(event.y))
             if path_info is not None:
                 path, col, cell_x, cell_y = path_info
+                selection = widget.get_selection()
                 widget.grab_focus()
-                widget.set_cursor(path, col, 0)
+                if not selection.path_is_selected(path):
+                    widget.set_cursor(path, col, 0)
                 self.popup_menu.popup_at_pointer(event)
             return True
         return False
@@ -452,7 +683,7 @@ class ProcessManagerWindow(Gtk.Window):
         the log for whichever row is currently selected (right-clicked),
         same underlying logic double-click (on_row_activated) already
         uses. """
-        model, treeiter = self.treeview.get_selection().get_selected()
+        model, treeiter = self._get_single_selected_view_iter()
         if treeiter is None:
             return
         self._open_log_for_row(model, treeiter)
@@ -603,9 +834,11 @@ class ProcessManagerWindow(Gtk.Window):
 
     def rerun_job(self, widget):
         #return False
-        
-        model, treeiter = self.treeview.get_selection().get_selected()
-        
+
+        model, treeiter = self._get_single_selected_view_iter()
+        if treeiter is None:
+            return
+
         #iter = model.get_iter(path)
         nome = model[treeiter][0]
         pid = model[treeiter][1]
@@ -649,7 +882,14 @@ class ProcessManagerWindow(Gtk.Window):
                 self.main.PES_scan_window.close_window(None, None)
             self.main.PES_scan_window.open_window()
             self.main.PES_scan_window.restore_the_parameters_to_the_window (parameters)
-            
+
+        if parameters['simulation_type'] == 'Advanced_Relaxed_Surface_Scan':
+            if self.main.PES_scan_window.Visible:
+                self.main.PES_scan_window.close_window(None, None)
+            self.main.PES_scan_window.open_window(advanced=True)
+            self.main.PES_scan_window.restore_the_parameters_to_the_window (parameters)
+
+
         if parameters['simulation_type'] == 'Umbrella_Sampling':
             if self.main.umbrella_sampling_window.Visible:
                 self.main.umbrella_sampling_window.close_window(None, None)
@@ -663,7 +903,7 @@ class ProcessManagerWindow(Gtk.Window):
             self.main.chain_of_states_opt_window.restore_the_parameters_to_the_window (parameters)
 
     def on_stop_activate(self, widget):
-        model, treeiter = self.treeview.get_selection().get_selected()
+        model, treeiter = self._get_single_selected_view_iter()
 
         # [EN] BUG FIXED: used to build the confirmation message from
         # model[treeiter][...] BEFORE ever checking treeiter was valid --
@@ -725,13 +965,24 @@ class ProcessManagerWindow(Gtk.Window):
         # up to 5 seconds on every abort.
         pids_to_watch = _terminate_process_tree(process.pid)
 
-        model[treeiter][5] = "Aborting..."
+        # . `model` here is self.model_sort (read-only, sits on top of
+        # the Filter+Sort stack built in build_treeview() -- see its own
+        # docstring) -- writing status/time updates, both right here and
+        # later in _check_abort_progress()/set_time(), needs the REAL,
+        # mutable main.job_history_liststore, so convert down once and
+        # use the real store/iter/row for everything from this point on.
+        real_iter = self._to_real_iter(treeiter)
+        real_store = self.main.job_history_liststore
+        real_store[real_iter][5] = "Aborting..."
 
         # Gtk.TreeRowReference survives the model changing underneath us
         # (rows reordered/removed/added) while we wait asynchronously --
         # a raw Gtk.TreeIter is NOT guaranteed to still be valid by the
-        # time the polling callback below actually runs.
-        row_ref = Gtk.TreeRowReference.new(model, model.get_path(treeiter))
+        # time the polling callback below actually runs. Built against
+        # the REAL store directly (not the filter/sort view) so it stays
+        # valid even if the row's VISIBILITY changes (e.g. the user
+        # switches the System filter) while the abort is in flight.
+        row_ref = Gtk.TreeRowReference.new(real_store, real_store.get_path(real_iter))
 
         GLib.timeout_add(200, self._check_abort_progress,
                           row_ref, process, pids_to_watch, e_id, step_counter, time.time())
@@ -794,26 +1045,47 @@ class ProcessManagerWindow(Gtk.Window):
             self.main.job_history_liststore.clear()
             
     def on_remove_activate(self, widget):
-        model, treeiter = self.treeview.get_selection().get_selected()
-        
+        """ Removes every currently-selected row (multi-select is on --
+            see build_treeview()'s SelectionMode.MULTIPLE) in one go,
+            skipping (not silently -- reported afterward) any that are
+            still "Running...", same protection the single-row version
+            of this always had.
+        """
+        model, paths = self.treeview.get_selection().get_selected_rows()
+        if not paths:
+            return False
+        view_iters = [model.get_iter(p) for p in paths]
+
         simple_dialog = SimpleDialog(self.main)
-        msg = 'Do you want to remove process number {}: {}?'.format(model[treeiter][8], model[treeiter][1])
-        yes_or_no = simple_dialog.question(msg)
-        
-        if yes_or_no:
-            pass
+        if len(view_iters) == 1:
+            msg = 'Do you want to remove process number {}: {}?'.format(
+                model[view_iters[0]][8], model[view_iters[0]][1])
         else:
+            msg = 'Do you want to remove these {} processes?\n\n{}'.format(
+                len(view_iters),
+                '\n'.join('  #{}: {}'.format(model[it][8], model[it][1]) for it in view_iters))
+        if not simple_dialog.question(msg):
             return False
 
-        
-        model, treeiter = self.treeview.get_selection().get_selected()
-        if treeiter:
-            if model[treeiter][5] == "Running...":
-                
-                pass
-            else:
-                #print(f"Removing: {model[treeiter][1]}")
-                model.remove(treeiter)
+        # . Gtk.ListStore's own TreeIters stay valid across removal of
+        # OTHER (unrelated) rows -- only the removed row's own iter is
+        # invalidated -- so converting every selected row down to its
+        # real, mutable liststore iter FIRST, then removing them one by
+        # one, is safe regardless of order (no path-shifting concerns,
+        # unlike removing by TreePath would have).
+        skipped_running = 0
+        real_iters = []
+        for view_iter in view_iters:
+            if model[view_iter][5] == "Running...":
+                skipped_running += 1
+                continue
+            real_iters.append(self._to_real_iter(view_iter))
+        for real_iter in real_iters:
+            self.main.job_history_liststore.remove(real_iter)
+
+        if skipped_running:
+            self.main.simple_dialog.info(
+                msg='{} still-running process(es) were not removed.'.format(skipped_running))
 
     def update (self, parameters = None):
         """ Function doc """
