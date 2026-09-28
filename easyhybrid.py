@@ -408,7 +408,7 @@ def main():
         #This is the editor
         
         
-        main_window.builder.get_object('_show_cell')      .hide() # IR spectrum
+        main_window.builder.get_object('_show_cell')      .hide() # Builder
         
         
         

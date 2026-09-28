@@ -190,6 +190,7 @@ class TreeViewMenu:
                                                   'Dots'       : lambda mi, rep='dots'      : self._menu_toggle_representation(mi, rep),
                                                   '_separator' : None,
                                                   'Cartoon'    : lambda mi, rep='cartoon'   : self._menu_toggle_representation(mi, rep),
+                                                  'Cartoon Setup...' : lambda mi: self._open_cartoon_setup_dialog ( [ self.treeview.main.vm_session.vm_objects_dic[self.vobject_index] ] ),
                                                   # [EN] 2026-09-23, 2nd follow-up: EDTSurf-style
                                                   # molecular surface (VDW/SAS/SES, see util/
                                                   # molecular_surface.py) now works like the QC
@@ -301,6 +302,7 @@ class TreeViewMenu:
                                                   'Dots'       : lambda mi, rep='dots'      : self._menu_toggle_representation_for_system(mi, rep),
                                                   '_separator' : None,
                                                   'Cartoon'    : lambda mi, rep='cartoon'   : self._menu_toggle_representation_for_system(mi, rep),
+                                                  'Cartoon Setup...' : self._menu_cartoon_setup_for_system,
                                                   # [EN] see the per-object 'New Surface...' entry
                                                   # above for why this is no longer a toggle.
                                                   'New Surface...' : self._menu_new_surface_for_system,
@@ -1202,7 +1204,19 @@ class TreeViewMenu:
             vismol_object.create_representation(rep_type=rep_type)
         else:
             rep.active = not rep.active
+            self._cartoon_show_all_if_empty(rep_type, rep)
         self.treeview.main.vm_session.vm_glcore.queue_draw()
+
+    @staticmethod
+    def _cartoon_show_all_if_empty (rep_type, rep):
+        """ [EN] 2026-09-28 (partial cartoon): switching an existing
+        Cartoon back ON keeps whatever part of the structure the user had
+        assigned to it (Show/Hide > cartoon on a selection) -- but if
+        nothing is assigned any more (e.g. it was all hidden through a
+        selection), "on" from this whole-object menu means the whole
+        object, instead of an active representation that draws nothing. """
+        if rep_type == 'cartoon' and rep.active and not rep.has_shown_residues():
+            rep.set_all_residues_shown(True)
 
     def _menu_new_surface_for_system ( self, menu_item = None ):
         """ [EN] System-row counterpart of the per-object 'New Surface...'
@@ -1490,7 +1504,127 @@ class TreeViewMenu:
                 vismol_object.create_representation(rep_type=rep_type)
             else:
                 rep.active = not rep.active
+                self._cartoon_show_all_if_empty(rep_type, rep)
         vm_session.vm_glcore.queue_draw()
+
+    def _menu_cartoon_setup_for_system ( self, menu_item = None ):
+        """ System-row counterpart of the per-object 'Cartoon Setup...'
+        entry: one dialog, applied to every (non-surface) VismolObject of
+        the right-clicked system. """
+        vm_session = self.treeview.main.vm_session
+        vismol_objects = [ v for v in vm_session.vm_objects_dic.values ( )
+                            if v.e_id == self.system_e_id and not getattr ( v, "is_surface", False ) ]
+        if vismol_objects:
+            self._open_cartoon_setup_dialog ( vismol_objects )
+
+    def _open_cartoon_setup_dialog ( self, vismol_objects ):
+        """ [EN] 2026-09-28 user request ("um setup de forma que o usuario
+        pode escolher o padrao de cores para o cartoon (cada representacao
+        pode ter um padrao diferente), e... colorir tipo rainbow"). The
+        colour scheme is stored on each object's own CartoonRepresentation
+        (rep.color_mode/rep.uniform_color, see set_color_mode() in
+        representations.py), so objects opened from different rows keep
+        independent schemes. The helix/strand/coil colours used by the
+        "Secondary structure" mode stay global (Preferences > Cartoon).
+        An object that has no cartoon yet gets a whole-object one on
+        Apply (same as the Representation > Cartoon toggle). """
+        from vismol.utils.ribbon_geometry import rainbow_colors
+        vm_session = self.treeview.main.vm_session
+
+        first_rep = None
+        for vismol_object in vismol_objects:
+            first_rep = vismol_object.representations.get ( 'cartoon' )
+            if first_rep is not None:
+                break
+        current_mode  = first_rep.color_mode    if first_rep is not None else 'ss'
+        current_color = first_rep.uniform_color if first_rep is not None else ( 0.85, 0.85, 0.85 )
+
+        title = vismol_objects[0].name if len ( vismol_objects ) == 1 else "{} objects".format ( len ( vismol_objects ) )
+        window = Gtk.Window ( title = "Cartoon Setup -- {}".format ( title ) )
+        window.set_border_width ( 10 )
+        window.set_default_size ( 280, -1 )
+        window.set_keep_above ( True )
+        self._cartoon_setup_window = window   # keeps a live reference, same as _surf_setup_window
+
+        vbox = Gtk.Box ( orientation = Gtk.Orientation.VERTICAL, spacing = 8 )
+        window.add ( vbox )
+
+        label_color = Gtk.Label ( label = "Color by:" )
+        label_color.set_xalign ( 0 )
+        combo_color = Gtk.ComboBoxText ( )
+        combo_color.append ( "ss",      "Secondary structure" )
+        combo_color.append ( "rainbow", "Rainbow (N \u2192 C, per chain)" )
+        combo_color.append ( "chain",   "Chain" )
+        combo_color.append ( "atom",    "Atom color (C\u03b1)" )
+        combo_color.append ( "uniform", "Single color" )
+        if combo_color.set_active_id ( current_mode ) is False:
+            combo_color.set_active_id ( 'ss' )
+        vbox.pack_start ( label_color, False, False, 0 )
+        vbox.pack_start ( combo_color, False, False, 0 )
+
+        hbox_uniform = Gtk.Box ( orientation = Gtk.Orientation.HORIZONTAL, spacing = 6 )
+        label_uniform = Gtk.Label ( label = "Color:" )
+        rgba = Gdk.RGBA ( )
+        rgba.red, rgba.green, rgba.blue, rgba.alpha = float ( current_color[0] ), float ( current_color[1] ), float ( current_color[2] ), 1.0
+        color_button = Gtk.ColorButton.new_with_rgba ( rgba )
+        hbox_uniform.pack_start ( label_uniform, False, False, 0 )
+        hbox_uniform.pack_start ( color_button, False, False, 0 )
+        vbox.pack_start ( hbox_uniform, False, False, 0 )
+
+        # small preview strip for the rainbow scale (blue -> red)
+        rainbow_area = Gtk.DrawingArea ( )
+        rainbow_area.set_size_request ( -1, 14 )
+        def on_draw_rainbow ( widget, cr ):
+            width = widget.get_allocated_width ( )
+            height = widget.get_allocated_height ( )
+            n = 64
+            colors = rainbow_colors ( [ i / ( n - 1 ) for i in range ( n ) ] )
+            for i, ( r, g, b ) in enumerate ( colors ):
+                cr.set_source_rgb ( r, g, b )
+                cr.rectangle ( i * width / n, 0, width / n + 1, height )
+                cr.fill ( )
+            return False
+        rainbow_area.connect ( "draw", on_draw_rainbow )
+        vbox.pack_start ( rainbow_area, False, False, 0 )
+
+        def update_sensitivity ( *args ):
+            mode = combo_color.get_active_id ( )
+            hbox_uniform.set_sensitive ( mode == 'uniform' )
+            rainbow_area.set_visible ( mode == 'rainbow' )
+        combo_color.connect ( "changed", update_sensitivity )
+
+        label_note = Gtk.Label ( label = "Helix/strand/coil colors: Preferences > Cartoon." )
+        label_note.set_xalign ( 0 )
+        label_note.get_style_context ( ).add_class ( "dim-label" )
+        vbox.pack_start ( label_note, False, False, 0 )
+
+        hbox_buttons = Gtk.Box ( orientation = Gtk.Orientation.HORIZONTAL, spacing = 6 )
+        btn_close = Gtk.Button ( label = "Close" )
+        btn_apply = Gtk.Button ( label = "Apply" )
+        hbox_buttons.pack_end ( btn_apply, False, False, 0 )
+        hbox_buttons.pack_end ( btn_close, False, False, 0 )
+        vbox.pack_start ( hbox_buttons, False, False, 4 )
+
+        def on_apply ( button ):
+            mode = combo_color.get_active_id ( ) or 'ss'
+            color = color_button.get_rgba ( )
+            uniform_color = ( color.red, color.green, color.blue )
+            for vismol_object in vismol_objects:
+                rep = vismol_object.representations.get ( 'cartoon' )
+                if rep is None:
+                    vismol_object.create_representation ( rep_type = 'cartoon' )
+                    rep = vismol_object.representations['cartoon']
+                elif not rep.active:
+                    rep.active = True
+                    self._cartoon_show_all_if_empty ( 'cartoon', rep )
+                rep.set_color_mode ( mode, uniform_color = uniform_color )
+            vm_session.vm_glcore.queue_draw ( )
+
+        btn_apply.connect ( "clicked", on_apply )
+        btn_close.connect ( "clicked", lambda b: window.destroy ( ) )
+
+        window.show_all ( )
+        update_sensitivity ( )
 
     def open_rename_window (self, e_id, v_id, old_name, tag):
         """ Shared rename-window opener used by BOTH the row-level

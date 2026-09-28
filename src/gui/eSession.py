@@ -318,6 +318,14 @@ class GLMenu:
                 self.show_or_hide( rep_type = 'ribbons', show = False)
                 self.show_or_hide( rep_type = 'ribbon_sphere', show = False)
 
+            def menu_show_cartoon (_):
+                """Show the cartoon for the residues of the selection (partial cartoon)."""
+                self.show_or_hide( rep_type = 'cartoon', show = True)
+
+            def menu_hide_cartoon (_):
+                """Remove the residues of the selection from the cartoon."""
+                self.show_or_hide( rep_type = 'cartoon', show = False)
+
             def select_test (_):
                 """
                 Select all atoms.
@@ -748,6 +756,7 @@ class GLMenu:
                                 'separator2': ['separator', None],
 
                                 'ribbons': ['MenuItem', menu_show_ribbons],
+                                'cartoon': ['MenuItem', menu_show_cartoon],
 
                                 'separator3': ['separator', None],
 
@@ -771,6 +780,7 @@ class GLMenu:
                                 'separator2': ['separator', None],
 
                                 'ribbons': ['MenuItem', menu_hide_ribbons],
+                                'cartoon': ['MenuItem', menu_hide_cartoon],
 
                                 'separator3': ['separator', None],
 

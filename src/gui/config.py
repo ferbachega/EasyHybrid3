@@ -77,6 +77,16 @@ class VismolConfig                       :
                                       "antialias"                  : True,
                                       "mouse_rotation_sensibility" : 1.5,
                                       "scroll_step"                : 0.9,
+                                      "scroll_step_fraction"       : 0.138,
+                                      # Preferences > General > Fog (2026-09-28) -- see
+                                      # GLCamera.apply_fog_parameters(); these defaults
+                                      # reproduce the original fog exactly.
+                                      "fog_enabled"                : True,
+                                      "fog_intensity"              : 100.0,   # %
+                                      "fog_range_scale"            : 1.0,     # automatic range extent
+                                      "fog_custom_range"           : False,
+                                      "fog_start_percent"          : 50.0,    # % of visible depth
+                                      "fog_end_percent"            : 100.0,
                                       "field_of_view"              : 10,
                                       "light_position"             : [0, 0, 10.0],
                                       #"light_position"            : [-2.5, 2.5, 3.0],
@@ -189,7 +199,39 @@ class VismolConfig                       :
                                       'cartoon_coil_radius'        : 0.32,
                                       'cartoon_helix_tolerance'    : 100.0,
                                       'cartoon_strand_tolerance'   : 150.0,
-                                      'cartoon_min_run'            : 2,
+                                      # [EN] 2026-09-26 user request ("faz
+                                      # sentido um unico residuo estar em
+                                      # conformacao de fita? o mesmo deve
+                                      # valer para helices") -- split from a
+                                      # single shared 'cartoon_min_run';
+                                      # see ribbon_backbone.py's own
+                                      # _smooth_short_runs() docstring for
+                                      # why the defaults differ.
+                                      'cartoon_min_run_helix'      : 3,
+                                      'cartoon_min_run_strand'     : 2,
+                                      # 0 = opaque (default), 100 = fully
+                                      # transparent.
+                                      'cartoon_transparency'       : 0,
+                                      # [EN] 2026-09-26 aesthetic fix (user
+                                      # report: strand arrowheads looked like
+                                      # sharp "shark fins" vs PyMOL/VMD) --
+                                      # see ribbon_geometry.py's own
+                                      # DEFAULT_CARTOON_SETTINGS comment.
+                                      'cartoon_arrow_taper_residues' : 2,
+                                      # [EN] 2026-09-26 aesthetic fix (user
+                                      # report: strand ribbons looked too
+                                      # "sinuosa" -- see ribbon_geometry.py's
+                                      # own _smooth_strand_guide_points()
+                                      # docstring). 0 = off (raw Ca trace).
+                                      'cartoon_strand_smoothing'     : 4,
+                                      # Spline subdivisions per residue --
+                                      # kept low by default (large structures
+                                      # like 6VXX are the case round 9's own
+                                      # perf fix targeted); raise for a
+                                      # visibly smoother look on smaller
+                                      # proteins, at a roughly proportional
+                                      # mesh-build cost.
+                                      'cartoon_spline_detail'        : 5,
                                       # Off by default: the helix/strand/coil
                                       # assignment is computed once and
                                       # reused for every trajectory frame

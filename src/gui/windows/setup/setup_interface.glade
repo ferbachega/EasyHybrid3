@@ -2,6 +2,24 @@
 <!-- Generated with glade 3.38.2 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
+  <object class="GtkAdjustment" id="adjustment_fog_end">
+    <property name="upper">100</property>
+    <property name="value">100</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment_fog_intensity">
+    <property name="upper">100</property>
+    <property name="value">100</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment_fog_start">
+    <property name="upper">100</property>
+    <property name="value">50</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
   <object class="GtkAdjustment" id="adjustment_atom_label_font_size">
     <property name="lower">0.05</property>
     <property name="upper">2</property>
@@ -582,7 +600,7 @@
                         <property name="label-xalign">0</property>
                         <property name="shadow-type">in</property>
                         <child>
-                          <!-- n-columns=2 n-rows=5 -->
+                          <!-- n-columns=2 n-rows=6 -->
                           <object class="GtkGrid">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
@@ -688,6 +706,31 @@
                               <packing>
                                 <property name="left-attach">1</property>
                                 <property name="top-attach">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="margin-left">10</property>
+                                <property name="margin-start">10</property>
+                                <property name="label" translatable="yes">Scroll Zoom Rate (fraction):</property>
+                                <property name="tooltip-text" translatable="yes">Per-tick exponential rate for the plain mouse-scroll slab (z_near/z_far) zoom. Each tick multiplies the current slab width by e^(+rate) (zooming out) or e^(-rate) (zooming in), so increments get finer the narrower the slab already is, and coarser the wider it is. Lower = finer/slower steps; higher = coarser/faster steps.</property>
+                                <property name="xalign">0</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">5</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkEntry" id="entry_scroll_step_fraction">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">1</property>
+                                <property name="top-attach">5</property>
                               </packing>
                             </child>
                             <child>
@@ -797,6 +840,197 @@
                       </packing>
                     </child>
                     <child>
+                      <object class="GtkFrame" id="frame_fog">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="margin-left">10</property>
+                        <property name="margin-right">10</property>
+                        <property name="margin-start">10</property>
+                        <property name="margin-end">10</property>
+                        <property name="margin-top">10</property>
+                        <property name="margin-bottom">10</property>
+                        <property name="label-xalign">0</property>
+                        <property name="shadow-type">in</property>
+                        <child>
+                          <!-- n-columns=2 n-rows=6 -->
+                          <object class="GtkGrid" id="grid_fog">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="margin-end">10</property>
+                            <property name="margin-bottom">6</property>
+                            <property name="row-spacing">4</property>
+                            <property name="column-spacing">10</property>
+                            <child>
+                              <object class="GtkCheckButton" id="chk_fog_enabled">
+                                <property name="label" translatable="yes">Enable fog (depth cue)</property>
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">False</property>
+                                <property name="tooltip-text" translatable="yes">Fades objects towards the background color with distance from the camera. Changes are applied live.</property>
+                                <property name="margin-left">10</property>
+                                <property name="margin-start">10</property>
+                                <property name="margin-top">4</property>
+                                <property name="active">True</property>
+                                <property name="draw-indicator">True</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">0</property>
+                                <property name="width">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="margin-left">10</property>
+                                <property name="margin-start">10</property>
+                                <property name="label" translatable="yes">Intensity (%):</property>
+                                <property name="tooltip-text" translatable="yes">How much fog is reached at the End point: 100 = fully background-colored (original look), 0 = no fog.</property>
+                                <property name="xalign">0</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">1</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkScale" id="scale_fog_intensity">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="hexpand">True</property>
+                                <property name="adjustment">adjustment_fog_intensity</property>
+                                <property name="round-digits">0</property>
+                                <property name="digits">0</property>
+                                <property name="value-pos">right</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">1</property>
+                                <property name="top-attach">1</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkCheckButton" id="chk_fog_custom_range">
+                                <property name="label" translatable="yes">Custom range (start/end as % of the visible depth)</property>
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">False</property>
+                                <property name="tooltip-text" translatable="yes">Off: automatic range (original behaviour, the fog ends at the far clipping plane). On: Start and End are percentages of the visible depth, 0 = near clipping plane, 100 = far clipping plane, so the fog follows zoom and slab changes.</property>
+                                <property name="margin-left">10</property>
+                                <property name="margin-start">10</property>
+                                <property name="margin-top">4</property>
+                                <property name="active">True</property>
+                                <property name="draw-indicator">True</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">2</property>
+                                <property name="width">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="margin-left">10</property>
+                                <property name="margin-start">10</property>
+                                <property name="label" translatable="yes">Automatic range extent (x):</property>
+                                <property name="tooltip-text" translatable="yes">Only used by the automatic range: 1.0 = original extent; larger values start the fog closer to the camera.</property>
+                                <property name="xalign">0</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkEntry" id="entry_fog_range_scale">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">1</property>
+                                <property name="top-attach">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="margin-left">10</property>
+                                <property name="margin-start">10</property>
+                                <property name="label" translatable="yes">Start (%):</property>
+                                <property name="tooltip-text" translatable="yes">Where the fog begins, as % of the visible depth (0 = near plane).</property>
+                                <property name="xalign">0</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">4</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkScale" id="scale_fog_start">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="hexpand">True</property>
+                                <property name="adjustment">adjustment_fog_start</property>
+                                <property name="round-digits">0</property>
+                                <property name="digits">0</property>
+                                <property name="value-pos">right</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">1</property>
+                                <property name="top-attach">4</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="margin-left">10</property>
+                                <property name="margin-start">10</property>
+                                <property name="label" translatable="yes">End (%):</property>
+                                <property name="tooltip-text" translatable="yes">Where the fog reaches its full intensity, as % of the visible depth (100 = far plane).</property>
+                                <property name="xalign">0</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">5</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkScale" id="scale_fog_end">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="hexpand">True</property>
+                                <property name="adjustment">adjustment_fog_end</property>
+                                <property name="round-digits">0</property>
+                                <property name="digits">0</property>
+                                <property name="value-pos">right</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">1</property>
+                                <property name="top-attach">5</property>
+                              </packing>
+                            </child>
+                          </object>
+                        </child>
+                        <child type="label">
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="xpad">10</property>
+                            <property name="label" translatable="yes">Fog</property>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">2</property>
+                      </packing>
+                    </child>
+                    <child>
                       <object class="GtkFrame">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
@@ -887,7 +1121,7 @@
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">True</property>
-                        <property name="position">2</property>
+                        <property name="position">3</property>
                       </packing>
                     </child>
                   </object>
@@ -2468,6 +2702,84 @@
                                     <property name="top-attach">5</property>
                                   </packing>
                                 </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="margin-left">10</property>
+                                    <property name="margin-start">10</property>
+                                    <property name="label" translatable="yes">Arrowhead taper (residues):</property>
+                                    <property name="xalign">0</property>
+                                    <property name="tooltip-text" translatable="yes">How many residues the strand arrowhead's base-to-tip taper is spread across (capped to at most half of a given strand's own length, so a short strand never becomes all arrowhead). 1 = the old, more abrupt single-step taper; 2 (default) roughly doubles its arc length for a softer point, closer to PyMOL/VMD's own longer arrowheads.</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">6</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkEntry" id="entry_cartoon_arrow_taper_residues">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="hexpand">True</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">1</property>
+                                    <property name="top-attach">6</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="margin-left">10</property>
+                                    <property name="margin-start">10</property>
+                                    <property name="label" translatable="yes">Ribbon detail (points/residue):</property>
+                                    <property name="xalign">0</property>
+                                    <property name="tooltip-text" translatable="yes">Spline subdivision points per residue -- higher gives visibly smoother, less "origami-like" ribbons, but roughly scales the whole mesh's build cost (and per-trajectory-frame rebuild cost) with it. Default 5 is tuned for large structures (hundreds-thousands of residues); a small/medium protein can usually afford 10-12 for a noticeably smoother look.</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">7</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkEntry" id="entry_cartoon_spline_detail">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="hexpand">True</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">1</property>
+                                    <property name="top-attach">7</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="margin-left">10</property>
+                                    <property name="margin-start">10</property>
+                                    <property name="label" translatable="yes">Strand smoothing (iterations):</property>
+                                    <property name="xalign">0</property>
+                                    <property name="tooltip-text" translatable="yes">Straightens each strand's own centerline before drawing it, instead of following the beta sheet's real Ca "pleat" zigzag exactly -- matches PyMOL/VMD's own "arrow" look. Each strand's first and last residue (where it begins/ends) is always kept fixed, so this never affects where the ribbon connects to neighboring coil/helix; it only removes the wavy wiggle in between. 0 = off (the raw, more sinuous look); higher values straighten more, with diminishing effect past ~4-6.</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">8</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkEntry" id="entry_cartoon_strand_smoothing">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="hexpand">True</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">1</property>
+                                    <property name="top-attach">8</property>
+                                  </packing>
+                                </child>
                               </object>
                             </child>
                             <child type="label">
@@ -2568,9 +2880,9 @@
                                     <property name="can-focus">False</property>
                                     <property name="margin-left">10</property>
                                     <property name="margin-start">10</property>
-                                    <property name="label" translatable="yes">Minimum run length (residues):</property>
+                                    <property name="label" translatable="yes">Minimum helix length (residues):</property>
                                     <property name="xalign">0</property>
-                                    <property name="tooltip-text" translatable="yes">A helix/strand run shorter than this many residues is demoted back to coil.</property>
+                                    <property name="tooltip-text" translatable="yes">A helix run shorter than this many residues is demoted back to coil. An alpha helix needs at least ~3-4 residues to complete even one turn, so 1-2 is rarely a real helix.</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">0</property>
@@ -2578,7 +2890,7 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkEntry" id="entry_cartoon_min_run">
+                                  <object class="GtkEntry" id="entry_cartoon_min_run_helix">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="hexpand">True</property>
@@ -2586,6 +2898,32 @@
                                   <packing>
                                     <property name="left-attach">1</property>
                                     <property name="top-attach">2</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="margin-left">10</property>
+                                    <property name="margin-start">10</property>
+                                    <property name="label" translatable="yes">Minimum strand length (residues):</property>
+                                    <property name="xalign">0</property>
+                                    <property name="tooltip-text" translatable="yes">A strand run shorter than this many residues is demoted back to coil. Kept lower than the helix minimum by default -- even a 2-residue beta bridge is a real, recognised feature.</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">3</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkEntry" id="entry_cartoon_min_run_strand">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="hexpand">True</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">1</property>
+                                    <property name="top-attach">3</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -2599,7 +2937,7 @@
                                   </object>
                                   <packing>
                                     <property name="left-attach">0</property>
-                                    <property name="top-attach">3</property>
+                                    <property name="top-attach">4</property>
                                     <property name="width">2</property>
                                   </packing>
                                 </child>
@@ -2718,6 +3056,32 @@
                                   <packing>
                                     <property name="left-attach">1</property>
                                     <property name="top-attach">2</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="margin-left">10</property>
+                                    <property name="margin-start">10</property>
+                                    <property name="label" translatable="yes">Transparency (%):</property>
+                                    <property name="xalign">0</property>
+                                    <property name="tooltip-text" translatable="yes">0 = fully opaque (default), 100 = fully transparent. Applied immediately to any already-open Cartoon representation, no rebuild needed.</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">3</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkEntry" id="entry_cartoon_transparency">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="hexpand">True</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">1</property>
+                                    <property name="top-attach">3</property>
                                   </packing>
                                 </child>
                               </object>

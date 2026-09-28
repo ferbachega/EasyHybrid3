@@ -297,6 +297,8 @@ class EasyHybridPreferencesWindow():
             # widgets back to defaults above needs an explicit rebuild to
             # actually show up on any already-built representation.
             self._rebuild_active_cartoon_representations()
+            # fog lives on the camera: push the reset defaults there too
+            self.vm_session.vm_glcore.glcamera.apply_fog_parameters(self.vm_session.vm_config.gl_parameters)
             self.vm_session.vm_glcore.queue_draw()
     
     def on_btn_apply_all_changes (self, widget):
@@ -520,7 +522,12 @@ class EasyHybridPreferencesWindow():
         self.entry_scroll_step = self.builder.get_object('entry_scroll_step')
         scroll_step = self.vm_session.vm_config.gl_parameters["scroll_step"]
         self.entry_scroll_step.set_text(str(scroll_step))
-        
+
+        #   scroll step fraction (plain-scroll slab zoom exponential rate)
+        self.entry_scroll_step_fraction = self.builder.get_object('entry_scroll_step_fraction')
+        scroll_step_fraction = self.vm_session.vm_config.gl_parameters.get("scroll_step_fraction", 0.138)
+        self.entry_scroll_step_fraction.set_text(str(scroll_step_fraction))
+
         self.entry_sleep_time_coc = self.builder.get_object('entry_sleep_time_coc')
         sleep_time_coc = self.vm_session.vm_config.gl_parameters["center_on_coord_sleep_time"]
         self.entry_sleep_time_coc.set_text(str(sleep_time_coc))
@@ -544,6 +551,102 @@ class EasyHybridPreferencesWindow():
             zoom_sensitivity = self.vm_session.vm_config.gl_parameters.get('labels_zoom_sensitivity', 1.0)
             self.chk_labels_scale_with_zoom.set_active(zoom_sensitivity >= 0.5)
         #-------------------------------------------------------------------------------------
+        self.set_fog_parameters()
+
+    def set_fog_parameters (self):
+        """ [EN] 2026-09-28 user request: Preferences > General > Fog
+        ("mexer na intensidade, onde comeca e onde termina"). Fills the
+        widgets from gl_parameters (defaults = the original fog look) and
+        connects them (once per window) to _on_fog_widget_changed(), which applies every
+        change live -- the fog is a camera/uniform property, nothing to
+        rebuild, so there is no reason to wait for Apply. """
+        gp = self.vm_session.vm_config.gl_parameters
+        self.chk_fog_enabled       = self.builder.get_object('chk_fog_enabled')
+        self.scale_fog_intensity   = self.builder.get_object('scale_fog_intensity')
+        self.chk_fog_custom_range  = self.builder.get_object('chk_fog_custom_range')
+        self.entry_fog_range_scale = self.builder.get_object('entry_fog_range_scale')
+        self.scale_fog_start       = self.builder.get_object('scale_fog_start')
+        self.scale_fog_end         = self.builder.get_object('scale_fog_end')
+        widgets = (self.chk_fog_enabled, self.scale_fog_intensity, self.chk_fog_custom_range,
+                   self.entry_fog_range_scale, self.scale_fog_start, self.scale_fog_end)
+        if any(w is None for w in widgets):
+            return   # older .glade without the Fog frame: nothing to do
+
+        # populate without triggering the live handlers half-way through
+        self._fog_widgets_updating = True
+        try:
+            self.chk_fog_enabled.set_active(bool(gp.get('fog_enabled', True)))
+            self.scale_fog_intensity.set_value(float(gp.get('fog_intensity', 100.0)))
+            self.chk_fog_custom_range.set_active(bool(gp.get('fog_custom_range', False)))
+            self.entry_fog_range_scale.set_text(str(gp.get('fog_range_scale', 1.0)))
+            self.scale_fog_start.set_value(float(gp.get('fog_start_percent', 50.0)))
+            self.scale_fog_end.set_value(float(gp.get('fog_end_percent', 100.0)))
+        finally:
+            self._fog_widgets_updating = False
+
+        # open_window() builds a NEW Gtk.Builder every time the window is
+        # opened, so "already connected" must be tracked per widget
+        # instance (a plain bool would skip the 2nd opening's widgets);
+        # Reset calls this again on the SAME widgets -- no double connect.
+        if getattr(self, '_fog_handlers_widget', None) is not self.chk_fog_enabled:
+            self.chk_fog_enabled.connect('toggled', self._on_fog_widget_changed)
+            self.chk_fog_custom_range.connect('toggled', self._on_fog_widget_changed)
+            self.scale_fog_intensity.connect('value-changed', self._on_fog_widget_changed)
+            self.scale_fog_start.connect('value-changed', self._on_fog_widget_changed)
+            self.scale_fog_end.connect('value-changed', self._on_fog_widget_changed)
+            self.entry_fog_range_scale.connect('activate', self._on_fog_widget_changed)
+            self._fog_handlers_widget = self.chk_fog_enabled
+        self._update_fog_widget_sensitivity()
+
+    def _update_fog_widget_sensitivity (self):
+        enabled = self.chk_fog_enabled.get_active()
+        custom  = self.chk_fog_custom_range.get_active()
+        self.scale_fog_intensity.set_sensitive(enabled)
+        self.chk_fog_custom_range.set_sensitive(enabled)
+        self.entry_fog_range_scale.set_sensitive(enabled and not custom)
+        self.scale_fog_start.set_sensitive(enabled and custom)
+        self.scale_fog_end.set_sensitive(enabled and custom)
+
+    def _on_fog_widget_changed (self, widget):
+        if getattr(self, '_fog_widgets_updating', False):
+            return
+        # keep End strictly after Start (the shaders divide by end - start)
+        if widget is self.scale_fog_start and self.scale_fog_end.get_value() <= self.scale_fog_start.get_value():
+            self._fog_widgets_updating = True
+            self.scale_fog_end.set_value(min(self.scale_fog_start.get_value() + 1.0, 100.0))
+            self._fog_widgets_updating = False
+        elif widget is self.scale_fog_end and self.scale_fog_end.get_value() <= self.scale_fog_start.get_value():
+            self._fog_widgets_updating = True
+            self.scale_fog_start.set_value(max(self.scale_fog_end.get_value() - 1.0, 0.0))
+            self._fog_widgets_updating = False
+        self._update_fog_widget_sensitivity()
+        self._apply_fog_parameters()
+
+    def _apply_fog_parameters (self):
+        """ Widgets -> gl_parameters -> camera (+ redraw). Used live by
+        _on_fog_widget_changed() and by Apply. An invalid "extent" entry
+        keeps the previous value instead of raising (which would abort
+        the rest of the Apply chain). """
+        if getattr(self, 'chk_fog_enabled', None) is None:
+            return
+        gp = self.vm_session.vm_config.gl_parameters
+        try:
+            range_scale = float(self.entry_fog_range_scale.get_text())
+            if range_scale <= 0:
+                raise ValueError
+        except ValueError:
+            range_scale = float(gp.get('fog_range_scale', 1.0))
+            self.entry_fog_range_scale.set_text(str(range_scale))
+        gp['fog_enabled']       = bool(self.chk_fog_enabled.get_active())
+        gp['fog_intensity']     = float(self.scale_fog_intensity.get_value())
+        gp['fog_custom_range']  = bool(self.chk_fog_custom_range.get_active())
+        gp['fog_range_scale']   = range_scale
+        gp['fog_start_percent'] = float(self.scale_fog_start.get_value())
+        gp['fog_end_percent']   = float(self.scale_fog_end.get_value())
+        vm_glcore = getattr(self.vm_session, 'vm_glcore', None)
+        if vm_glcore is not None:
+            vm_glcore.glcamera.apply_fog_parameters(gp)
+            vm_glcore.queue_draw()
 
     def _populate_font_combo(self, combo, spin, current_font, current_size):
         """ Fills a font-family GtkComboBoxText with the bundled .ttf
@@ -905,7 +1008,12 @@ class EasyHybridPreferencesWindow():
         self.entry_cartoon_coil_radius      = self.builder.get_object('entry_cartoon_coil_radius')
         self.entry_cartoon_helix_tolerance  = self.builder.get_object('entry_cartoon_helix_tolerance')
         self.entry_cartoon_strand_tolerance = self.builder.get_object('entry_cartoon_strand_tolerance')
-        self.entry_cartoon_min_run          = self.builder.get_object('entry_cartoon_min_run')
+        self.entry_cartoon_min_run_helix     = self.builder.get_object('entry_cartoon_min_run_helix')
+        self.entry_cartoon_min_run_strand    = self.builder.get_object('entry_cartoon_min_run_strand')
+        self.entry_cartoon_arrow_taper_residues = self.builder.get_object('entry_cartoon_arrow_taper_residues')
+        self.entry_cartoon_spline_detail        = self.builder.get_object('entry_cartoon_spline_detail')
+        self.entry_cartoon_strand_smoothing     = self.builder.get_object('entry_cartoon_strand_smoothing')
+        self.entry_cartoon_transparency         = self.builder.get_object('entry_cartoon_transparency')
 
         self.entry_cartoon_helix_width     .set_text(str(gp.get('cartoon_helix_width',      1.60)))
         self.entry_cartoon_helix_height    .set_text(str(gp.get('cartoon_helix_height',     0.18)))
@@ -915,7 +1023,12 @@ class EasyHybridPreferencesWindow():
         self.entry_cartoon_coil_radius     .set_text(str(gp.get('cartoon_coil_radius',      0.32)))
         self.entry_cartoon_helix_tolerance .set_text(str(gp.get('cartoon_helix_tolerance',  100.0)))
         self.entry_cartoon_strand_tolerance.set_text(str(gp.get('cartoon_strand_tolerance', 150.0)))
-        self.entry_cartoon_min_run         .set_text(str(gp.get('cartoon_min_run',          2)))
+        self.entry_cartoon_min_run_helix   .set_text(str(gp.get('cartoon_min_run_helix',   3)))
+        self.entry_cartoon_min_run_strand  .set_text(str(gp.get('cartoon_min_run_strand',  2)))
+        self.entry_cartoon_arrow_taper_residues.set_text(str(gp.get('cartoon_arrow_taper_residues', 2)))
+        self.entry_cartoon_spline_detail       .set_text(str(gp.get('cartoon_spline_detail',        5)))
+        self.entry_cartoon_strand_smoothing    .set_text(str(gp.get('cartoon_strand_smoothing',     4)))
+        self.entry_cartoon_transparency        .set_text(str(gp.get('cartoon_transparency',         0)))
 
         # [EN] User request (round 8 -- "cartoon dinamico ou nao, por
         # padrao nao"): default OFF -- see CartoonRepresentation.rebuild()'s
@@ -960,10 +1073,18 @@ class EasyHybridPreferencesWindow():
         CartoonRepresentation.rebuild()'s own docstring); otherwise
         changing the tolerance and hitting Apply while that setting is
         OFF would silently keep showing the OLD classification. """
+        gp = self.vm_session.vm_config.gl_parameters
+        alpha = 1.0 - float(gp.get('cartoon_transparency', 0)) / 100.0
         for vm_object in self.vm_session.vm_objects_dic.values():
             rep = vm_object.representations.get('cartoon')
             if rep is not None:
                 rep.rebuild(force_reclassify=True)
+                # [EN] 2026-09-26 user request ("alterar a transparencia") --
+                # alpha is a live render-time property, not baked into the
+                # mesh rebuild() just re-ran, so it's set separately here,
+                # same as SurfaceRepresentation's own rep.set_alpha() call
+                # in surface_analysis_window.py.
+                rep.set_alpha(alpha)
 
     def __apply_cartoon_parameters (self):
         """ Function doc """
@@ -977,7 +1098,12 @@ class EasyHybridPreferencesWindow():
         gp['cartoon_coil_radius']      = float(self.entry_cartoon_coil_radius     .get_text())
         gp['cartoon_helix_tolerance']  = float(self.entry_cartoon_helix_tolerance .get_text())
         gp['cartoon_strand_tolerance'] = float(self.entry_cartoon_strand_tolerance.get_text())
-        gp['cartoon_min_run']          = int(float(self.entry_cartoon_min_run.get_text()))
+        gp['cartoon_min_run_helix']    = int(float(self.entry_cartoon_min_run_helix.get_text()))
+        gp['cartoon_min_run_strand']   = int(float(self.entry_cartoon_min_run_strand.get_text()))
+        gp['cartoon_arrow_taper_residues'] = int(float(self.entry_cartoon_arrow_taper_residues.get_text()))
+        gp['cartoon_spline_detail']        = int(float(self.entry_cartoon_spline_detail.get_text()))
+        gp['cartoon_strand_smoothing']     = int(float(self.entry_cartoon_strand_smoothing.get_text()))
+        gp['cartoon_transparency']         = float(self.entry_cartoon_transparency.get_text())
         gp['cartoon_dynamic_secondary_structure'] = self.checkbox_cartoon_dynamic_ss.get_active()
 
         gp['cartoon_color_helix']  = list(self.color_btn_cartoon_helix .get_rgba())[:-1]
@@ -1330,15 +1456,27 @@ class EasyHybridPreferencesWindow():
         
         
         #---------------------------------------------------------------
-        scroll_step      = float(self.builder.get_object('entry_scroll_step')   .get_text() )
+        scroll_step          = float(self.builder.get_object('entry_scroll_step')         .get_text() )
+        scroll_step_fraction = float(self.builder.get_object('entry_scroll_step_fraction').get_text() )
         sleep_time_coc   = float(self.builder.get_object('entry_sleep_time_coc').get_text() )
         field_of_view    = float(self.builder.get_object('entry_field_of_view') .get_text() )
         rot_sensibililty = float(self.builder.get_object('entry_rot_sensibililty') .get_text() )
-        
-        self.gl_parameters["scroll_step"]                = scroll_step    
-        self.gl_parameters["center_on_coord_sleep_time"] = sleep_time_coc 
-        self.gl_parameters["field_of_view"]              = field_of_view  
-        self.gl_parameters["mouse_rotation_sensibility"] = rot_sensibililty  
+
+        self.gl_parameters["scroll_step"]                = scroll_step
+        self.gl_parameters["scroll_step_fraction"]       = scroll_step_fraction
+        self.gl_parameters["center_on_coord_sleep_time"] = sleep_time_coc
+        self.gl_parameters["field_of_view"]              = field_of_view
+        self.gl_parameters["mouse_rotation_sensibility"] = rot_sensibililty
+        # applied immediately, not just cached in gl_parameters for the next
+        # restart -- VismolGLCore.__init__ only reads scroll_step_fraction
+        # once at startup, same pre-existing limitation scroll_step itself
+        # already has (untouched here), but a live per-tick zoom rate is
+        # worth updating in place since the user is actively tuning "feel".
+        if getattr(self.vm_session, "vm_glcore", None) is not None:
+            self.vm_session.vm_glcore.scroll_step_fraction = scroll_step_fraction
+        #---------------------------------------------------------------
+        #   Fog (also applied live while editing -- see _on_fog_widget_changed)
+        self._apply_fog_parameters()
         #---------------------------------------------------------------
     def __apply_interface_general_parameters (self):
         """ Function doc """
