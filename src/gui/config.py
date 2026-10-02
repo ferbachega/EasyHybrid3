@@ -87,6 +87,8 @@ class VismolConfig                       :
                                       "fog_custom_range"           : False,
                                       "fog_start_percent"          : 50.0,    # % of visible depth
                                       "fog_end_percent"            : 100.0,
+                                      "fog_start_reference"        : "far_plane",  # or "center"
+                                      "fog_center_offset"          : 5.0,     # A before the rotation center
                                       "field_of_view"              : 10,
                                       "light_position"             : [0, 0, 10.0],
                                       #"light_position"            : [-2.5, 2.5, 3.0],

@@ -58,10 +58,11 @@ from util.debug import dprint
 
 
 def add_atom ( vismol_object, symbol, x, y, z, name = None,
-               chain_id = "A", resi = 1, resn = "UNK",
+               chain_id = None, resi = None, resn = None,
                bonded_to = None, bond_order = 1, aromatic = False,
-               formal_charge = 0,
-               recompute_bonds = True, update_representation = True ):
+               formal_charge = 0, residue_of_atom = None,
+               recompute_bonds = True, update_representation = True,
+               _deferred_rows = None ):
     """ Adds a single atom to vismol_object at position (x, y, z), in the
     same coordinate units/frame convention already used by the rest of
     the object (Angstrom, matching every file-loaded VismolObject).
@@ -151,19 +152,66 @@ def add_atom ( vismol_object, symbol, x, y, z, name = None,
     """
     vm_session = vismol_object.vm_session
 
-    if name is None:
-        name = symbol
+    # --- Chain / Residue ---
+    # [EN] 2026-10-02 (user request: "os hidrogenios adicionados devem ser
+    # incorporados aos residuos aos quais os atomos pertencem, e nao
+    # colocados ao final da lista"): with no explicit chain/residue, a new
+    # atom joins the residue of `residue_of_atom` or, failing that, of the
+    # atom it is bonded to -- and is INSERTED right after that residue's
+    # last atom (every later atom_id shifts by one, see _shift_atom_ids()).
+    # Explicit chain_id/resi/resn, or no reference atom at all, keep the old
+    # behaviour (create lazily, default "A:UNK.1", appended at the end).
+    reference_id = residue_of_atom
+    if reference_id is None and bonded_to is not None:
+        if isinstance ( bonded_to, ( list, tuple, set ) ):
+            reference_id = list ( bonded_to )[0] if bonded_to else None
+        else:
+            reference_id = bonded_to
+    reference_atom = vismol_object.atoms.get ( int ( reference_id ) ) if reference_id is not None else None
+    inherited_residue = None
+    if chain_id is None and resi is None and resn is None and reference_atom is not None:
+        inherited_residue = getattr ( reference_atom, "residue", None )
 
-    # --- Chain / Residue (create lazily, same pattern as the file loaders) ---
-    if chain_id not in vismol_object.chains:
-        vismol_object.chains[chain_id] = Chain ( vismol_object, name = chain_id )
-    chain = vismol_object.chains[chain_id]
+    if inherited_residue is not None:
+        residue = inherited_residue
+        chain   = getattr ( reference_atom, "chain", None ) or residue.chain
+        atom_id = max ( a.atom_id for a in residue.atoms.values ( ) ) + 1
+        if atom_id < len ( vismol_object.atoms ):
+            _shift_atom_ids ( vismol_object, atom_id )
+            if bonded_to is not None:
+                bonded_to = [ ( b + 1 if b >= atom_id else b ) for b in
+                              ( bonded_to if isinstance ( bonded_to, ( list, tuple, set ) ) else [ bonded_to ] ) ]
+        if name is None:
+            name = _unique_atom_name ( residue, symbol, reference_atom if bonded_to is not None else None )
+    elif chain_id is None and resi is None and resn is None:
+        # [EN] 2026-10-02 (user report: an atom placed in empty space on a PDB
+        # protein joined residue A:1 -- MET1 -- and broke the residue
+        # structure / pDynamo sequence): a free atom goes to the object's own
+        # "free" residue (see _free_residue()), never into an existing one.
+        chain, residue = _free_residue ( vismol_object )
+        if residue.atoms:
+            atom_id = max ( a.atom_id for a in residue.atoms.values ( ) ) + 1
+            if atom_id < len ( vismol_object.atoms ):
+                _shift_atom_ids ( vismol_object, atom_id )
+        else:
+            atom_id = len ( vismol_object.atoms )
+        if name is None:
+            name = _unique_atom_name ( residue, symbol )
+    else:
+        chain_id = "A" if chain_id is None else chain_id
+        resi     = 1 if resi is None else resi
+        resn     = "UNK" if resn is None else resn
+        if chain_id not in vismol_object.chains:
+            vismol_object.chains[chain_id] = Chain ( vismol_object, name = chain_id )
+        chain = vismol_object.chains[chain_id]
 
-    if resi not in chain.residues:
-        chain.residues[resi] = Residue ( vismol_object, name = resn, index = resi, chain = chain )
-    residue = chain.residues[resi]
+        if resi not in chain.residues:
+            chain.residues[resi] = Residue ( vismol_object, name = resn, index = resi, chain = chain )
+        residue = chain.residues[resi]
 
-    atom_id = len ( vismol_object.atoms )   # next free index, sequential
+        atom_id = len ( vismol_object.atoms )   # next free index, sequential
+        if name is None:
+            name = symbol
 
     atom = Atom (
         vismol_object = vismol_object,
@@ -203,12 +251,29 @@ def add_atom ( vismol_object, symbol, x, y, z, name = None,
     # frame mesmo; se este objeto ja tiver uma trajetoria de verdade, isso
     # still works, except the new atom stays "still" across all
     # frames ate que algo mais sofisticado seja implementado). ---
+    # [EN] 2026-10-02 (user report: "o botao de undo e muito lento"): bulk
+    # rebuilds (_restore_builder_state()) pass a list here -- the coordinate
+    # row is collected and frames / colour vectors / mass centre are built
+    # ONCE by the caller at the end, instead of being reallocated and
+    # recomputed for the whole object after every single atom (that was
+    # O(N^2): ~1.6 s for a 1348-atom protein, dominated by
+    # _generate_color_vectors()). Appending only (atom_id == count).
+    if _deferred_rows is not None and atom_id == len ( vismol_object.atoms ) - 1:
+        _deferred_rows.append ( ( x, y, z ) )
+        return atom
+
     n_frames = vismol_object.frames.shape[0]
-    new_frames = np.zeros ( (n_frames, atom_id + 1, 3), dtype = np.float32 )
-    if atom_id > 0:
-        new_frames[:, :atom_id, :] = vismol_object.frames
-    new_frames[:, atom_id, :] = [ x, y, z ]
-    vismol_object.frames = new_frames
+    n_before = len ( vismol_object.atoms ) - 1          # atoms before this one was registered
+    if n_before > 0 and vismol_object.frames.shape[1] == n_before and atom_id < n_before:
+        # inserted inside a residue: open a row at atom_id in every frame
+        vismol_object.frames = np.insert ( vismol_object.frames, atom_id,
+                                           np.array ( [ x, y, z ], dtype = np.float32 ), axis = 1 ).astype ( np.float32 )
+    else:
+        new_frames = np.zeros ( (n_frames, atom_id + 1, 3), dtype = np.float32 )
+        if atom_id > 0:
+            new_frames[:, :atom_id, :] = vismol_object.frames
+        new_frames[:, atom_id, :] = [ x, y, z ]
+        vismol_object.frames = new_frames
 
     vismol_object.mass_center = np.mean ( vismol_object.frames[0], axis = 0 )
 
@@ -284,6 +349,147 @@ def add_atom ( vismol_object, symbol, x, y, z, name = None,
             vm_session.vm_glcore.queue_draw ( )
 
     return atom
+
+
+def _free_residue ( vismol_object, residue_name = "UNK", reuse = True ):
+    """ [EN] 2026-10-02: the residue that atoms placed "in empty space" (no
+    bonded/reference atom, no explicit residue) belong to -- so they never
+    end up inside an existing residue of, e.g., a PDB protein.
+    reuse=True: the object's current free residue (remembered by (chain,
+    number), which survives Undo) while it still exists, so consecutive
+    free atoms build ONE new molecule; otherwise a new residue is created:
+      - empty object: chain "A", residue 1 (a Builder molecule from scratch
+        behaves exactly as before);
+      - otherwise: the chain of the LAST atom (keeps every chain contiguous
+        for the pDynamo sequence), number = highest number in that chain + 1.
+    reuse=False always creates a new residue (Add Structure: one residue per
+    placed molecule). Returns (chain, residue). Rename it with
+    rename_residue(). """
+    key = getattr ( vismol_object, "builder_free_residue_key", None )
+    if reuse and key is not None:
+        chain = vismol_object.chains.get ( key[0] )
+        residue = chain.residues.get ( key[1] ) if chain is not None else None
+        if residue is not None:
+            return chain, residue
+
+    if vismol_object.atoms:
+        last_atom = vismol_object.atoms[max ( vismol_object.atoms.keys ( ) )]
+        chain = last_atom.chain
+        numbers = [ k for k in chain.residues.keys ( ) if isinstance ( k, ( int, np.integer ) ) ]
+        resi = ( max ( numbers ) + 1 ) if numbers else 1
+    else:
+        if "A" not in vismol_object.chains:
+            vismol_object.chains["A"] = Chain ( vismol_object, name = "A" )
+        chain = vismol_object.chains["A"]
+        resi = 1
+        while resi in chain.residues and chain.residues[resi].atoms:
+            resi += 1
+    if resi not in chain.residues:
+        chain.residues[resi] = Residue ( vismol_object, name = residue_name, index = resi, chain = chain )
+    residue = chain.residues[resi]
+    if reuse:
+        vismol_object.builder_free_residue_key = ( chain.name, resi )
+    return chain, residue
+
+
+def rename_residue ( vismol_object, residue, new_name = None, new_index = None ):
+    """ [EN] 2026-10-02 user request ("podemos colocar uma opcao de renomear o
+    residuo"): renames `residue` (and/or renumbers it inside its chain).
+    Raises ValueError for an empty name or a number already used in the
+    chain. Atom order and membership are untouched; the free-residue key is
+    kept pointing at the same residue. Caller pushes the undo snapshot and
+    re-syncs the pDynamo system. """
+    chain = residue.chain
+    old_index = residue.index
+    if new_name is not None:
+        new_name = str ( new_name ).strip ( ).upper ( )
+        if not new_name or len ( new_name ) > 4 or " " in new_name:
+            raise ValueError ( "Residue name must have 1-4 characters, no spaces." )
+    if new_index is not None:
+        new_index = int ( new_index )
+        if new_index != old_index and new_index in chain.residues and chain.residues[new_index].atoms:
+            raise ValueError ( "Residue number {} is already used in chain {}.".format ( new_index, chain.name ) )
+    if new_name is not None:
+        residue.name = new_name
+    if new_index is not None and new_index != old_index:
+        chain.residues.pop ( old_index, None )
+        chain.residues[new_index] = residue
+        residue.index = new_index
+        key = getattr ( vismol_object, "builder_free_residue_key", None )
+        if key == ( chain.name, old_index ):
+            vismol_object.builder_free_residue_key = ( chain.name, new_index )
+    return residue
+
+
+def _shift_atom_ids ( vismol_object, position ):
+    """ [EN] 2026-10-02: makes room for an atom INSERTED at atom_id
+    `position` -- every atom with atom_id >= position moves up by one, in
+    every atom_id-keyed structure this Builder keeps (the exact mirror of
+    the renumbering remove_atom() does when an atom is deleted). The 1-based
+    atom.index follows (Builder convention: index = atom_id + 1). Frames are
+    NOT touched here -- add_atom() inserts the new coordinate row itself. """
+    def f ( i ):
+        return i + 1 if i >= position else i
+
+    def remap_pair ( pair ):
+        a, b = f ( pair[0] ), f ( pair[1] )
+        return ( min ( a, b ), max ( a, b ) )
+
+    new_atoms = { }
+    touched_residues = set ( )
+    for old_id in sorted ( vismol_object.atoms.keys ( ) ):
+        atom = vismol_object.atoms[old_id]
+        new_id = f ( old_id )
+        if new_id != old_id:
+            atom.atom_id = new_id
+            atom.index   = new_id + 1
+            if atom.residue is not None:
+                touched_residues.add ( atom.residue )
+        new_atoms[new_id] = atom
+    vismol_object.atoms = new_atoms
+    for residue in touched_residues:
+        residue.atoms = { a.atom_id: a for a in residue.atoms.values ( ) }
+
+    if getattr ( vismol_object, "manual_bonds", None ):
+        vismol_object.manual_bonds = { remap_pair ( p ) for p in vismol_object.manual_bonds }
+    if getattr ( vismol_object, "manual_bond_orders", None ):
+        vismol_object.manual_bond_orders = { remap_pair ( p ): o for p, o in vismol_object.manual_bond_orders.items ( ) }
+    if getattr ( vismol_object, "manual_aromatic_bonds", None ):
+        vismol_object.manual_aromatic_bonds = { remap_pair ( p ) for p in vismol_object.manual_aromatic_bonds }
+    if getattr ( vismol_object, "manual_atom_type_overrides", None ):
+        vismol_object.manual_atom_type_overrides = { f ( k ): v for k, v in vismol_object.manual_atom_type_overrides.items ( ) }
+    if getattr ( vismol_object, "dynamic_manual_bond_orders", None ):
+        vismol_object.dynamic_manual_bond_orders = {
+            frame: { remap_pair ( p ): o for p, o in per_frame.items ( ) }
+            for frame, per_frame in vismol_object.dynamic_manual_bond_orders.items ( ) }
+    dynamic_bonds = getattr ( vismol_object, "dynamic_bonds", None )
+    if dynamic_bonds:
+        for k, flat in enumerate ( dynamic_bonds ):
+            if flat is not None and len ( flat ):
+                dynamic_bonds[k] = [ f ( int ( i ) ) for i in np.asarray ( flat ).ravel ( ).tolist ( ) ]
+
+
+def _unique_atom_name ( residue, symbol, parent_atom = None ):
+    """ [EN] 2026-10-02: a name not yet used inside `residue` -- pDynamo atom
+    paths ("chain:RES.n:NAME") must be unique, and a residue full of plain
+    "H"s could not keep its sequence. Hydrogens follow the PDB habit of
+    taking the parent's name suffix (CB -> HB, N -> H, OG -> HG; then HB2,
+    HB3, ...); other atoms get symbol + number (C1, C2, ...). """
+    used = { a.name for a in residue.atoms.values ( ) }
+    if symbol == "H" and parent_atom is not None:
+        pname = parent_atom.name or ""
+        suffix = pname[len ( parent_atom.symbol ):] if pname.upper ( ).startswith ( parent_atom.symbol.upper ( ) ) else ""
+        base = "H" + suffix
+        if base not in used:
+            return base
+        k = 2
+        while "{}{}".format ( base, k ) in used:
+            k += 1
+        return "{}{}".format ( base, k )
+    k = 1
+    while "{}{}".format ( symbol, k ) in used:
+        k += 1
+    return "{}{}".format ( symbol, k )
 
 
 def set_atom_element ( vismol_object, atom_id, symbol, name = None,
@@ -522,6 +728,11 @@ def remove_atom ( vismol_object, atom_id ):
         id_map[old_id] = new_id
         if new_id != old_id:
             atom.atom_id = new_id
+            # [EN] 2026-09-28: the 1-based atom.index must follow too (Builder
+            # convention, see add_atom(): index = atom_id + 1) -- it is what
+            # Bond's fallback and every "atom.index - 1" pDynamo mapping
+            # read; it used to keep the pre-deletion number.
+            atom.index = new_id + 1
             if atom.residue is not None:
                 atom.residue.atoms.pop ( old_id, None )
                 atom.residue.atoms[new_id] = atom
@@ -1613,6 +1824,7 @@ def _restore_builder_state ( vismol_object, snapshot ):
     vismol_object.manual_bond_orders    = { }
     vismol_object.manual_aromatic_bonds = set ( )
 
+    rows = [ ]
     for atom_data in snapshot['atoms']:
         add_atom ( vismol_object,
                    symbol   = atom_data['symbol'],
@@ -1623,7 +1835,17 @@ def _restore_builder_state ( vismol_object, snapshot ):
                    resn     = atom_data['resn'],
                    formal_charge = atom_data.get ( 'formal_charge', 0 ),
                    recompute_bonds       = False,
-                   update_representation = False )
+                   update_representation = False,
+                   _deferred_rows        = rows )
+    # frames / mass centre / colour vectors once, for every atom at once
+    # (see add_atom()'s _deferred_rows note)
+    if rows:
+        vismol_object.frames = np.array ( rows, dtype = np.float32 ).reshape ( 1, len ( rows ), 3 )
+        vismol_object.mass_center = np.mean ( vismol_object.frames[0], axis = 0 )
+    else:
+        vismol_object.frames = np.zeros ( ( 1, 0, 3 ), dtype = np.float32 )
+        vismol_object.mass_center = np.zeros ( 3, dtype = np.float32 )
+    vismol_object._generate_color_vectors ( vm_session.atom_id_counter )
 
     vismol_object.manual_bonds          = set ( snapshot['manual_bonds'] )
     vismol_object.manual_bond_orders    = dict ( snapshot['manual_bond_orders'] )
@@ -2197,6 +2419,12 @@ def adjust_hydrogens ( vismol_object, atom_id ):
         return 0
 
     atom = vismol_object.atoms[atom_id]
+    # [EN] 2026-10-02 user request: metals get no hydrogens by default (Mg,
+    # Ca, Na, Al... used to get MgH2-style hydrides from STANDARD_VALENCE);
+    # any hydrogens already on a metal are left exactly as they are.
+    from util.hydrogen_builder import is_hydrogen_free_metal
+    if is_hydrogen_free_metal ( atom.symbol ):
+        return 0
     base_valence = STANDARD_VALENCE.get ( atom.symbol.upper ( ) )
     if base_valence is None:
         return 0
@@ -3001,12 +3229,18 @@ def attach_fragment_at_hydrogen ( vismol_object, target_h_atom_id, fragment ):
     # The root atom's OWN relative position is (0,0,0) by construction,
     # so it lands exactly at new_root_pos, as intended.
     local_index_to_new_id = { }
+    # [EN] 2026-10-02: formal charges from the fragment file (nitro N+/O-,
+    # carboxylate O-) -- without them adjust_hydrogens()/Clean Up would
+    # later "complete" e.g. the nitro O- with a hydrogen.
+    frag_charges = fragment.get ( "formal_charges" ) or [ 0 ] * len ( frag_atoms )
     for local_index, ( symbol, x, y, z ) in enumerate ( frag_atoms ):
         local_pos = np.array ( [ x, y, z ], dtype = np.float64 ) - root_local_pos
         rotated   = _rotate_vector_rodrigues ( local_pos, rotation_axis, rotation_angle )
         world_pos = new_root_pos + rotated
         new_atom = add_atom ( vismol_object, symbol = symbol,
                                x = float ( world_pos[0] ), y = float ( world_pos[1] ), z = float ( world_pos[2] ),
+                               formal_charge = int ( frag_charges[local_index] ),
+                               residue_of_atom = parent_atom.atom_id,
                                recompute_bonds = False, update_representation = False )
         local_index_to_new_id[local_index] = new_atom.atom_id
 
@@ -3044,8 +3278,11 @@ def attach_fragment_at_hydrogen ( vismol_object, target_h_atom_id, fragment ):
     _refresh_bond_dependent_representations ( vismol_object )
 
     if builder_adjust_hydrogen_count_enabled ( vismol_object ):
+        # by Atom object: adjusting the parent may insert/remove atoms and
+        # shift every later atom_id (see add_atom()/remove_atom())
+        root_atom = vismol_object.atoms[root_new_id]
         adjust_hydrogens ( vismol_object, parent_atom.atom_id )
-        adjust_hydrogens ( vismol_object, root_new_id )
+        adjust_hydrogens ( vismol_object, root_atom.atom_id )
 
     vm_session = vismol_object.vm_session
     if getattr ( vm_session, "vm_glcore", None ) is not None:
@@ -3114,6 +3351,12 @@ def add_structure_at_position ( vismol_object, structure, x, y, z ):
     centroid = np.mean ( np.array ( [ ( ax, ay, az ) for ( _sym, ax, ay, az ) in struct_atoms ], dtype = np.float64 ), axis = 0 )
     target   = np.array ( [ x, y, z ], dtype = np.float64 )
 
+    # [EN] 2026-10-02: every placed structure is its own NEW residue (named
+    # after the structure, e.g. "benzene" -> "BEN"), so it never merges into
+    # an existing residue of the edited system (see _free_residue()).
+    letters = "".join ( ch for ch in str ( structure.get ( "name", "" ) ) if ch.isalnum ( ) ).upper ( )
+    chain, residue = _free_residue ( vismol_object, residue_name = ( letters[:3] or "UNK" ), reuse = False )
+
     local_index_to_new_id = { }
     new_atoms = [ ]
     for local_index, ( symbol, ax, ay, az ) in enumerate ( struct_atoms ):
@@ -3121,6 +3364,8 @@ def add_structure_at_position ( vismol_object, structure, x, y, z ):
         world_pos = target + local_pos
         new_atom = add_atom ( vismol_object, symbol = symbol,
                                x = float ( world_pos[0] ), y = float ( world_pos[1] ), z = float ( world_pos[2] ),
+                               name = _unique_atom_name ( residue, symbol ),
+                               chain_id = chain.name, resi = residue.index, resn = residue.name,
                                recompute_bonds = False, update_representation = False )
         local_index_to_new_id[local_index] = new_atom.atom_id
         new_atoms.append ( new_atom )
@@ -3247,8 +3492,10 @@ def bootstrap_manual_bonds_from_existing ( vismol_object, source_vobject = None 
     via its own penalty model, so this ALSO makes formal-charge-sensitive
     DYFF patterns (e.g. "Guanidinium Cation", see [[project_dyff_force_
     field_assignment]]) more likely to match correctly, though this
-    function still only sets bond orders, never atom.formalCharge itself
-    -- no aromaticity flag is set either: pDynamo3's own
+    function sets bond orders (and, since 2026-10-02, the template formal
+    charge of standard residues whose own hydrogens pin down the
+    protonation variant, e.g. LYS NZ +1 -- without it adjust_hydrogens()
+    would strip one of NZ's 3 H) -- no aromaticity flag is set: pDynamo3's own
     ConvertInputConnectivity()/DetermineAromaticity() (already run inside
     empty_object._build_pdynamo_system_from_vismol_object()) correctly
     re-derives ring aromaticity from a properly Kekulized (alternating
@@ -3278,13 +3525,18 @@ def bootstrap_manual_bonds_from_existing ( vismol_object, source_vobject = None 
         return
 
     pairs = list ( bonds.keys ( ) )
+    charge_map = { }
     try:
-        from vismol.core.bond_order_perception import perceive_bond_orders
-        elements = [ None ] * ( max ( max ( i, j ) for ( i, j ) in pairs ) + 1 )
-        for atom_id, atom in reference.atoms.items ( ):
-            if atom_id < len ( elements ):
-                elements[atom_id] = atom.symbol
-        order_map, _tps = perceive_bond_orders ( elements, pairs )
+        # [EN] 2026-10-02 (user report: "Edit in Builder" never finished on a
+        # real PDB protein -- the old code ran the Wang & Case perceiver on
+        # the WHOLE molecule at once): standard residues now take their bond
+        # orders from pDynamo's own residue templates, and only the remaining
+        # fragments (ligands, Builder-made parts) are perceived, one fragment
+        # at a time -- see residue_chemistry.assign_bond_orders().
+        from gui.windows.builder.residue_chemistry import assign_bond_orders
+        coords = { aid: tuple ( float ( c ) for c in reference.frames[0, aid] )
+                   for aid in reference.atoms if aid < reference.frames.shape[1] }
+        order_map, charge_map, _report = assign_bond_orders ( reference.atoms, pairs, coords )
     except Exception as exc:
         # [EN] Never let a perception failure (unknown element, disabled
         # module, ...) block editing entirely -- falls back to the OLD,
@@ -3298,6 +3550,66 @@ def bootstrap_manual_bonds_from_existing ( vismol_object, source_vobject = None 
     for pair in pairs:
         vismol_object.manual_bonds.add ( pair )
         vismol_object.manual_bond_orders[pair] = int ( order_map.get ( pair, 1 ) )
+    # (aromatic rings are NOT flagged here on purpose -- see the docstring:
+    # pDynamo re-derives aromaticity from the Kekule pattern itself.)
+    # template formal charges (only for residues whose own hydrogens fixed
+    # the protonation variant -- see residue_chemistry.assign_bond_orders())
+    for atom_id, q in charge_map.items ( ):
+        atom = vismol_object.atoms.get ( atom_id )
+        if atom is not None and not getattr ( atom, "formal_charge", 0 ):
+            atom.formal_charge = int ( q )
+
+
+def rederive_bonding_after_rebuild ( vismol_object ):
+    """ [EN] 2026-10-02: after vismol_object's atoms were replaced wholesale
+    from a rebuilt pDynamo system (the Builder's "Add Hydrogens" button,
+    which runs util/hydrogen_builder.py through PrepareAddHydrogensWindow
+    -- see builder_sidebar.on_add_hydrogens_button_clicked()), the Builder's
+    own explicit bond state no longer matches the new atom numbering.
+    Re-derives it from the object's freshly computed bonds -- template bond
+    orders + formal charges for standard residues (now that their hydrogens
+    pin down the protonation variant), per-fragment perception for the rest
+    (bootstrap_manual_bonds_from_existing()) -- and rebuilds the Builder's
+    representations. """
+    vismol_object.manual_bonds          = set ( )
+    vismol_object.manual_bond_orders    = { }
+    vismol_object.manual_aromatic_bonds = set ( )
+    vismol_object.manual_atom_type_overrides = { }
+    bootstrap_manual_bonds_from_existing ( vismol_object )
+    # non-template residues (ligands): put each formal charge where the bond
+    # orders just perceived say it is (see residue_chemistry.
+    # valence_formal_charges()) -- the protonation step only fixed how many
+    # protons there are
+    try:
+        from gui.windows.builder.residue_chemistry import template_bond_info, valence_formal_charges
+        has_template = { }
+        for a in vismol_object.atoms.values ( ):
+            name = getattr ( getattr ( a, "residue", None ), "name", None )
+            if name is not None and name not in has_template:
+                has_template[name] = template_bond_info ( name ) is not None
+        non_template = [ aid for aid, a in vismol_object.atoms.items ( )
+                         if not has_template.get ( getattr ( getattr ( a, "residue", None ), "name", None ), False ) ]
+        if non_template:
+            for aid, q in valence_formal_charges ( vismol_object.atoms, vismol_object.manual_bond_orders, non_template ).items ( ):
+                vismol_object.atoms[aid].formal_charge = int ( q )
+    except Exception as error:
+        dprint ( "rederive_bonding_after_rebuild: formal charges not reconciled ({})".format ( error ) )
+    vismol_object.cov_radii_array = None
+    vismol_object.electronegativity_array = None
+    vismol_object.index_bonds = None
+    vismol_object.bonds = None
+    vismol_object.non_bonded_atoms = None
+    _reapply_manual_bonds ( vismol_object )
+    vismol_object.create_representation ( rep_type = "sticks" )
+    vismol_object.create_representation ( rep_type = "stick_spheres" )
+    _activate_new_sphere_representation ( vismol_object, "stick_spheres" )
+    vismol_object.create_representation ( rep_type = "nonbonded" )
+    vismol_object.core_representations["picking_dots"] = None
+    vismol_object.core_representations["picking_text"] = None
+    _refresh_bond_dependent_representations ( vismol_object )
+    vm_session = vismol_object.vm_session
+    if getattr ( vm_session, "vm_glcore", None ) is not None:
+        vm_session.vm_glcore.queue_draw ( )
 
 
 def compute_dihedral_rotation_subgroup ( vismol_object, atom2_id, atom3_id ):

@@ -29,7 +29,7 @@
     removed, one formal charge adjusted.
 
     SCOPE (deliberate, v1): only HYDROGEN atoms are ever added. "H2",
-    "OXT" and "HXT" are always excluded from a residue's expected atom
+    "OXT" and "HXT" are always excluded from an amino acid's expected atom
     set -- these three names only apply to a real chain terminus (via
     pDynamo3's own "Peptide"/"N Terminal"/"C Terminal" link/variant
     machinery, layered on top of whatever protonation variant is chosen),
@@ -66,9 +66,44 @@ import shutil
 import subprocess
 import tempfile
 
+from util.chain_ids import system_chain_id_map, chain_id_for_atom
+
 # . Atom names that only ever belong to a genuine chain terminus -- see
 # the module docstring's SCOPE note. Never added by this tool.
 _TERMINUS_ONLY_ATOM_NAMES = frozenset(('H2', 'OXT', 'HXT'))
+
+# [EN] 2026-10-02 user request ("para metais, o padrao e nao adicionar
+# hidrogenios"): metal atoms never receive hydrogens by default -- neither
+# here (OpenBabel would turn a Mg2+ ion into MgH2) nor in the Builder's own
+# atom_ops.adjust_hydrogens(). The set is vismol's own METAL_ELEMENTS
+# (alkali, alkaline-earth, transition, lanthanides, actinides -- the one that
+# also drives the dashed metal-bond rendering, left untouched) plus the
+# post-transition metals, which also form ions/complexes rather than hydrides.
+_POST_TRANSITION_METALS = frozenset(('Al', 'Ga', 'In', 'Sn', 'Tl', 'Pb', 'Bi', 'Po'))
+
+
+def is_hydrogen_free_metal(symbol):
+    """ True if `symbol` (any case, e.g. 'MG', 'Zn') is a metal that should
+        get no hydrogens by default (see the note above). """
+    s = ''.join(ch for ch in str(symbol) if ch.isalpha())
+    if not s:
+        return False
+    s = s[0].upper() + s[1:].lower()
+    if s in _POST_TRANSITION_METALS:
+        return True
+    try:
+        from vismol.core.metal_bonds import METAL_ELEMENTS
+    except Exception:
+        return False
+    return s in METAL_ELEMENTS
+
+
+def _atomic_number_is_hydrogen_free_metal(atomic_number):
+    try:
+        from pScientific import PeriodicTable
+        return is_hydrogen_free_metal(PeriodicTable.Symbol(int(atomic_number)))
+    except Exception:
+        return False
 
 # . Residues with a real protonation choice worth surfacing in a GUI.
 # 'Protonated' (or any label not naming an actual variant) means "use
@@ -135,8 +170,11 @@ def _template_atoms_and_bonds(component_label, variant_label):
     if component is None:
         return None, None, None
 
-    atoms = {a.label: a.atomicNumber for a in component.atoms}
-    bonds = [(b.atomLabel1, b.atomLabel2) for b in component.bonds]
+    # [EN] 2026-10-02 BUG FIX (user report: Add Hydrogens failed on 1BX4.pdb
+    # with "'NoneType' object is not iterable"): single-atom components of
+    # the pDynamo library (ions such as CL, NA) have bonds = None.
+    atoms = {a.label: a.atomicNumber for a in (component.atoms or [])}
+    bonds = [(b.atomLabel1, b.atomLabel2) for b in (component.bonds or [])]
 
     if variant_label is None:
         defaults = getattr(component, 'variants', None)
@@ -160,9 +198,15 @@ def _template_atoms_and_bonds(component_label, variant_label):
             for bond in (variant.bondsToAdd or []):
                 bonds.append((bond.atomLabel1, bond.atomLabel2))
 
-    for name in _TERMINUS_ONLY_ATOM_NAMES:
-        atoms.pop(name, None)
-        bonds = [b for b in bonds if name not in b]
+    # [EN] 2026-10-02 BUG FIX (user report: free oxygens -- waters -- got only
+    # ONE hydrogen): H2/OXT/HXT are chain-terminus-only names for AMINO ACIDS
+    # (H2 = 2nd N-terminal H), but other components use the same names for
+    # ordinary atoms -- HOH's second hydrogen is "H2". Only strip them from
+    # amino-acid templates (those with the N/CA/C backbone).
+    if {'N', 'CA', 'C'} <= set(atoms):
+        for name in _TERMINUS_ONLY_ATOM_NAMES:
+            atoms.pop(name, None)
+            bonds = [b for b in bonds if name not in b]
 
     return atoms, bonds, applied
 
@@ -303,12 +347,15 @@ def build_residue_index(system):
         (pdynamo/pDynamo2EasyHybrid/session.py) already relies on.
     """
     sequence = getattr(system, 'sequence', None)
+    chain_map = system_chain_id_map(system)
     residues = {}
     order = []
     atom_index_to_key = {}
     for atom in system.atoms:
-        entity_label = atom.parent.parent.label
-        chain = entity_label[0:1]
+        # 2026-09-29: same chain-ID rule as the vismol object (util/chain_ids.py);
+        # entity_label[0:1] merged e.g. CHARMM segments AAAA/AABA, so same-numbered
+        # residues of two different proteins were treated as ONE residue here.
+        chain = chain_id_for_atom(atom, chain_map)
         if sequence is not None:
             resName, resSeq, _iCode = sequence.ParseLabel(atom.parent.label, fields=3)
         else:
@@ -331,10 +378,13 @@ def build_residue_atom_objects(system):
         Returns {key: [Atom, ...]}, key = (chain, resName, resSeq).
     """
     sequence = getattr(system, 'sequence', None)
+    chain_map = system_chain_id_map(system)
     residues_map = {}
     for atom in system.atoms:
-        entity_label = atom.parent.parent.label
-        chain = entity_label[0:1]
+        # 2026-09-29: same chain-ID rule as the vismol object (util/chain_ids.py);
+        # entity_label[0:1] merged e.g. CHARMM segments AAAA/AABA, so same-numbered
+        # residues of two different proteins were treated as ONE residue here.
+        chain = chain_id_for_atom(atom, chain_map)
         if sequence is not None:
             resName, resSeq, _iCode = sequence.ParseLabel(atom.parent.label, fields=3)
         else:
@@ -400,11 +450,14 @@ def find_disulfide_bonded_cysteines(system):
     """
     sg_atoms = []
     sequence = getattr(system, 'sequence', None)
+    chain_map = system_chain_id_map(system)
     for atom in system.atoms:
         if atom.label != 'SG':
             continue
-        entity_label = atom.parent.parent.label
-        chain = entity_label[0:1]
+        # 2026-09-29: same chain-ID rule as the vismol object (util/chain_ids.py);
+        # entity_label[0:1] merged e.g. CHARMM segments AAAA/AABA, so same-numbered
+        # residues of two different proteins were treated as ONE residue here.
+        chain = chain_id_for_atom(atom, chain_map)
         if sequence is not None:
             resName, resSeq, _iCode = sequence.ParseLabel(atom.parent.label, fields=3)
         else:
@@ -470,9 +523,14 @@ def analyze_system(system, residue_keys=None):
             # might not even keep in scope). Just report enough for the
             # GUI to offer a pH field instead of silently skipping.
             n_heavy = sum(1 for a in residue_atoms.get(key, []) if a.atomicNumber != 1)
+            # metal ions (Mg2+, Zn2+, ...) get no hydrogens by default: a
+            # residue made only of metal atoms is not offered to OpenBabel
+            n_metal = sum(1 for a in residue_atoms.get(key, [])
+                          if a.atomicNumber != 1 and _atomic_number_is_hydrogen_free_metal(a.atomicNumber))
             results.append({
                 'key': key, 'component_label': resName, 'is_standard_residue': False,
-                'is_organic_candidate': n_heavy > 0,
+                'is_organic_candidate': n_heavy - n_metal > 0,
+                'is_metal_ion': n_heavy > 0 and n_metal == n_heavy,
                 'n_heavy_atoms': n_heavy,
             })
             continue
@@ -645,7 +703,17 @@ def rebuild_system_with_added_hydrogens(old_system, residue_variant_choices, ran
     # present in the new atom list.
     old_bonds = [b for b in old_system.connectivity.bonds
                  if id(b.node1) not in atoms_to_remove and id(b.node2) not in atoms_to_remove]
-    all_bonds = old_bonds + new_bonds
+    # [EN] 2026-10-02 (performance): hand pDynamo (i, j, type, isAromatic)
+    # tuples with integer positions instead of Bond objects / atom tuples --
+    # Bond.FromIterable tests `node in nodes` on a plain list for those
+    # (O(atoms) per bond, seconds on a ~6000-atom protein). The positions
+    # are those of the gathered sequence atoms, i.e. the new system's order.
+    position = {id(atom): k for k, atom in enumerate(sequence.GatherAtoms())}
+    all_bonds = []
+    for b in old_bonds:
+        all_bonds.append((position[id(b.node1)], position[id(b.node2)], b.type, b.isAromatic))
+    for (n1, n2, bond_type) in new_bonds:
+        all_bonds.append((position[id(n1)], position[id(n2)], bond_type, False))
     new_system = System.FromSequence(sequence, bonds=all_bonds)
     new_system.label = getattr(old_system, 'label', None)
 
@@ -864,6 +932,8 @@ def protonate_non_standard_residue(system, atoms_in_residue, ph=7.4, obabel_bin=
         if not parents:
             continue
         parent_atom = heavy_atoms[parents[0] - 1]
+        if _atomic_number_is_hydrogen_free_metal(parent_atom.atomicNumber):
+            continue        # no hydrogens on metals (e.g. Fe of a heme), see is_hydrogen_free_metal()
         new_h_by_parent.setdefault(id(parent_atom), []).append((parent_atom, out_atom))
 
     # . Name new H's -- ALWAYS <= 4 characters (see this function's own

@@ -30,6 +30,7 @@
 #
 from util.debug import dprint
 from util.pdb_tools import dedupe_pdb_atom_names
+from util.chain_ids import system_chain_id_map
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
@@ -880,7 +881,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         return sequence
 
 
-    def _get_atom_info_from_pdynamo_atom_obj (self, sequence = None, atom = None, is_from_mol2 = False):
+    def _get_atom_info_from_pdynamo_atom_obj (self, sequence = None, atom = None, is_from_mol2 = False, chain_map = None):
         """
         To extract information from atom objects, 
         belonging to pdynamo, and to  organize it as a list
@@ -911,7 +912,11 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 chainID = ""
                 segID   = entityLabel[0:4]
             else:
-                chainID = entityLabel[0:1]
+                # [EN] 2026-09-29: chain_map (util/chain_ids.py) -- the full
+                # entity label; plain entityLabel[0:1] merged e.g. CHARMM
+                # segments AAAA/AABA into one chain (and same-numbered
+                # residues of both proteins into one residue).
+                chainID = chain_map.get(entityLabel, entityLabel[0:1]) if chain_map else entityLabel[0:1]
                 segID   = ""            
 
 
@@ -1264,6 +1269,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         # 1. Extract sequence information from the pDynamo system
         # -------------------------------------------------------------------------
         sequence = self._get_sequence_from_pdynamo_system(system)
+        # entity label -> vismol chain ID (see util/chain_ids.py)
+        chain_map = system_chain_id_map(system)
 
         # -------------------------------------------------------------------------
         # 2. Prepare atom list and coordinates array
@@ -1290,7 +1297,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 self._get_atom_info_from_pdynamo_atom_obj(
                     sequence=sequence,
                     atom=atom,
-                    is_from_mol2=is_from_mol2
+                    is_from_mol2=is_from_mol2,
+                    chain_map=chain_map
                 )
             )
             j += 1
@@ -1516,6 +1524,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         system.atoms.Reindex()
 
         sequence = self._get_sequence_from_pdynamo_system(system)
+        chain_map = system_chain_id_map(system)   # see util/chain_ids.py
 
         atoms = []
         atom_qtty = len(system.atoms.items)
@@ -1525,7 +1534,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             coords[0, j, :] = np.float32(xyz[0]), np.float32(xyz[1]), np.float32(xyz[2])
             is_from_mol2 = getattr(system, 'sequence_from_mol2', False)
             atoms.append(self._get_atom_info_from_pdynamo_atom_obj(
-                sequence=sequence, atom=atom, is_from_mol2=is_from_mol2))
+                sequence=sequence, atom=atom, is_from_mol2=is_from_mol2, chain_map=chain_map))
 
         vm_object.chains = {}
         vm_object.atoms = {}

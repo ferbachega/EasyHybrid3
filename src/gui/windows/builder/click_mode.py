@@ -466,6 +466,11 @@ def handle_click_to_delete_atom ( vm_glcore ):
     atom = getattr ( vm_glcore, "atom_picked", None )
     if atom is None:
         return None
+    # [EN] 2026-09-28: consumed up front -- render() calls this every frame
+    # while atom_picked is set, so if anything below raised, the SAME
+    # delete re-ran (and re-failed) on every redraw, leaving the picking
+    # pass's ID colours on screen for good.
+    vm_glcore.atom_picked = None
 
     from gui.windows.builder.atom_ops import remove_atom, push_undo_snapshot, builder_adjust_hydrogen_count_enabled
     vismol_object = atom.vm_object
@@ -494,8 +499,9 @@ def handle_click_to_delete_atom ( vm_glcore ):
             if bond.atom_index_i != atom_id and bond.atom_index_j != atom_id:
                 continue
             other_id = bond.atom_index_j if bond.atom_index_i == atom_id else bond.atom_index_i
-            other_atom = vismol_object.atoms[other_id]
-            if other_atom.symbol == 'H':
+            other_atom = vismol_object.atoms.get ( other_id )
+            if other_atom is not None and other_atom is not atom and other_atom.symbol == 'H' \
+                    and other_atom not in orphaned_h_atoms:
                 orphaned_h_atoms.append ( other_atom )
 
     remove_atom ( vismol_object, atom_id )

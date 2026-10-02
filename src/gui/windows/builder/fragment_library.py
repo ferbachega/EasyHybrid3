@@ -65,6 +65,14 @@ _SUPPORTED_ELEMENTS = { 'H': 'H', 'C': 'C', 'N': 'N', 'O': 'O', 'F': 'F',
 _STANDARD_VALENCE = { 'H': 1, 'C': 4, 'N': 3, 'O': 2, 'F': 1,
                        'CL': 1, 'BR': 1, 'I': 1, 'P': 3, 'S': 2 }
 
+# [EN] 2026-10-02 (user request: quick-pick buttons for -SO2/-PO3/-NO2/
+# -COO(-)): EXTENDED valences, used only to locate a fragment's attachment
+# point -- third-row S/P legitimately form more bonds (sulfone S(=O)2: 6,
+# phosphonic acid P(=O)(OH)2: 5). The allowed valence of an atom is the
+# smallest entry >= its own bond-order sum, so plain divalent S / trivalent
+# P fragments behave exactly as before.
+_ALLOWED_VALENCES = { 'P': ( 3, 5 ), 'S': ( 2, 4, 6 ) }
+
 # [EN] Tripos MOL2 bond-type codes this Builder can represent -- "am"
 # (amide) is chemically just a single bond (the code only exists so
 # force-field tools can flag amide conjugation separately; this Builder has
@@ -161,6 +169,7 @@ def _parse_mol2 ( path ):
     n_bonds = None
     atoms   = [ ]
     bonds   = [ ]
+    formal_charges = { }   # 0-based atom index -> integer formal charge
 
     i = 0
     while i < len ( lines ):
@@ -208,6 +217,30 @@ def _parse_mol2 ( path ):
             i += 1
             continue
 
+        elif line == "@<TRIPOS>UNITY_ATOM_ATTR":
+            # [EN] 2026-10-02: the standard Tripos place for FORMAL charges
+            # (what OpenBabel writes): blocks of "<atom_id> <n_attrs>"
+            # followed by n_attrs "<name> <value>" lines; only "charge" is
+            # used (e.g. nitro N +1 / O -1, carboxylate O -1). The ATOM
+            # section's own charge column stays ignored -- it holds PARTIAL
+            # charges in most files, not formal ones.
+            i += 1
+            while i < len ( lines ) and not lines[i].strip ( ).startswith ( "@<TRIPOS>" ):
+                fields = lines[i].split ( )
+                if len ( fields ) == 2 and fields[0].isdigit ( ) and fields[1].isdigit ( ):
+                    atom_index = int ( fields[0] ) - 1
+                    for _ in range ( int ( fields[1] ) ):
+                        i += 1
+                        attr = lines[i].split ( ) if i < len ( lines ) else [ ]
+                        if len ( attr ) == 2 and attr[0].lower ( ) == "charge":
+                            try:
+                                formal_charges[atom_index] = int ( float ( attr[1] ) )
+                            except ValueError:
+                                raise FragmentError ( "{}: bad formal charge {!r} for atom #{}.".format (
+                                        path, attr[1], atom_index + 1 ) )
+                i += 1
+            continue
+
         else:
             i += 1
 
@@ -217,8 +250,11 @@ def _parse_mol2 ( path ):
         raise FragmentError ( "{}: expected {} atoms, found {}.".format ( path, n_atoms, len ( atoms ) ) )
     if len ( bonds ) != n_bonds:
         raise FragmentError ( "{}: expected {} bonds, found {}.".format ( path, n_bonds, len ( bonds ) ) )
+    for atom_index in formal_charges:
+        if not 0 <= atom_index < len ( atoms ):
+            raise FragmentError ( "{}: formal charge given for non-existent atom #{}.".format ( path, atom_index + 1 ) )
 
-    return atoms, bonds
+    return atoms, bonds, formal_charges
 
 
 def load_fragment ( path ):
@@ -245,7 +281,7 @@ def load_fragment ( path ):
         under-valent atoms (a fully-capped molecule, no attachment point)
         or more than one (multi-point attachment, not supported this
         pass) are both rejected. """
-    atoms, raw_bonds = _parse_mol2 ( path )
+    atoms, raw_bonds, formal_charges = _parse_mol2 ( path )
 
     bonds = [ ]
     for ( i, j, code ) in raw_bonds:
@@ -263,7 +299,14 @@ def load_fragment ( path ):
 
     open_valence_atoms = [ ]
     for idx, ( symbol, _x, _y, _z ) in enumerate ( atoms ):
-        target = _STANDARD_VALENCE[ symbol.upper ( ) ]
+        # target valence: standard (or the smallest extended S/P valence that
+        # fits) shifted by the formal charge -- the same "STANDARD_VALENCE +
+        # formal_charge" rule atom_ops.adjust_hydrogens() uses (N+ -> 4,
+        # O- -> 1).
+        charge = formal_charges.get ( idx, 0 )
+        candidates = [ v + charge for v in _ALLOWED_VALENCES.get ( symbol.upper ( ), ( _STANDARD_VALENCE[ symbol.upper ( ) ], ) ) ]
+        fitting = [ v for v in candidates if v >= bond_order_sum[idx] ]
+        target = min ( fitting ) if fitting else max ( candidates )
         shortfall = target - bond_order_sum[idx]
         if shortfall > 0:
             open_valence_atoms.append ( ( idx, shortfall ) )
@@ -288,4 +331,8 @@ def load_fragment ( path ):
         "atoms"     : atoms,
         "bonds"     : bonds,
         "root_index": root_index,
+        # [EN] 2026-10-02: per-atom formal charges (0 for every atom of a
+        # file without a UNITY_ATOM_ATTR section) -- applied to the new
+        # atoms by atom_ops.attach_fragment_at_hydrogen().
+        "formal_charges": [ formal_charges.get ( i, 0 ) for i in range ( len ( atoms ) ) ],
     }

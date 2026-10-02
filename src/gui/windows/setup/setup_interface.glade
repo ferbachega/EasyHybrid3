@@ -852,7 +852,7 @@
                         <property name="label-xalign">0</property>
                         <property name="shadow-type">in</property>
                         <child>
-                          <!-- n-columns=2 n-rows=6 -->
+                          <!-- n-columns=2 n-rows=8 -->
                           <object class="GtkGrid" id="grid_fog">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
@@ -940,7 +940,7 @@
                               </object>
                               <packing>
                                 <property name="left-attach">0</property>
-                                <property name="top-attach">3</property>
+                                <property name="top-attach">4</property>
                               </packing>
                             </child>
                             <child>
@@ -950,7 +950,61 @@
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>
+                                <property name="top-attach">4</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="margin-left">10</property>
+                                <property name="margin-start">10</property>
+                                <property name="label" translatable="yes">Automatic range:</property>
+                                <property name="tooltip-text" translatable="yes">Where the automatic fog starts. Far plane: original behaviour, the fog covers a fixed depth (extent) in front of the far clipping plane. Camera center: the fog starts a given distance in front of the rotation center and ends at the far plane, following the molecule instead of the clipping slab.</property>
+                                <property name="xalign">0</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">0</property>
                                 <property name="top-attach">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkComboBoxText" id="combo_fog_reference">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <items>
+                                  <item id="far_plane" translatable="yes">Far plane - extent (original)</item>
+                                  <item id="center" translatable="yes">Camera center - offset</item>
+                                </items>
+                              </object>
+                              <packing>
+                                <property name="left-attach">1</property>
+                                <property name="top-attach">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="margin-left">10</property>
+                                <property name="margin-start">10</property>
+                                <property name="label" translatable="yes">Offset before center (Å):</property>
+                                <property name="tooltip-text" translatable="yes">Camera center mode: the fog starts this many Angstrom in front of the rotation center (negative values start it behind the center).</property>
+                                <property name="xalign">0</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">5</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkEntry" id="entry_fog_center_offset">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">1</property>
+                                <property name="top-attach">5</property>
                               </packing>
                             </child>
                             <child>
@@ -965,7 +1019,7 @@
                               </object>
                               <packing>
                                 <property name="left-attach">0</property>
-                                <property name="top-attach">4</property>
+                                <property name="top-attach">6</property>
                               </packing>
                             </child>
                             <child>
@@ -980,7 +1034,7 @@
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>
-                                <property name="top-attach">4</property>
+                                <property name="top-attach">6</property>
                               </packing>
                             </child>
                             <child>
@@ -995,7 +1049,7 @@
                               </object>
                               <packing>
                                 <property name="left-attach">0</property>
-                                <property name="top-attach">5</property>
+                                <property name="top-attach">7</property>
                               </packing>
                             </child>
                             <child>
@@ -1010,7 +1064,7 @@
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>
-                                <property name="top-attach">5</property>
+                                <property name="top-attach">7</property>
                               </packing>
                             </child>
                           </object>

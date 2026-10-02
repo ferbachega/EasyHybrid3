@@ -265,6 +265,15 @@ def _build_pdynamo_system_from_vismol_object ( vismol_object, label = None ):
     from pScientific            import PeriodicTable
     from pScientific.Geometry3  import Coordinates3
 
+    # [EN] 2026-10-02 (user request: hydrogens added in the Builder must
+    # belong to their residues): keep chains/residues in the pDynamo system
+    # too -- System.FromConnectivity() (below) builds NO sequence, so a PDB
+    # protein edited in the Builder used to come back with every residue
+    # gone. Tried first; the old path stays as the fallback.
+    sequenced = _build_sequenced_pdynamo_system ( vismol_object, label )
+    if sequenced is not None:
+        return sequenced
+
     connectivity = Connectivity ( )
 
     for atom_id in sorted ( vismol_object.atoms.keys ( ) ):
@@ -311,6 +320,104 @@ def _build_pdynamo_system_from_vismol_object ( vismol_object, label = None ):
     system.coordinates3 = coordinates3
 
     return system
+
+
+def _build_sequenced_pdynamo_system ( vismol_object, label = None ):
+    """ [EN] Same system as _build_pdynamo_system_from_vismol_object() but
+    WITH a sequence (entity = vismol chain name, component = "RESN.resi",
+    atom label = atom name), built through Sequence.FromAtomPaths() +
+    System.FromSequence() -- the path util/hydrogen_builder.py already uses.
+    Returns None (caller falls back to the sequence-less build) when:
+      - any atom has no chain/residue, or a residue has two atoms with the
+        same name (pDynamo atom paths must be unique);
+      - a residue's atoms are not contiguous in atom_id order, or a chain
+        is split -- pDynamo would group them and REORDER the atoms, and
+        the rest of the Builder/EasyHybrid assumes pDynamo atom k is
+        vismol atom k;
+      - pDynamo raises for any other reason. """
+    try:
+        from pMolecule             import Atom, Bond, BondType, ConvertInputConnectivity, System
+        from pMolecule.Sequence    import Sequence
+        from pScientific           import PeriodicTable
+        from pScientific.Geometry3 import Coordinates3
+
+        atom_ids = sorted ( vismol_object.atoms.keys ( ) )
+        if not atom_ids:
+            return None
+        paths, atoms_list = [ ], [ ]
+        seen_paths = set ( )
+        seen_residues, seen_chains = set ( ), set ( )
+        last_residue_key, last_chain = None, None
+        for atom_id in atom_ids:
+            atom    = vismol_object.atoms[atom_id]
+            residue = getattr ( atom, "residue", None )
+            chain   = getattr ( atom, "chain", None ) or getattr ( residue, "chain", None )
+            if residue is None or chain is None:
+                return None
+            chain_name  = str ( getattr ( chain, "name", "" ) or "" )
+            residue_key = ( chain_name, residue.name, residue.index )
+            if residue_key != last_residue_key:
+                if residue_key in seen_residues:
+                    return None                       # residue split: would be reordered
+                if chain_name != last_chain:
+                    if chain_name in seen_chains:
+                        return None                   # chain split: would be reordered
+                    seen_chains.add ( chain_name )
+                    last_chain = chain_name
+                seen_residues.add ( residue_key )
+                last_residue_key = residue_key
+            path = "{}:{}.{}:{}".format ( chain_name, residue.name, residue.index, atom.name )
+            if path in seen_paths:
+                return None
+            seen_paths.add ( path )
+            paths.append ( path )
+            atoms_list.append ( Atom.WithOptions ( atomicNumber = PeriodicTable.AtomicNumber ( atom.symbol ),
+                                                   label = atom.name,
+                                                   formalCharge = int ( getattr ( atom, "formal_charge", 0 ) ) ) )
+        position_of = { atom_id: k for k, atom_id in enumerate ( atom_ids ) }
+
+        bond_type_by_order    = { 1: BondType.Single, 2: BondType.Double, 3: BondType.Triple }
+        manual_bonds          = getattr ( vismol_object, "manual_bonds", None ) or set ( )
+        manual_bond_orders    = getattr ( vismol_object, "manual_bond_orders", None ) or { }
+        manual_aromatic_bonds = getattr ( vismol_object, "manual_aromatic_bonds", None ) or set ( )
+        # (i, j, type, isAromatic) tuples with INTEGER positions, not Bond
+        # objects: pDynamo's Bond.FromIterable checks `bond.node1 in nodes` on
+        # a plain list for every Bond object (O(atoms) per bond -- ~2 s of a
+        # 6000-atom rebuild, i.e. most of a Builder Undo), while integer
+        # positions are a direct nodes[i]. Positions == final atom order,
+        # which is verified right after System.FromSequence() below.
+        bonds = [ ]
+        for ( i, j ) in manual_bonds:
+            if i not in position_of or j not in position_of:
+                continue
+            order = manual_bond_orders.get ( ( i, j ), 1 )
+            bonds.append ( ( position_of[i], position_of[j],
+                             bond_type_by_order.get ( order, BondType.Single ),
+                             ( i, j ) in manual_aromatic_bonds ) )
+
+        sequence = Sequence.FromAtomPaths ( paths, atoms = atoms_list )
+        system   = System.FromSequence ( sequence, bonds = bonds )
+        # same normalisation the sequence-less path applies before
+        # System.FromConnectivity() (atom/bond aromaticity flags, ring
+        # information) -- pDynamo's own typing relies on it
+        ConvertInputConnectivity ( system.connectivity, { } )
+        # pDynamo atom k must be vismol atom k (see the docstring)
+        for k, atom in enumerate ( atoms_list ):
+            if atom.index != k or system.atoms[k] is not atom:
+                return None
+        system.label = label if label else vismol_object.name
+        coordinates3 = Coordinates3.WithExtent ( len ( atoms_list ) )
+        for k, atom_id in enumerate ( atom_ids ):
+            pos = vismol_object.frames[0, atom_id]
+            coordinates3[k, 0] = float ( pos[0] )
+            coordinates3[k, 1] = float ( pos[1] )
+            coordinates3[k, 2] = float ( pos[2] )
+        system.coordinates3 = coordinates3
+        return system
+    except Exception as exc:
+        dprint ( "empty_object._build_sequenced_pdynamo_system: falling back to a sequence-less "
+                 "system ({})".format ( exc ) )
+        return None
 
 
 def sync_pdynamo_system ( vismol_object ):

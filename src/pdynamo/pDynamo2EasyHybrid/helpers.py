@@ -169,6 +169,14 @@ class Atom:
         self.occupancy = occupancy
         self.bfactor = bfactor
         self.charge = charge
+        # [EN] 2026-10-02: this is an older copy of vismol.model.atom.Atom
+        # (it shadows that import above, and every pDynamo-built vobject
+        # uses it); keep the two attributes added to the vismol class since
+        # then -- the integer formal charge (Builder protonation / residue
+        # templates; separate from the MM partial `charge`) and the partial-
+        # cartoon flag -- so code reading them directly does not break.
+        self.formal_charge = 0
+        self.cartoon = False
         if bonds_indexes is None:
             self.bonds_indexes = []
         else:

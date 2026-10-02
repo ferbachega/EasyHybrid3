@@ -567,8 +567,13 @@ class EasyHybridPreferencesWindow():
         self.entry_fog_range_scale = self.builder.get_object('entry_fog_range_scale')
         self.scale_fog_start       = self.builder.get_object('scale_fog_start')
         self.scale_fog_end         = self.builder.get_object('scale_fog_end')
+        # 2026-09-29: automatic-range reference (far plane = original, or
+        # camera center - offset); see GLCamera.update_fog().
+        self.combo_fog_reference     = self.builder.get_object('combo_fog_reference')
+        self.entry_fog_center_offset = self.builder.get_object('entry_fog_center_offset')
         widgets = (self.chk_fog_enabled, self.scale_fog_intensity, self.chk_fog_custom_range,
-                   self.entry_fog_range_scale, self.scale_fog_start, self.scale_fog_end)
+                   self.entry_fog_range_scale, self.scale_fog_start, self.scale_fog_end,
+                   self.combo_fog_reference, self.entry_fog_center_offset)
         if any(w is None for w in widgets):
             return   # older .glade without the Fog frame: nothing to do
 
@@ -581,6 +586,9 @@ class EasyHybridPreferencesWindow():
             self.entry_fog_range_scale.set_text(str(gp.get('fog_range_scale', 1.0)))
             self.scale_fog_start.set_value(float(gp.get('fog_start_percent', 50.0)))
             self.scale_fog_end.set_value(float(gp.get('fog_end_percent', 100.0)))
+            if self.combo_fog_reference.set_active_id(gp.get('fog_start_reference', 'far_plane')) is False:
+                self.combo_fog_reference.set_active_id('far_plane')
+            self.entry_fog_center_offset.set_text(str(gp.get('fog_center_offset', 5.0)))
         finally:
             self._fog_widgets_updating = False
 
@@ -595,6 +603,8 @@ class EasyHybridPreferencesWindow():
             self.scale_fog_start.connect('value-changed', self._on_fog_widget_changed)
             self.scale_fog_end.connect('value-changed', self._on_fog_widget_changed)
             self.entry_fog_range_scale.connect('activate', self._on_fog_widget_changed)
+            self.combo_fog_reference.connect('changed', self._on_fog_widget_changed)
+            self.entry_fog_center_offset.connect('activate', self._on_fog_widget_changed)
             self._fog_handlers_widget = self.chk_fog_enabled
         self._update_fog_widget_sensitivity()
 
@@ -603,7 +613,10 @@ class EasyHybridPreferencesWindow():
         custom  = self.chk_fog_custom_range.get_active()
         self.scale_fog_intensity.set_sensitive(enabled)
         self.chk_fog_custom_range.set_sensitive(enabled)
-        self.entry_fog_range_scale.set_sensitive(enabled and not custom)
+        center  = self.combo_fog_reference.get_active_id() == 'center'
+        self.combo_fog_reference.set_sensitive(enabled and not custom)
+        self.entry_fog_range_scale.set_sensitive(enabled and not custom and not center)
+        self.entry_fog_center_offset.set_sensitive(enabled and not custom and center)
         self.scale_fog_start.set_sensitive(enabled and custom)
         self.scale_fog_end.set_sensitive(enabled and custom)
 
@@ -637,6 +650,13 @@ class EasyHybridPreferencesWindow():
         except ValueError:
             range_scale = float(gp.get('fog_range_scale', 1.0))
             self.entry_fog_range_scale.set_text(str(range_scale))
+        try:
+            center_offset = float(self.entry_fog_center_offset.get_text())
+        except ValueError:
+            center_offset = float(gp.get('fog_center_offset', 5.0))
+            self.entry_fog_center_offset.set_text(str(center_offset))
+        gp['fog_start_reference'] = self.combo_fog_reference.get_active_id() or 'far_plane'
+        gp['fog_center_offset']   = center_offset
         gp['fog_enabled']       = bool(self.chk_fog_enabled.get_active())
         gp['fog_intensity']     = float(self.scale_fog_intensity.get_value())
         gp['fog_custom_range']  = bool(self.chk_fog_custom_range.get_active())

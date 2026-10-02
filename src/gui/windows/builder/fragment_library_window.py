@@ -74,13 +74,27 @@ class FragmentLibraryWindow ( ):
         self.preview.widget.show ( )
 
         self._populate_tree ( )
+        self._match_builder_sidebar_height ( )
 
         self.window.show_all ( )
         self.visible = True
 
+    def _match_builder_sidebar_height ( self ):
+        """ [EN] 2026-10-02 user request: open with the same height as the
+        Builder sidebar (taller than the glade's 360 px default); width is
+        kept. Falls back to the glade default when the sidebar isn't open. """
+        sidebar = getattr ( self.main, "builder_sidebar_window", None )
+        sidebar_window = getattr ( sidebar, "window", None ) if sidebar is not None and getattr ( sidebar, "visible", False ) else None
+        if sidebar_window is None:
+            return
+        _w, sidebar_height = sidebar_window.get_size ( )
+        width, _h = self.window.get_default_size ( )
+        if sidebar_height > 0:
+            self.window.resize ( max ( width, 1 ), sidebar_height )
+
     def _populate_tree ( self ):
         """ Fills self.treestore from discover_fragment_files() -- one
-        top-level (expanded) row per category folder, one child row per
+        top-level (collapsed) row per category folder, one child row per
         ".mol2" file inside it. Category rows carry an empty string in
         the (hidden) path column, which on_fragment_row_activated()/
         on_use_button_clicked() both check to ignore a category-row
@@ -90,7 +104,9 @@ class FragmentLibraryWindow ( ):
             category_iter = self.treestore.append ( None, [ category_name, "" ] )
             for display_name, file_path in entries:
                 self.treestore.append ( category_iter, [ display_name, file_path ] )
-        self.treeview.expand_all ( )
+        # [EN] 2026-10-02 user request: start with every category collapsed
+        # (used to expand_all()).
+        self.treeview.collapse_all ( )
 
     def _load_and_select ( self, file_path ):
         """ Shared by on_fragment_row_activated()/on_use_button_clicked():

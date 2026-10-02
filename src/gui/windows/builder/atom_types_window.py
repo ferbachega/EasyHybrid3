@@ -88,6 +88,8 @@ class AtomTypesWindow ( ):
             self.treeview_selection = self.builder.get_object ( 'atom_types_treeview_selection' )
             self.header_label   = self.builder.get_object ( 'header_label' )
             self.status_label   = self.builder.get_object ( 'status_label' )
+            self._add_hybridization_column ( )
+            self._add_rename_residue_button ( )
 
             self.window.show_all ( )
             self.visible = True
@@ -119,6 +121,7 @@ class AtomTypesWindow ( ):
                 self.target_object.name, len ( self.atom_ids ) ) )
 
         types_by_id = compute_atom_types ( self.target_object, atom_ids = self.atom_ids )
+        hybridization = self._hybridizations ( )
         overrides   = getattr ( self.target_object, "manual_atom_type_overrides", None ) or { }
 
         # [EN] User's own follow-up request -- "seria interessante colocar
@@ -154,11 +157,49 @@ class AtomTypesWindow ( ):
                     "manual" if is_override else "auto",
                     tooltip,
                     int ( getattr ( atom, "formal_charge", 0 ) ),
+                    hybridization.get ( atom_id, "" ),
             ] )
 
         self.vm_session.builder_atom_types_labeled_atoms = labeled_atoms
         if getattr ( self.vm_session, "vm_glcore", None ) is not None:
             self.vm_session.vm_glcore.queue_draw ( )
+
+    def _add_hybridization_column ( self ):
+        """ [EN] 2026-10-02 user request ("uma ferramenta que verifique a
+        hibridizacao dos atomos e capture corretamente a sua natureza --
+        atencao especial para os aneis aromaticos"): a read-only
+        "Hybridization" column (sp / sp2 / sp3 / aromatic). Added here, not
+        in atom_types_window.glade: the glade's liststore is swapped for an
+        identical one with ONE extra string column at the end, so every
+        existing column/renderer keeps its index. """
+        old_store = self.liststore
+        types = [ old_store.get_column_type ( k ) for k in range ( old_store.get_n_columns ( ) ) ]
+        self.liststore = Gtk.ListStore ( *( types + [ str ] ) )
+        self._hybridization_column_index = len ( types )
+        self.treeview.set_model ( self.liststore )
+        renderer = Gtk.CellRendererText ( )
+        column = Gtk.TreeViewColumn ( "Hybridization", renderer, text = self._hybridization_column_index )
+        column.set_resizable ( True )
+        self.treeview.append_column ( column )
+
+    def _hybridizations ( self ):
+        """ {atom_id: "sp" | "sp2" | "sp3" | "aromatic" | ""} for the whole
+            target object, from its CURRENT Builder bond orders (see
+            residue_chemistry.atom_hybridizations()). """
+        try:
+            from gui.windows.builder.residue_chemistry import perceive_aromatic_bonds, atom_hybridizations
+            obj = self.target_object
+            orders = { }
+            manual_orders = getattr ( obj, "manual_bond_orders", None ) or { }
+            for pair in ( getattr ( obj, "manual_bonds", None ) or set ( ) ):
+                if pair[0] in obj.atoms and pair[1] in obj.atoms:
+                    orders[pair] = int ( manual_orders.get ( pair, 1 ) )
+            charges = { aid: int ( getattr ( a, "formal_charge", 0 ) ) for aid, a in obj.atoms.items ( ) }
+            aromatic = perceive_aromatic_bonds ( obj.atoms, orders, charges )
+            return atom_hybridizations ( obj.atoms, orders, aromatic )
+        except Exception as error:
+            print ( "Atom Types: hybridization unavailable ({})".format ( error ) )
+            return { }
 
     # ------------------------------------------------------------------
     #  Signal handlers (referenced by name in atom_types_window.glade)
@@ -338,6 +379,108 @@ class AtomTypesWindow ( ):
             messages.append ( message )
         self.status_label.set_text ( "  |  ".join ( messages ) )
         self._refresh_rows ( )
+
+    # ------------------------------------------------------------------
+    #  Residue renaming (2026-10-02 user request: "podemos colocar uma
+    #  opcao de renomear o residuo")
+    # ------------------------------------------------------------------
+
+    def _add_rename_residue_button ( self ):
+        """ A "Rename Residue..." button next to Deprotonate -- added here
+        rather than in atom_types_window.glade, same reasoning as the
+        Hybridization column. """
+        anchor = self.builder.get_object ( "deprotonate_button" )
+        parent = anchor.get_parent ( ) if anchor is not None else None
+        if not isinstance ( parent, Gtk.Box ):
+            self.rename_residue_button = None
+            return
+        button = Gtk.Button ( label = "Rename Residue..." )
+        button.set_tooltip_text ( "Rename / renumber the residue of the selected rows (or of every listed atom "
+                                  "when no row is selected). Atoms added in empty space or from the Structure "
+                                  "Library get their own new residue (UNK, or the structure name) -- use this to "
+                                  "give it a proper name. Can be undone." )
+        button.connect ( "clicked", self.on_rename_residue_button_clicked )
+        children = parent.get_children ( )
+        parent.pack_start ( button, False, False, 0 )
+        if anchor in children:
+            parent.reorder_child ( button, children.index ( anchor ) + 1 )
+        button.show ( )
+        self.rename_residue_button = button
+
+    def _residues_of_rows ( self ):
+        atoms = self._protonation_atoms_from_selection ( )
+        if not atoms:
+            atoms = [ a for a in self.atoms if self.target_object.atoms.get ( a.atom_id ) is a ]
+        residues = [ ]
+        for atom in atoms:
+            residue = getattr ( atom, "residue", None )
+            if residue is not None and residue not in residues:
+                residues.append ( residue )
+        return residues
+
+    def apply_residue_rename ( self, residues, new_name = None, new_index = None ):
+        """ Renames every residue in `residues` (number only when there is
+        exactly one), with one undo snapshot, then re-syncs the linked
+        pDynamo system. Returns (ok, message). """
+        from gui.windows.builder.atom_ops import push_undo_snapshot, rename_residue
+        from gui.windows.builder.empty_object import sync_pdynamo_system
+        if not residues:
+            return False, "No residue to rename."
+        if new_index is not None and len ( residues ) != 1:
+            return False, "A residue number can only be set for one residue at a time."
+        push_undo_snapshot ( self.target_object )
+        renamed = 0
+        try:
+            for residue in residues:
+                rename_residue ( self.target_object, residue, new_name = new_name, new_index = new_index )
+                renamed += 1
+        except ValueError as error:
+            if renamed == 0:
+                self.target_object.undo_stack.pop ( )     # nothing changed: just drop the snapshot
+            else:
+                from gui.windows.builder.atom_ops import undo
+                undo ( self.target_object )
+            return False, str ( error )
+        sync_pdynamo_system ( self.target_object )
+        labels = ", ".join ( "{}:{}{}".format ( r.chain.name, r.name, r.index ) for r in residues )
+        return True, "Renamed: {}".format ( labels )
+
+    def on_rename_residue_button_clicked ( self, button ):
+        if self.target_object is None:
+            return
+        residues = self._residues_of_rows ( )
+        if not residues:
+            self.status_label.set_text ( "No residue found for the listed atoms." )
+            return
+        dialog = Gtk.Dialog ( title = "Rename Residue", transient_for = self.window, modal = True )
+        dialog.add_buttons ( "Cancel", Gtk.ResponseType.CANCEL, "Rename", Gtk.ResponseType.OK )
+        dialog.set_default_response ( Gtk.ResponseType.OK )
+        grid = Gtk.Grid ( column_spacing = 8, row_spacing = 6, margin = 10 )
+        current = ", ".join ( "{}:{} {}".format ( r.chain.name, r.name, r.index ) for r in residues[:6] )
+        if len ( residues ) > 6:
+            current += ", ... ({} residues)".format ( len ( residues ) )
+        grid.attach ( Gtk.Label ( label = "Residue(s):", xalign = 0 ), 0, 0, 1, 1 )
+        grid.attach ( Gtk.Label ( label = current, xalign = 0 ), 1, 0, 1, 1 )
+        grid.attach ( Gtk.Label ( label = "New name:", xalign = 0 ), 0, 1, 1, 1 )
+        entry_name = Gtk.Entry ( text = residues[0].name, max_length = 4, activates_default = True )
+        grid.attach ( entry_name, 1, 1, 1, 1 )
+        grid.attach ( Gtk.Label ( label = "Number:", xalign = 0 ), 0, 2, 1, 1 )
+        spin = Gtk.SpinButton.new_with_range ( -9999, 99999, 1 )
+        spin.set_value ( int ( residues[0].index ) )
+        spin.set_sensitive ( len ( residues ) == 1 )
+        grid.attach ( spin, 1, 2, 1, 1 )
+        dialog.get_content_area ( ).add ( grid )
+        dialog.show_all ( )
+        response = dialog.run ( )
+        name = entry_name.get_text ( )
+        number = int ( spin.get_value ( ) ) if len ( residues ) == 1 else None
+        dialog.destroy ( )
+        if response != Gtk.ResponseType.OK:
+            return
+        ok, message = self.apply_residue_rename ( residues, new_name = name, new_index = number )
+        self.status_label.set_text ( message )
+        if ok:
+            self._refresh_rows ( )
 
     def on_close_button_clicked ( self, *args ):
         """ Accepts *args so it can be connected directly to BOTH the

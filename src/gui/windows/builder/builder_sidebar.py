@@ -67,14 +67,30 @@ from gui.windows.builder.fragment_library import load_fragment, FragmentError
 # frag_coo_radio1/frag_coo_radio2), left deliberately unmapped/inert for
 # now rather than guessed at; on_fragment_quick_changed() below already
 # no-ops safely on any button with no entry here.
+# [EN] 2026-10-02, user's own glade edit: every fragment button now has its
+# meaning in its TOOLTIP (the widget ids are older names and were kept as
+# the user left them -- e.g. frag_pent_radio is now Nitro, frag_hex_radio
+# is Cyclopentadiene; they used to load pentyl/hexyl). Paths are relative
+# to fragments/ (category/file). Formal charges (nitro, carboxylate) and the
+# hypervalent S/P of sulfone/phosphonic acid are supported by
+# fragment_library.load_fragment() since this same change.
 _QUICK_FRAGMENT_FILES = {
-    "frag_cooh_radio": "carboxyl.mol2",
-    "frag_nco_radio":  "isocyanate.mol2",
-    "frag_ome_radio":  "methoxy.mol2",
-    "frag_hex_radio":  "hexyl.mol2",
-    "frag_pent_radio": "pentyl.mol2",
-    "frag_benz_radio": "phenyl.mol2",
-    "frag_furo_radio": "furyl.mol2",
+    "frag_cooh_radio":         "functional_groups/carboxyl.mol2",        # Carboxylic acid, -COOH
+    "frag_coo_radio":          "functional_groups/carboxylate.mol2",     # Carboxylate, -COO(-)
+    "frag_nco_radio":          "functional_groups/formamido.mol2",       # Amide, -N-C=O (N-linked)
+    "frag_con_radio1":         "functional_groups/amide.mol2",           # Primary amide, -C(=O)NH2
+    "frag_coo_radio1":         "functional_groups/methylsulfonyl.mol2",  # Sulfone, -SO2(-CH3)
+    "frag_coo_radio2":         "functional_groups/phosphono.mol2",       # -PO3 (phosphonic acid, -PO3H2)
+    "frag_ome_radio":          "functional_groups/methoxy.mol2",         # Methoxy, -O-CH3
+    "frag_pent_radio":         "functional_groups/nitro.mol2",           # Nitro, -NO2
+    "frag_benz_radio":         "functional_groups/phenyl.mol2",          # Phenyl ring (Kekulized)
+    "frag_chexane_radio":      "rings/cyclohexyl.mol2",                  # Cyclohexane
+    "frag_hex_radio":          "rings/cyclopentadienyl.mol2",            # Cyclopentadiene
+    # tooltip says "Cyclopropane" (same as frag_cpropane_radio3), but its
+    # icon is frag_cpent.png -- mapped to cyclopentyl, see the note to the user.
+    "frag_ciclopropane_radio": "rings/cyclopentyl.mol2",
+    "frag_cbutane_radio2":     "rings/cyclobutyl.mol2",                  # Cyclobutane
+    "frag_cpropane_radio3":    "rings/cyclopropyl.mol2",                 # Cyclopropane
 }
 
 
@@ -148,12 +164,32 @@ class BuilderSidebarWindow ( ):
         self.frag_coo_radio1   = self.builder.get_object ( 'frag_coo_radio1' )
         self.frag_coo_radio2   = self.builder.get_object ( 'frag_coo_radio2' )
         self.frag_other_radio  = self.builder.get_object ( 'frag_other_radio' )
+        # [EN] 2026-10-02: every mapped quick-fragment button gets its
+        # widget attribute and its "toggled" handler from here -- several
+        # of the user's buttons have no signal in the glade (e.g.
+        # frag_con_radio1, frag_benz_radio), so they did nothing when
+        # clicked. Buttons whose glade DOES wire on_fragment_quick_changed
+        # get it twice; the handler ignores the duplicate call (see
+        # _last_quick_fragment there).
+        for attr_name in _QUICK_FRAGMENT_FILES:
+            widget = self.builder.get_object ( attr_name )
+            setattr ( self, attr_name, widget )
+            if widget is not None:
+                widget.connect ( "toggled", self.on_fragment_quick_changed )
+        self._last_quick_fragment = ( None, None )
         self.bond_order_single_radio   = self.builder.get_object ( 'bond_order_single_radio' )
         self.bond_order_double_radio   = self.builder.get_object ( 'bond_order_double_radio' )
         self.bond_order_triple_radio   = self.builder.get_object ( 'bond_order_triple_radio' )
         self.transform_selection_button = self.builder.get_object ( 'transform_selection_button' )
         self.undo_button       = self.builder.get_object ( 'undo_button' )
         self.clean_up_button   = self.builder.get_object ( 'clean_up_button' )
+        # [EN] 2026-10-02 user request ("ferramenta para adicionar os
+        # hidrogenios corretamente... incorporados aos residuos"): an "Add
+        # Hydrogens" button right below Clean Up. Created here rather than
+        # in builder_sidebar.glade so the user's hand-edited glade stays
+        # exactly as they left it (it can be moved into the glade later --
+        # keep the id/handler name).
+        self.add_hydrogens_button = self._create_add_hydrogens_button ( )
         self.clean_up_adjust_hydrogens_checkbutton = self.builder.get_object ( 'clean_up_adjust_hydrogens_checkbutton' )
         self.optimize_dyff_button = self.builder.get_object ( 'optimize_dyff_button' )
 
@@ -486,12 +522,21 @@ class BuilderSidebarWindow ( ):
         if filename is None:
             return
 
-        file_path = os.path.join ( self.main.home, "src/gui/windows/builder/fragments/functional_groups", filename )
+        # same toggle delivered twice (glade signal + the Python connection
+        # made in open_window()) -> nothing new to do
+        last_button, last_fragment = self._last_quick_fragment
+        if ( button is last_button and last_fragment is not None
+                and self.vm_session.builder_selected_fragment is last_fragment
+                and getattr ( self.vm_session, "builder_tool", None ) == "attach_fragment" ):
+            return
+
+        file_path = os.path.join ( self.main.home, "src/gui/windows/builder/fragments", filename )
         try:
             fragment = load_fragment ( file_path )
         except FragmentError as error:
             self.main.simple_dialog.error ( msg = str ( error ) )
             return
+        self._last_quick_fragment = ( button, fragment )
 
         # [EN] Sync "Add" active FIRST -- it may itself fire on_tool_
         # changed() (which sets builder_tool = "add") -- so the more
@@ -651,6 +696,70 @@ class BuilderSidebarWindow ( ):
 
         from gui.windows.builder.empty_object import sync_pdynamo_system
         sync_pdynamo_system ( target_object )
+
+    def _create_add_hydrogens_button ( self ):
+        existing = self.builder.get_object ( "add_hydrogens_button" )
+        if existing is not None:          # already moved into the glade
+            return existing
+        anchor = self.clean_up_button
+        parent = anchor.get_parent ( ) if anchor is not None else None
+        if not isinstance ( parent, Gtk.Box ):
+            return None
+        button = Gtk.Button ( label = "Add Hydrogens..." )
+        button.set_tooltip_text ( "Adds the missing hydrogens of the molecule being edited. Standard residues "
+                                  "use pDynamo's residue templates (names HA, HB2, ...; protonation reviewed in a "
+                                  "dialog), other molecules are protonated by OpenBabel. Every new hydrogen is "
+                                  "placed inside its own residue. Can be undone." )
+        button.connect ( "clicked", self.on_add_hydrogens_button_clicked )
+        children = parent.get_children ( )
+        parent.pack_start ( button, False, False, 0 )
+        if anchor in children:
+            parent.reorder_child ( button, children.index ( anchor ) + 1 )
+        # copy the anchor's margins so it lines up with its neighbours
+        for side in ( "start", "end", "top", "bottom" ):
+            getattr ( button, "set_margin_" + side ) ( getattr ( anchor, "get_margin_" + side ) ( ) )
+        button.show ( )
+        return button
+
+    def on_add_hydrogens_button_clicked ( self, button ):
+        """ [EN] 2026-10-02: hydrogens for the molecule being edited, through
+        the SAME residue-template machinery as the main "Add Missing
+        Hydrogens" tool (util/hydrogen_builder.py: pDynamo PDB component
+        templates for standard residues, OpenBabel for the rest), opened on
+        this object with its protonation-review dialog. The Builder's linked
+        pDynamo system now carries chains/residues (empty_object.
+        _build_sequenced_pdynamo_system()), which is what lets the templates
+        recognise each residue; the rebuilt system keeps every hydrogen
+        INSIDE its residue. Before each rebuild the Builder's own undo
+        snapshot is taken; afterwards bond orders/charges are re-derived
+        (atom_ops.rederive_bonding_after_rebuild()). """
+        from gui.windows.builder.atom_ops import push_undo_snapshot, rederive_bonding_after_rebuild
+        from gui.windows.builder.empty_object import sync_pdynamo_system
+        target_object = getattr ( self.vm_session, "builder_target_object", None )
+        if target_object is None or not target_object.atoms:
+            self.main.simple_dialog.info ( msg = "There is no molecule in the Builder yet." )
+            return
+        sync_pdynamo_system ( target_object )
+        if getattr ( target_object, "e_id", None ) is None or self.main.p_session.psystem.get ( target_object.e_id ) is None:
+            self.main.simple_dialog.error ( msg = "Could not build the pDynamo system for this molecule." )
+            return
+
+        def before ( vm_object ):
+            push_undo_snapshot ( vm_object )
+
+        def after ( vm_object ):
+            # formal charges set by the rebuild (template variants, OpenBabel
+            # protonation of ligands) live on the new pDynamo atoms -- copy
+            # them onto the Builder's atoms before re-deriving bond orders
+            system = self.main.p_session.psystem.get ( vm_object.e_id )
+            if system is not None and len ( system.atoms ) == len ( vm_object.atoms ):
+                for k, p_atom in enumerate ( system.atoms ):
+                    vm_object.atoms[k].formal_charge = int ( getattr ( p_atom, "formalCharge", 0 ) or 0 )
+            rederive_bonding_after_rebuild ( vm_object )
+            sync_pdynamo_system ( vm_object )
+
+        self.main.prepare_add_hydrogens_window.open_window (
+                target_vobject = target_object, on_before_apply = before, on_after_apply = after )
 
     def on_optimize_dyff_button_clicked ( self, button ):
         """ User's own request: "otimizar a geometria com o DYFF, vamos

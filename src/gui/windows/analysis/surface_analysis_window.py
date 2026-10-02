@@ -1948,6 +1948,18 @@ class SurfaceAnalysisWindow(Gtk.Window):
         vobject_id    = self.coordinates_combobox.get_vobject_id()
         vismol_object = self.main.vm_session.vm_objects_dic[vobject_id]
         dprint(system_id, vobject_id, system, vismol_object)
+
+        # [EN] 2026-09-28 BUG FIX (user report: AttributeError 'StorageNode'
+        # object has no attribute 'orbitalsP', raised inside every pool
+        # worker): molecular orbitals (system.scratch.orbitalsP) only exist
+        # for pDynamo's own SCF models -- subclasses of QCModelBase
+        # (QCModelMNDO: MNDO/AM1/PM3/PM6/RM1..., QCModelDFT: DFT/HF).
+        # External-program models (DFTB+, ORCA, xTB, MOPAC, SPARROW) and
+        # systems without a QC model never create it. Checked HERE, before
+        # any work is sent to the pool, with a message the user can act on.
+        if not self._system_has_molecular_orbitals(system):
+            return
+
         backup = []
         try:
             backup.append(system.e_treeview_iter)
@@ -1973,17 +1985,25 @@ class SurfaceAnalysisWindow(Gtk.Window):
             coords = self.p_session.get_coordinates_from_vobject (vobject = vismol_object, frame = frame)
             joblist.append([frame, system, coords])
         #'''    
-        p = multiprocessing.Pool(processes = multiprocessing.cpu_count())
-        results = p.map(generate_wavefunction_parallel, joblist)
-        
-        self.wave_function_dict[vobject_id] = results
-        
-
+        # the pool is always closed, and the system's treeview/liststore
+        # iters (cleared above so the system can be pickled) are always
+        # restored -- they used to stay None if any worker raised, leaving
+        # the system broken for the treeview afterwards.
         try:
-            system.e_treeview_iter   = backup[0]
-            system.e_liststore_iter  = backup[1]
-        except:
-            pass
+            with multiprocessing.Pool(processes = multiprocessing.cpu_count()) as p:
+                results = p.map(generate_wavefunction_parallel, joblist)
+        except Exception as error:
+            self._show_wavefunction_error(
+                "The molecular orbitals could not be computed:\n\n{}".format(error))
+            return
+        finally:
+            try:
+                system.e_treeview_iter   = backup[0]
+                system.e_liststore_iter  = backup[1]
+            except:
+                pass
+
+        self.wave_function_dict[vobject_id] = results
 
         #print(self.wave_function_dict)
 
@@ -2002,10 +2022,45 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 #print(reverse_index, orbitals[reverse_index ])
         
                 self.liststore.append(orbitals[reverse_index ])
-                self.orbital_liststore_dict[vobject_id].append(self.liststore)
+            # [EN] 2026-09-28: ONE liststore per frame (this append used to
+            # sit inside the orbital loop above, adding the same store once
+            # per ORBITAL, so index [frame] below pointed at frame 0's list).
+            self.orbital_liststore_dict[vobject_id].append(self.liststore)
         
         dprint()
         self.treeview.set_model(self.orbital_liststore_dict[vobject_id][self.frame])
+
+    def _system_has_molecular_orbitals (self, system):
+        """ True if `system`'s QC model produces molecular orbitals
+        (scratch.orbitalsP) -- i.e. it is one of pDynamo's own SCF models
+        (a QCModelBase subclass: MNDO-family semiempirical or DFT/HF).
+        Otherwise shows an explanatory dialog and returns False. """
+        from pMolecule.QCModel.QCModelBase import QCModelBase
+        qc_model = getattr(system, 'qcModel', None)
+        if isinstance(qc_model, QCModelBase):
+            return True
+        if qc_model is None:
+            reason = "This system has no QC model defined."
+        else:
+            reason = ("The current QC model ({}) runs an external program and "
+                      "does not provide molecular orbitals to pDynamo.".format(
+                      type(qc_model).__name__))
+        self._show_wavefunction_error(
+            reason + "\n\nMolecular orbitals can only be imported for pDynamo's "
+            "internal QC methods: semiempirical (MNDO, AM1, PM3, PM6, RM1...) and "
+            "DFT/Hartree-Fock. For external programs (ORCA, DFTB+, xTB, MOPAC...), "
+            "generate a .cube file with that program and import the cube instead.")
+        return False
+
+    def _show_wavefunction_error (self, message):
+        dialog = Gtk.MessageDialog(transient_for = getattr(self, 'window', None),
+                                   flags         = 0,
+                                   message_type  = Gtk.MessageType.ERROR,
+                                   buttons       = Gtk.ButtonsType.OK,
+                                   text          = "Import Wavefunction")
+        dialog.format_secondary_text(message)
+        dialog.run()
+        dialog.destroy()
 
     def on_orbital_row_selected (self, treeview):
         """ [EN] User request: capture and print the LCAO (linear

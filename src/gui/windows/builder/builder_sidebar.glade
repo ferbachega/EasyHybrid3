@@ -78,17 +78,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="halign">start</property>
-            <property name="label" translatable="yes">Tool</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">2</property>
-          </packing>
+          <placeholder/>
         </child>
         <child>
           <object class="GtkCheckButton" id="clean_up_adjust_hydrogens_checkbutton">
@@ -228,7 +218,7 @@
                       <object class="GtkImage">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="pixbuf">../../icons/bond_order.png</property>
+                        <property name="pixbuf">../../icons/bond_order2.png</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -257,11 +247,14 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="undo_button">
+              <object class="GtkRadioButton" id="tool_move_radio">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">False</property>
-                <signal name="clicked" handler="on_undo_button_clicked" swapped="no"/>
+                <property name="hexpand">True</property>
+                <property name="draw-indicator">False</property>
+                <property name="group">tool_add_radio</property>
+                <signal name="toggled" handler="on_tool_changed" swapped="no"/>
                 <child>
                   <object class="GtkBox">
                     <property name="visible">True</property>
@@ -271,7 +264,7 @@
                       <object class="GtkImage">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="pixbuf">../../icons/undo.png</property>
+                        <property name="pixbuf">../../icons/atom_drag2.png</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -283,7 +276,7 @@
                       <object class="GtkLabel">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">Undo</property>
+                        <property name="label" translatable="yes">Move</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -380,513 +373,22 @@
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="halign">start</property>
-            <property name="label" translatable="yes">Element</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">7</property>
-          </packing>
-        </child>
-        <child>
-          <!-- n-columns=4 n-rows=3 -->
-          <object class="GtkGrid" id="element_grid">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="row-spacing">4</property>
-            <property name="column-spacing">2</property>
-            <property name="row-homogeneous">True</property>
-            <property name="column-homogeneous">True</property>
-            <child>
-              <object class="GtkRadioButton" id="element_C_radio">
-                <property name="label" translatable="yes">C</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="hexpand">True</property>
-                <property name="active">True</property>
-                <property name="draw-indicator">False</property>
-                <signal name="toggled" handler="on_element_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">0</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="element_N_radio">
-                <property name="label" translatable="yes">N</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_element_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="element_O_radio">
-                <property name="label" translatable="yes">O</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_element_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">2</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="element_H_radio">
-                <property name="label" translatable="yes">H</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_element_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">3</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="element_B_radio">
-                <property name="label" translatable="yes">B</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_element_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">0</property>
-                <property name="top-attach">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="element_P_radio">
-                <property name="label" translatable="yes">P</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_element_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="element_S_radio">
-                <property name="label" translatable="yes">S</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_element_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">2</property>
-                <property name="top-attach">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="element_F_radio">
-                <property name="label" translatable="yes">F</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_element_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">3</property>
-                <property name="top-attach">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="element_Cl_radio">
-                <property name="label" translatable="yes">Cl</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_element_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">0</property>
-                <property name="top-attach">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="element_Br_radio">
-                <property name="label" translatable="yes">Br</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_element_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="element_I_radio">
-                <property name="label" translatable="yes">I</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_element_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">2</property>
-                <property name="top-attach">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="element_other_radio">
-                <property name="label" translatable="yes">Other...</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">Pick any element from the full periodic table (UFF-derived per-element data, same source pDynamo3's own DYFF force field uses).</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_element_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">3</property>
-                <property name="top-attach">2</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">8</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkSeparator">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">9</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="halign">start</property>
-            <property name="label" translatable="yes">Fragments</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">10</property>
-          </packing>
-        </child>
-        <child>
-          <!-- n-columns=4 n-rows=3 -->
-          <object class="GtkGrid" id="fragment_grid">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="row-spacing">4</property>
-            <property name="column-spacing">2</property>
-            <property name="row-homogeneous">True</property>
-            <property name="column-homogeneous">True</property>
-            <child>
-              <object class="GtkRadioButton" id="frag_cooh_radio">
-                <property name="label" translatable="yes">-COOH</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">Carboxylic acid</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">0</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="frag_coo_radio">
-                <property name="label" translatable="yes">-COO</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">Primary amide, -C(=O)NH2</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="frag_nco_radio">
-                <property name="label" translatable="yes">-NCO</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">Isocyanate, -N=C=O</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">2</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="frag_benz_radio">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">Phenyl ring (Kekulized)</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
-                <child>
-                  <object class="GtkImage">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="pixbuf">../../icons/frag_benz.png</property>
-                  </object>
-                </child>
-              </object>
-              <packing>
-                <property name="left-attach">0</property>
-                <property name="top-attach">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="frag_furo_radio">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">2-Furyl ring (Kekulized)</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
-                <child>
-                  <object class="GtkImage">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="pixbuf">../../icons/frag_chex.png</property>
-                  </object>
-                </child>
-              </object>
-              <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="frag_other_radio">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">Opens the full Fragment Library (browse every category, including custom ones you add yourself).</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
-                <child>
-                  <object class="GtkImage">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="pixbuf">../../icons/frag_cpent.png</property>
-                  </object>
-                </child>
-              </object>
-              <packing>
-                <property name="left-attach">3</property>
-                <property name="top-attach">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="frag_con_radio1">
-                <property name="label" translatable="yes">-CON</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">Primary amide, -C(=O)NH2</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-              </object>
-              <packing>
-                <property name="left-attach">3</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="frag_hex_radio">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">n-Hexyl chain (6 carbons)</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
-                <child>
-                  <object class="GtkImage">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="pixbuf">../../icons/frag_c1,3pent.png</property>
-                  </object>
-                </child>
-              </object>
-              <packing>
-                <property name="left-attach">2</property>
-                <property name="top-attach">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="frag_pent_radio">
-                <property name="label" translatable="yes">Pent</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">n-Pentyl chain (5 carbons)</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">3</property>
-                <property name="top-attach">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="frag_ome_radio">
-                <property name="label" translatable="yes">-OMe</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">Methoxy, -O-CH3</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-                <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">2</property>
-                <property name="top-attach">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="frag_coo_radio1">
-                <property name="label" translatable="yes">-SO2</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">Primary amide, -C(=O)NH2</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-              </object>
-              <packing>
-                <property name="left-attach">0</property>
-                <property name="top-attach">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkRadioButton" id="frag_coo_radio2">
-                <property name="label" translatable="yes">-PO3</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">Primary amide, -C(=O)NH2</property>
-                <property name="hexpand">True</property>
-                <property name="draw-indicator">False</property>
-                <property name="group">element_C_radio</property>
-              </object>
-              <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">1</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">11</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkRadioButton" id="tool_add_structure_radio">
+          <object class="GtkNotebook">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
-            <property name="receives-default">False</property>
-            <property name="tooltip-text" translatable="yes">Opens the Structure Library. Click anywhere to place whichever complete structure is currently selected there.</property>
-            <property name="hexpand">True</property>
-            <property name="draw-indicator">False</property>
-            <property name="group">tool_add_radio</property>
-            <signal name="toggled" handler="on_tool_changed" swapped="no"/>
             <child>
               <object class="GtkBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
+                <property name="margin-top">5</property>
+                <property name="orientation">vertical</property>
+                <property name="spacing">5</property>
                 <child>
-                  <object class="GtkImage">
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="xalign">0.5</property>
-                    <property name="xpad">40</property>
-                    <property name="pixbuf">../../icons/structures2.png</property>
+                    <property name="margin-top">5</property>
+                    <property name="label" translatable="yes">Element</property>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -895,11 +397,207 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel">
+                  <!-- n-columns=4 n-rows=3 -->
+                  <object class="GtkGrid" id="element_grid">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="xpad">0</property>
-                    <property name="label" translatable="yes">Structure</property>
+                    <property name="row-spacing">4</property>
+                    <property name="column-spacing">2</property>
+                    <property name="row-homogeneous">True</property>
+                    <property name="column-homogeneous">True</property>
+                    <child>
+                      <object class="GtkRadioButton" id="element_C_radio">
+                        <property name="label" translatable="yes">C</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="active">True</property>
+                        <property name="draw-indicator">False</property>
+                        <signal name="toggled" handler="on_element_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="element_N_radio">
+                        <property name="label" translatable="yes">N</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_element_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="element_O_radio">
+                        <property name="label" translatable="yes">O</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_element_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">2</property>
+                        <property name="top-attach">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="element_H_radio">
+                        <property name="label" translatable="yes">H</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_element_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">3</property>
+                        <property name="top-attach">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="element_B_radio">
+                        <property name="label" translatable="yes">B</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_element_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="element_P_radio">
+                        <property name="label" translatable="yes">P</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_element_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="element_S_radio">
+                        <property name="label" translatable="yes">S</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_element_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">2</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="element_F_radio">
+                        <property name="label" translatable="yes">F</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_element_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">3</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="element_Cl_radio">
+                        <property name="label" translatable="yes">Cl</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_element_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="element_Br_radio">
+                        <property name="label" translatable="yes">Br</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_element_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="element_I_radio">
+                        <property name="label" translatable="yes">I</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_element_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">2</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="element_other_radio">
+                        <property name="label" translatable="yes">Other...</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Pick any element from the full periodic table (UFF-derived per-element data, same source pDynamo3's own DYFF force field uses).</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_element_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">3</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -907,24 +605,412 @@
                     <property name="position">1</property>
                   </packing>
                 </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-top">5</property>
+                    <property name="label" translatable="yes">Fragment</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <!-- n-columns=4 n-rows=4 -->
+                  <object class="GtkGrid" id="fragment_grid">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="row-spacing">4</property>
+                    <property name="column-spacing">2</property>
+                    <property name="row-homogeneous">True</property>
+                    <property name="column-homogeneous">True</property>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_cooh_radio">
+                        <property name="label" translatable="yes">-COOH</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Carboxylic acid, -COOH</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_coo_radio">
+                        <property name="label" translatable="yes">-COO</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Carboxilate, -COOH</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_nco_radio">
+                        <property name="label" translatable="yes">-NCO</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Amide, -N-C=O</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">2</property>
+                        <property name="top-attach">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_cbutane_radio2">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Cyclobutane</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
+                        <child>
+                          <object class="GtkImage">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="pixbuf">../../icons/frag_cbut.png</property>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">3</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_chexane_radio">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Cyclohexane</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
+                        <child>
+                          <object class="GtkImage">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="pixbuf">../../icons/frag_chex.png</property>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_other_radio">
+                        <property name="label" translatable="yes">Other</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Opens the full Fragment Library (browse every category, including custom ones you add yourself).</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">2</property>
+                        <property name="top-attach">3</property>
+                        <property name="width">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_con_radio1">
+                        <property name="label" translatable="yes">-CON</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Primary amide, -C(=O)NH2</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">3</property>
+                        <property name="top-attach">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_pent_radio">
+                        <property name="label" translatable="yes">-NO2</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Nitro, -NO2</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">3</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_ome_radio">
+                        <property name="label" translatable="yes">-OMe</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Methoxy, -O-CH3</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">2</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_coo_radio1">
+                        <property name="label" translatable="yes">-SO2</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Sulfone, -SO2</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_coo_radio2">
+                        <property name="label" translatable="yes">-PO3</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Phophite, -PO3</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_benz_radio">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Phenyl ring (Kekulized)</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <child>
+                          <object class="GtkImage">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="pixbuf">../../icons/frag_benz.png</property>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_ciclopropane_radio">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Cyclopropane</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <child>
+                          <object class="GtkImage">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="pixbuf">../../icons/frag_cpent.png</property>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="left-attach">3</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_hex_radio">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Cyclopentadieno</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <signal name="toggled" handler="on_fragment_quick_changed" swapped="no"/>
+                        <child>
+                          <object class="GtkImage">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="pixbuf">../../icons/frag_c1,3pent.png</property>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="left-attach">2</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="frag_cpropane_radio3">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Cyclopropane</property>
+                        <property name="hexpand">True</property>
+                        <property name="draw-indicator">False</property>
+                        <property name="group">element_C_radio</property>
+                        <child>
+                          <object class="GtkImage">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="pixbuf">../../icons/frag_cprop.png</property>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">3</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSeparator">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-top">5</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">4</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkRadioButton" id="tool_add_structure_radio">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes">Opens the Structure Library. Click anywhere to place whichever complete structure is currently selected there.</property>
+                    <property name="hexpand">True</property>
+                    <property name="draw-indicator">False</property>
+                    <property name="group">tool_add_radio</property>
+                    <signal name="toggled" handler="on_tool_changed" swapped="no"/>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <child>
+                          <object class="GtkImage">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="xalign">0.5</property>
+                            <property name="xpad">40</property>
+                            <property name="pixbuf">../../icons/structures2.png</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="xpad">0</property>
+                            <property name="label" translatable="yes">Structure</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">5</property>
+                  </packing>
+                </child>
               </object>
+            </child>
+            <child type="tab">
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">Chemical</property>
+              </object>
+              <packing>
+                <property name="tab-fill">False</property>
+              </packing>
+            </child>
+            <child>
+              <placeholder/>
+            </child>
+            <child type="tab">
+              <placeholder/>
+            </child>
+            <child>
+              <placeholder/>
+            </child>
+            <child type="tab">
+              <placeholder/>
             </child>
           </object>
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">12</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkSeparator">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">13</property>
+            <property name="position">7</property>
           </packing>
         </child>
         <child>
@@ -939,24 +1025,7 @@
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">14</property>
-          </packing>
-        </child>
-        <child>
-          <placeholder/>
-        </child>
-        <child>
-          <placeholder/>
-        </child>
-        <child>
-          <object class="GtkSeparator">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">17</property>
+            <property name="position">8</property>
           </packing>
         </child>
         <child>
@@ -970,7 +1039,7 @@
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">18</property>
+            <property name="position">9</property>
           </packing>
         </child>
         <child>
@@ -985,24 +1054,7 @@
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">19</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkRadioButton" id="tool_move_radio">
-            <property name="label" translatable="yes">Move</property>
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="receives-default">False</property>
-            <property name="hexpand">True</property>
-            <property name="draw-indicator">False</property>
-            <property name="group">tool_add_radio</property>
-            <signal name="toggled" handler="on_tool_changed" swapped="no"/>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">20</property>
+            <property name="position">10</property>
           </packing>
         </child>
         <child>
@@ -1020,7 +1072,7 @@
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">21</property>
+            <property name="position">11</property>
           </packing>
         </child>
         <child>
@@ -1035,7 +1087,62 @@
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">22</property>
+            <property name="position">12</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="undo_button">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">False</property>
+            <signal name="clicked" handler="on_undo_button_clicked" swapped="no"/>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="spacing">10</property>
+                <child>
+                  <object class="GtkImage">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="pixbuf">../../icons/undo.png</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Undo</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">13</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkSeparator">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">14</property>
           </packing>
         </child>
         <child>
@@ -1049,7 +1156,18 @@
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">23</property>
+            <property name="position">15</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkSeparator">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">18</property>
           </packing>
         </child>
       </object>
