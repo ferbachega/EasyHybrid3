@@ -255,6 +255,24 @@ def _apply_dyff_guanidinium_correction ( system ):
     return n_found
 
 
+def _apply_builder_partial_charges ( vm_session, system ):
+    """ [EN] 2026-10-04: copies atom.mm_charge (set in the Builder's DYFF
+    Parameters window) of the vismol object linked to `system` into its MM
+    charges, when every atom has one and the counts match. Returns the number
+    of charges applied (0 = none). """
+    vobject = None
+    for candidate in vm_session.vm_objects_dic.values ( ):
+        if getattr ( candidate, "e_id", None ) == getattr ( system, "e_id", None ):
+            vobject = candidate
+    if vobject is None or len ( vobject.atoms ) != len ( system.atoms ):
+        return 0
+    charges = [ getattr ( vobject.atoms.get ( i ), "mm_charge", None ) for i in range ( len ( system.atoms ) ) ]
+    if any ( q is None for q in charges ):
+        return 0
+    for i, q in enumerate ( charges ):
+        system.mmState.charges[i] = float ( q )
+    return len ( charges )
+
 def _apply_manual_atom_type_overrides ( system, overrides ):
     """ [EN] Routes USER-set per-atom DYFF type corrections (gui/windows/
     builder/atom_types.py's "Atom Types" window -- user's own explicit
@@ -550,7 +568,18 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 dedupe_pdb_atom_names(temp_dedupe_path)
                 coordinates_path = temp_dedupe_path
             try:
-                system = ImportSystem (coordinates_path)
+                try:
+                    system = ImportSystem (coordinates_path)
+                except Exception as error:
+                    # [EN] 2026-10-04: pDynamo's MOL2 reader rejects some charged
+                    # aromatics (thiazolium, pyridinium...): build the system from
+                    # the file's own bonds instead (pdynamo/opls/mol2_import.py).
+                    if not ( coordinates_path.lower().endswith('.mol2') and 'connectivity' in str(error).lower() ):
+                        raise
+                    from pdynamo.opls.mol2_import import system_from_mol2
+                    system = system_from_mol2 ( coordinates_path, label = name )
+                    self.main.bottom_notebook.status_teeview_add_new_item(message = 'pDynamo could not read the bond orders of {}: '
+                        'loaded with the EasyHybrid mol2 reader (charged rings perceived from valences).'.format(os.path.basename(coordinates_path)), system = None)
             finally:
                 if temp_dedupe_path is not None:
                     os.remove(temp_dedupe_path)
@@ -630,6 +659,28 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         ''' '''
    
     
+    def add_prepared_pdynamo_system ( self, system, name = None, tag = None, working_folder = None, input_files = None ):
+        """ [EN] 2026-10-04: registers an ALREADY BUILT pDynamo System (e.g.
+        from Extras > OPLS > Prepare OPLS System) exactly like
+        load_a_new_pDynamo_system_from_dict() does after reading files:
+        session data, treeview, status line and a vismol object. """
+        if working_folder:
+            system.e_working_folder = working_folder
+        if name is None:
+            name = getattr ( system, 'label', None ) or 'System'
+        if len ( name ) > 70:
+            name = name[-70:]
+        self.remove_PES_data ( system = system )
+        system.e_input_files = input_files or { }
+        system = self.add_new_system_to_psession ( system = system, name = name, tag = tag, changed = True,
+                                                   working_folder = working_folder )
+        self.main.main_treeview.add_new_system_to_treeview ( system )
+        ff = getattr ( system.mmModel, 'forceField', "None" )
+        self.main.bottom_notebook.status_teeview_add_new_item (
+                message = 'New System:  {} ({}) - Force Field:  {}'.format ( system.label, system.e_tag, ff ), system = system )
+        self._add_vismol_object_to_easyhybrid_session ( system, True )
+        return system
+
     def _add_vismol_object_to_easyhybrid_session (self, system, show_molecule=True, name = 'new_coords', key6 = None):
         """ Function doc """
         # Create a VisMol object from the given pDynamo system
@@ -2613,6 +2664,17 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         if system is None:
             system = self.psystem[self.active_id]
 
+        # [EN] 2026-10-04: OPLS goes through pdynamo/opls (per-system
+        # parameter set, see _define_opls_mm_model()) -- before the
+        # auto-pick below, which would find two OPLS sets (protein,
+        # bookSmallExamples) and give up.
+        if force_field.upper ( ) == 'OPLS':
+            if parameter_set is None:
+                # . a system from Prepare OPLS System keeps its own set (ligand types included)
+                own = ( getattr ( system, 'e_input_files', None ) or { } ).get ( 'opls_parameters' )
+                parameter_set = own if own and os.path.isdir ( own ) else 'protein'
+            return self._define_opls_mm_model ( system, parameter_set )
+
         if parameter_set is None:
             # [EN] BUG FIX (found by live user testing): the pDynamo3
             # install's own forceFields/dyff/ folder isn't JUST parameter
@@ -2668,8 +2730,18 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             n_guanidinium = _apply_dyff_guanidinium_correction ( system ) if force_field.upper ( ) == 'DYFF' else 0
             added_override_keys = _apply_manual_atom_type_overrides ( system, manual_overrides )
 
-            mmModel = MMModelDYFF.WithParameterSet ( parameter_set )
+            # [EN] 2026-10-04: parameters edited in the Builder's DYFF Parameters window
+            from pdynamo.dyff_edits import dyff_model
+            edits = None
+            for candidate in self.vm_session.vm_objects_dic.values ( ):
+                if getattr ( candidate, "e_id", None ) == getattr ( system, "e_id", None ):
+                    edits = getattr ( candidate, "dyff_parameter_edits", None ) or edits
+            mmModel = dyff_model ( parameter_set, edits )
             system.DefineMMModel ( mmModel )
+
+            # [EN] 2026-10-04: partial charges set in the Builder's DYFF Parameters
+            # window (atom.mm_charge; DYFF itself has none -- every charge is 0)
+            n_charges = _apply_builder_partial_charges ( self.vm_session, system )
 
             if getattr ( system, "nbModel", None ) is None:
                 self.define_NBModel ( _type = 1, system = system )
@@ -2680,6 +2752,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 msg += " ({} guanidinium group(s) corrected -- see define_MMModel()'s own docstring.)".format ( n_guanidinium )
             if added_override_keys:
                 msg += " ({} manual atom type override(s) applied.)".format ( len ( added_override_keys ) )
+            if n_charges:
+                msg += " ({} partial charges from the Builder.)".format ( n_charges )
             return True, msg
 
         except Exception as exc:
@@ -2699,6 +2773,52 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 for key in added_override_keys:
                     MOL2AtomTypesToDYFF.TriposMOL2AtomTypes.pop ( key, None )
 
+
+    def _define_opls_mm_model ( self, system, parameter_set = 'protein' ):
+        """ OPLS for a system ALREADY loaded with full chemistry (bond
+        orders, formal charges, hydrogens) -- e.g. one made by "Prepare
+        OPLS System" and edited since, or built in the Builder. Types the
+        atoms with the OPLS patterns, writes the system's own parameter set
+        (pdynamo/opls/parameters.materialize_parameter_set) into its
+        working folder and defines the MM model. A raw PDB (no bond
+        orders) does not type: the message points to Prepare OPLS System.
+        Returns ( ok, message ). """
+        from pdynamo.opls import prep, parameters
+        try:
+            types, charges, untyped = prep.type_atoms ( system, parameter_set )
+        except Exception as exc:
+            dprint ( 'OPLS typing failed:\n', traceback.format_exc ( ) )
+            return False, "OPLS typing failed for '{}': {}".format ( system.label, exc )
+        if untyped:
+            residues = [ ]
+            for atom in untyped:
+                path = atom.parent.path if atom.parent is not None else '?'
+                if path not in residues: residues.append ( path )
+            return False, ( "{} atom(s) of '{}' match no OPLS atom type (residues: {}{}).\n\n"
+                            "OPLS needs bond orders, formal charges and hydrogens. Use Extras > OPLS > "
+                            "Prepare OPLS System... to build them from a PDB structure.".format (
+                            len ( untyped ), system.label, ", ".join ( residues[:8] ), ", ..." if len ( residues ) > 8 else "" ) )
+        folder = getattr ( system, 'e_working_folder', None ) or os.environ.get ( 'PDYNAMO3_SCRATCH' ) or os.getcwd ( )
+        name   = "".join ( c if c.isalnum ( ) else "_" for c in ( system.label or 'system' ) )
+        out    = os.path.join ( folder, name + "_opls_parameters" )
+        try:
+            report = parameters.materialize_parameter_set ( system, types, out, base = parameter_set )
+            missing = { t: v for t, v in report["missing"].items ( ) if v }
+            if missing:
+                lines = [ "{}: {}".format ( t, ", ".join ( "-".join ( k ) for k in v[:6] ) ) for t, v in missing.items ( ) ]
+                return False, "Missing OPLS parameters for '{}':\n{}".format ( system.label, "\n".join ( lines ) )
+            # . DefineMMModel() drops the NB model: keep the user's one
+            nb_model = getattr ( system, "nbModel", None )
+            system.DefineMMModel ( MMModelOPLS.WithParameterSet ( os.path.abspath ( out ) ) )
+            if nb_model is not None:
+                system.DefineNBModel ( nb_model )
+            else:
+                self.define_NBModel ( _type = 1, system = system )
+            system.Summary ( )
+            return True, "MM model 'OPLS ({})' assigned to '{}' (parameters: {}).".format ( parameter_set, system.label, out )
+        except Exception as exc:
+            dprint ( 'Failed to bind the OPLS MM model:\n', traceback.format_exc ( ) )
+            return False, "Could not assign OPLS to '{}': {}".format ( system.label, exc )
 
     def export_pdynamo_system_coordinates (self, folder, filename, system):
         """

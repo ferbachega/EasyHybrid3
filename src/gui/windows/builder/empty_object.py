@@ -272,6 +272,7 @@ def _build_pdynamo_system_from_vismol_object ( vismol_object, label = None ):
     # gone. Tried first; the old path stays as the fallback.
     sequenced = _build_sequenced_pdynamo_system ( vismol_object, label )
     if sequenced is not None:
+        _apply_builder_cell ( vismol_object, sequenced )
         return sequenced
 
     connectivity = Connectivity ( )
@@ -318,8 +319,35 @@ def _build_pdynamo_system_from_vismol_object ( vismol_object, label = None ):
         coordinates3[atom_id, 1] = float ( pos[1] )
         coordinates3[atom_id, 2] = float ( pos[2] )
     system.coordinates3 = coordinates3
+    _apply_builder_cell ( vismol_object, system )
 
     return system
+
+
+def _apply_builder_cell ( vismol_object, system ):
+    """ [EN] 2026-10-03: a Builder object with a periodic cell (set by the
+    Solvate tool, atom_ops.set_builder_cell()) gets it as the pDynamo
+    system's symmetry -- cubic when a = b = c with right angles,
+    orthorhombic for other right-angled boxes, triclinic otherwise. """
+    cell = getattr ( vismol_object, "builder_cell", None )
+    if not cell:
+        return
+    try:
+        from pScientific.Symmetry import ( PeriodicBoundaryConditions, CrystalSystemCubic,
+                                           CrystalSystemOrthorhombic, CrystalSystemTriclinic )
+        a, b, c, alpha, beta, gamma = cell
+        right = all ( abs ( angle - 90.0 ) < 1e-6 for angle in ( alpha, beta, gamma ) )
+        if right and abs ( a - b ) < 1e-6 and abs ( a - c ) < 1e-6:
+            crystal, parameters = CrystalSystemCubic ( ), { "a": a }
+        elif right:
+            crystal, parameters = CrystalSystemOrthorhombic ( ), { "a": a, "b": b, "c": c }
+        else:
+            crystal, parameters = CrystalSystemTriclinic ( ), { "a": a, "b": b, "c": c,
+                                                                "alpha": alpha, "beta": beta, "gamma": gamma }
+        system.symmetry           = PeriodicBoundaryConditions.WithCrystalSystem ( crystal )
+        system.symmetryParameters = system.symmetry.MakeSymmetryParameters ( **parameters )
+    except Exception as exc:
+        dprint ( "empty_object._apply_builder_cell: could not set the cell ({})".format ( exc ) )
 
 
 def _build_sequenced_pdynamo_system ( vismol_object, label = None ):
@@ -776,7 +804,7 @@ def begin_editing_existing_system ( vm_session, e_id, vismol_object = None ):
     return temp_vobject
 
 
-def finish_editing_existing_system ( vismol_object ):
+def finish_editing_existing_system ( vismol_object, carry_customizations = False ):
     """ [EN] Called from builder_sidebar.py's close_window() when the
     object being edited is a temp clone created by
     begin_editing_existing_system() above (recognised by its own
@@ -811,10 +839,13 @@ def finish_editing_existing_system ( vismol_object ):
 
     Either way, vm_session.builder_target_object is left for the caller
     to reset -- this function only deals with the two systems/vobjects
-    involved. """
+    involved. Returns the vobject that holds the result (the original
+    after a fold-back, the clone otherwise; None when not an edit session).
+    carry_customizations: also copy the Builder's DYFF customizations
+    onto the original in a fold-back (see builder_sidebar.close_window()). """
     source_e_id = getattr ( vismol_object, "builder_edit_source_e_id", None )
     if source_e_id is None:
-        return
+        return None
 
     vm_session = vismol_object.vm_session
     main       = vm_session.main
@@ -886,8 +917,17 @@ def finish_editing_existing_system ( vismol_object ):
         original_vobject.core_representations["picking_dots"] = None
         original_vobject.core_representations["picking_text"] = None
 
+        # [EN] 2026-10-04: "incorporate with DYFF" on closing the Builder --
+        # formal charges, type overrides, edited DYFF parameters and partial
+        # charges go with the fold-back (before the rebuild: the pDynamo
+        # atoms take their formal charges from the vobject)
+        if carry_customizations:
+            from gui.windows.builder.dyff_parameters import carry_builder_customizations
+            carry_builder_customizations ( vismol_object, original_vobject )
+
         new_system = _build_pdynamo_system_from_vismol_object ( original_vobject, label = original_vobject.name )
         _swap_rebuilt_system_into_psystem ( p_session, source_e_id, new_system )
+        final_vobject = original_vobject
 
         # The temp clone was only ever a scratch workspace for this
         # session -- now that its edits are folded back onto the
@@ -898,6 +938,11 @@ def finish_editing_existing_system ( vismol_object ):
         temp_e_id = getattr ( vismol_object, "e_id", None )
         if temp_e_id is not None:
             p_session.psystem.pop ( temp_e_id, None )
+            # [EN] 2026-10-04 BUG FIX: the clone was the ACTIVE system while it
+            # was edited -- leaving active_id on its removed e_id made the
+            # treeview/statusbar fail (KeyError) right after the fold-back
+            if getattr ( p_session, "active_id", None ) == temp_e_id:
+                p_session.active_id = source_e_id
         index = getattr ( vismol_object, "index", None )
         name  = getattr ( vismol_object, "name", None )
         if index is not None:
@@ -911,7 +956,9 @@ def finish_editing_existing_system ( vismol_object ):
         # a normal, separate, permanent system from now on.
         vismol_object.builder_edit_source_e_id         = None
         vismol_object.builder_edit_original_atom_count = None
+        final_vobject = vismol_object
 
     main.main_treeview.refresh ( )
     if getattr ( vm_session, "vm_glcore", None ) is not None:
         vm_session.vm_glcore.queue_draw ( )
+    return final_vobject

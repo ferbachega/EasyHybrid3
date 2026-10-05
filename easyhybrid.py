@@ -387,12 +387,27 @@ def main():
         # startup_path=None mais adiante, em EasyHybridPreferencesWindow.
         
         
+        # Optional interface theme (src/gui/theme.py): "default" = original look.
+        # Try another one without saving anything:  EASYHYBRID_THEME=ribbon_dark
+        try:
+            from gui.theme import set_theme, theme_from_config
+            set_theme(theme_from_config(vconfig.gl_parameters))
+        except Exception:
+            traceback.print_exc()
+
         vm_session = EasyHybridSession(vm_config = vconfig)
         vm_session.vm_widget.insert_glmenu()
         main_window = MainWindow(vm_session = vm_session,
                                  home       =  EASYHYBRID_HOME,
                                  version    = EASYHYBRID_VERSION)
         vm_session.main_session = main_window                  
+        # dark themes: lighten the main window's dark line-drawing icons
+        # (reversible; follows live theme switches from Preferences)
+        try:
+            from gui.theme import adapt_icons_for_theme
+            adapt_icons_for_theme(main_window.window)
+        except Exception:
+            traceback.print_exc()
         #print(vm_session.vm_config.gl_parameters)
         #main_window.window.connect('destroy', Gtk.main_quit)
         
@@ -408,7 +423,7 @@ def main():
         #This is the editor
         
         
-        #main_window.builder.get_object('_show_cell')      .hide() # Builder
+        main_window.builder.get_object('_show_cell')      .hide() # Builder
         
         
         
@@ -418,12 +433,12 @@ def main():
         #main_window.builder.get_object('menuitem_RMSD_tool')   .hide()
         
         
-        #main_window.builder.get_object('menuitem_rama')   .hide()
-        #main_window.builder.get_object('menuitem_transition_state_search').hide() # Baker method
-        #main_window.builder.get_object('menuitem_reaction_path')   .hide() # IRC / Reaction Path...
-        #main_window.builder.get_object('menuitem_cpr')   .hide() # Conjugate Peak Refinement...
-        #main_window.builder.get_object('menuitem_extras') .hide() # IR spectrum
-        #main_window.builder.get_object('menuitem_rdf_analysis')   .hide() # RDF Analysis (g(r))
+        main_window.builder.get_object('menuitem_rama')   .hide()
+        main_window.builder.get_object('menuitem_transition_state_search').hide() # Baker method
+        main_window.builder.get_object('menuitem_reaction_path')   .hide() # IRC / Reaction Path...
+        main_window.builder.get_object('menuitem_cpr')   .hide() # Conjugate Peak Refinement...
+        main_window.builder.get_object('menuitem_extras') .hide() # Extras
+        main_window.builder.get_object('menuitem_rdf_analysis')   .hide() # RDF Analysis (g(r))
         
         main_window.builder.get_object('menuitem_advanced_rc_scans')   .hide() # RDF Analysis (g(r))
         

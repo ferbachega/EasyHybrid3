@@ -440,6 +440,7 @@ class AtomTypesWindow ( ):
             else:
                 from gui.windows.builder.atom_ops import undo
                 undo ( self.target_object )
+                self.target_object.redo_stack = [ ]   # the half-done rename is not redoable
             return False, str ( error )
         sync_pdynamo_system ( self.target_object )
         labels = ", ".join ( "{}:{}{}".format ( r.chain.name, r.name, r.index ) for r in residues )

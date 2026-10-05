@@ -78,9 +78,6 @@
           </packing>
         </child>
         <child>
-          <placeholder/>
-        </child>
-        <child>
           <object class="GtkCheckButton" id="clean_up_adjust_hydrogens_checkbutton">
             <property name="label" translatable="yes">Adjust hydrogen count</property>
             <property name="visible">True</property>
@@ -1014,13 +1011,162 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButton" id="optimize_dyff_button">
-            <property name="label" translatable="yes">Optimize (DYFF)</property>
+          <!-- n-columns=2 n-rows=3 -->
+          <object class="GtkGrid">
             <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="receives-default">False</property>
-            <property name="tooltip-text" translatable="yes">Runs a real DYFF force-field minimisation (up to 100 steps) on a disposable scratch system built from the current structure, then copies the optimised coordinates back and discards the scratch system.</property>
-            <signal name="clicked" handler="on_optimize_dyff_button_clicked" swapped="no"/>
+            <property name="can-focus">False</property>
+            <property name="row-spacing">3</property>
+            <property name="column-spacing">3</property>
+            <property name="row-homogeneous">True</property>
+            <property name="column-homogeneous">True</property>
+            <child>
+              <object class="GtkButton" id="undo_button">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <signal name="clicked" handler="on_undo_button_clicked" swapped="no"/>
+                <child>
+                  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="spacing">10</property>
+                    <property name="homogeneous">True</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="pixbuf">../../icons/undo.png</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Undo</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="redo_button">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="tooltip-text" translatable="yes">Redoes the last action undone with Undo (lost as soon as a new edit is made).</property>
+                <signal name="clicked" handler="on_redo_button_clicked" swapped="no"/>
+                <child>
+                  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="spacing">10</property>
+                    <property name="homogeneous">True</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="pixbuf">../../icons/redo.png</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Redo</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="optimize_dyff_button">
+                <property name="label" translatable="yes">Optimize</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="tooltip-text" translatable="yes">Runs a real DYFF force-field minimisation (up to 100 steps) on a disposable scratch system built from the current structure, then copies the optimised coordinates back and discards the scratch system.</property>
+                <signal name="clicked" handler="on_optimize_dyff_button_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="add_hydrogens_button">
+                <property name="label" translatable="yes">Add Hydrogens...</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="tooltip-text" translatable="yes">Adds the missing hydrogens of the molecule being edited. Standard residues use pDynamo's residue templates (names HA, HB2, ...; protonation reviewed in a dialog), other molecules are protonated by OpenBabel. Every new hydrogen is placed inside its own residue. Can be undone.</property>
+                <signal name="clicked" handler="on_add_hydrogens_button_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkRadioButton" id="tool_rotate_dihedral_radio">
+                <property name="label" translatable="yes">Dihedral</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="tooltip-text" translatable="yes">Click 4 atoms in sequence (defining a dihedral) to open the Dihedral Angle window.</property>
+                <property name="hexpand">True</property>
+                <property name="draw-indicator">False</property>
+                <property name="group">tool_add_radio</property>
+                <signal name="toggled" handler="on_tool_changed" swapped="no"/>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="transform_selection_button">
+                <property name="label" translatable="yes">Transf. Sele...</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="tooltip-text" translatable="yes">Translate/rotate the currently VIEW-selected atoms (shift+click / shift+drag) with live X/Y/Z sliders, rotating around the selection's own centroid.</property>
+                <signal name="clicked" handler="on_transform_selection_button_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -1029,12 +1175,13 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButton" id="clean_up_button">
-            <property name="label" translatable="yes">Clean Up</property>
+          <object class="GtkButton" id="atom_types_button">
+            <property name="label" translatable="yes">DYFF Parameters...</property>
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="receives-default">False</property>
-            <signal name="clicked" handler="on_clean_up_button_clicked" swapped="no"/>
+            <property name="tooltip-text" translatable="yes">DYFF atom types (editable), formal and partial charges, and the bonds, angles, dihedrals, impropers and Lennard-Jones parameters DYFF builds from them, with the strain of each term at the current geometry. Opens on the VIEW-selected atoms (shift+click / shift+drag), or on the whole molecule.</property>
+            <signal name="clicked" handler="on_atom_types_button_clicked" swapped="no"/>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -1043,95 +1190,18 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButton" id="atom_types_button">
-            <property name="label" translatable="yes">Atom Types...</property>
+          <object class="GtkButton" id="solvate_button">
+            <property name="label" translatable="yes">Solvate...</property>
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="receives-default">False</property>
-            <property name="tooltip-text" translatable="yes">Shows the DYFF atom type perceived for the currently VIEW-selected atoms (shift+click / shift+drag), and lets you correct it by hand.</property>
-            <signal name="clicked" handler="on_atom_types_button_clicked" swapped="no"/>
+            <property name="tooltip-text" translatable="yes">Puts the molecule being edited in a periodic water box (replicated equilibrated TIP3P box), with counter-ions and salt. Can be undone.</property>
+            <signal name="clicked" handler="on_solvate_button_clicked" swapped="no"/>
           </object>
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="position">10</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkRadioButton" id="tool_rotate_dihedral_radio">
-            <property name="label" translatable="yes">Dihedral</property>
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="receives-default">False</property>
-            <property name="tooltip-text" translatable="yes">Click 4 atoms in sequence (defining a dihedral) to open the Dihedral Angle window.</property>
-            <property name="hexpand">True</property>
-            <property name="draw-indicator">False</property>
-            <property name="group">tool_add_radio</property>
-            <signal name="toggled" handler="on_tool_changed" swapped="no"/>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">11</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="transform_selection_button">
-            <property name="label" translatable="yes">Transform Selection...</property>
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="receives-default">False</property>
-            <property name="tooltip-text" translatable="yes">Translate/rotate the currently VIEW-selected atoms (shift+click / shift+drag) with live X/Y/Z sliders, rotating around the selection's own centroid.</property>
-            <signal name="clicked" handler="on_transform_selection_button_clicked" swapped="no"/>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">12</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="undo_button">
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="receives-default">False</property>
-            <signal name="clicked" handler="on_undo_button_clicked" swapped="no"/>
-            <child>
-              <object class="GtkBox">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="spacing">10</property>
-                <child>
-                  <object class="GtkImage">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="pixbuf">../../icons/undo.png</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Undo</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-              </object>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">13</property>
           </packing>
         </child>
         <child>
@@ -1142,7 +1212,7 @@
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">14</property>
+            <property name="position">17</property>
           </packing>
         </child>
         <child>
@@ -1152,17 +1222,6 @@
             <property name="can-focus">True</property>
             <property name="receives-default">False</property>
             <signal name="clicked" handler="on_close_button_clicked" swapped="no"/>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">15</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkSeparator">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
           </object>
           <packing>
             <property name="expand">False</property>

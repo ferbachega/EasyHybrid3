@@ -526,6 +526,41 @@ def handle_click_to_delete_atom ( vm_glcore ):
     return atom_id
 
 
+def delete_selected_atoms ( vm_session ):
+    """ [EN] 2026-10-04, user's request: with the Builder open, the Delete
+    key removes the atoms of the current VIEWING selection that belong to
+    the object being edited (atom_ops.remove_atoms(): one undo step,
+    orphan hydrogens and neighbour hydrogen adjustment as the delete tool).
+    While "Editing: ON" the viewing selection is hidden (and frozen), so
+    nothing is deleted then -- deleting atoms the user cannot see selected
+    would be a surprise. Returns a status message (also pushed to the
+    main statusbar). """
+    from gui.windows.builder.atom_ops import remove_atoms
+    target = getattr ( vm_session, "builder_target_object", None )
+    main = getattr ( vm_session, "main", None )
+    def report ( message ):
+        statusbar = getattr ( main, "statusbar_main", None )
+        if statusbar is not None:
+            statusbar.push ( 1, message )
+        return message
+    if target is None:
+        return report ( "No Builder session." )
+    if getattr ( vm_session, "builder_atom_mode", False ):
+        return report ( "Builder: turn Editing OFF, select atoms (viewing selection) and press Delete to remove them." )
+    selection = vm_session.selections[vm_session.current_selection]
+    atoms = [ a for a in selection.selected_atoms if a.vm_object is target and target.atoms.get ( a.atom_id ) is a ]
+    if not atoms:
+        return report ( "Builder: no selected atoms in '{}' to delete.".format ( target.name ) )
+    n_selected = len ( atoms )
+    n_removed = remove_atoms ( target, atoms )
+    selection.selection_function_viewing_set ( None )
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( target )
+    extra = n_removed - n_selected
+    return report ( "Builder: deleted {} selected atom(s){} (Undo restores them).".format (
+                    n_selected, " and {} attached hydrogen(s)".format ( extra ) if extra > 0 else "" ) )
+
+
 def _read_depth_and_atom_at_pixel ( vm_glcore, mouse_x, mouse_y ):
     """ [EN] Reads the REAL depth buffer under the cursor via a dedicated
     render pass, mirroring VismolGLCore._pick() (same clear, same
@@ -954,8 +989,11 @@ def update_bond_drag ( vm_glcore, mouse_x, mouse_y ):
     # finish_bond_drag()'s own comment for why, and for the actual
     # decision that runs again at release) -- an explicit sidebar pick
     # still needs its own colour here, it just isn't SUBJECT to distance.
-    drag_bond_order    = getattr ( vm_session, "builder_bond_order", 1 )
-    drag_bond_aromatic = getattr ( vm_session, "builder_bond_aromatic", False )
+    # [EN] 2026-10-03 user request: the sidebar's Bond Order radios only
+    # serve the "Bond Order" tool now -- "Add" (this drag) ALWAYS takes the
+    # order from the drag distance, whatever those radios say.
+    drag_bond_order    = 1
+    drag_bond_aromatic = False
     if drag_bond_order == 1 and not drag_bond_aromatic:
         partner_atom = snap_target if snap_target is not None else new_atom
         distance = float ( np.linalg.norm (
@@ -1113,8 +1151,11 @@ def finish_bond_drag ( vm_glcore ):
     # call always defaults to a plain single bond: add_bond() below writes
     # manual_bond_orders[pair] UNCONDITIONALLY, so setting it any earlier
     # would just get silently overwritten here anyway).
-    drag_bond_order    = getattr ( vm_session, "builder_bond_order", 1 )
-    drag_bond_aromatic = getattr ( vm_session, "builder_bond_aromatic", False )
+    # [EN] 2026-10-03 user request: no longer read from the sidebar -- the
+    # Bond Order radios only serve the "Bond Order" tool; a dragged bond's
+    # order always comes from the drag distance (classified below).
+    drag_bond_order    = 1
+    drag_bond_aromatic = False
 
     # [EN] BUG FIX (reported by the user: dragging to create a new bonded
     # atom seemed to reject/discard the new atom depending on distance).
@@ -2516,3 +2557,134 @@ def draw_hover_info_text ( vm_glcore, atom, world_center, up, radius ):
     GL.glEnable ( GL.GL_DEPTH_TEST )
     GL.glBindVertexArray ( 0 )
     GL.glUseProgram ( 0 )
+
+
+# =====================================================================================
+#   Hover -> atom info in the terminal
+#   ------------------------------------------------------------------------------
+#   [EN] 2026-10-03 user request: whenever the cursor lands on an atom (the
+#   moment the yellow hover ring appears), print the atom's details -- system,
+#   chain, residue, element, atom name, atom type and atom type in the force
+#   field -- to the terminal (for now). Called by vismol_glcore.render() only
+#   when the hovered atom CHANGES, never once per frame.
+#
+#   "Atom type" = the DYFF type the Builder perceives for the CURRENT
+#   structure (atom_types.compute_atom_types(), the same column the Atom
+#   Types window shows, manual overrides included). Perceiving needs a
+#   whole scratch pDynamo system, so the result is cached per object and
+#   recomputed only after the structure changed (signature below).
+#   "FF atom type" = the type actually assigned by the MM model of the
+#   object's linked pDynamo system (mmState), if that system has one.
+# =====================================================================================
+
+_hover_dyff_cache = { }      # id(vismol_object) -> ( signature, {atom_id: (perceived, effective)} )
+
+
+def _structure_signature ( vismol_object ):
+    atoms = vismol_object.atoms
+    return hash ( (
+        len ( atoms ),
+        tuple ( ( a.symbol, getattr ( a, "formal_charge", 0 ) ) for a in atoms.values ( ) ),
+        frozenset ( getattr ( vismol_object, "manual_bonds", None ) or ( ) ),
+        frozenset ( ( getattr ( vismol_object, "manual_bond_orders", None ) or { } ).items ( ) ),
+        frozenset ( ( getattr ( vismol_object, "manual_atom_type_overrides", None ) or { } ).items ( ) ),
+    ) )
+
+
+def _hover_dyff_types ( vismol_object ):
+    key = id ( vismol_object )
+    try:
+        signature = _structure_signature ( vismol_object )
+    except Exception:
+        return { }
+    cached = _hover_dyff_cache.get ( key )
+    if cached is not None and cached[0] == signature:
+        return cached[1]
+    try:
+        from gui.windows.builder.atom_types import compute_atom_types
+        types = compute_atom_types ( vismol_object )
+    except Exception as error:
+        dprint ( "hover info: DYFF perception failed: {}".format ( error ) )
+        types = { }
+    _hover_dyff_cache.clear ( )          # only the object being edited matters
+    _hover_dyff_cache[key] = ( signature, types )
+    return types
+
+
+def _hover_ff_atom_type ( vm_session, vismol_object, atom ):
+    """ (type label, charge) from the linked pDynamo system's MM model, or
+        (None, None) when there is no system / no MM model. """
+    try:
+        p_session = vm_session.main_session.p_session
+        system = p_session.psystem.get ( vismol_object.e_id ) if vismol_object.e_id is not None else None
+    except Exception:
+        system = None
+    state = getattr ( system, "mmState", None ) if system is not None else None
+    note  = ""
+    if state is None or getattr ( state, "atomTypes", None ) is None:
+        # "Edit in Builder" works on a clone whose rebuilt system has no MM
+        # model; while the atom list still matches the ORIGINAL system
+        # (same count = no atom added/removed yet), report its types
+        source = None
+        source_e_id = getattr ( vismol_object, "builder_edit_source_e_id", None )
+        if source_e_id is not None:
+            try:
+                source = vm_session.main_session.p_session.psystem.get ( source_e_id )
+            except Exception:
+                source = None
+        source_state = getattr ( source, "mmState", None ) if source is not None else None
+        if ( source_state is not None and getattr ( source_state, "atomTypes", None ) is not None
+                and len ( source.atoms ) == len ( vismol_object.atoms ) ):
+            state = source_state
+            note  = "original system"
+        elif system is None:
+            return None, None, "no pDynamo system"
+        else:
+            return None, None, "no MM model"
+    index = atom.atom_id
+    try:
+        label  = state.atomTypes[state.atomTypeIndices[index]]
+        charge = float ( state.charges[index] ) if state.charges is not None else None
+        return label, charge, note
+    except Exception:
+        return None, None, "index outside the MM model"
+
+
+def print_hover_atom_info ( vm_glcore, atom ):
+    """ Prints the hovered atom's details to the terminal (see above). """
+    try:
+        vismol_object = atom.vm_object
+        vm_session    = vm_glcore.vm_session
+        chain   = atom.chain.name   if atom.chain   is not None else "-"
+        residue = "{} {}".format ( atom.residue.name, atom.residue.index ) if atom.residue is not None else "-"
+        dyff = _hover_dyff_types ( vismol_object ).get ( atom.atom_id )
+        if dyff is None:
+            dyff_text = "?"
+        else:
+            perceived, effective = dyff
+            dyff_text = str ( effective ) if effective is not None else "untyped"
+            if effective is not None and perceived is not None and effective != perceived:
+                dyff_text += "  (manual override; perceived {})".format ( perceived )
+        ff_label, ff_charge, ff_note = _hover_ff_atom_type ( vm_session, vismol_object, atom )
+        if ff_label is not None:
+            ff_text = str ( ff_label )
+            if ff_charge is not None:
+                ff_text += "  (charge {:+.4f})".format ( ff_charge )
+            if ff_note:
+                ff_text += "  [{}]".format ( ff_note )
+        else:
+            ff_text = "-  ({})".format ( ff_note )
+        formal = getattr ( atom, "formal_charge", 0 ) or 0
+        print ( "\n".join ( [
+            "-" * 60,
+            "Atom #{}".format ( atom.atom_id ),
+            "  System        : {}  (e_id {})".format ( vismol_object.name, vismol_object.e_id ),
+            "  Chain         : {}".format ( chain ),
+            "  Residue       : {}".format ( residue ),
+            "  Element       : {}{}".format ( atom.symbol, "  (formal charge {:+d})".format ( formal ) if formal else "" ),
+            "  Atom name     : {}".format ( atom.name ),
+            "  Atom type     : {}  (DYFF, Builder perception)".format ( dyff_text ),
+            "  FF atom type  : {}".format ( ff_text ),
+        ] ), flush = True )
+    except Exception as error:
+        dprint ( "hover info failed: {}".format ( error ) )

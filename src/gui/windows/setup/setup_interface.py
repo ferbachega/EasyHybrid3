@@ -502,7 +502,37 @@ class EasyHybridPreferencesWindow():
             vblank_mode = self.vm_session.vm_config.gl_parameters.get('vblank_mode', 'auto')
             if self.combo_vblank_mode.set_active_id(vblank_mode) is False:
                 self.combo_vblank_mode.set_active_id('auto')
+
+        # Interface theme (src/gui/theme.py) -- applied LIVE on change, like
+        # the fog; "Apply and Save" persists gl_parameters['interface_theme'].
+        self.combo_interface_theme = self.builder.get_object('combo_interface_theme')
+        if self.combo_interface_theme is not None:
+            from gui.theme import theme_choices, theme_from_config, current_theme, set_theme
+            wanted = theme_from_config(self.vm_session.vm_config.gl_parameters)
+            self._theme_combo_updating = True
+            try:
+                self.combo_interface_theme.remove_all()
+                for name, label in theme_choices():
+                    self.combo_interface_theme.append(name, label)
+                if self.combo_interface_theme.set_active_id(wanted) is False:
+                    self.combo_interface_theme.set_active_id('default')
+                    wanted = 'default'
+            finally:
+                self._theme_combo_updating = False
+            # "Reset parameters" lands here too: follow the reset value
+            if wanted != current_theme():
+                set_theme(wanted)
+            if getattr(self, '_theme_handler_widget', None) is not self.combo_interface_theme:
+                self.combo_interface_theme.connect('changed', self._on_interface_theme_changed)
+                self._theme_handler_widget = self.combo_interface_theme
         pass
+
+    def _on_interface_theme_changed (self, combo):
+        if getattr(self, '_theme_combo_updating', False):
+            return
+        from gui.theme import set_theme
+        name = combo.get_active_id() or 'default'
+        self.vm_session.vm_config.gl_parameters['interface_theme'] = set_theme(name)
     
     def set_general_parameters (self):
         """ Function doc """
@@ -1373,7 +1403,8 @@ class EasyHybridPreferencesWindow():
             self.vm_session.vm_config.gl_parameters['pk_dist_label_font_size'] = dist_size
 
             vm_glcore = self.vm_session.vm_glcore
-            for font_obj in (vm_glcore.vm_font, vm_glcore.vm_font_static):
+            for font_obj in (vm_glcore.vm_font, vm_glcore.vm_font_static, getattr(vm_glcore, "vm_font_index", None)):
+                if font_obj is None: continue
                 font_obj.apply_settings(font_file=font_file, size=pk_size)
                 font_obj.zoom_sensitivity = labels_zoom_sensitivity
             vm_glcore.vm_font_dist.apply_settings(font_file=font_file, size=dist_size)

@@ -169,6 +169,10 @@ class VismolConfig                       :
                                       # of GPU vendor. Only takes effect after a
                                       # restart -- see Preferences > Startup.
                                       'vblank_mode'         : 'auto',
+                                      # Interface (GTK CSS) theme -- see src/gui/theme.py.
+                                      # 'default' = the original look (no extra CSS).
+                                      # Preferences > Startup applies it live.
+                                      'interface_theme'     : 'default',
                                       # Recently opened/saved projects (.easy) and
                                       # systems (single-file opens via File > Open --
                                       # .pkl/.pdb/.mol2/.xyz/.crd/etc). Each entry:

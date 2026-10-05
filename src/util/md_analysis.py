@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 #  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
-#  Module: Trajectory analysis (RDF, RMSF)
+#  Module: Trajectory analysis (RDF, RMSF, box density)
 #
 #  Copyright 2022-2026 Fernando Bachega
 #
@@ -147,3 +147,42 @@ def compute_rdf(coords_a_per_frame, coords_b_per_frame, box_per_frame,
     coordination_number = np.cumsum(histogram_total) / (mean_n_a * n_frames)
 
     return r_centres, g_r, coordination_number
+
+
+# . 1 amu/Å^3 expressed in g/cm^3 (1.66053906660e-24 g / 1e-24 cm^3).
+AMU_PER_A3_TO_G_PER_CM3 = 1.66053906660
+
+
+def cell_volume_from_vertices(cell_vertices):
+    """ Volume (Å^3) of a periodic cell given its 8 vertices, in the
+        same vertex order vismol_object._calculate_unit_cell_vertices()
+        produces: [0]=origin, [1]=origin+a, [2]=origin+b, [4]=origin+c.
+        Uses the triple product |a . (b x c)|, so triclinic cells are
+        handled too (not only orthorhombic ones), and a cell translated
+        away from the origin (see vismol_pdbqt_builder.py) gives the same
+        volume.
+    """
+    vertices = np.asarray(cell_vertices, dtype=np.float64)
+    a = vertices[1] - vertices[0]
+    b = vertices[2] - vertices[0]
+    c = vertices[4] - vertices[0]
+    return abs(float(np.dot(a, np.cross(b, c))))
+
+
+def compute_box_density(total_mass, cell_vertices_per_frame):
+    """ Mass density of the periodic box for each frame.
+
+        total_mass: total mass of the atoms in the box, in amu (g/mol).
+        cell_vertices_per_frame: array-like, shape (n_frames, 8, 3) -- the
+        ALREADY-SELECTED frames' cell vertices (frame range/step are the
+        caller's responsibility, same as compute_rmsf()).
+
+        Returns (volumes, densities): two 1D arrays, shape (n_frames,),
+        volumes in Å^3 and densities in g/cm^3.
+    """
+    volumes = np.array([cell_volume_from_vertices(v) for v in cell_vertices_per_frame],
+                       dtype=np.float64)
+    if np.any(volumes <= 0.0):
+        raise ValueError("compute_box_density: cell with zero volume found.")
+    densities = (total_mass / volumes) * AMU_PER_A3_TO_G_PER_CM3
+    return volumes, densities

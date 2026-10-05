@@ -63,6 +63,8 @@ from gui.windows.setup.windows_and_dialogs import InfoWindow
 from gui.windows.setup.windows_and_dialogs import MergeSystemWindow
 from gui.windows.setup.windows_and_dialogs import SolvateSystemWindow
 from gui.windows.setup.windows_and_dialogs import PrepareAmberSystemWindow
+from gui.windows.setup.windows_and_dialogs import PrepareOPLSSystemWindow
+from gui.windows.setup.windows_and_dialogs import OPLSParametersWindow
 from gui.windows.setup.windows_and_dialogs import PrepareLigandAntechamberWindow
 from gui.windows.setup.windows_and_dialogs import PrepareNamdRunWindow
 from gui.windows.setup.windows_and_dialogs import PrepareSMDWindow
@@ -101,6 +103,7 @@ from gui.windows.analysis.RMSD_tool                               import RMSDToo
 from gui.windows.analysis.RMSD_analysis_window                    import RMSDAnalysisWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
 from gui.windows.analysis.RMSF_analysis_window                    import RMSFAnalysisWindow
 from gui.windows.analysis.RDF_analysis_window                      import RDFAnalysisWindow
+from gui.windows.analysis.density_analysis_window                 import DensityAnalysisWindow
 from gui.windows.analysis.align_trajectory                        import AlignTrajectoryWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
 from gui.windows.analysis.reimaging_trajectory                    import ReimagingTrajectoryWindow #/home/fernando/programs/EasyHybrid3/src/gui/windows/analysis/RMSD_analysis_window.py
 
@@ -112,7 +115,9 @@ from gui.windows.builder.builder_sidebar      import BuilderSidebarWindow
 from gui.windows.builder.fragment_library_window import FragmentLibraryWindow
 from gui.windows.builder.structure_library_window import StructureLibraryWindow
 from gui.windows.builder.atom_types_window import AtomTypesWindow
+from gui.windows.builder.dyff_parameters_window import DYFFParametersWindow
 from gui.windows.builder.transform_selection_window import TransformSelectionWindow
+from gui.windows.builder.solvate_window import SolvateWindow
 from gui.windows.builder.dihedral_angle_window import DihedralAngleWindow
 
 
@@ -250,12 +255,24 @@ class MainWindow:
         # Status bar initialization
         self.statusbar_main = self.builder.get_object('statusbar1')
         self.statusbar_main.push(1,'Welcome to EasyHybrid version {}, a pDynamo3 graphical tool'.format(self.EASYHYBRID_VERSION))
-        
+
+        # Hover status bar: atom under the mouse cursor (see update_hover_statusbar)
+        self.statusbar_hover = self.builder.get_object('statusbar_hover')
+        self.statusbar_hover_context = self.statusbar_hover.get_context_id('hover')
+        # right-aligned text: GtkStatusbar packs its label with expand=False
+        # and halign=start, so it must be re-packed to fill the bar first
+        message_area = self.statusbar_hover.get_message_area()
+        for label in message_area.get_children():
+            message_area.set_child_packing(label, True, True, 0, Gtk.PackType.START)
+            label.set_halign(Gtk.Align.FILL)
+            label.set_xalign(1.0)
+
         self.paned_V         = self.builder.get_object('paned_V')
         
         # -------------------- SESSION MANAGEMENT --------------------
         self.vm_session      = vm_session#( main = None)
         self.vm_session.main = self
+        self.vm_session.hover_atom_callback = self.update_hover_statusbar
         
         self.vm_session.vm_object_counter = 0
         self.vm_session.insert_glmenu()
@@ -482,7 +499,9 @@ class MainWindow:
         self.fragment_library_window   = FragmentLibraryWindow (main = self)
         self.structure_library_window  = StructureLibraryWindow (main = self)
         self.atom_types_window         = AtomTypesWindow (main = self)
+        self.dyff_parameters_window    = DYFFParametersWindow (main = self)   # replaces Atom Types in the Builder sidebar
         self.transform_selection_window = TransformSelectionWindow (main = self)
+        self.solvate_window             = SolvateWindow (main = self)
         self.dihedral_angle_window      = DihedralAngleWindow (main = self)
         
         self.molecular_dynamics_window  = MolecularDynamicsWindow(main = self)
@@ -504,6 +523,7 @@ class MainWindow:
         self.rmsd_analysis_window = RMSDAnalysisWindow (main = self, system_liststore = self.system_liststore)
         self.rmsf_analysis_window = RMSFAnalysisWindow (main = self)
         self.rdf_analysis_window  = RDFAnalysisWindow  (main = self)
+        self.density_analysis_window = DensityAnalysisWindow (main = self)
         self.ramachandran_analysis_window = RamachandranAnalysisWindow (main = self)
         
         self.align_trajectory_window = AlignTrajectoryWindow (main = self, system_liststore = self.system_liststore)
@@ -524,6 +544,8 @@ class MainWindow:
         self.merge_system_window = MergeSystemWindow(main = self)
         self.solvate_system_window = SolvateSystemWindow(main = self)
         self.prepare_amber_system_window = PrepareAmberSystemWindow(main = self)
+        self.prepare_opls_system_window  = PrepareOPLSSystemWindow(main = self)
+        self.opls_parameters_window      = OPLSParametersWindow(main = self)
         self.prepare_ligand_antechamber_window = PrepareLigandAntechamberWindow(main = self)
         self.prepare_namd_run_window = PrepareNamdRunWindow(main = self)
         self.prepare_smd_window = PrepareSMDWindow(main = self)
@@ -1265,6 +1287,14 @@ class MainWindow:
             self.p_session.define_NBModel()
             self.refresh_main_statusbar()
 
+        elif menuitem == self.builder.get_object('menuitem_force_field_opls'):
+            ok, msg = self.p_session.define_MMModel ( force_field = 'OPLS' )
+            self.refresh_main_statusbar()
+            if ok:
+                self.bottom_notebook.status_teeview_add_new_item ( message = msg, system = self.p_session.psystem.get ( self.p_session.active_id ) )
+            else:
+                self.simple_dialog.error ( msg = msg )
+
         elif menuitem == self.builder.get_object('menuitem_force_field_dyff'):
             ok, msg = self.p_session.define_MMModel ( force_field = 'DYFF' )
             self.refresh_main_statusbar()
@@ -1297,6 +1327,12 @@ class MainWindow:
 
         elif menuitem == self.builder.get_object('menuitem_prepare_amber_tleap'):
             self.prepare_amber_system_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_prepare_opls_system'):
+            self.prepare_opls_system_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_opls_parameters'):
+            self.opls_parameters_window.open_window()
 
         elif menuitem == self.builder.get_object('menuitem_prepare_ligand_antechamber'):
             self.prepare_ligand_antechamber_window.open_window()
@@ -1449,6 +1485,9 @@ class MainWindow:
 
         elif menuitem == self.builder.get_object('menuitem_rdf_analysis'):
             self.rdf_analysis_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_density_analysis'):
+            self.density_analysis_window.open_window()
         
         elif menuitem == self.builder.get_object('test_histograms'):
             from util.easyplot import ImagePlot, XYPlot
@@ -2102,6 +2141,34 @@ class MainWindow:
             self.statusbar_main.push(0, string, swatch)
             '''
         self.statusbar_main.push(1,string)
+
+    def update_hover_statusbar(self, atom = None):
+        """ Shows the atom under the mouse cursor in the hover status bar,
+        as  Resname(Resnumber)  Symbol/AtomName/AtomType (Id)  -- AtomType is
+        the MM force-field type, left out when the system has no MM model.
+        Called by VismolGLCore whenever the hovered atom changes; None
+        clears it. """
+        self.statusbar_hover.remove_all(self.statusbar_hover_context)
+        if atom is None:
+            return
+        
+        vobject = atom.vm_object
+        index   = atom.atom_id
+        fields  = [atom.symbol, atom.name]
+        
+        psystem = self.p_session.psystem.get(vobject.e_id) if vobject.e_id is not None else None
+        if psystem is not None and len(psystem.atoms) == len(vobject.atoms):
+            mmState = getattr(psystem, 'mmState', None)
+            if mmState is not None and getattr(mmState, 'atomTypes', None) is not None:
+                try:
+                    fields.append(str(mmState.atomTypes[mmState.atomTypeIndices[index]]))
+                except (IndexError, TypeError):
+                    pass
+        
+        string = '{} ({})'.format('/'.join(fields), atom.index if atom.index is not None else index+1)
+        if atom.residue is not None:
+            string = '{}({})  {}'.format(atom.residue.name, atom.residue.index, string)
+        self.statusbar_hover.push(self.statusbar_hover_context, string)
 
     def refresh_widgets (self, statusbar = True):
         """ Function doc """

@@ -121,6 +121,20 @@ def compute_atom_types ( vismol_object, atom_ids = None, parameter_set = "dyff-1
         # window shows "?" for those and the user can still set a
         # manual override on them directly.
         perceived_types = [ None ] * len ( system.connectivity.nodes )
+        # [EN] 2026-10-03: ...but keep every type that WAS assigned: run
+        # the same two typing passes as TypeAtoms() minus its final
+        # CheckUntypedAtoms() raise, so one untyped atom (a metal, a
+        # radical mid-build) no longer blanks the whole molecule.
+        try:
+            n_atoms = len ( system.connectivity.atoms )
+            partial_types   = [ None ] * n_atoms
+            partial_charges = [ 0.0  ] * n_atoms
+            untyped = set ( system.connectivity.atoms )
+            typer.TypeBySequence ( system.sequence    , partial_types, partial_charges, untyped )
+            typer.TypeByPattern  ( system.connectivity, partial_types, partial_charges, untyped )
+            perceived_types = partial_types
+        except Exception:
+            pass
 
     result = { }
     for atom_id in scope:

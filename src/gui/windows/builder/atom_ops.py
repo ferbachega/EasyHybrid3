@@ -50,6 +50,7 @@
 #      an existing atom, adding an explicit bond without relying on
 #      distance-based auto-detection, undo/redo.
 #
+import copy
 import numpy as np
 from vismol.model.atom import Atom
 from vismol.model.chain import Chain
@@ -1264,6 +1265,9 @@ def _refresh_bond_dependent_representations ( vismol_object ):
     # first one ever created for a given object.
     reps = getattr ( vismol_object, "representations", None ) or { }
     rebuilt_types = ( "lines", "sticks", "nonbonded", "stick_spheres" )
+    # periodic-cell outline: drawn from the cell's 8 vertices, not from the
+    # atoms, so an atom-count change never makes it stale
+    keep_types    = ( "cell_lines", )
     for rep_type in rebuilt_types:
         rep = reps.get ( rep_type )
         if rep is None:
@@ -1277,7 +1281,7 @@ def _refresh_bond_dependent_representations ( vismol_object ):
                 _activate_new_sphere_representation ( vismol_object, "stick_spheres" )
 
     for rep_type, rep in reps.items ( ):
-        if rep is None or rep_type in rebuilt_types:
+        if rep is None or rep_type in rebuilt_types or rep_type in keep_types:
             continue
         if getattr ( rep, "active", False ):
             rep.active = False
@@ -1746,6 +1750,33 @@ def unset_dynamic_bond ( vismol_object, atom_id_a, atom_id_b, frames = None ):
 #   "started" (e.g. start_bond_drag(), not update_bond_drag()).
 # =====================================================================================
 
+def set_builder_cell ( vismol_object, cell, redraw = True ):
+    """ [EN] 2026-10-03: sets (cell = (a, b, c, alpha, beta, gamma)) or
+    clears (cell = None) the periodic cell of a Builder object: stored as
+    vismol_object.builder_cell (snapshotted by undo/redo, and turned into
+    the linked pDynamo system's symmetry by empty_object's system build)
+    and drawn as the usual cell outline (vismol_object.set_cell() +
+    vm_session.show_cell(), the same path as "Show Cell" in the treeview). """
+    vm_session = vismol_object.vm_session
+    vismol_object.builder_cell = tuple ( float ( v ) for v in cell ) if cell is not None else None
+    reps = getattr ( vismol_object, "representations", None )
+    if cell is None:
+        vismol_object.cell_parameters = None
+        if reps is not None and reps.get ( "cell_lines" ) is not None:
+            reps["cell_lines"].active = False
+            del reps["cell_lines"]
+    else:
+        a, b, c, alpha, beta, gamma = vismol_object.builder_cell
+        vismol_object.set_cell ( a, b, c, alpha, beta, gamma, color = [ 0.7, 0.7, 0.2 ] )
+        if hasattr ( vm_session, "show_cell" ) and getattr ( vm_session, "vm_glcore", None ) is not None:
+            try:
+                vm_session.show_cell ( vismol_object )
+            except Exception as error:
+                dprint ( "set_builder_cell: could not draw the cell ({})".format ( error ) )
+    if redraw and getattr ( vm_session, "vm_glcore", None ) is not None:
+        vm_session.vm_glcore.queue_draw ( )
+
+
 def _snapshot_builder_state ( vismol_object ):
     """ [EN] Captures everything needed to reconstruct vismol_object's
     CURRENT state via _restore_builder_state() below: every atom's
@@ -1767,6 +1798,7 @@ def _snapshot_builder_state ( vismol_object ):
             'resn'    : atom.residue.name if atom.residue is not None else 'UNK',
             'x'       : float ( pos[0] ), 'y': float ( pos[1] ), 'z': float ( pos[2] ),
             'formal_charge': getattr ( atom, 'formal_charge', 0 ),
+            'mm_charge'    : getattr ( atom, 'mm_charge', None ),     # DYFF partial charge (DYFF Parameters window)
         } )
 
     return {
@@ -1774,6 +1806,10 @@ def _snapshot_builder_state ( vismol_object ):
         'manual_bonds'          : set ( getattr ( vismol_object, 'manual_bonds', None ) or set ( ) ),
         'manual_bond_orders'    : dict ( getattr ( vismol_object, 'manual_bond_orders', None ) or { } ),
         'manual_aromatic_bonds' : set ( getattr ( vismol_object, 'manual_aromatic_bonds', None ) or set ( ) ),
+        'dyff_parameter_edits'  : copy.deepcopy ( getattr ( vismol_object, 'dyff_parameter_edits', None ) or { } ),
+        # [EN] 2026-10-03: periodic cell set by the Builder's Solvate tool
+        'builder_cell'          : getattr ( vismol_object, 'builder_cell', None ),
+        'builder_solvation'     : getattr ( vismol_object, 'builder_solvation', None ),
     }
 
 
@@ -1795,6 +1831,9 @@ def push_undo_snapshot ( vismol_object, max_depth = 50 ):
 
     if len ( vismol_object.undo_stack ) > max_depth:
         vismol_object.undo_stack.pop ( 0 )
+
+    # a NEW edit branches history: whatever was undone can't be redone now
+    vismol_object.redo_stack = [ ]
 
 
 def _restore_builder_state ( vismol_object, snapshot ):
@@ -1837,6 +1876,11 @@ def _restore_builder_state ( vismol_object, snapshot ):
                    recompute_bonds       = False,
                    update_representation = False,
                    _deferred_rows        = rows )
+    vismol_object.dyff_parameter_edits = copy.deepcopy ( snapshot.get ( 'dyff_parameter_edits', { } ) )
+    # . partial charges set in the DYFF Parameters window (atoms are recreated in order)
+    for atom_id, atom_data in enumerate ( snapshot['atoms'] ):
+        if atom_data.get ( 'mm_charge' ) is not None and atom_id in vismol_object.atoms:
+            vismol_object.atoms[atom_id].mm_charge = atom_data['mm_charge']
     # frames / mass centre / colour vectors once, for every atom at once
     # (see add_atom()'s _deferred_rows note)
     if rows:
@@ -1850,6 +1894,10 @@ def _restore_builder_state ( vismol_object, snapshot ):
     vismol_object.manual_bonds          = set ( snapshot['manual_bonds'] )
     vismol_object.manual_bond_orders    = dict ( snapshot['manual_bond_orders'] )
     vismol_object.manual_aromatic_bonds = set ( snapshot.get ( 'manual_aromatic_bonds', ( ) ) or ( ) )
+    if 'builder_cell' in snapshot:
+        set_builder_cell ( vismol_object, snapshot['builder_cell'], redraw = False )
+    if 'builder_solvation' in snapshot:
+        vismol_object.builder_solvation = snapshot['builder_solvation']
 
     vismol_object.cov_radii_array = None
     vismol_object.electronegativity_array = None
@@ -1897,6 +1945,32 @@ def undo ( vismol_object ):
         return False
 
     snapshot = undo_stack.pop ( )
+    # [EN] 2026-10-03 Redo: the state being left goes onto the redo stack
+    # (snapshot-based, so redo is just "restore the state undo replaced")
+    redo_stack = getattr ( vismol_object, 'redo_stack', None )
+    if redo_stack is None:
+        redo_stack = vismol_object.redo_stack = [ ]
+    redo_stack.append ( _snapshot_builder_state ( vismol_object ) )
+    _restore_builder_state ( vismol_object, snapshot )
+    return True
+
+
+def redo ( vismol_object, max_depth = 50 ):
+    """ [EN] 2026-10-03: re-applies the last action undone by undo().
+    Mirror image of undo(): the current state goes back onto the undo
+    stack (NOT through push_undo_snapshot(), which would clear the redo
+    stack), then the redo snapshot is restored. The redo stack is emptied
+    by any new edit (push_undo_snapshot()), as in every editor. Returns
+    True if something was redone. """
+    redo_stack = getattr ( vismol_object, 'redo_stack', None )
+    if not redo_stack:
+        return False
+    snapshot = redo_stack.pop ( )
+    if getattr ( vismol_object, 'undo_stack', None ) is None:
+        vismol_object.undo_stack = [ ]
+    vismol_object.undo_stack.append ( _snapshot_builder_state ( vismol_object ) )
+    if len ( vismol_object.undo_stack ) > max_depth:
+        vismol_object.undo_stack.pop ( 0 )
     _restore_builder_state ( vismol_object, snapshot )
     return True
 
@@ -2342,6 +2416,45 @@ def _hydrogen_bond_length ( vismol_object, heavy_atom ):
     single constant for both). """
     h_cov_rad = vismol_object.vm_session.periodic_table.elements_by_symbol['H'][7]
     return float ( heavy_atom.cov_rad ) + float ( h_cov_rad )
+
+
+def remove_atoms ( vismol_object, atoms ):
+    """ [EN] 2026-10-04, user's request: Delete key + viewing selection
+    while the Builder is open. Removes several atoms (Atom objects of
+    vismol_object) as ONE undo step, with the same rules as the single-atom
+    delete paths: with "Adjust hydrogen count" on, the hydrogens of every
+    deleted heavy atom go with it (no orphan H) and the surviving heavy
+    neighbours get their hydrogens adjusted (an H deleted on purpose is
+    not put back: hydrogens' own neighbours are not adjusted).
+    Atoms are tracked as objects: remove_atom() renumbers atom_id in
+    place, so ids are read fresh and removed from the highest down.
+    Returns the number of atoms removed (0 = nothing done, no snapshot). """
+    doomed = [ a for a in atoms if a is not None and vismol_object.atoms.get ( a.atom_id ) is a ]
+    if not doomed:
+        return 0
+    push_undo_snapshot ( vismol_object )
+    adjust = builder_adjust_hydrogen_count_enabled ( vismol_object )
+    doomed_set = set ( id ( a ) for a in doomed )
+    neighbours = { }
+    for bond in ( vismol_object.bonds or { } ).values ( ):
+        i, j = bond.atom_index_i, bond.atom_index_j
+        a, b = vismol_object.atoms.get ( i ), vismol_object.atoms.get ( j )
+        if a is None or b is None: continue
+        for x, y in ( ( a, b ), ( b, a ) ):
+            if id ( x ) in doomed_set and x.symbol != 'H' and id ( y ) not in doomed_set:
+                if y.symbol == 'H':
+                    if adjust:
+                        doomed.append ( y ); doomed_set.add ( id ( y ) )
+                else:
+                    neighbours[id ( y )] = y
+    for atom in sorted ( doomed, key = lambda a: a.atom_id, reverse = True ):
+        if vismol_object.atoms.get ( atom.atom_id ) is atom:
+            remove_atom ( vismol_object, atom.atom_id )
+    if adjust:
+        for atom in neighbours.values ( ):
+            if id ( atom ) not in doomed_set and vismol_object.atoms.get ( atom.atom_id ) is atom:
+                adjust_hydrogens ( vismol_object, atom.atom_id )
+    return len ( doomed )
 
 
 def builder_adjust_hydrogen_count_enabled ( vismol_object ):

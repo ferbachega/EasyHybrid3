@@ -47,7 +47,7 @@ from gui.windows.builder.empty_object import finish_editing_existing_system
 from gui.windows.builder.empty_object import hide_other_vobjects_for_builder
 from gui.windows.builder.empty_object import restore_hidden_vobjects_for_builder
 from gui.windows.builder.atom_ops     import undo as atom_ops_undo
-from gui.windows.builder.atom_ops     import clean_up_structure
+from gui.windows.builder.atom_ops     import redo as atom_ops_redo
 from gui.windows.builder.atom_ops     import optimize_geometry_dyff
 from gui.windows.builder.fragment_library import load_fragment, FragmentError
 
@@ -182,16 +182,34 @@ class BuilderSidebarWindow ( ):
         self.bond_order_triple_radio   = self.builder.get_object ( 'bond_order_triple_radio' )
         self.transform_selection_button = self.builder.get_object ( 'transform_selection_button' )
         self.undo_button       = self.builder.get_object ( 'undo_button' )
-        self.clean_up_button   = self.builder.get_object ( 'clean_up_button' )
+        self.redo_button       = self.builder.get_object ( 'redo_button' )
+        # [EN] 2026-10-03 user request: the Bond Order radios only serve the
+        # "Bond Order" tool (re-defining an EXISTING bond), so their row is
+        # shown only while that tool is active (see _sync_bond_order_row()).
+        # "Add" no longer reads them: a dragged bond's order always comes
+        # from the drag distance (click_mode.update/finish_bond_drag()).
+        self.bond_order_row = self.bond_order_single_radio.get_parent ( )
+        if self.bond_order_row is not None:
+            self.bond_order_row.set_no_show_all ( True )
+        # [EN] 2026-10-03: the Clean Up button was removed (user request);
+        # atom_ops.clean_up_structure() itself is kept.
         # [EN] 2026-10-02 user request ("ferramenta para adicionar os
         # hidrogenios corretamente... incorporados aos residuos"): an "Add
-        # Hydrogens" button right below Clean Up. Created here rather than
-        # in builder_sidebar.glade so the user's hand-edited glade stays
-        # exactly as they left it (it can be moved into the glade later --
-        # keep the id/handler name).
-        self.add_hydrogens_button = self._create_add_hydrogens_button ( )
-        self.clean_up_adjust_hydrogens_checkbutton = self.builder.get_object ( 'clean_up_adjust_hydrogens_checkbutton' )
+        # Hydrogens" button right below Optimize. [EN] 2026-10-03: now
+        # defined in builder_sidebar.glade (id add_hydrogens_button, handler
+        # on_add_hydrogens_button_clicked); _create_add_hydrogens_button()
+        # just returns it, creating one only if an older glade lacks it.
         self.optimize_dyff_button = self.builder.get_object ( 'optimize_dyff_button' )
+        self.add_hydrogens_button = self._create_add_hydrogens_button ( )
+        # dark interface theme (src/gui/theme.py): lighten the black line-
+        # drawing icons (ring fragments...) so they stay visible; no-op with
+        # the default theme
+        try:
+            from gui.theme import adapt_icons_for_theme
+            adapt_icons_for_theme ( self.window )
+        except Exception:
+            pass
+        self.clean_up_adjust_hydrogens_checkbutton = self.builder.get_object ( 'clean_up_adjust_hydrogens_checkbutton' )
 
         if getattr ( self.vm_session, "builder_target_object", None ) is None:
             vismol_object = create_empty_vismol_object ( self.vm_session, name = "builder_molecule" )
@@ -260,9 +278,40 @@ class BuilderSidebarWindow ( ):
         self.clean_up_adjust_hydrogens_checkbutton.set_active ( True )
 
         self.window.show_all ( )
+        self._sync_bond_order_row ( )
         self.visible = True
+        # keep Undo/Redo greyed out when there is nothing to undo/redo --
+        # edits happen in click_mode.py/vismol_glcore.py, so poll cheaply
+        from gi.repository import GLib
+        self._undo_redo_timer = GLib.timeout_add ( 300, self._update_undo_redo_sensitivity )
+        self._update_undo_redo_sensitivity ( )
 
-    def close_window ( self, *args ):
+    def _sync_bond_order_row ( self ):
+        """ Bond order radios visible only with the "Bond Order" tool. """
+        row = getattr ( self, "bond_order_row", None )
+        if row is None:
+            return
+        if self.tool_bond_order_radio.get_active ( ):
+            row.set_no_show_all ( False )
+            row.show_all ( )
+        else:
+            row.hide ( )
+            row.set_no_show_all ( True )
+
+    def _update_undo_redo_sensitivity ( self ):
+        if not self.visible or getattr ( self, "window", None ) is None:
+            self._undo_redo_timer = None
+            return False
+        target_object = getattr ( self.vm_session, "builder_target_object", None )
+        can_undo = bool ( getattr ( target_object, "undo_stack", None ) )
+        can_redo = bool ( getattr ( target_object, "redo_stack", None ) )
+        if self.undo_button is not None and self.undo_button.get_sensitive ( ) != can_undo:
+            self.undo_button.set_sensitive ( can_undo )
+        if self.redo_button is not None and self.redo_button.get_sensitive ( ) != can_redo:
+            self.redo_button.set_sensitive ( can_redo )
+        return True
+
+    def close_window ( self, *args, allow_cancel = False ):
         """ Closes the sidebar and turns Builder editing mode back OFF.
         Accepts *args so it can be connected directly to BOTH the
         "Close" button's `clicked` signal (button) -> and the window's
@@ -302,6 +351,20 @@ class BuilderSidebarWindow ( ):
         leaves behind -- so there is no real caller left to preserve the
         old "leave it set" behaviour for. """
         target_object = getattr ( self.vm_session, "builder_target_object", None )
+
+        # [EN] 2026-10-04, user's request: when the session leaves a system
+        # behind, ask whether to incorporate it with DYFF and the Builder's
+        # customizations (edited parameters, partial charges, atom types).
+        # "No" keeps today's behaviour (a system without force field);
+        # "Cancel" (only from the Close button / window X) keeps editing.
+        incorporate = False
+        if self._session_leaves_a_system ( target_object ):
+            answer = self._ask_incorporate_with_dyff ( target_object, allow_cancel )
+            if answer is None:
+                return True
+            incorporate = answer
+        final_vobject = None
+
         if target_object is not None and getattr ( target_object, "is_builder_only", False ):
             discard_builder_object_if_unused ( target_object )
         elif target_object is not None and getattr ( target_object, "builder_edit_source_e_id", None ) is not None:
@@ -313,7 +376,9 @@ class BuilderSidebarWindow ( ):
             # decides whether to fold it back onto the original (atom
             # count unchanged) or keep it as its own new system (atom
             # count changed).
-            finish_editing_existing_system ( target_object )
+            final_vobject = finish_editing_existing_system ( target_object, carry_customizations = incorporate )
+        elif target_object is not None:
+            final_vobject = target_object
         self.vm_session.builder_target_object = None
 
         # [EN] 2026-09-25: counterpart to hide_other_vobjects_for_
@@ -336,16 +401,75 @@ class BuilderSidebarWindow ( ):
         # explicit close here, or it would be left dangling open after
         # the Builder itself closes.
         self.disarm_dihedral_slider ( )
+        # the Solvate window works on this session's object too
+        solvate_window = getattr ( self.main, "solvate_window", None )
+        if solvate_window is not None and solvate_window.visible:
+            solvate_window.close_window ( )
         # [EN] The Atom Types window's own 3D-view index-label overlay
         # (see atom_types_window.py's _refresh_rows()) points at atoms
         # belonging to the object THIS Builder session was editing --
         # stale/dangling once that session ends, regardless of whether
         # the Atom Types window itself is still open or already closed.
         self.vm_session.builder_atom_types_labeled_atoms = [ ]
+        timer = getattr ( self, "_undo_redo_timer", None )
+        if timer is not None:
+            from gi.repository import GLib
+            GLib.source_remove ( timer )
+            self._undo_redo_timer = None
         if getattr ( self, "window", None ) is not None:
             self.window.destroy ( )
         self.visible = False
+        if incorporate and final_vobject is not None:
+            self._incorporate_with_dyff ( final_vobject, rebuild = final_vobject is target_object )
         return True
+
+    def _session_leaves_a_system ( self, target_object ):
+        """ True when closing keeps a system with atoms: a blank session that
+            got real edits (promoted) or an "Edit in Builder" session. """
+        if target_object is None or not getattr ( target_object, "atoms", None ):
+            return False
+        if getattr ( target_object, "builder_edit_source_e_id", None ) is not None:
+            return True
+        return not getattr ( target_object, "is_builder_only", False ) and getattr ( target_object, "e_id", None ) is not None
+
+    def _ask_incorporate_with_dyff ( self, target_object, allow_cancel ):
+        """ True (incorporate), False (plain system, as before) or None (cancel). """
+        from gi.repository import Gtk
+        from gui.windows.builder.dyff_parameters import builder_customizations, customizations_text
+        lines = customizations_text ( builder_customizations ( target_object ) )
+        dialog = Gtk.MessageDialog ( transient_for = getattr ( self, "window", None ) or self.main.window, modal = True,
+                                     message_type = Gtk.MessageType.QUESTION, buttons = Gtk.ButtonsType.NONE,
+                                     text = "Incorporate '{}' with the DYFF force field?".format ( target_object.name ) )
+        dialog.format_secondary_text (
+            "Yes: the system gets the DYFF MM model with the customizations made in the Builder:\n"
+            + "".join ( "    \u2022 {}\n".format ( line ) for line in lines )
+            + "\nNo: the system is kept without a force field (as before)." )
+        if allow_cancel:
+            dialog.add_button ( "Cancel", Gtk.ResponseType.CANCEL )
+        dialog.add_button ( "No, plain system", Gtk.ResponseType.NO )
+        dialog.add_button ( "Yes, incorporate with DYFF", Gtk.ResponseType.YES )
+        dialog.set_default_response ( Gtk.ResponseType.YES )
+        response = dialog.run ( )
+        dialog.destroy ( )
+        if response == Gtk.ResponseType.YES: return True
+        if response == Gtk.ResponseType.NO:  return False
+        return None if allow_cancel else False
+
+    def _incorporate_with_dyff ( self, vismol_object, rebuild = True ):
+        """ DYFF + customizations on the system the session left. rebuild: the
+            pDynamo system is rebuilt from the object first (current
+            coordinates; a fold-back has just done it). """
+        from gui.windows.builder.dyff_parameters import incorporate_with_dyff
+        from gui.windows.builder.empty_object import sync_pdynamo_system
+        if rebuild:
+            sync_pdynamo_system ( vismol_object )
+        system = self.main.p_session.psystem.get ( getattr ( vismol_object, "e_id", None ) )
+        ok, message = incorporate_with_dyff ( self.main, vismol_object )
+        self.main.refresh_main_statusbar ( )
+        if ok:
+            self.main.bottom_notebook.status_teeview_add_new_item ( message = message, system = system )
+        else:
+            self.main.simple_dialog.error ( msg = message + "\nThe system was kept without a force field." )
 
     # ------------------------------------------------------------------
     #  Signal handlers (referenced by name in builder_sidebar.glade)
@@ -414,6 +538,7 @@ class BuilderSidebarWindow ( ):
         # SURVIVING one the user simply doesn't remember picking).
         if self.vm_session.builder_tool != "bond_order":
             self.vm_session.builder_bond_pick_first_atom = None
+        self._sync_bond_order_row ( )
 
     def on_element_changed ( self, button ):
         """ Same "only act on the newly-active one" reasoning as
@@ -550,8 +675,10 @@ class BuilderSidebarWindow ( ):
 
     def on_bond_order_changed ( self, button ):
         """ Same "only act on the newly-active one" reasoning as
-        on_tool_changed()/on_element_changed() above. This selection
-        applies to bonds CREATED from now on (drag-to-bond, 'b' key), to
+        on_tool_changed()/on_element_changed() above. [EN] 2026-10-03:
+        this row is shown only with the "Bond Order" tool and no longer
+        affects "Add" (a dragged bond's order comes from the drag
+        distance). It still applies to the 'b' key, to
         an EXISTING bond via Ctrl+click on it (click_mode.apply_
         selected_bond_order()), and to an existing bond via the "Bond
         Order" click-tool above (click_mode.handle_click_to_set_bond_
@@ -609,12 +736,14 @@ class BuilderSidebarWindow ( ):
         selected_atoms = getattr ( selection, "selected_atoms", None ) or set ( )
         atom_ids = { atom.atom_id for atom in selected_atoms if atom.vm_object is target_object }
 
-        if not atom_ids:
+        # [EN] 2026-10-04: opens the DYFF Parameters window (replaces Atom Types;
+        # see dyff_parameters_window.py) -- on the selected atoms, or on the whole
+        # molecule when nothing is selected.
+        if not target_object.atoms:
             if getattr ( self.main, "statusbar_main", None ) is not None:
-                self.main.statusbar_main.push ( 1, "Atom Types: select some atoms first (shift+click or shift+drag)." )
+                self.main.statusbar_main.push ( 1, "DYFF Parameters: the molecule has no atoms yet." )
             return
-
-        self.main.atom_types_window.open_window ( target_object, atom_ids )
+        self.main.dyff_parameters_window.open_window ( target_object, atom_ids )
 
     def on_transform_selection_button_clicked ( self, button ):
         """ Opens the Transform Selection window (transform_selection_
@@ -669,39 +798,22 @@ class BuilderSidebarWindow ( ):
         if target_object is None:
             return
         atom_ops_undo ( target_object )
+        self._update_undo_redo_sensitivity ( )
 
-    def on_clean_up_button_clicked ( self, button ):
-        """ Runs atom_ops.clean_up_structure() on the WHOLE current
-        target object (atom_ids=None -- see that function's own
-        docstring for the difference between whole-molecule and
-        localised modes; this button always uses whole-molecule, per
-        explicit request). Pushes an undo snapshot first, same as every
-        other Builder mutation, since this can move every atom in the
-        object at once.
-
-        adjust_hydrogen_count comes straight from the sidebar's own
-        checkbox (user's own request) -- when unticked, Clean Up only
-        relaxes heavy-atom positions/angles/planarity and leaves
-        whichever hydrogens already exist exactly where they are,
-        neither repositioned nor added/removed (see clean_up_structure()'s
-        own docstring for the full reasoning). """
-        from gui.windows.builder.atom_ops import push_undo_snapshot
+    def on_redo_button_clicked ( self, button ):
+        """ [EN] 2026-10-03: re-applies the last action undone by Undo
+        (atom_ops.redo()); any new edit clears what can be redone. """
         target_object = getattr ( self.vm_session, "builder_target_object", None )
         if target_object is None:
             return
-        adjust_hydrogen_count = ( self.clean_up_adjust_hydrogens_checkbutton is None
-                                   or self.clean_up_adjust_hydrogens_checkbutton.get_active ( ) )
-        push_undo_snapshot ( target_object )
-        clean_up_structure ( target_object, atom_ids = None, adjust_hydrogen_count = adjust_hydrogen_count )
-
-        from gui.windows.builder.empty_object import sync_pdynamo_system
-        sync_pdynamo_system ( target_object )
+        atom_ops_redo ( target_object )
+        self._update_undo_redo_sensitivity ( )
 
     def _create_add_hydrogens_button ( self ):
         existing = self.builder.get_object ( "add_hydrogens_button" )
         if existing is not None:          # already moved into the glade
             return existing
-        anchor = self.clean_up_button
+        anchor = self.optimize_dyff_button
         parent = anchor.get_parent ( ) if anchor is not None else None
         if not isinstance ( parent, Gtk.Box ):
             return None
@@ -761,6 +873,15 @@ class BuilderSidebarWindow ( ):
         self.main.prepare_add_hydrogens_window.open_window (
                 target_vobject = target_object, on_before_apply = before, on_after_apply = after )
 
+    def on_solvate_button_clicked ( self, button ):
+        """ [EN] 2026-10-03: opens the Solvate window (solvate_window.py) on
+        the molecule being edited. """
+        target_object = getattr ( self.vm_session, "builder_target_object", None )
+        if target_object is None or not target_object.atoms:
+            self.main.simple_dialog.info ( msg = "There is no molecule in the Builder yet." )
+            return
+        self.main.solvate_window.open_window ( target_object )
+
     def on_optimize_dyff_button_clicked ( self, button ):
         """ User's own request: "otimizar a geometria com o DYFF, vamos
         criar um sistema provisorio no background, otimizar por 100 passos
@@ -784,4 +905,4 @@ class BuilderSidebarWindow ( ):
             self.main.simple_dialog.error ( msg = message )
 
     def on_close_button_clicked ( self, *args ):
-        return self.close_window ( )
+        return self.close_window ( allow_cancel = True )

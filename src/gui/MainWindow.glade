@@ -879,6 +879,16 @@
                                         <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                                       </object>
                                     </child>
+                                    <child>
+                                      <object class="GtkMenuItem" id="menuitem_force_field_opls">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="label" translatable="yes">OPLS</property>
+                                        <property name="tooltip-text" translatable="yes">Assigns OPLS-AA (pDynamo protein set, expanded with OPLS-AA/L and OPLS-AA 2008 parameters) to the active system. The system needs bond orders, formal charges and hydrogens: for a structure read from a PDB file use Extras, OPLS, Prepare OPLS System.</property>
+                                        <property name="use-underline">True</property>
+                                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                                      </object>
+                                    </child>
                                   </object>
                                 </child>
                               </object>
@@ -1170,6 +1180,15 @@
                       </object>
                     </child>
                     <child>
+                      <object class="GtkMenuItem" id="menuitem_density_analysis">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Box Density Analysis</property>
+                        <property name="use-underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkMenuItem" id="menuitem_rama">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
@@ -1255,6 +1274,40 @@
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="label" translatable="yes">Prepare Ligand (Antechamber)...</property>
+                                <property name="use-underline">True</property>
+                                <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menuitem_extras_opls">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">OPLS</property>
+                        <property name="use-underline">True</property>
+                        <child type="submenu">
+                          <object class="GtkMenu">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <child>
+                              <object class="GtkMenuItem" id="menuitem_prepare_opls_system">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="label" translatable="yes">Prepare OPLS System...</property>
+                                <property name="tooltip-text" translatable="yes">Builds an OPLS system from a loaded PDB structure: hydrogens, termini, disulfides, protonation states, ligand parametrization (CM5 charges) and solvation.</property>
+                                <property name="use-underline">True</property>
+                                <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkMenuItem" id="menuitem_opls_parameters">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="label" translatable="yes">OPLS Parameters...</property>
+                                <property name="tooltip-text" translatable="yes">Quality of the OPLS parameters of the active system (database, generic or estimated) per charge, bond, angle, dihedral, improper and Lennard-Jones type, with manual editing.</property>
                                 <property name="use-underline">True</property>
                                 <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                               </object>
@@ -1751,14 +1804,42 @@
           </packing>
         </child>
         <child>
-          <object class="GtkStatusbar" id="statusbar1">
+          <object class="GtkBox" id="box_statusbars">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="margin-left">10</property>
-            <property name="margin-right">10</property>
-            <property name="margin-start">10</property>
-            <property name="margin-end">10</property>
-            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkStatusbar" id="statusbar1">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="margin-left">10</property>
+                <property name="margin-right">10</property>
+                <property name="margin-start">10</property>
+                <property name="margin-end">10</property>
+                <property name="orientation">vertical</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <!-- Hover statusbar: info about the atom under the mouse cursor (main_window.update_hover_statusbar) -->
+              <object class="GtkStatusbar" id="statusbar_hover">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="margin-left">10</property>
+                <property name="margin-right">10</property>
+                <property name="margin-start">10</property>
+                <property name="margin-end">10</property>
+                <property name="orientation">vertical</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
           </object>
           <packing>
             <property name="expand">False</property>

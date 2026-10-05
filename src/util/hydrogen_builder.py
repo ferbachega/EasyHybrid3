@@ -143,7 +143,7 @@ def _get_library():
     return _LIBRARY
 
 
-def _template_atoms_and_bonds(component_label, variant_label):
+def _template_atoms_and_bonds(component_label, variant_label, strip_terminus_atoms=True):
     """ Returns (atoms, bonds, applied_variant_label) for `component_label`
         with `variant_label` applied (None -> the component's own default,
         e.g. HIS -> "Delta Protonated", or the plain base template if it
@@ -203,7 +203,7 @@ def _template_atoms_and_bonds(component_label, variant_label):
     # (H2 = 2nd N-terminal H), but other components use the same names for
     # ordinary atoms -- HOH's second hydrogen is "H2". Only strip them from
     # amino-acid templates (those with the N/CA/C backbone).
-    if {'N', 'CA', 'C'} <= set(atoms):
+    if strip_terminus_atoms and {'N', 'CA', 'C'} <= set(atoms):
         for name in _TERMINUS_ONLY_ATOM_NAMES:
             atoms.pop(name, None)
             bonds = [b for b in bonds if name not in b]
@@ -211,7 +211,24 @@ def _template_atoms_and_bonds(component_label, variant_label):
     return atoms, bonds, applied
 
 
-def analyze_residue(component_label, existing_atom_names, variant_label=None, existing_h_bond_counts=None):
+def _template_capacity(component_label, variant_label):
+    """ {atom_name: number of neighbours in the FULL template} -- the free
+        component, terminus-only atoms (H2/OXT/HXT) included. This is the
+        atom's real number of bonding partners (heavy + H), used to cap
+        the hydrogens a heavy atom may receive once its bonds to OTHER
+        residues are counted (see analyze_residue()). """
+    atoms, bonds, _ = _template_atoms_and_bonds(component_label, variant_label, strip_terminus_atoms=False)
+    if atoms is None:
+        return None
+    capacity = {name: 0 for name in atoms}
+    for (l1, l2) in bonds:
+        if l1 in capacity: capacity[l1] += 1
+        if l2 in capacity: capacity[l2] += 1
+    return capacity
+
+
+def analyze_residue(component_label, existing_atom_names, variant_label=None, existing_h_bond_counts=None,
+                    existing_heavy_bond_counts=None):
     """ Diffs the real template (see _template_atoms_and_bonds) for
         `component_label`/`variant_label` against `existing_atom_names`.
 
@@ -228,6 +245,15 @@ def analyze_residue(component_label, existing_atom_names, variant_label=None, ex
                                                    # parent heavy atom is
                                                    # ALSO missing)
           }
+
+        `existing_heavy_bond_counts`, if given, is {parent_name: n} -- the
+        number of HEAVY atoms really bonded to each heavy atom, including
+        atoms of OTHER residues (peptide bonds, disulfides, links). The
+        hydrogens of a parent are then capped at its full-template
+        capacity minus those heavy bonds: a chain PROLINE N (bonded to CA,
+        CD and the previous residue's C) gets no hydrogen -- the library's
+        PRO is the free amino acid, whose N carries one H. 2026-10-04 bug
+        fix: every chain proline used to receive an amide H (4-bonded N).
 
         `existing_h_bond_counts`, if given, is {parent_name: n} -- the
         number of hydrogens ALREADY REALLY BONDED (by actual geometry,
@@ -249,6 +275,7 @@ def analyze_residue(component_label, existing_atom_names, variant_label=None, ex
     if atoms is None:
         return None
     existing = set(existing_atom_names)
+    capacity = _template_capacity(component_label, variant_label) if existing_heavy_bond_counts is not None else None
 
     expected_by_parent = {}
     for name, atomic_number in atoms.items():
@@ -279,6 +306,9 @@ def analyze_residue(component_label, existing_atom_names, variant_label=None, ex
         else:
             already_have = sum(1 for n in h_names if n in existing)
         deficit = max(0, len(h_names) - already_have)
+        if capacity is not None and parent in capacity:
+            free_slots = capacity[parent] - existing_heavy_bond_counts.get(parent, 0) - already_have
+            deficit = min(deficit, max(0, free_slots))
         candidates = [n for n in h_names if n not in existing]
         for name in candidates[:deficit]:
             missing_hydrogens.append((name, 1, parent))
@@ -423,6 +453,19 @@ def _existing_h_bond_counts_for_residue(system, atoms_in_residue):
     return counts
 
 
+def _existing_heavy_bond_counts_for_residue(system, atoms_in_residue):
+    """ {heavy_atom_label: n} -- number of HEAVY neighbours of each heavy
+        atom of one residue, counting neighbours in other residues too
+        (peptide bonds, disulfides). See analyze_residue(). """
+    adjacent = system.connectivity.adjacentNodes
+    counts = {}
+    for atom in atoms_in_residue:
+        if atom.atomicNumber == 1:
+            continue
+        counts[atom.label] = sum(1 for neighbor in adjacent.get(atom, ()) if neighbor.atomicNumber != 1)
+    return counts
+
+
 # . Generous upper bound (Angstrom) for a real disulfide S-S bond
 # (~2.05 A) -- wide enough to tolerate a slightly strained/modelled
 # bridge, far short of any plausible non-bonded S...S contact.
@@ -512,7 +555,9 @@ def analyze_system(system, residue_keys=None):
         chain, resName, resSeq = key
         is_disulfide = key in disulfide_keys
         h_counts = _existing_h_bond_counts_for_residue(system, residue_atoms.get(key, []))
-        analysis = analyze_residue(resName, names, variant_label=None, existing_h_bond_counts=h_counts)
+        heavy_counts = _existing_heavy_bond_counts_for_residue(system, residue_atoms.get(key, []))
+        analysis = analyze_residue(resName, names, variant_label=None, existing_h_bond_counts=h_counts,
+                                   existing_heavy_bond_counts=heavy_counts)
         if analysis is None:
             # . No PDBComponentLibrary entry -- a ligand/cofactor/any
             # other organic molecule. Not run through OpenBabel here
@@ -630,7 +675,9 @@ def rebuild_system_with_added_hydrogens(old_system, residue_variant_choices, ran
         chain, resName, resSeq = key
         existing_names = [a.label for a in atoms_in_residue]
         h_counts = _existing_h_bond_counts_for_residue(old_system, atoms_in_residue)
-        analysis = analyze_residue(resName, existing_names, variant_label=variant_choice, existing_h_bond_counts=h_counts)
+        heavy_counts = _existing_heavy_bond_counts_for_residue(old_system, atoms_in_residue)
+        analysis = analyze_residue(resName, existing_names, variant_label=variant_choice, existing_h_bond_counts=h_counts,
+                                   existing_heavy_bond_counts=heavy_counts)
         if analysis is None:
             report['skipped_non_standard'].append(key)
             continue
