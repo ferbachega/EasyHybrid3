@@ -1,0 +1,19 @@
+{
+  "id": "dmso",
+  "name": "Dimethyl sulfoxide",
+  "formula": "C2H6OS",
+  "molecular_weight_g_mol": 78.136,
+  "smiles": "CS(C)=O",
+  "class": "polar_aprotic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 1.026,
+  "boiling_point_C_approx": 189.0,
+  "geometry": {
+    "xyz": "dmso/dmso.xyz",
+    "pdb": "dmso/dmso.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/dmso/SDF?record_type=3d"
+}

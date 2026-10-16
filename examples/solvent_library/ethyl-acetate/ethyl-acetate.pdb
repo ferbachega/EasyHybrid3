@@ -1,0 +1,30 @@
+REMARK   1 Ethyl acetate
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 C1   SOL A   1      -2.266   0.097   0.467  1.00  0.00           C
+HETATM    2 C2   SOL A   1      -1.097  -0.345  -0.390  1.00  0.00           C
+HETATM    3 O3   SOL A   1       0.109   0.143   0.210  1.00  0.00           O
+HETATM    4 C4   SOL A   1       1.242  -0.188  -0.468  1.00  0.00           C
+HETATM    5 O5   SOL A   1       1.287  -0.842  -1.501  1.00  0.00           O
+HETATM    6 C6   SOL A   1       2.441   0.367   0.237  1.00  0.00           C
+HETATM    7 H7   SOL A   1      -2.296   1.189   0.544  1.00  0.00           H
+HETATM    8 H8   SOL A   1      -2.166  -0.291   1.486  1.00  0.00           H
+HETATM    9 H9   SOL A   1      -3.213  -0.254   0.047  1.00  0.00           H
+HETATM   10 H10  SOL A   1      -1.068  -1.440  -0.440  1.00  0.00           H
+HETATM   11 H11  SOL A   1      -1.201   0.068  -1.400  1.00  0.00           H
+HETATM   12 H12  SOL A   1       2.508  -0.056   1.243  1.00  0.00           H
+HETATM   13 H13  SOL A   1       2.375   1.457   0.280  1.00  0.00           H
+HETATM   14 H14  SOL A   1       3.345   0.094  -0.316  1.00  0.00           H
+CONECT    1    2
+CONECT    2    3
+CONECT    3    4
+CONECT    4    5
+CONECT    4    6
+CONECT    1    7
+CONECT    1    8
+CONECT    1    9
+CONECT    2   10
+CONECT    2   11
+CONECT    6   12
+CONECT    6   13
+CONECT    6   14
+END

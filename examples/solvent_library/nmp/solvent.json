@@ -1,0 +1,19 @@
+{
+  "id": "nmp",
+  "name": "N-Methyl-2-pyrrolidone",
+  "formula": "C5H9NO",
+  "molecular_weight_g_mol": 99.133,
+  "smiles": "CN1CCCC1=O",
+  "class": "polar_aprotic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 1.028,
+  "boiling_point_C_approx": 202.0,
+  "geometry": {
+    "xyz": "nmp/nmp.xyz",
+    "pdb": "nmp/nmp.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/nmp/SDF?record_type=3d"
+}

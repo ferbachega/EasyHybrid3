@@ -1,0 +1,12 @@
+REMARK   1 Dichloromethane
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 Cl1  SOL A   1      -1.431   0.894  -0.058  1.00  0.00          Cl
+HETATM    2 C2   SOL A   1      -0.005  -0.148   0.005  1.00  0.00           C
+HETATM    3 Cl3  SOL A   1       1.483   0.807   0.004  1.00  0.00          Cl
+HETATM    4 H4   SOL A   1      -0.042  -0.747   0.918  1.00  0.00           H
+HETATM    5 H5   SOL A   1      -0.006  -0.805  -0.868  1.00  0.00           H
+CONECT    1    2
+CONECT    2    3
+CONECT    2    4
+CONECT    2    5
+END

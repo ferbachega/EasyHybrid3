@@ -1,0 +1,11 @@
+@<TRIPOS>MOLECULE
+thiol
+2 1
+SMALL
+NO_CHARGES
+
+@<TRIPOS>ATOM
+      1 S1          0.0000    0.0000    0.0000 S.3       1 FRAG1       0.0000
+      2 H1         -1.0701    0.3318   -0.8902 H         1 FRAG1       0.0000
+@<TRIPOS>BOND
+     1     1     2    1

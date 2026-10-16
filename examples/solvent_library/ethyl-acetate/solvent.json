@@ -1,0 +1,19 @@
+{
+  "id": "ethyl-acetate",
+  "name": "Ethyl acetate",
+  "formula": "C4H8O2",
+  "molecular_weight_g_mol": 88.106,
+  "smiles": "CCOC(C)=O",
+  "class": "ester",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.902,
+  "boiling_point_C_approx": 77.1,
+  "geometry": {
+    "xyz": "ethyl-acetate/ethyl-acetate.xyz",
+    "pdb": "ethyl-acetate/ethyl-acetate.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ethyl-acetate/SDF?record_type=3d"
+}

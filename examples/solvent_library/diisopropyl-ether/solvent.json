@@ -1,0 +1,19 @@
+{
+  "id": "diisopropyl-ether",
+  "name": "Diisopropyl ether",
+  "formula": "C6H14O",
+  "molecular_weight_g_mol": 102.177,
+  "smiles": "CC(C)OC(C)C",
+  "class": "ether",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.725,
+  "boiling_point_C_approx": 68.5,
+  "geometry": {
+    "xyz": "diisopropyl-ether/diisopropyl-ether.xyz",
+    "pdb": "diisopropyl-ether/diisopropyl-ether.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/diisopropyl-ether/SDF?record_type=3d"
+}

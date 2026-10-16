@@ -1,0 +1,19 @@
+{
+  "id": "1-butanol",
+  "name": "1-Butanol",
+  "formula": "C4H10O",
+  "molecular_weight_g_mol": 74.123,
+  "smiles": "CCCCO",
+  "class": "polar_protic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.81,
+  "boiling_point_C_approx": 117.7,
+  "geometry": {
+    "xyz": "1-butanol/1-butanol.xyz",
+    "pdb": "1-butanol/1-butanol.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/1-butanol/SDF?record_type=3d"
+}

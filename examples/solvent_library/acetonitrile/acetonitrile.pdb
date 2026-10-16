@@ -1,0 +1,14 @@
+REMARK   1 Acetonitrile
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 C1   SOL A   1      -0.486  -0.001   0.005  1.00  0.00           C
+HETATM    2 C2   SOL A   1       0.976   0.002  -0.010  1.00  0.00           C
+HETATM    3 N3   SOL A   1       2.136   0.005  -0.023  1.00  0.00           N
+HETATM    4 H4   SOL A   1      -0.882  -0.636  -0.793  1.00  0.00           H
+HETATM    5 H5   SOL A   1      -0.864  -0.380   0.959  1.00  0.00           H
+HETATM    6 H6   SOL A   1      -0.879   1.010  -0.138  1.00  0.00           H
+CONECT    1    2
+CONECT    2    3
+CONECT    1    4
+CONECT    1    5
+CONECT    1    6
+END

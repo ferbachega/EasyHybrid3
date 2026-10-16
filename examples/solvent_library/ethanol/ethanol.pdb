@@ -1,0 +1,20 @@
+REMARK   1 Ethanol
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 C1   SOL A   1      -0.894  -0.010  -0.133  1.00  0.00           C
+HETATM    2 C2   SOL A   1       0.539  -0.408   0.153  1.00  0.00           C
+HETATM    3 O3   SOL A   1       1.290   0.731   0.546  1.00  0.00           O
+HETATM    4 H4   SOL A   1      -1.348   0.454   0.749  1.00  0.00           H
+HETATM    5 H5   SOL A   1      -0.937   0.730  -0.939  1.00  0.00           H
+HETATM    6 H6   SOL A   1      -1.491  -0.879  -0.422  1.00  0.00           H
+HETATM    7 H7   SOL A   1       0.578  -1.140   0.965  1.00  0.00           H
+HETATM    8 H8   SOL A   1       1.007  -0.850  -0.732  1.00  0.00           H
+HETATM    9 H9   SOL A   1       1.257   1.371  -0.186  1.00  0.00           H
+CONECT    1    2
+CONECT    2    3
+CONECT    1    4
+CONECT    1    5
+CONECT    1    6
+CONECT    2    7
+CONECT    2    8
+CONECT    3    9
+END

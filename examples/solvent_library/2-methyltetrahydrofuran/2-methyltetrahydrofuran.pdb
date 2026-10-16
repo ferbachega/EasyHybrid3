@@ -1,0 +1,35 @@
+REMARK   1 2-Methyltetrahydrofuran
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 C1   SOL A   1       1.881  -0.278   0.217  1.00  0.00           C
+HETATM    2 C2   SOL A   1       0.662  -0.195  -0.691  1.00  0.00           C
+HETATM    3 C3   SOL A   1      -0.197   1.031  -0.419  1.00  0.00           C
+HETATM    4 C4   SOL A   1      -1.202   0.519   0.583  1.00  0.00           C
+HETATM    5 C5   SOL A   1      -1.416  -0.901   0.110  1.00  0.00           C
+HETATM    6 O6   SOL A   1      -0.167  -1.343  -0.440  1.00  0.00           O
+HETATM    7 H7   SOL A   1       2.545   0.579   0.067  1.00  0.00           H
+HETATM    8 H8   SOL A   1       1.593  -0.320   1.273  1.00  0.00           H
+HETATM    9 H9   SOL A   1       2.444  -1.195   0.011  1.00  0.00           H
+HETATM   10 H10  SOL A   1       0.987  -0.221  -1.736  1.00  0.00           H
+HETATM   11 H11  SOL A   1       0.367   1.900  -0.068  1.00  0.00           H
+HETATM   12 H12  SOL A   1      -0.721   1.321  -1.338  1.00  0.00           H
+HETATM   13 H13  SOL A   1      -2.126   1.101   0.614  1.00  0.00           H
+HETATM   14 H14  SOL A   1      -0.762   0.519   1.587  1.00  0.00           H
+HETATM   15 H15  SOL A   1      -2.166  -0.945  -0.687  1.00  0.00           H
+HETATM   16 H16  SOL A   1      -1.722  -1.573   0.917  1.00  0.00           H
+CONECT    1    2
+CONECT    2    3
+CONECT    3    4
+CONECT    4    5
+CONECT    5    6
+CONECT    6    2
+CONECT    1    7
+CONECT    1    8
+CONECT    1    9
+CONECT    2   10
+CONECT    3   11
+CONECT    3   12
+CONECT    4   13
+CONECT    4   14
+CONECT    5   15
+CONECT    5   16
+END

@@ -1,0 +1,19 @@
+{
+  "id": "benzene",
+  "name": "Benzene",
+  "formula": "C6H6",
+  "molecular_weight_g_mol": 78.114,
+  "smiles": "c1ccccc1",
+  "class": "aromatic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.879,
+  "boiling_point_C_approx": 80.1,
+  "geometry": {
+    "xyz": "benzene/benzene.xyz",
+    "pdb": "benzene/benzene.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/benzene/SDF?record_type=3d"
+}

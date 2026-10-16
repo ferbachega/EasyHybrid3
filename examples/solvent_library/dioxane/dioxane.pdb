@@ -1,0 +1,31 @@
+REMARK   1 1,4-Dioxane
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 C1   SOL A   1      -1.002   0.912  -0.226  1.00  0.00           C
+HETATM    2 C2   SOL A   1      -1.229  -0.460   0.408  1.00  0.00           C
+HETATM    3 O3   SOL A   1      -0.298  -1.441  -0.073  1.00  0.00           O
+HETATM    4 C4   SOL A   1       0.955  -0.866  -0.475  1.00  0.00           C
+HETATM    5 C5   SOL A   1       1.276   0.415   0.293  1.00  0.00           C
+HETATM    6 O6   SOL A   1       0.298   1.441   0.073  1.00  0.00           O
+HETATM    7 H7   SOL A   1      -1.746   1.631   0.130  1.00  0.00           H
+HETATM    8 H8   SOL A   1      -1.088   0.849  -1.317  1.00  0.00           H
+HETATM    9 H9   SOL A   1      -2.238  -0.825   0.194  1.00  0.00           H
+HETATM   10 H10  SOL A   1      -1.113  -0.403   1.496  1.00  0.00           H
+HETATM   11 H11  SOL A   1       1.733  -1.619  -0.317  1.00  0.00           H
+HETATM   12 H12  SOL A   1       0.893  -0.663  -1.550  1.00  0.00           H
+HETATM   13 H13  SOL A   1       2.250   0.812  -0.007  1.00  0.00           H
+HETATM   14 H14  SOL A   1       1.309   0.218   1.371  1.00  0.00           H
+CONECT    1    2
+CONECT    2    3
+CONECT    3    4
+CONECT    4    5
+CONECT    5    6
+CONECT    6    1
+CONECT    1    7
+CONECT    1    8
+CONECT    2    9
+CONECT    2   10
+CONECT    4   11
+CONECT    4   12
+CONECT    5   13
+CONECT    5   14
+END

@@ -1,0 +1,4 @@
+# . !PDBComponentVariant
+# . EasyHybrid addition (not shipped with pDynamo3): neutral lysine (LYN).
+{Atoms To Delete: [HZ3], Component: LYS, Formal Charges: {NZ: 0},
+  Label: Neutral}

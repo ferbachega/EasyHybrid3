@@ -1,0 +1,19 @@
+{
+  "id": "diethyl-ether",
+  "name": "Diethyl ether",
+  "formula": "C4H10O",
+  "molecular_weight_g_mol": 74.123,
+  "smiles": "CCOCC",
+  "class": "ether",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.713,
+  "boiling_point_C_approx": 34.6,
+  "geometry": {
+    "xyz": "diethyl-ether/diethyl-ether.xyz",
+    "pdb": "diethyl-ether/diethyl-ether.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/diethyl-ether/SDF?record_type=3d"
+}

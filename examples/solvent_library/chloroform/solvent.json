@@ -1,0 +1,19 @@
+{
+  "id": "chloroform",
+  "name": "Chloroform",
+  "formula": "CHCl3",
+  "molecular_weight_g_mol": 119.378,
+  "smiles": "ClC(Cl)Cl",
+  "class": "halogenated",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 1.489,
+  "boiling_point_C_approx": 61.2,
+  "geometry": {
+    "xyz": "chloroform/chloroform.xyz",
+    "pdb": "chloroform/chloroform.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/chloroform/SDF?record_type=3d"
+}

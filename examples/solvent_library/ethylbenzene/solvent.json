@@ -1,0 +1,19 @@
+{
+  "id": "ethylbenzene",
+  "name": "Ethylbenzene",
+  "formula": "C8H10",
+  "molecular_weight_g_mol": 106.168,
+  "smiles": "CCc1ccccc1",
+  "class": "aromatic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.867,
+  "boiling_point_C_approx": 136.2,
+  "geometry": {
+    "xyz": "ethylbenzene/ethylbenzene.xyz",
+    "pdb": "ethylbenzene/ethylbenzene.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ethylbenzene/SDF?record_type=3d"
+}

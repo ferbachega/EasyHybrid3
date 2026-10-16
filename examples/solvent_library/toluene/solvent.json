@@ -1,0 +1,19 @@
+{
+  "id": "toluene",
+  "name": "Toluene",
+  "formula": "C7H8",
+  "molecular_weight_g_mol": 92.141,
+  "smiles": "Cc1ccccc1",
+  "class": "aromatic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.867,
+  "boiling_point_C_approx": 110.6,
+  "geometry": {
+    "xyz": "toluene/toluene.xyz",
+    "pdb": "toluene/toluene.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/toluene/SDF?record_type=3d"
+}

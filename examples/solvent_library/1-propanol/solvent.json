@@ -1,0 +1,19 @@
+{
+  "id": "1-propanol",
+  "name": "1-Propanol",
+  "formula": "C3H8O",
+  "molecular_weight_g_mol": 60.096,
+  "smiles": "CCCO",
+  "class": "polar_protic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.803,
+  "boiling_point_C_approx": 97.2,
+  "geometry": {
+    "xyz": "1-propanol/1-propanol.xyz",
+    "pdb": "1-propanol/1-propanol.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/1-propanol/SDF?record_type=3d"
+}

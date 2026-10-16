@@ -1,0 +1,19 @@
+{
+  "id": "water",
+  "name": "Water",
+  "formula": "H2O",
+  "molecular_weight_g_mol": 18.015,
+  "smiles": "O",
+  "class": "polar_protic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.997,
+  "boiling_point_C_approx": 78.37,
+  "geometry": {
+    "xyz": "water/water.xyz",
+    "pdb": "water/water.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/water/SDF?record_type=3d"
+}

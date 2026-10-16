@@ -1,0 +1,13 @@
+@<TRIPOS>MOLECULE
+isocyanate
+3 2
+SMALL
+NO_CHARGES
+
+@<TRIPOS>ATOM
+      1 N1          0.0000    0.0000    0.0000 N.1       1 FRAG1       0.0000
+      2 C1          1.2000    0.0000    0.0000 C.1       1 FRAG1       0.0000
+      3 O1          2.3700    0.0000    0.0000 O.2       1 FRAG1       0.0000
+@<TRIPOS>BOND
+     1     1     2    2
+     2     2     3    2

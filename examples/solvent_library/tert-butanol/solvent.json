@@ -1,0 +1,19 @@
+{
+  "id": "tert-butanol",
+  "name": "tert-Butanol",
+  "formula": "C4H10O",
+  "molecular_weight_g_mol": 74.123,
+  "smiles": "CC(C)(C)O",
+  "class": "polar_protic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.781,
+  "boiling_point_C_approx": 82.2,
+  "geometry": {
+    "xyz": "tert-butanol/tert-butanol.xyz",
+    "pdb": "tert-butanol/tert-butanol.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/tert-butanol/SDF?record_type=3d"
+}

@@ -77,6 +77,18 @@ class VismolConfig                       :
                                       "antialias"                  : True,
                                       "mouse_rotation_sensibility" : 1.5,
                                       "scroll_step"                : 0.9,
+                                      "scroll_step_fraction"       : 0.138,
+                                      # Preferences > General > Fog (2026-09-28) -- see
+                                      # GLCamera.apply_fog_parameters(); these defaults
+                                      # reproduce the original fog exactly.
+                                      "fog_enabled"                : True,
+                                      "fog_intensity"              : 100.0,   # %
+                                      "fog_range_scale"            : 1.0,     # automatic range extent
+                                      "fog_custom_range"           : False,
+                                      "fog_start_percent"          : 50.0,    # % of visible depth
+                                      "fog_end_percent"            : 100.0,
+                                      "fog_start_reference"        : "far_plane",  # or "center"
+                                      "fog_center_offset"          : 5.0,     # A before the rotation center
                                       "field_of_view"              : 10,
                                       "light_position"             : [0, 0, 10.0],
                                       #"light_position"            : [-2.5, 2.5, 3.0],
@@ -157,6 +169,10 @@ class VismolConfig                       :
                                       # of GPU vendor. Only takes effect after a
                                       # restart -- see Preferences > Startup.
                                       'vblank_mode'         : 'auto',
+                                      # Interface (GTK CSS) theme -- see src/gui/theme.py.
+                                      # 'default' = the original look (no extra CSS).
+                                      # Preferences > Startup applies it live.
+                                      'interface_theme'     : 'default',
                                       # Recently opened/saved projects (.easy) and
                                       # systems (single-file opens via File > Open --
                                       # .pkl/.pdb/.mol2/.xyz/.crd/etc). Each entry:
@@ -165,6 +181,97 @@ class VismolConfig                       :
                                       # add_recent_file/get_recent_files/clear_recent_files
                                       # below and MainWindow's "Open Recent" submenu.
                                       'recent_files'        : [],
+
+                                      # [EN] Cartoon (ribbon) representation --
+                                      # "Preferences > Cartoon" tab (user
+                                      # request: adjustable ribbon thickness
+                                      # + a "variable criterion" for helix/
+                                      # strand assignment). Matches vismol.
+                                      # utils.ribbon_geometry.DEFAULT_
+                                      # CARTOON_SETTINGS exactly -- see
+                                      # representations.py's
+                                      # _cartoon_settings_from_gl_parameters()
+                                      # for how these get turned into an
+                                      # actual mesh. The 2 "*_tolerance"
+                                      # values are a PERCENTAGE (100 =
+                                      # published P-SEA thresholds as-is),
+                                      # matching what the Preferences entry
+                                      # field itself shows.
+                                      'cartoon_helix_width'        : 1.60,
+                                      'cartoon_helix_height'       : 0.18,
+                                      'cartoon_strand_width'       : 1.40,
+                                      'cartoon_strand_height'      : 0.18,
+                                      'cartoon_arrow_width'        : 2.20,
+                                      'cartoon_coil_radius'        : 0.32,
+                                      'cartoon_helix_tolerance'    : 100.0,
+                                      'cartoon_strand_tolerance'   : 150.0,
+                                      # [EN] 2026-09-26 user request ("faz
+                                      # sentido um unico residuo estar em
+                                      # conformacao de fita? o mesmo deve
+                                      # valer para helices") -- split from a
+                                      # single shared 'cartoon_min_run';
+                                      # see ribbon_backbone.py's own
+                                      # _smooth_short_runs() docstring for
+                                      # why the defaults differ.
+                                      'cartoon_min_run_helix'      : 3,
+                                      'cartoon_min_run_strand'     : 2,
+                                      # 0 = opaque (default), 100 = fully
+                                      # transparent.
+                                      'cartoon_transparency'       : 0,
+                                      # [EN] 2026-09-26 aesthetic fix (user
+                                      # report: strand arrowheads looked like
+                                      # sharp "shark fins" vs PyMOL/VMD) --
+                                      # see ribbon_geometry.py's own
+                                      # DEFAULT_CARTOON_SETTINGS comment.
+                                      'cartoon_arrow_taper_residues' : 2,
+                                      # [EN] 2026-09-26 aesthetic fix (user
+                                      # report: strand ribbons looked too
+                                      # "sinuosa" -- see ribbon_geometry.py's
+                                      # own _smooth_strand_guide_points()
+                                      # docstring). 0 = off (raw Ca trace).
+                                      'cartoon_strand_smoothing'     : 4,
+                                      # Spline subdivisions per residue --
+                                      # kept low by default (large structures
+                                      # like 6VXX are the case round 9's own
+                                      # perf fix targeted); raise for a
+                                      # visibly smoother look on smaller
+                                      # proteins, at a roughly proportional
+                                      # mesh-build cost.
+                                      'cartoon_spline_detail'        : 5,
+                                      # Off by default: the helix/strand/coil
+                                      # assignment is computed once and
+                                      # reused for every trajectory frame
+                                      # (see CartoonRepresentation.rebuild()'s
+                                      # own docstring for the perf rationale --
+                                      # classification is ~45% of a rebuild's
+                                      # cost). On reclassifies every frame.
+                                      'cartoon_dynamic_secondary_structure' : False,
+
+                                      # [EN] Molecular surface (VDW/SAS/SES,
+                                      # EDTSurf-style -- user's own explicit
+                                      # request). 2026-09-23 follow-up: no
+                                      # longer a "Preferences > Surface" tab
+                                      # -- these are just the "last used"
+                                      # values that pre-fill the setup dialog
+                                      # opened from the treeview's own
+                                      # 'Representation > Surface' menu entry
+                                      # (see gui/main/treeview_menu.py's
+                                      # _open_molecular_surface_setup_dialog()).
+                                      # See util/molecular_surface.py's own
+                                      # DEFAULT_PROBE_RADIUS/DEFAULT_GRID_SPACING
+                                      # (same numeric defaults, kept in sync by
+                                      # hand since that module deliberately has
+                                      # no GTK/gl_parameters dependency of its
+                                      # own).
+                                      'surface_type'                : 'ses',
+                                      'surface_probe_radius'        : 1.4,
+                                      'surface_grid_spacing'        : 0.8,
+                                      'surface_taubin_enabled'      : False,
+                                      'surface_taubin_iterations'   : 15,
+                                      'surface_color_mode'          : 'atom',
+                                      'cartoon_color_helix'        : [0.90, 0.20, 0.55],
+                                      'cartoon_color_strand'       : [0.95, 0.85, 0.15],
+                                      'cartoon_color_coil'         : [0.85, 0.85, 0.85],
                                       }
                               
         self.n_proc = 2

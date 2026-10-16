@@ -1,0 +1,19 @@
+{
+  "id": "carbon-tetrachloride",
+  "name": "Carbon tetrachloride",
+  "formula": "CCl4",
+  "molecular_weight_g_mol": 153.823,
+  "smiles": "ClC(Cl)(Cl)Cl",
+  "class": "halogenated",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 1.594,
+  "boiling_point_C_approx": 76.7,
+  "geometry": {
+    "xyz": "carbon-tetrachloride/carbon-tetrachloride.xyz",
+    "pdb": "carbon-tetrachloride/carbon-tetrachloride.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/carbon-tetrachloride/SDF?record_type=3d"
+}

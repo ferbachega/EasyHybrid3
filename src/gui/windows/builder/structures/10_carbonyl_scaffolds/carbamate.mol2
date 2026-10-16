@@ -1,0 +1,22 @@
+@<TRIPOS>MOLECULE
+276
+ 6 5 0 0 0
+SMALL
+GASTEIGER
+
+@<TRIPOS>ATOM
+      1 O          -1.1365    0.6119   -0.0001 O.co2   1  UNL1       -0.5320
+      2 O           1.1376    0.6100   -0.0001 O.co2   1  UNL1       -0.5320
+      3 N          -0.0011   -1.2777   -0.0001 N.am    1  UNL1       -0.3451
+      4 C           0.0001    0.0558    0.0002 C.2     1  UNL1        0.1222
+      5 H           0.8623   -1.8105   -0.0003 H       1  UNL1        0.1434
+      6 H          -0.8655   -1.8088   -0.0003 H       1  UNL1        0.1434
+@<TRIPOS>UNITY_ATOM_ATTR
+1 1
+charge -1
+@<TRIPOS>BOND
+     1     1     4   ar
+     2     2     4   ar
+     3     3     4   am
+     4     3     5    1
+     5     3     6    1

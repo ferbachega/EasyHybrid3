@@ -1,0 +1,8 @@
+REMARK   1 Water
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 O1   SOL A   1       0.001   0.398   0.000  1.00  0.00           O
+HETATM    2 H2   SOL A   1      -0.764  -0.198   0.000  1.00  0.00           H
+HETATM    3 H3   SOL A   1       0.763  -0.200   0.000  1.00  0.00           H
+CONECT    1    2
+CONECT    1    3
+END

@@ -30,6 +30,7 @@
 #
 from util.debug import dprint
 from util.pdb_tools import dedupe_pdb_atom_names
+from util.chain_ids import system_chain_id_map
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
@@ -170,6 +171,164 @@ for _name, _candidate_names, _free_parameters in _CRYSTAL_SYSTEM_CANDIDATES:
         dprint( 'EditCellWindow: crystal system "{}" is not available in this pDynamo3 '
                'installation (tried: {}) -- it will not be offered in the "Edit Cell" '
                'window.'.format( _name, ', '.join( _candidate_names ) ) )
+
+
+def _apply_dyff_guanidinium_correction ( system ):
+    """ [EN] Fixes a confirmed DYFF atom-typing bug for guanidinium/
+    guanidino groups (the arginine side chain's -NH-C(=NH2)-NH2, and any
+    free-standing guanidinium the user draws) -- found by the user's own
+    live testing ("as cadeias laterais de argininas nao estao
+    corretamente interpretados"), reproduced and root-caused directly
+    against pDynamo3's own MMAtomTyper (not guessed):
+
+    Given a chemically valid guanidino carbon (bonded to EXACTLY 3
+    nitrogens and nothing else -- one C=N double bond, two C-N single
+    bonds, standard Kekule drawing) with all formal charges left at 0
+    (the Builder's own default -- see empty_object.
+    _build_pdynamo_system_from_vismol_object(), which never sets a
+    nonzero formalCharge, and a plain PDB import doesn't carry one
+    either), pDynamo3's automatic pattern typer gets the CARBON and the
+    two SINGLY-bonded nitrogens right ("C:Tri"/"N:Tri" each, correctly
+    trigonal/planar) but mis-types the DOUBLY-bonded nitrogen as "N:Tet"
+    (tetrahedral/pyramidal amine) instead of the chemically correct
+    "N:Tri" -- confirmed with a real 19-atom test molecule (a capped
+    guanidinopropyl fragment, i.e. an isolated arginine side chain) built
+    through the EXACT SAME code path the Builder itself uses. The
+    "Guanidinium Cation" pattern in dyff-1.0/patterns.yaml WOULD type the
+    whole group correctly, but only matches when the CARBON carries an
+    explicit formalCharge of +1 -- something neither the Builder nor a
+    plain PDB import ever sets (this project has no formal-charge UI at
+    all yet, a separate, documented limitation -- see [[project_dyff_
+    force_field_assignment]]).
+
+    This project's OWN existing patch to MMModel.BuildModel() (MMModel.py,
+    "Modified by Fernando Bachega ... September 11, 2024") already fixes
+    this EXACT class of mistyping for MOL2-imported systems, by
+    overriding specific atoms' perceived types from `target.
+    atomType_FromMol2` (a Tripos-type-string list only ever set by
+    pDynamo3's own MOL2 file reader) through pBabel.MOL2AtomTypesToDYFF.
+    TriposMOL2AtomTypes. Rather than touching that vendored code again,
+    this function reuses the EXACT SAME hook for Builder/PDB-derived
+    systems too: it finds every guanidino carbon structurally (element +
+    connectivity alone, not residue name -- works for arginine AND any
+    other guanidinium the user builds) and synthesises the same kind of
+    `atomType_FromMol2` list MOL2 import would have produced ("C.cat" for
+    the carbon, "N.pl3" for all 3 nitrogens -- verified live to map, via
+    the existing TriposMOL2AtomTypes table, to exactly "C:Tri"/"N:Tri",
+    the chemically correct result), so BuildModel()'s own existing
+    override logic does the rest, unchanged.
+
+    No-ops (returns 0) if `system` already carries a REAL atomType_
+    FromMol2 (an actual MOL2 import already ran its own, presumably more
+    complete, correction) -- never overwrites that. Returns the number of
+    guanidino groups corrected (0 if none found), used by define_MMModel()
+    to mention it in its own returned status message. """
+    connectivity = getattr ( system, "connectivity", None )
+    if connectivity is None or getattr ( system, "atomType_FromMol2", None ):
+        return 0
+
+    nodes    = connectivity.nodes
+    index_of = { atom : i for i, atom in enumerate ( nodes ) }
+    override = None
+    n_found  = 0
+
+    for atom in nodes:
+        if atom.atomicNumber != 6:
+            continue
+        neighbors = [ edge.Opposite ( atom ) for edge in connectivity.adjacentEdges.get ( atom, ( ) ) ]
+        if len ( neighbors ) != 3 or any ( n.atomicNumber != 7 for n in neighbors ):
+            continue
+        if override is None:
+            override = [ "" ] * len ( nodes )
+        override[ index_of[atom] ] = "C.cat"
+        for n in neighbors:
+            override[ index_of[n] ] = "N.pl3"
+        n_found += 1
+
+    if override is not None:
+        system.atomType_FromMol2 = override
+        dprint ( 'define_MMModel: corrected {} guanidinium/guanidino group(s) in "{}" '
+                '(DYFF pattern typer mistypes the C=N-bonded nitrogen as tetrahedral '
+                'otherwise -- see _apply_dyff_guanidinium_correction()\'s own '
+                'docstring).'.format ( n_found, getattr ( system, "label", "?" ) ) )
+
+    return n_found
+
+
+def _apply_builder_partial_charges ( vm_session, system ):
+    """ [EN] 2026-10-04: copies atom.mm_charge (set in the Builder's DYFF
+    Parameters window) of the vismol object linked to `system` into its MM
+    charges, when every atom has one and the counts match. Returns the number
+    of charges applied (0 = none). """
+    vobject = None
+    for candidate in vm_session.vm_objects_dic.values ( ):
+        if getattr ( candidate, "e_id", None ) == getattr ( system, "e_id", None ):
+            vobject = candidate
+    if vobject is None or len ( vobject.atoms ) != len ( system.atoms ):
+        return 0
+    charges = [ getattr ( vobject.atoms.get ( i ), "mm_charge", None ) for i in range ( len ( system.atoms ) ) ]
+    if any ( q is None for q in charges ):
+        return 0
+    for i, q in enumerate ( charges ):
+        system.mmState.charges[i] = float ( q )
+    return len ( charges )
+
+def _apply_manual_atom_type_overrides ( system, overrides ):
+    """ [EN] Routes USER-set per-atom DYFF type corrections (gui/windows/
+    builder/atom_types.py's "Atom Types" window -- user's own explicit
+    request: pick a selection of atoms in the Builder, see what DYFF type
+    each one perceived as, and fix it by hand if wrong) into the exact
+    SAME `system.atomType_FromMol2` override hook _apply_dyff_
+    guanidinium_correction() above already reuses -- not a second,
+    separate mechanism.
+
+    That hook is Tripos-string-keyed (MMModel.BuildModel() only
+    substitutes atomTypes[i] when target.atomType_FromMol2[i] is a KEY
+    in pBabel.MOL2AtomTypesToDYFF.TriposMOL2AtomTypes, mapping to a
+    DYFF label as the dict VALUE) -- it was never meant to carry an
+    ARBITRARY DYFF label directly. Rather than reimplementing DYFF's own
+    vendored BuildModel() call sequence just to intercept atomTypes[i]
+    directly (the more "faithful" channel, but touches/duplicates
+    vendored pDynamo3 code), this instead temporarily registers ONE
+    throwaway, uniquely-named synthetic Tripos key per overridden atom
+    ("__eh3_override_<atom_id>__") into that SAME shared dict, mapping
+    to whatever DYFF label the user actually typed -- so the EXISTING,
+    unmodified vendored mechanism does the substitution for us. The
+    caller (define_MMModel()) MUST pop every key this function returns
+    back out of the shared dict once system.DefineMMModel() returns
+    (success OR failure) -- see its own try/finally -- so these
+    throwaway entries never leak into a LATER, unrelated DYFF assignment
+    on some other system.
+
+    Applied AFTER _apply_dyff_guanidinium_correction() (define_MMModel()
+    calls this one second) so a user's own manual correction always wins
+    over that automatic structural heuristic, atom-by-atom -- neither
+    function touches any atom_id the OTHER one doesn't.
+
+    Returns the list of synthetic keys added (empty if `overrides` was
+    empty/None), for the caller to clean up afterward. """
+    if not overrides:
+        return [ ]
+
+    from pBabel import MOL2AtomTypesToDYFF
+    tripos_table = MOL2AtomTypesToDYFF.TriposMOL2AtomTypes
+
+    n_atoms = len ( system.connectivity.nodes )
+    atom_type_from_mol2 = list ( getattr ( system, "atomType_FromMol2", None ) or ( [ "" ] * n_atoms ) )
+    if len ( atom_type_from_mol2 ) != n_atoms:
+        atom_type_from_mol2 = [ "" ] * n_atoms
+
+    added_keys = [ ]
+    for atom_id, desired_type in overrides.items ( ):
+        if atom_id < 0 or atom_id >= n_atoms or not desired_type:
+            continue
+        fake_key = "__eh3_override_{}__".format ( atom_id )
+        tripos_table[fake_key] = desired_type
+        added_keys.append ( fake_key )
+        atom_type_from_mol2[atom_id] = fake_key
+
+    system.atomType_FromMol2 = atom_type_from_mol2
+    return added_keys
 
 
 class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveData, EasyHybridImportTrajectory, Restraints):
@@ -409,7 +568,18 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 dedupe_pdb_atom_names(temp_dedupe_path)
                 coordinates_path = temp_dedupe_path
             try:
-                system = ImportSystem (coordinates_path)
+                try:
+                    system = ImportSystem (coordinates_path)
+                except Exception as error:
+                    # [EN] 2026-10-04: pDynamo's MOL2 reader rejects some charged
+                    # aromatics (thiazolium, pyridinium...): build the system from
+                    # the file's own bonds instead (pdynamo/opls/mol2_import.py).
+                    if not ( coordinates_path.lower().endswith('.mol2') and 'connectivity' in str(error).lower() ):
+                        raise
+                    from pdynamo.opls.mol2_import import system_from_mol2
+                    system = system_from_mol2 ( coordinates_path, label = name )
+                    self.main.bottom_notebook.status_teeview_add_new_item(message = 'pDynamo could not read the bond orders of {}: '
+                        'loaded with the EasyHybrid mol2 reader (charged rings perceived from valences).'.format(os.path.basename(coordinates_path)), system = None)
             finally:
                 if temp_dedupe_path is not None:
                     os.remove(temp_dedupe_path)
@@ -489,6 +659,28 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         ''' '''
    
     
+    def add_prepared_pdynamo_system ( self, system, name = None, tag = None, working_folder = None, input_files = None ):
+        """ [EN] 2026-10-04: registers an ALREADY BUILT pDynamo System (e.g.
+        from Extras > OPLS > Prepare OPLS System) exactly like
+        load_a_new_pDynamo_system_from_dict() does after reading files:
+        session data, treeview, status line and a vismol object. """
+        if working_folder:
+            system.e_working_folder = working_folder
+        if name is None:
+            name = getattr ( system, 'label', None ) or 'System'
+        if len ( name ) > 70:
+            name = name[-70:]
+        self.remove_PES_data ( system = system )
+        system.e_input_files = input_files or { }
+        system = self.add_new_system_to_psession ( system = system, name = name, tag = tag, changed = True,
+                                                   working_folder = working_folder )
+        self.main.main_treeview.add_new_system_to_treeview ( system )
+        ff = getattr ( system.mmModel, 'forceField', "None" )
+        self.main.bottom_notebook.status_teeview_add_new_item (
+                message = 'New System:  {} ({}) - Force Field:  {}'.format ( system.label, system.e_tag, ff ), system = system )
+        self._add_vismol_object_to_easyhybrid_session ( system, True )
+        return system
+
     def _add_vismol_object_to_easyhybrid_session (self, system, show_molecule=True, name = 'new_coords', key6 = None):
         """ Function doc """
         # Create a VisMol object from the given pDynamo system
@@ -740,7 +932,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         return sequence
 
 
-    def _get_atom_info_from_pdynamo_atom_obj (self, sequence = None, atom = None, is_from_mol2 = False):
+    def _get_atom_info_from_pdynamo_atom_obj (self, sequence = None, atom = None, is_from_mol2 = False, chain_map = None):
         """
         To extract information from atom objects, 
         belonging to pdynamo, and to  organize it as a list
@@ -771,7 +963,11 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 chainID = ""
                 segID   = entityLabel[0:4]
             else:
-                chainID = entityLabel[0:1]
+                # [EN] 2026-09-29: chain_map (util/chain_ids.py) -- the full
+                # entity label; plain entityLabel[0:1] merged e.g. CHARMM
+                # segments AAAA/AABA into one chain (and same-numbered
+                # residues of both proteins into one residue).
+                chainID = chain_map.get(entityLabel, entityLabel[0:1]) if chain_map else entityLabel[0:1]
                 segID   = ""            
 
 
@@ -1124,6 +1320,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         # 1. Extract sequence information from the pDynamo system
         # -------------------------------------------------------------------------
         sequence = self._get_sequence_from_pdynamo_system(system)
+        # entity label -> vismol chain ID (see util/chain_ids.py)
+        chain_map = system_chain_id_map(system)
 
         # -------------------------------------------------------------------------
         # 2. Prepare atom list and coordinates array
@@ -1150,7 +1348,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 self._get_atom_info_from_pdynamo_atom_obj(
                     sequence=sequence,
                     atom=atom,
-                    is_from_mol2=is_from_mol2
+                    is_from_mol2=is_from_mol2,
+                    chain_map=chain_map
                 )
             )
             j += 1
@@ -1376,6 +1575,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         system.atoms.Reindex()
 
         sequence = self._get_sequence_from_pdynamo_system(system)
+        chain_map = system_chain_id_map(system)   # see util/chain_ids.py
 
         atoms = []
         atom_qtty = len(system.atoms.items)
@@ -1385,7 +1585,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             coords[0, j, :] = np.float32(xyz[0]), np.float32(xyz[1]), np.float32(xyz[2])
             is_from_mol2 = getattr(system, 'sequence_from_mol2', False)
             atoms.append(self._get_atom_info_from_pdynamo_atom_obj(
-                sequence=sequence, atom=atom, is_from_mol2=is_from_mol2))
+                sequence=sequence, atom=atom, is_from_mol2=is_from_mol2, chain_map=chain_map))
 
         vm_object.chains = {}
         vm_object.atoms = {}
@@ -2407,8 +2607,219 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             # find out the NBModel was never actually bound.
             dprint('Failed to bind NBModel:\n', traceback.format_exc())
             return False
-    
-    
+
+
+    def define_MMModel (self, force_field = 'DYFF', parameter_set = None, system = None):
+        """ Builds and attaches an MM model to `system` -- defaults to
+        the currently ACTIVE system (self.psystem[self.active_id]), same
+        "operate on the active system unless told otherwise" convention
+        as define_NBModel()/remove_NBModel() above. Menu entry point:
+        main_window.py's on_main_menu_activate(), "System > Add > Force
+        Field > DYFF".
+
+        force_field: which pDynamo3 MM force field to build -- only
+        'DYFF' is wired up so far. DYFF is a generic, pattern-typed
+        universal force field shipped with pDynamo3 itself: it perceives
+        every atom's TYPE automatically (via pMolecule.MMModel.
+        MMAtomTyper, a SMARTS-like pattern matcher) purely from each
+        atom's element plus the SYSTEM'S OWN bond orders (BondType.
+        Single/Double/Triple -- BondType.Undefined matches no pattern)
+        and aromaticity -- no externally-supplied atom-type string is
+        needed or used. The only real prerequisite is that `system`'s
+        connectivity actually carries correct bond orders/aromaticity;
+        a system built or structurally edited through the Builder
+        already does (gui/windows/builder/empty_object.py's
+        _build_pdynamo_system_from_vismol_object() sets a real BondType
+        + isAromatic per bond, sourced from the Builder's own manual_
+        bond_orders/manual_aromatic_bonds), but a system loaded from a
+        source with no real bond-order information (e.g. a bare PDB with
+        only CONECT-style connectivity) may type poorly or not at all --
+        "Edit in Builder" on it first (see empty_object.
+        begin_editing_existing_system()) is the fix, not something this
+        method can compensate for on its own.
+        AMBER/CHARMM/OPLS assignment for an ALREADY-loaded system is
+        explicitly out of scope for now -- today those only ever get
+        their MM model at IMPORT time, straight from a prmtop/psf file
+        (see load_a_new_pDynamo_system_from_dict()).
+
+        parameter_set: which parameter-set subfolder under
+        $PDYNAMO3_PARAMETERS/forceFields/<force_field.lower()>/ to use.
+        If None (default), auto-discovers it -- there must be EXACTLY
+        ONE subfolder there (today's install only ships "dyff-1.0") or
+        this fails with a clear message rather than guessing which one
+        the user meant.
+
+        Also ensures a default NBModel exists (define_NBModel(_type=1),
+        cut-off) if `system` doesn't already have one -- an MM model
+        with no NB model can't evaluate a real energy anyway, matching
+        how load_a_new_pDynamo_system_from_dict()'s own DYFF-from-mol2
+        import path already pairs the two.
+
+        Returns (True, message) on success, (False, message) on failure
+        -- e.g. pDynamo3's own MMAtomTyper.CheckUntypedAtoms() raising
+        because some atom's element/bond-order environment matched no
+        DYFF pattern (surfaced as this method's own clear message, not a
+        raw traceback popping up in the GUI) -- callers show `message`
+        either way (status bar on success, an error dialog on failure). """
+        if system is None:
+            system = self.psystem[self.active_id]
+
+        # [EN] 2026-10-04: OPLS goes through pdynamo/opls (per-system
+        # parameter set, see _define_opls_mm_model()) -- before the
+        # auto-pick below, which would find two OPLS sets (protein,
+        # bookSmallExamples) and give up.
+        if force_field.upper ( ) == 'OPLS':
+            if parameter_set is None:
+                # . a system from Prepare OPLS System keeps its own set (ligand types included)
+                own = ( getattr ( system, 'e_input_files', None ) or { } ).get ( 'opls_parameters' )
+                parameter_set = own if own and os.path.isdir ( own ) else 'protein'
+            return self._define_opls_mm_model ( system, parameter_set )
+
+        if parameter_set is None:
+            # [EN] BUG FIX (found by live user testing): the pDynamo3
+            # install's own forceFields/dyff/ folder isn't JUST parameter
+            # sets -- it also ships a sibling "rawData" directory (source
+            # material the shipped .yaml files were generated from, no
+            # atomTypes.yaml/patterns.yaml of its own) alongside the real
+            # "dyff-1.0" parameter set. The original "exactly one
+            # subdirectory" auto-pick counted BOTH, always failing with
+            # "found: ['dyff-1.0', 'rawData']" even on a correct install.
+            # Fixed by only counting a subdirectory as a real parameter
+            # SET if it actually contains atomTypes.yaml and
+            # patterns.yaml -- the two files MMAtomTyper.FromPath()
+            # (pMolecule/MMModel/MMAtomTyper.py) always needs -- which
+            # "rawData" (just a readme) doesn't have.
+            base_dir = os.path.join ( os.environ["PDYNAMO3_PARAMETERS"], "forceFields", force_field.lower ( ) )
+            def _is_parameter_set_dir ( name ):
+                candidate_path = os.path.join ( base_dir, name )
+                return ( os.path.isdir ( candidate_path )
+                         and os.path.isfile ( os.path.join ( candidate_path, "atomTypes.yaml" ) )
+                         and os.path.isfile ( os.path.join ( candidate_path, "patterns.yaml" ) ) )
+            try:
+                candidates = sorted ( name for name in os.listdir ( base_dir ) if _is_parameter_set_dir ( name ) )
+            except OSError:
+                candidates = [ ]
+            if len ( candidates ) != 1:
+                msg = "Cannot auto-pick a {} parameter set under {} (found: {}).".format (
+                        force_field, base_dir, candidates or "none" )
+                dprint ( msg )
+                return False, msg
+            parameter_set = candidates[0]
+
+        if force_field.upper ( ) != 'DYFF':
+            msg = "define_MMModel: force field '{}' isn't wired up yet (only DYFF so far).".format ( force_field )
+            dprint ( msg )
+            return False, msg
+
+        # [EN] User's own explicit request -- "Atom Types" window (gui/
+        # windows/builder/atom_types.py): a manual per-atom DYFF type
+        # override set there, on the vismol_object linked to THIS
+        # system's e_id, must take effect the next time DYFF is really
+        # assigned, not just in that window's own live preview. Found by
+        # matching e_id the same way begin_editing_existing_system() /
+        # finish_editing_existing_system() already do elsewhere in this
+        # module.
+        manual_overrides = None
+        for candidate in self.vm_session.vm_objects_dic.values ( ):
+            if getattr ( candidate, "e_id", None ) == getattr ( system, "e_id", None ):
+                manual_overrides = getattr ( candidate, "manual_atom_type_overrides", None )
+                break
+
+        added_override_keys = [ ]
+        try:
+            n_guanidinium = _apply_dyff_guanidinium_correction ( system ) if force_field.upper ( ) == 'DYFF' else 0
+            added_override_keys = _apply_manual_atom_type_overrides ( system, manual_overrides )
+
+            # [EN] 2026-10-04: parameters edited in the Builder's DYFF Parameters window
+            from pdynamo.dyff_edits import dyff_model
+            edits = None
+            for candidate in self.vm_session.vm_objects_dic.values ( ):
+                if getattr ( candidate, "e_id", None ) == getattr ( system, "e_id", None ):
+                    edits = getattr ( candidate, "dyff_parameter_edits", None ) or edits
+            mmModel = dyff_model ( parameter_set, edits )
+            system.DefineMMModel ( mmModel )
+
+            # [EN] 2026-10-04: partial charges set in the Builder's DYFF Parameters
+            # window (atom.mm_charge; DYFF itself has none -- every charge is 0)
+            n_charges = _apply_builder_partial_charges ( self.vm_session, system )
+
+            if getattr ( system, "nbModel", None ) is None:
+                self.define_NBModel ( _type = 1, system = system )
+
+            system.Summary ( )
+            msg = "MM model 'DYFF ({})' assigned to '{}'.".format ( parameter_set, system.label )
+            if n_guanidinium:
+                msg += " ({} guanidinium group(s) corrected -- see define_MMModel()'s own docstring.)".format ( n_guanidinium )
+            if added_override_keys:
+                msg += " ({} manual atom type override(s) applied.)".format ( len ( added_override_keys ) )
+            if n_charges:
+                msg += " ({} partial charges from the Builder.)".format ( n_charges )
+            return True, msg
+
+        except Exception as exc:
+            dprint ( 'Failed to bind MMModel:\n', traceback.format_exc ( ) )
+            return False, "Could not assign DYFF to '{}': {}".format ( system.label, exc )
+
+        finally:
+            # [EN] These synthetic Tripos keys (see _apply_manual_atom_
+            # type_overrides()'s own docstring) are THROWAWAY, scoped to
+            # this one call only -- pBabel.MOL2AtomTypesToDYFF.
+            # TriposMOL2AtomTypes is a SHARED module-level dict, so
+            # leaving them in would silently leak into (and could even
+            # collide with) a later, unrelated DYFF assignment on some
+            # OTHER system.
+            if added_override_keys:
+                from pBabel import MOL2AtomTypesToDYFF
+                for key in added_override_keys:
+                    MOL2AtomTypesToDYFF.TriposMOL2AtomTypes.pop ( key, None )
+
+
+    def _define_opls_mm_model ( self, system, parameter_set = 'protein' ):
+        """ OPLS for a system ALREADY loaded with full chemistry (bond
+        orders, formal charges, hydrogens) -- e.g. one made by "Prepare
+        OPLS System" and edited since, or built in the Builder. Types the
+        atoms with the OPLS patterns, writes the system's own parameter set
+        (pdynamo/opls/parameters.materialize_parameter_set) into its
+        working folder and defines the MM model. A raw PDB (no bond
+        orders) does not type: the message points to Prepare OPLS System.
+        Returns ( ok, message ). """
+        from pdynamo.opls import prep, parameters
+        try:
+            types, charges, untyped = prep.type_atoms ( system, parameter_set )
+        except Exception as exc:
+            dprint ( 'OPLS typing failed:\n', traceback.format_exc ( ) )
+            return False, "OPLS typing failed for '{}': {}".format ( system.label, exc )
+        if untyped:
+            residues = [ ]
+            for atom in untyped:
+                path = atom.parent.path if atom.parent is not None else '?'
+                if path not in residues: residues.append ( path )
+            return False, ( "{} atom(s) of '{}' match no OPLS atom type (residues: {}{}).\n\n"
+                            "OPLS needs bond orders, formal charges and hydrogens. Use Extras > OPLS > "
+                            "Prepare OPLS System... to build them from a PDB structure.".format (
+                            len ( untyped ), system.label, ", ".join ( residues[:8] ), ", ..." if len ( residues ) > 8 else "" ) )
+        folder = getattr ( system, 'e_working_folder', None ) or os.environ.get ( 'PDYNAMO3_SCRATCH' ) or os.getcwd ( )
+        name   = "".join ( c if c.isalnum ( ) else "_" for c in ( system.label or 'system' ) )
+        out    = os.path.join ( folder, name + "_opls_parameters" )
+        try:
+            report = parameters.materialize_parameter_set ( system, types, out, base = parameter_set )
+            missing = { t: v for t, v in report["missing"].items ( ) if v }
+            if missing:
+                lines = [ "{}: {}".format ( t, ", ".join ( "-".join ( k ) for k in v[:6] ) ) for t, v in missing.items ( ) ]
+                return False, "Missing OPLS parameters for '{}':\n{}".format ( system.label, "\n".join ( lines ) )
+            # . DefineMMModel() drops the NB model: keep the user's one
+            nb_model = getattr ( system, "nbModel", None )
+            system.DefineMMModel ( MMModelOPLS.WithParameterSet ( os.path.abspath ( out ) ) )
+            if nb_model is not None:
+                system.DefineNBModel ( nb_model )
+            else:
+                self.define_NBModel ( _type = 1, system = system )
+            system.Summary ( )
+            return True, "MM model 'OPLS ({})' assigned to '{}' (parameters: {}).".format ( parameter_set, system.label, out )
+        except Exception as exc:
+            dprint ( 'Failed to bind the OPLS MM model:\n', traceback.format_exc ( ) )
+            return False, "Could not assign OPLS to '{}': {}".format ( system.label, exc )
+
     def export_pdynamo_system_coordinates (self, folder, filename, system):
         """
             Export to a file the coordinates that are associated with a 

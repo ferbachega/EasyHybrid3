@@ -1,0 +1,4 @@
+# . !PDBComponentVariant
+# . EasyHybrid addition (not shipped with pDynamo3): thiolate cysteine (CYM).
+{Atoms To Delete: [HG], Component: CYS, Formal Charges: {SG: -1},
+  Label: Deprotonated}

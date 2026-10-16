@@ -62,14 +62,28 @@ class PrepareAddHydrogensWindow:
         self._results = []
         self._system_id = None
         self._undo_snapshot = None   # (system_id, old_system) -- one level, this tool's own runs only
+        # [EN] 2026-10-02: optional caller context (the Builder's "Add
+        # Hydrogens" button): the exact VismolObject to rebuild, and hooks
+        # called right before / after the system is replaced (also on Undo).
+        self._target_vobject  = None
+        self._on_before_apply = None
+        self._on_after_apply  = None
 
     # -------------------------------------------------------------------
     #  Window setup
     # -------------------------------------------------------------------
 
-    def open_window(self):
-        """ Function doc """
+    def open_window(self, target_vobject=None, on_before_apply=None, on_after_apply=None):
+        """ Opens the tool. `target_vobject` (optional) preselects its system
+            and makes every rebuild apply to THAT object; on_before_apply/
+            on_after_apply(vm_object) are called around each rebuild (Add,
+            Remove, Undo) -- the Builder uses them to snapshot its own undo
+            state and re-derive bond orders afterwards. """
+        self._target_vobject  = target_vobject
+        self._on_before_apply = on_before_apply
+        self._on_after_apply  = on_after_apply
         if self.Visible:
+            self._preselect_target_system()
             self.window.present()
             return
 
@@ -89,6 +103,7 @@ class PrepareAddHydrogensWindow:
         self.cellrenderer_choice = self.builder.get_object('cellrenderer_choice')
         self.treeviewcolumn_choice = self.builder.get_object('treeviewcolumn_choice')
         self.treeviewcolumn_choice.set_cell_data_func(self.cellrenderer_choice, self._do_get_choice_model)
+        self._install_residue_filter()
         self.label_status = self.builder.get_object('label_status')
         self.button_add_hydrogens = self.builder.get_object('button_add_hydrogens')
         self.button_undo = self.builder.get_object('button_undo')
@@ -102,6 +117,40 @@ class PrepareAddHydrogensWindow:
         self.button_add_hydrogens.set_sensitive(False)
         self.button_undo.set_sensitive(False)
         self.Visible = True
+        self._preselect_target_system()
+
+    def _preselect_target_system(self):
+        target = self._target_vobject
+        if target is not None and getattr(target, 'e_id', None) is not None:
+            try:
+                self.combobox_systems.set_active_system(target.e_id)
+            except Exception:
+                traceback.print_exc()
+
+    def _vobject_for_system(self, system_id):
+        """ [EN] 2026-10-02 BUG FIX: the VismolObject that displays
+            `system_id`. This used to be vm_objects_dic.get(system_id), i.e. a
+            SYSTEM id used as a VISMOL-OBJECT index -- right only when the two
+            happen to coincide. Prefers the caller's target object (Builder),
+            else the first non-surface object of that system. """
+        target = self._target_vobject
+        if target is not None and getattr(target, 'e_id', None) == system_id:
+            return target
+        for vobject in self.vm_session.vm_objects_dic.values():
+            if getattr(vobject, 'e_id', None) == system_id and not getattr(vobject, 'is_surface', False):
+                return vobject
+        return None
+
+    def _call_hook(self, hook, vm_object):
+        if hook is not None:
+            try:
+                hook(vm_object)
+            except Exception:
+                traceback.print_exc()
+            # a hook may re-sync the system and refresh the main treeview,
+            # which repopulates the system combo and drops its selection --
+            # keep the target selected for the next Analyze
+            self._preselect_target_system()
 
     def close_window(self, button=None, data=None):
         """ Function doc """
@@ -165,7 +214,7 @@ class PrepareAddHydrogensWindow:
             xtb_fragment_charges_window.py's own
             _get_current_selection_indexes() already relies on.
         """
-        vm_object = self.vm_session.vm_objects_dic.get(system_id)
+        vm_object = self._vobject_for_system(system_id)
         if vm_object is None:
             return set()
         selection = self.vm_session.selections[self.vm_session.current_selection]
@@ -181,6 +230,10 @@ class PrepareAddHydrogensWindow:
         return keys
 
     def _refresh_residue_liststore(self):
+        self._populate_residue_liststore()
+        self._update_filter_count()
+
+    def _populate_residue_liststore(self):
         self.liststore_residues.clear()
         for r in self._results:
             chain, resName, resSeq = r['key']
@@ -194,6 +247,9 @@ class PrepareAddHydrogensWindow:
                     status = 'organic/ligand -- {} heavy atom(s)'.format(r.get('n_heavy_atoms', 0))
                     self.liststore_residues.append([
                         display, status, '', False, '', chain, resName, resSeq, False, '7.4', True])
+                elif r.get('is_metal_ion'):
+                    self.liststore_residues.append([
+                        display, 'metal ion -- no hydrogens', '', False, '', chain, resName, resSeq, False, '', False])
                 else:
                     self.liststore_residues.append([
                         display, 'non-standard (skipped)', '', False, '', chain, resName, resSeq, False, '', False])
@@ -211,8 +267,90 @@ class PrepareAddHydrogensWindow:
                 display, '; '.join(status_bits), r['default_choice'], bool(ambiguous),
                 choices_csv, chain, resName, resSeq, True, '', False])
 
+    # -------------------------------------------------------------------
+    #  Residue list filter (2026-10-02 user request: "uma combobox com opcao
+    #  de filtros para a treeview dos residuos e moleculas")
+    # -------------------------------------------------------------------
+    _WATER_NAMES = frozenset(('HOH', 'WAT', 'H2O', 'TIP', 'TIP3', 'TIP4', 'T3P', 'T4P', 'SPC', 'SOL', 'DOD'))
+    _FILTERS = (
+        ('all',      'All residues and molecules'),
+        ('standard', 'Standard residues (amino acids)'),
+        ('review',   'Needs review (ambiguous protonation)'),
+        ('ligand',   'Ligands / organic molecules'),
+        ('water',    'Water'),
+        ('metal',    'Metal ions'),
+        ('skipped',  'Non-standard (skipped)'),
+    )
+
+    def _install_residue_filter(self):
+        """ A "Show:" combo above the residue list, filtering it through a
+            Gtk.TreeModelFilter (built here, not in the .glade). The filter
+            only changes what is SHOWN: "Add Hydrogens" still applies to
+            every analysed row. """
+        self.residue_filter = self.liststore_residues.filter_new()
+        self.residue_filter.set_visible_func(self._residue_row_visible)
+        self.treeview_residues.set_model(self.residue_filter)
+
+        self.combobox_residue_filter = Gtk.ComboBoxText()
+        for filter_id, label in self._FILTERS:
+            self.combobox_residue_filter.append(filter_id, label)
+        self.combobox_residue_filter.set_active_id('all')
+        self.combobox_residue_filter.connect('changed', self._on_residue_filter_changed)
+        self.label_filter_count = Gtk.Label(label='', xalign=1.0)
+
+        scrolled = self.treeview_residues.get_parent()
+        container = scrolled.get_parent() if scrolled is not None else None
+        if container is None:
+            return
+        container.remove(scrolled)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        bar.pack_start(Gtk.Label(label='Show:'), False, False, 0)
+        bar.pack_start(self.combobox_residue_filter, False, False, 0)
+        bar.pack_end(self.label_filter_count, False, False, 0)
+        box.pack_start(bar, False, False, 0)
+        box.pack_start(scrolled, True, True, 0)
+        container.add(box)
+        box.show_all()
+
+    def _row_category(self, row):
+        resname, status = row[6], row[1] or ''
+        if row[8]:
+            return 'water' if resname in self._WATER_NAMES else 'standard'
+        if row[10]:
+            return 'ligand'
+        if status.startswith('metal ion'):
+            return 'metal'
+        return 'skipped'
+
+    def _residue_row_visible(self, model, treeiter, data=None):
+        mode = self.combobox_residue_filter.get_active_id() if getattr(self, 'combobox_residue_filter', None) else 'all'
+        if mode in (None, 'all'):
+            return True
+        row = model[treeiter]
+        if mode == 'review':
+            return bool(row[3])
+        return self._row_category(row) == mode
+
+    def _on_residue_filter_changed(self, combo):
+        self.residue_filter.refilter()
+        self._update_filter_count()
+
+    def _update_filter_count(self):
+        if getattr(self, 'label_filter_count', None) is None:
+            return
+        total = len(self.liststore_residues)
+        shown = len(self.residue_filter) if getattr(self, 'residue_filter', None) is not None else total
+        self.label_filter_count.set_text('{} of {} shown'.format(shown, total) if total else '')
+
+    def _store_path(self, path):
+        """ Treeview path (of the FILTERED model) -> liststore path. """
+        if getattr(self, 'residue_filter', None) is None:
+            return path
+        return self.residue_filter.convert_path_to_child_path(Gtk.TreePath.new_from_string(str(path)))
+
     def on_residue_choice_edited(self, renderer, path, new_text):
-        self.liststore_residues[path][2] = new_text
+        self.liststore_residues[self._store_path(path)][2] = new_text
 
     def on_residue_ph_edited(self, renderer, path, new_text):
         try:
@@ -220,7 +358,7 @@ class PrepareAddHydrogensWindow:
         except ValueError:
             self.main.simple_dialog.info(msg='pH must be a number (e.g. 7.4).')
             return
-        self.liststore_residues[path][9] = new_text
+        self.liststore_residues[self._store_path(path)][9] = new_text
 
     def _do_get_choice_model(self, column, cell, model, treeiter, data=None):
         """ CellDataFunc: builds a per-row options GtkListStore for the
@@ -291,15 +429,17 @@ class PrepareAddHydrogensWindow:
         new_system.e_bonds = None
         new_system.e_id = self._system_id
         self._undo_snapshot = (self._system_id, old_system)
+        self._call_hook(self._on_before_apply, vm_object)
         self.p_session.psystem[self._system_id] = new_system
         self.p_session._refresh_vobject_from_pdynamo_system(vm_object=vm_object, system=new_system)
+        self._call_hook(self._on_after_apply, vm_object)
         return had_index_dependent_data
 
     def on_button_add_hydrogens_clicked(self, widget):
         if self._system_id is None or not self._results:
             return
         system = self.p_session.psystem.get(self._system_id)
-        vm_object = self.vm_session.vm_objects_dic.get(self._system_id)
+        vm_object = self._vobject_for_system(self._system_id)
         if system is None or vm_object is None:
             self.main.simple_dialog.info(msg='The selected system is no longer available.')
             return
@@ -361,6 +501,7 @@ class PrepareAddHydrogensWindow:
         self.button_add_hydrogens.set_sensitive(False)
         self._results = []
         self.liststore_residues.clear()
+        self._update_filter_count()
 
     def on_button_remove_hydrogens_clicked(self, widget):
         """ Uses the SAME system combo + scope radios as the Add
@@ -374,7 +515,7 @@ class PrepareAddHydrogensWindow:
             self.main.simple_dialog.info(msg='Choose a system first.')
             return
         system = self.p_session.psystem.get(system_id)
-        vm_object = self.vm_session.vm_objects_dic.get(system_id)
+        vm_object = self._vobject_for_system(system_id)
         if system is None or vm_object is None:
             self.main.simple_dialog.info(msg='Could not find the pDynamo system for the selected object.')
             return
@@ -424,18 +565,21 @@ class PrepareAddHydrogensWindow:
         # just changed underneath them.
         self._results = []
         self.liststore_residues.clear()
+        self._update_filter_count()
         self.button_add_hydrogens.set_sensitive(False)
 
     def on_button_undo_clicked(self, widget):
         if self._undo_snapshot is None:
             return
         system_id, old_system = self._undo_snapshot
-        vm_object = self.vm_session.vm_objects_dic.get(system_id)
+        vm_object = self._vobject_for_system(system_id)
         if vm_object is None:
             self.main.simple_dialog.info(msg='The object is no longer available -- cannot undo.')
             return
+        self._call_hook(self._on_before_apply, vm_object)
         self.p_session.psystem[system_id] = old_system
         self.p_session._refresh_vobject_from_pdynamo_system(vm_object=vm_object, system=old_system)
+        self._call_hook(self._on_after_apply, vm_object)
         self._undo_snapshot = None
         self.button_undo.set_sensitive(False)
         self.label_status.set_text('Undone -- restored the previous state.')

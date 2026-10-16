@@ -1,0 +1,629 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Builder "Solvate" window (2026-10-03). Opened from the Builder sidebar,
+     see solvate_window.py. -->
+<interface>
+  <requires lib="gtk+" version="3.20"/>
+  <object class="GtkAdjustment" id="padding_adjustment">
+    <property name="lower">0</property>
+    <property name="upper">100</property>
+    <property name="value">10</property>
+    <property name="step-increment">0.5</property>
+    <property name="page-increment">5</property>
+  </object>
+  <object class="GtkAdjustment" id="box_size_adjustment">
+    <property name="lower">5</property>
+    <property name="upper">500</property>
+    <property name="value">40</property>
+    <property name="step-increment">0.5</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="box_b_adjustment">
+    <property name="lower">5</property>
+    <property name="upper">500</property>
+    <property name="value">40</property>
+    <property name="step-increment">0.5</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="box_c_adjustment">
+    <property name="lower">5</property>
+    <property name="upper">500</property>
+    <property name="value">40</property>
+    <property name="step-increment">0.5</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="ion_surface_adjustment">
+    <property name="lower">0</property>
+    <property name="upper">20</property>
+    <property name="value">4</property>
+    <property name="step-increment">0.5</property>
+    <property name="page-increment">2</property>
+  </object>
+  <object class="GtkAdjustment" id="closeness_adjustment">
+    <property name="lower">1</property>
+    <property name="upper">5</property>
+    <property name="value">2.4</property>
+    <property name="step-increment">0.1</property>
+    <property name="page-increment">0.5</property>
+  </object>
+  <object class="GtkAdjustment" id="concentration_adjustment">
+    <property name="lower">0</property>
+    <property name="upper">5000</property>
+    <property name="value">150</property>
+    <property name="step-increment">10</property>
+    <property name="page-increment">50</property>
+  </object>
+  <object class="GtkAdjustment" id="ion_solute_adjustment">
+    <property name="lower">0</property>
+    <property name="upper">20</property>
+    <property name="value">5</property>
+    <property name="step-increment">0.5</property>
+    <property name="page-increment">2</property>
+  </object>
+  <object class="GtkAdjustment" id="ion_ion_adjustment">
+    <property name="lower">0</property>
+    <property name="upper">20</property>
+    <property name="value">5</property>
+    <property name="step-increment">0.5</property>
+    <property name="page-increment">2</property>
+  </object>
+  <object class="GtkWindow" id="window">
+    <property name="can-focus">False</property>
+    <property name="title" translatable="yes">Solvate</property>
+    <property name="resizable">False</property>
+    <property name="window-position">mouse</property>
+    <signal name="delete-event" handler="on_close_button_clicked" swapped="no"/>
+    <child>
+      <object class="GtkBox">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="margin-start">10</property>
+        <property name="margin-end">10</property>
+        <property name="margin-top">10</property>
+        <property name="margin-bottom">10</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">8</property>
+        <child>
+          <object class="GtkLabel" id="header_label">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label">molecule</property>
+            <property name="xalign">0</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkFrame">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label-xalign">0</property>
+            <child>
+              <!-- n-columns=2 n-rows=6 -->
+              <object class="GtkGrid">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="margin-start">8</property>
+                <property name="margin-end">8</property>
+                <property name="margin-top">6</property>
+                <property name="margin-bottom">8</property>
+                <property name="row-spacing">4</property>
+                <property name="column-spacing">8</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Solvent:</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="spacing">4</property>
+                    <child>
+                      <object class="GtkComboBoxText" id="solvent_combo">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="tooltip-text" translatable="yes">Solvents of the library (one .mol2 file each in src/gui/windows/builder/solvents). A pre-equilibrated box is used as is; for a single molecule a box is built at the solvent density the first time (cached).</property>
+                        <signal name="changed" handler="on_solvent_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="add_solvent_button">
+                        <property name="label" translatable="yes">Add...</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Adds a solvent to the library from a .mol2 file: a single molecule (its density is asked for) or a pre-equilibrated periodic box with a CRYSIN section.</property>
+                        <signal name="clicked" handler="on_add_solvent_button_clicked" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Shape:</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkComboBoxText" id="shape_combo">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="hexpand">True</property>
+                    <property name="tooltip-text" translatable="yes">Cube and rectangular box are periodic (a cell is defined). The sphere is a non-periodic droplet around the solute (QM/MM water spheres, cluster models).</property>
+                    <signal name="changed" handler="on_parameter_changed" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkRadioButton" id="padding_radio">
+                    <property name="label" translatable="yes">Margin around solute (Å):</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes">Cube: edge = largest solute dimension + 2 x margin. Box: each edge = solute dimension along that axis + 2 x margin. Sphere: radius = farthest solute atom from the centre + margin.</property>
+                    <property name="active">True</property>
+                    <property name="draw-indicator">True</property>
+                    <signal name="toggled" handler="on_parameter_changed" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="padding_spin">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="adjustment">padding_adjustment</property>
+                    <property name="digits">1</property>
+                    <property name="numeric">True</property>
+                    <signal name="value-changed" handler="on_parameter_changed" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkRadioButton" id="box_size_radio">
+                    <property name="label" translatable="yes">Fixed size:</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes">Fixed edge (cube), edges a, b, c (box) or radius (sphere); the solute is centred in it.</property>
+                    <property name="draw-indicator">True</property>
+                    <property name="group">padding_radio</property>
+                    <signal name="toggled" handler="on_parameter_changed" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkBox" id="fixed_size_box">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="spacing">4</property>
+                    <child>
+                      <object class="GtkSpinButton" id="box_size_spin">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="tooltip-text" translatable="yes">Edge (cube), a (box) or radius (sphere), in Å.</property>
+                        <property name="adjustment">box_size_adjustment</property>
+                        <property name="digits">1</property>
+                        <property name="numeric">True</property>
+                        <property name="width-chars">5</property>
+                        <signal name="value-changed" handler="on_parameter_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="box_b_spin">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="tooltip-text" translatable="yes">b (Å)</property>
+                        <property name="adjustment">box_b_adjustment</property>
+                        <property name="digits">1</property>
+                        <property name="numeric">True</property>
+                        <property name="width-chars">5</property>
+                        <signal name="value-changed" handler="on_parameter_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="box_c_spin">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="tooltip-text" translatable="yes">c (Å)</property>
+                        <property name="adjustment">box_c_adjustment</property>
+                        <property name="digits">1</property>
+                        <property name="numeric">True</property>
+                        <property name="width-chars">5</property>
+                        <signal name="value-changed" handler="on_parameter_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="align_check">
+                    <property name="label" translatable="yes">Align solute principal axes with x, y, z</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes">Rotates the solute so its longest dimension lies along x (then y): a smaller rectangular box for elongated molecules. Undone with Undo.</property>
+                    <property name="draw-indicator">True</property>
+                    <signal name="toggled" handler="on_parameter_changed" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">5</property>
+                    <property name="width">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes">Solvent molecules with any atom closer than this to any solute atom are removed (VMD solvate uses 2.4 Å for water).</property>
+                    <property name="label" translatable="yes">Min. solute-solvent distance (Å):</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">4</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="closeness_spin">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="adjustment">closeness_adjustment</property>
+                    <property name="digits">2</property>
+                    <property name="numeric">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">4</property>
+                  </packing>
+                </child>
+              </object>
+            </child>
+            <child type="label">
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">Solvent region</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkFrame">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label-xalign">0</property>
+            <child>
+              <!-- n-columns=2 n-rows=7 -->
+              <object class="GtkGrid">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="margin-start">8</property>
+                <property name="margin-end">8</property>
+                <property name="margin-top">6</property>
+                <property name="margin-bottom">8</property>
+                <property name="row-spacing">4</property>
+                <property name="column-spacing">8</property>
+                <child>
+                  <object class="GtkCheckButton" id="neutralize_check">
+                    <property name="label" translatable="yes">Neutralize (counter-ions)</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes">Adds cations or anions until the total charge is zero. The solute charge is the sum of the Builder's formal charges.</property>
+                    <property name="active">True</property>
+                    <property name="draw-indicator">True</property>
+                    <signal name="toggled" handler="on_parameter_changed" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">0</property>
+                    <property name="width">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Cation:</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkComboBoxText" id="cation_combo">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Anion:</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkComboBoxText" id="anion_combo">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes">Extra salt pairs on top of neutralization: n = concentration x N(solvent molecules) / molarity of the pure solvent (55.5 M for water). Use 0 for counter-ions only.</property>
+                    <property name="label" translatable="yes">Salt concentration (mM):</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="concentration_spin">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="adjustment">concentration_adjustment</property>
+                    <property name="numeric">True</property>
+                    <signal name="value-changed" handler="on_parameter_changed" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes">Ions replace waters at least this far from the solute (relaxed automatically if the box is too small).</property>
+                    <property name="label" translatable="yes">Min. ion-solute distance (Å):</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">4</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="ion_solute_spin">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="adjustment">ion_solute_adjustment</property>
+                    <property name="digits">1</property>
+                    <property name="numeric">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">4</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes">Minimum distance between two ions (periodic images included).</property>
+                    <property name="label" translatable="yes">Min. ion-ion distance (Å):</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">5</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="ion_ion_spin">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="adjustment">ion_ion_adjustment</property>
+                    <property name="digits">1</property>
+                    <property name="numeric">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">5</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="ion_surface_label">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes">Sphere only: ions stay at least this far inside the droplet surface, so they remain fully hydrated.</property>
+                    <property name="label" translatable="yes">Min. ion-surface distance (Å):</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">6</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="ion_surface_spin">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="adjustment">ion_surface_adjustment</property>
+                    <property name="digits">1</property>
+                    <property name="numeric">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">6</property>
+                  </packing>
+                </child>
+              </object>
+            </child>
+            <child type="label">
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">Ions</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="estimate_label">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label">estimate</property>
+            <property name="wrap">True</property>
+            <property name="max-width-chars">50</property>
+            <property name="xalign">0</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="status_label">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="wrap">True</property>
+            <property name="max-width-chars">50</property>
+            <property name="xalign">0</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">4</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="spacing">6</property>
+            <property name="homogeneous">True</property>
+            <child>
+              <object class="GtkButton" id="solvate_button">
+                <property name="label" translatable="yes">Solvate</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <signal name="clicked" handler="on_solvate_button_clicked" swapped="no"/>
+                <style>
+                  <class name="suggested-action"/>
+                </style>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="close_button">
+                <property name="label" translatable="yes">Close</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <signal name="clicked" handler="on_close_button_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">5</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

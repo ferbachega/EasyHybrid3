@@ -1,0 +1,12 @@
+REMARK   1 Chloroform
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 Cl1  SOL A   1      -0.595   1.574  -0.439  1.00  0.00          Cl
+HETATM    2 C2   SOL A   1      -0.002  -0.001   0.116  1.00  0.00           C
+HETATM    3 Cl3  SOL A   1      -1.050  -1.303  -0.472  1.00  0.00          Cl
+HETATM    4 Cl4  SOL A   1       1.669  -0.259  -0.413  1.00  0.00          Cl
+HETATM    5 H5   SOL A   1      -0.022  -0.011   1.209  1.00  0.00           H
+CONECT    1    2
+CONECT    2    3
+CONECT    2    4
+CONECT    2    5
+END

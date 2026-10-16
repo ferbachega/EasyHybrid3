@@ -1,0 +1,19 @@
+{
+  "id": "2-methyltetrahydrofuran",
+  "name": "2-Methyltetrahydrofuran",
+  "formula": "C5H10O",
+  "molecular_weight_g_mol": 86.134,
+  "smiles": "CC1CCCO1",
+  "class": "ether",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.854,
+  "boiling_point_C_approx": 80.0,
+  "geometry": {
+    "xyz": "2-methyltetrahydrofuran/2-methyltetrahydrofuran.xyz",
+    "pdb": "2-methyltetrahydrofuran/2-methyltetrahydrofuran.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/2-methyltetrahydrofuran/SDF?record_type=3d"
+}

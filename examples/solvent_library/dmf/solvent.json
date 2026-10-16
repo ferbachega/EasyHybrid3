@@ -1,0 +1,19 @@
+{
+  "id": "dmf",
+  "name": "N,N-Dimethylformamide",
+  "formula": "C3H7NO",
+  "molecular_weight_g_mol": 73.095,
+  "smiles": "CN(C)C=O",
+  "class": "polar_aprotic",
+  "charge": 0,
+  "multiplicity": 1,
+  "density_g_mL_approx": 0.944,
+  "boiling_point_C_approx": 153.0,
+  "geometry": {
+    "xyz": "dmf/dmf.xyz",
+    "pdb": "dmf/dmf.pdb",
+    "generator": "RDKit ETKDGv3 + MMFF94",
+    "units": "angstrom"
+  },
+  "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/dmf/SDF?record_type=3d"
+}

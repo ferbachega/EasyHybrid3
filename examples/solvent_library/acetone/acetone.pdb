@@ -1,0 +1,22 @@
+REMARK   1 Acetone
+REMARK   1 3D coordinates generated with RDKit ETKDG + MMFF/UFF
+HETATM    1 C1   SOL A   1       1.266   0.048  -0.256  1.00  0.00           C
+HETATM    2 C2   SOL A   1       0.045  -0.165   0.597  1.00  0.00           C
+HETATM    3 O3   SOL A   1       0.133  -0.493   1.780  1.00  0.00           O
+HETATM    4 C4   SOL A   1      -1.290   0.042  -0.067  1.00  0.00           C
+HETATM    5 H5   SOL A   1       1.251  -0.650  -1.097  1.00  0.00           H
+HETATM    6 H6   SOL A   1       1.283   1.077  -0.621  1.00  0.00           H
+HETATM    7 H7   SOL A   1       2.166  -0.132   0.337  1.00  0.00           H
+HETATM    8 H8   SOL A   1      -1.396  -0.656  -0.901  1.00  0.00           H
+HETATM    9 H9   SOL A   1      -1.365   1.072  -0.425  1.00  0.00           H
+HETATM   10 H10  SOL A   1      -2.092  -0.142   0.653  1.00  0.00           H
+CONECT    1    2
+CONECT    2    3
+CONECT    2    4
+CONECT    1    5
+CONECT    1    6
+CONECT    1    7
+CONECT    4    8
+CONECT    4    9
+CONECT    4   10
+END

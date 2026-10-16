@@ -101,6 +101,21 @@ def _current_frame_position ( vismol_object, atom_id ):
     return vismol_object.frames[frame_idx, atom_id]
 
 
+def atom_world_position ( atom ):
+    """ [EN] The SAME world-space transform draw_hover_highlight() below
+    computes internally (_current_frame_position() + the atom's own
+    vismol_object.model_mat) -- factored out as its own small function so
+    a caller that only wants a text LABEL positioned on an atom (no ring/
+    highlight at all -- see the Atom Types window's own overlay, user's
+    own explicit request: "nao precisamos das esferas amarelas de realce
+    ... vamos deixar apenas os labels") doesn't have to draw (and pay
+    the GPU cost of) a ring it doesn't want just to get this point. """
+    vismol_object = atom.vm_object
+    local_pos = _current_frame_position ( vismol_object, atom.atom_id )
+    local_pos_h = np.array ( [ local_pos[0], local_pos[1], local_pos[2], 1.0 ], dtype = np.float32 )
+    return ( local_pos_h @ vismol_object.model_mat )[:3]
+
+
 def enable_atom_placement_mode ( vm_session, vismol_object, symbol = "C" ):
     """ Turns on Builder editing mode for vismol_object, starting in the
     "add" tool (plain left clicks on the 3D view place new atoms of
@@ -144,7 +159,7 @@ def set_tool ( vm_session, tool ):
     vm_session.builder_tool = tool
 
 
-def handle_bond_shortcut ( vm_session, bond_order = 1 ):
+def handle_bond_shortcut ( vm_session, bond_order = 1, aromatic = False ):
     """ [EN] Called by the 'b' keyboard shortcut (VismolGTKWidget._pressed_b).
     NOT a persistent tool/mode -- a one-shot ACTION: looks at whatever is
     CURRENTLY selected (vm_session.selections[vm_session.current_selection]
@@ -184,14 +199,15 @@ def handle_bond_shortcut ( vm_session, bond_order = 1 ):
     if atom_a.vm_object is not atom_b.vm_object:
         return "The 2 selected atoms must belong to the same object."
 
-    from gui.windows.builder.atom_ops import add_bond, adjust_hydrogens, push_undo_snapshot
+    from gui.windows.builder.atom_ops import add_bond, adjust_hydrogens, push_undo_snapshot, builder_adjust_hydrogen_count_enabled
     push_undo_snapshot ( atom_a.vm_object )
     try:
-        created = add_bond ( atom_a.vm_object, atom_a.atom_id, atom_b.atom_id, bond_order = bond_order )
+        created = add_bond ( atom_a.vm_object, atom_a.atom_id, atom_b.atom_id, bond_order = bond_order, aromatic = aromatic )
     except ValueError as e:
         return str ( e )
-    adjust_hydrogens ( atom_a.vm_object, atom_a.atom_id )
-    adjust_hydrogens ( atom_a.vm_object, atom_b.atom_id )
+    if builder_adjust_hydrogen_count_enabled ( atom_a.vm_object ):
+        adjust_hydrogens ( atom_a.vm_object, atom_a.atom_id )
+        adjust_hydrogens ( atom_a.vm_object, atom_b.atom_id )
 
     from gui.windows.builder.empty_object import sync_pdynamo_system
     sync_pdynamo_system ( atom_a.vm_object )
@@ -450,13 +466,99 @@ def handle_click_to_delete_atom ( vm_glcore ):
     atom = getattr ( vm_glcore, "atom_picked", None )
     if atom is None:
         return None
+    # [EN] 2026-09-28: consumed up front -- render() calls this every frame
+    # while atom_picked is set, so if anything below raised, the SAME
+    # delete re-ran (and re-failed) on every redraw, leaving the picking
+    # pass's ID colours on screen for good.
+    vm_glcore.atom_picked = None
 
-    from gui.windows.builder.atom_ops import remove_atom
+    from gui.windows.builder.atom_ops import remove_atom, push_undo_snapshot, builder_adjust_hydrogen_count_enabled
     vismol_object = atom.vm_object
     atom_id = atom.atom_id
+    # [EN] BUG FIX: every other Builder mutation in this file pushes an undo
+    # snapshot before mutating -- this one didn't, so deleting an atom could
+    # never be undone (Undo either did nothing or reverted an unrelated
+    # earlier action, and the deleted atom never came back).
+    push_undo_snapshot ( vismol_object )
+
+    # [EN] 2026-09-25, user's own explicit request: "ao deletar um atomo
+    # com 'Adjust Hydrogen Count', nao devem restar hidrogenios
+    # remanescentes do atomo deletado (protons livres)" -- gather the
+    # deleted atom's OWN hydrogens BEFORE removing it (their bond info
+    # only exists while the parent atom is still there); if the atom
+    # being deleted is itself a hydrogen, this is simply empty (nothing
+    # else to clean up), so a deliberate single-H deletion is untouched.
+    # Gated by the SAME "Adjust hydrogen count" switch as every other
+    # automatic post-edit adjustment (atom_ops.builder_adjust_hydrogen_
+    # count_enabled()'s own docstring) -- off leaves the orphaned
+    # hydrogens exactly where they are, matching that switch's own
+    # "build non-standard states by hand" philosophy.
+    orphaned_h_atoms = [ ]
+    if builder_adjust_hydrogen_count_enabled ( vismol_object ) and vismol_object.bonds:
+        for bond in vismol_object.bonds.values ( ):
+            if bond.atom_index_i != atom_id and bond.atom_index_j != atom_id:
+                continue
+            other_id = bond.atom_index_j if bond.atom_index_i == atom_id else bond.atom_index_i
+            other_atom = vismol_object.atoms.get ( other_id )
+            if other_atom is not None and other_atom is not atom and other_atom.symbol == 'H' \
+                    and other_atom not in orphaned_h_atoms:
+                orphaned_h_atoms.append ( other_atom )
+
     remove_atom ( vismol_object, atom_id )
+
+    # [EN] Removes every orphaned hydrogen too -- re-sorts by each
+    # object's CURRENT .atom_id right before every single removal
+    # (remove_atom() renumbers every id ABOVE the one just removed,
+    # mutating every SURVIVING atom's own .atom_id IN PLACE -- same
+    # "re-read from the live object" convention adjust_hydrogens()/
+    # finish_bond_drag() already use), always removing the currently-
+    # highest one first so an earlier removal in this same batch never
+    # invalidates a not-yet-processed one.
+    while orphaned_h_atoms:
+        orphaned_h_atoms.sort ( key = lambda a: a.atom_id, reverse = True )
+        h_atom = orphaned_h_atoms.pop ( 0 )
+        remove_atom ( vismol_object, h_atom.atom_id )
+
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( vismol_object )
+
     vm_glcore.atom_picked = None
     return atom_id
+
+
+def delete_selected_atoms ( vm_session ):
+    """ [EN] 2026-10-04, user's request: with the Builder open, the Delete
+    key removes the atoms of the current VIEWING selection that belong to
+    the object being edited (atom_ops.remove_atoms(): one undo step,
+    orphan hydrogens and neighbour hydrogen adjustment as the delete tool).
+    While "Editing: ON" the viewing selection is hidden (and frozen), so
+    nothing is deleted then -- deleting atoms the user cannot see selected
+    would be a surprise. Returns a status message (also pushed to the
+    main statusbar). """
+    from gui.windows.builder.atom_ops import remove_atoms
+    target = getattr ( vm_session, "builder_target_object", None )
+    main = getattr ( vm_session, "main", None )
+    def report ( message ):
+        statusbar = getattr ( main, "statusbar_main", None )
+        if statusbar is not None:
+            statusbar.push ( 1, message )
+        return message
+    if target is None:
+        return report ( "No Builder session." )
+    if getattr ( vm_session, "builder_atom_mode", False ):
+        return report ( "Builder: turn Editing OFF, select atoms (viewing selection) and press Delete to remove them." )
+    selection = vm_session.selections[vm_session.current_selection]
+    atoms = [ a for a in selection.selected_atoms if a.vm_object is target and target.atoms.get ( a.atom_id ) is a ]
+    if not atoms:
+        return report ( "Builder: no selected atoms in '{}' to delete.".format ( target.name ) )
+    n_selected = len ( atoms )
+    n_removed = remove_atoms ( target, atoms )
+    selection.selection_function_viewing_set ( None )
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( target )
+    extra = n_removed - n_selected
+    return report ( "Builder: deleted {} selected atom(s){} (Undo restores them).".format (
+                    n_selected, " and {} attached hydrogen(s)".format ( extra ) if extra > 0 else "" ) )
 
 
 def _read_depth_and_atom_at_pixel ( vm_glcore, mouse_x, mouse_y ):
@@ -686,14 +788,19 @@ def handle_click_to_place_atom ( vm_glcore, mouse_x, mouse_y ):
                     picked_atom.atom_id, symbol ) )
             return picked_atom
 
-        from gui.windows.builder.atom_ops import set_atom_element, push_undo_snapshot, adjust_hydrogens
+        from gui.windows.builder.atom_ops import set_atom_element, push_undo_snapshot, adjust_hydrogens, builder_adjust_hydrogen_count_enabled
         push_undo_snapshot ( vismol_object )
         atom = set_atom_element ( vismol_object, picked_atom.atom_id, symbol )
         # [EN] The new element's standard valence is (almost always)
         # different from the old one's -- adjust THIS atom's own
         # hydrogens to match (its neighbours' bond orders to it are
         # unchanged, so THEY don't need adjusting, only this atom does).
-        adjust_hydrogens ( vismol_object, atom.atom_id )
+        # Gated by the sidebar's own "Adjust hydrogen count" switch (see
+        # atom_ops.builder_adjust_hydrogen_count_enabled()'s own
+        # docstring) -- off leaves the replaced atom's hydrogens exactly
+        # as they were before the replacement.
+        if builder_adjust_hydrogen_count_enabled ( vismol_object ):
+            adjust_hydrogens ( vismol_object, atom.atom_id )
         from gui.windows.builder.empty_object import sync_pdynamo_system
         sync_pdynamo_system ( vismol_object )
         dprint ( "DEBUG click_mode: replaced atom #{} -> '{}'".format ( atom.atom_id, symbol ) )
@@ -724,8 +831,9 @@ def handle_click_to_place_atom ( vm_glcore, mouse_x, mouse_y ):
     # element, bond-drag finish, cycle bond order, delete atom/bond --
     # see each of those call sites' own comment), instead of being a
     # one-off special case just for this one interaction.
-    from gui.windows.builder.atom_ops import adjust_hydrogens
-    adjust_hydrogens ( vismol_object, atom.atom_id )
+    from gui.windows.builder.atom_ops import adjust_hydrogens, builder_adjust_hydrogen_count_enabled
+    if builder_adjust_hydrogen_count_enabled ( vismol_object ):
+        adjust_hydrogens ( vismol_object, atom.atom_id )
 
     from gui.windows.builder.empty_object import sync_pdynamo_system
     sync_pdynamo_system ( vismol_object )
@@ -807,11 +915,14 @@ def start_bond_drag ( vm_glcore, origin_atom, depth ):
     new_atom = add_atom ( vismol_object, symbol = symbol, x = ox, y = oy, z = oz,
                            bonded_to = origin_atom.atom_id )
 
-    vm_session.builder_bond_drag_active      = True
-    vm_session.builder_bond_drag_origin_atom = origin_atom
-    vm_session.builder_bond_drag_new_atom    = new_atom
-    vm_session.builder_bond_drag_object      = vismol_object
-    vm_session.builder_bond_drag_depth       = depth
+    vm_session.builder_bond_drag_active        = True
+    vm_session.builder_bond_drag_origin_atom   = origin_atom
+    vm_session.builder_bond_drag_new_atom      = new_atom
+    vm_session.builder_bond_drag_object        = vismol_object
+    vm_session.builder_bond_drag_depth         = depth
+    vm_session.builder_bond_drag_preview_order    = None   # set for real by the first update_bond_drag() motion event
+    vm_session.builder_bond_drag_preview_aromatic = False  # ditto
+    vm_session.builder_bond_drag_snap_target      = None   # ditto
 
     dprint ( "DEBUG click_mode: bond-drag started -- new atom #{} ('{}') bonded to atom #{} ('{}')".format (
             new_atom.atom_id, symbol, origin_atom.atom_id, origin_atom.symbol ) )
@@ -838,6 +949,7 @@ def update_bond_drag ( vm_glcore, mouse_x, mouse_y ):
         return None
 
     vismol_object = vm_session.builder_bond_drag_object
+    origin_atom   = vm_session.builder_bond_drag_origin_atom
     new_atom      = vm_session.builder_bond_drag_new_atom
     depth         = vm_session.builder_bond_drag_depth
 
@@ -850,6 +962,50 @@ def update_bond_drag ( vm_glcore, mouse_x, mouse_y ):
 
     from gui.windows.builder.atom_ops import move_atom
     move_atom ( vismol_object, new_atom.atom_id, x, y, z )
+
+    # [EN] Live "which atom will this bond to" preview (asked for by the
+    # user directly, after seeing the drag-to-bond-by-distance preview
+    # ring in action: "quero... acender um circulo mostrando para qual
+    # atomo a ligacao sera formada" -- light up a circle showing which
+    # atom the bond will form to). Recomputed every motion event via the
+    # SAME _current_snap_target() finish_bond_drag() itself uses (see
+    # that function's own comment for why sharing this one implementation
+    # matters), so the ring never lights up an atom that release would
+    # then NOT actually snap onto. None whenever nothing is currently
+    # close enough -- render() then falls back to ringing the dragged
+    # (temporary) atom itself instead, see below.
+    snap_target = _current_snap_target ( vismol_object, origin_atom, new_atom )
+    vm_session.builder_bond_drag_snap_target = snap_target
+
+    # [EN] Live preview of the bond's EFFECTIVE order/aromaticity --
+    # ALWAYS kept in sync here (unlike an earlier draft of this feature,
+    # which only computed this while the sidebar sat at its default
+    # Single/non-aromatic -- that left the "which atom will this bond to"
+    # ring above never lighting up at all whenever the sidebar had an
+    # explicit Double/Triple/Aromatic pick, even though snap_target was
+    # still perfectly well defined then). Drag-to-bond-by-distance
+    # (roadmap section 4) only ever OVERRIDES this with the distance
+    # classification when the sidebar is at that default (see
+    # finish_bond_drag()'s own comment for why, and for the actual
+    # decision that runs again at release) -- an explicit sidebar pick
+    # still needs its own colour here, it just isn't SUBJECT to distance.
+    # [EN] 2026-10-03 user request: the sidebar's Bond Order radios only
+    # serve the "Bond Order" tool now -- "Add" (this drag) ALWAYS takes the
+    # order from the drag distance, whatever those radios say.
+    drag_bond_order    = 1
+    drag_bond_aromatic = False
+    if drag_bond_order == 1 and not drag_bond_aromatic:
+        partner_atom = snap_target if snap_target is not None else new_atom
+        distance = float ( np.linalg.norm (
+                _current_frame_position ( vismol_object, origin_atom.atom_id ) -
+                _current_frame_position ( vismol_object, partner_atom.atom_id ) ) )
+        from gui.windows.builder.atom_ops import bond_order_from_distance
+        vm_session.builder_bond_drag_preview_order    = bond_order_from_distance ( origin_atom, partner_atom, distance )
+        vm_session.builder_bond_drag_preview_aromatic = False
+    else:
+        vm_session.builder_bond_drag_preview_order    = drag_bond_order
+        vm_session.builder_bond_drag_preview_aromatic = drag_bond_aromatic
+
     return new_atom
 
 
@@ -896,12 +1052,55 @@ def _find_bond_snap_target ( vismol_object, dragged_atom, exclude_ids, tolerance
     return best_atom
 
 
+def _current_snap_target ( vismol_object, origin_atom, new_atom ):
+    """ [EN] Shared by update_bond_drag() (LIVE, every motion event --
+    drives the "which atom is about to light up" preview ring, see that
+    function's own comment) and finish_bond_drag() (the actual action,
+    once) -- factored out so both always agree on exactly the same
+    candidate, instead of two independently-written copies of this
+    exclusion logic silently drifting apart (e.g. the preview lighting
+    up atom X while release actually snaps onto atom Y).
+
+    origin_atom's OWN pre-existing neighbours (most commonly its own
+    hydrogens) are excluded -- see finish_bond_drag()'s own bug-fix note
+    for why (they sit well within the snap radius for most ordinary
+    drags, and snapping onto one is never a meaningful NEW connection
+    since origin is already bonded to it).
+
+    Returns the snap-target Atom, or None if nothing is currently close
+    enough. """
+    origin_neighbor_ids = {
+        ( bond.atom_index_j if bond.atom_index_i == origin_atom.atom_id else bond.atom_index_i )
+        for bond in vismol_object.bonds.values ( )
+        if bond.atom_index_i == origin_atom.atom_id or bond.atom_index_j == origin_atom.atom_id
+    }
+    return _find_bond_snap_target (
+        vismol_object, new_atom,
+        exclude_ids = { origin_atom.atom_id, new_atom.atom_id } | origin_neighbor_ids
+    )
+
+
 def finish_bond_drag ( vm_glcore ):
     """ Called from mouse_released() (checked FIRST, before anything
     else -- see the hook added there) once the button comes back up
     while a bond-drag is active. Finalises the dragged atom at its
     current (already up to date, from the last update_bond_drag() call)
     position.
+
+    Drag-to-bond BY DISTANCE (Builder roadmap section 4): when the
+    sidebar's Bond order selector is still at its default (Single, non-
+    aromatic), the FINAL order is decided by how far this drag actually
+    travelled -- a short drag becomes a triple bond, medium a double,
+    long a single (atom_ops.bond_order_from_distance(), classifying
+    against the closest of the 3 ideal bond lengths for THIS specific
+    element pair). An EXPLICIT sidebar choice (Double/Triple/Aromatic)
+    always wins over the drag distance instead -- confirmed directly
+    with the user: distance is a convenience for the common "just drag"
+    case, not something that should silently override a deliberate
+    sidebar pick. See update_bond_drag()'s own comment for the live,
+    on-screen colour-coded preview ring shown WHILE dragging (before
+    release), so the order this function ends up choosing is never a
+    surprise.
 
     NEW: if that final position is close enough to an EXISTING atom
     (other than the one the drag started from) -- see
@@ -944,12 +1143,62 @@ def finish_bond_drag ( vm_glcore ):
     origin_atom   = vm_session.builder_bond_drag_origin_atom
     new_atom      = vm_session.builder_bond_drag_new_atom
 
-    from gui.windows.builder.atom_ops import add_bond, remove_atom, adjust_hydrogens
+    from gui.windows.builder.atom_ops import add_bond, remove_atom, adjust_hydrogens, builder_adjust_hydrogen_count_enabled
 
-    snap_target = _find_bond_snap_target (
-        vismol_object, new_atom,
-        exclude_ids = { origin_atom.atom_id, new_atom.atom_id }
-    )
+    # [EN] The order/aromaticity picked in the Builder sidebar applies to
+    # every bond CREATED by this drag -- this is the single, authoritative
+    # place that reads it (not start_bond_drag(), whose own add_atom()
+    # call always defaults to a plain single bond: add_bond() below writes
+    # manual_bond_orders[pair] UNCONDITIONALLY, so setting it any earlier
+    # would just get silently overwritten here anyway).
+    # [EN] 2026-10-03 user request: no longer read from the sidebar -- the
+    # Bond Order radios only serve the "Bond Order" tool; a dragged bond's
+    # order always comes from the drag distance (classified below).
+    drag_bond_order    = 1
+    drag_bond_aromatic = False
+
+    # [EN] BUG FIX (reported by the user: dragging to create a new bonded
+    # atom seemed to reject/discard the new atom depending on distance).
+    # origin_atom's OWN pre-existing neighbours (most commonly its own
+    # hydrogens, placed by adjust_hydrogens() right after it was created --
+    # see handle_click_to_place_atom()) used to NOT be excluded here, only
+    # origin_atom/new_atom themselves were. Those hydrogens sit close
+    # enough to origin (~1.0-1.1 A, see atom_ops._hydrogen_bond_length())
+    # that they're routinely INSIDE _find_bond_snap_target()'s own snap
+    # radius (covalent-radius-sum * 1.3 -- ~1.44 A for a C-H pair) for
+    # most of a perfectly normal, short drag starting AT origin's position
+    # -- so dragging toward (or anywhere near) any one of origin's existing
+    # hydrogens silently snapped the new atom onto THAT hydrogen instead
+    # (origin and that H were already bonded, so nothing new even got
+    # created), discarding the dragged atom with no visible feedback.
+    # Excluding every atom origin_atom is ALREADY bonded to fixes this:
+    # snapping still works for dropping onto a genuinely separate,
+    # unrelated EXISTING atom (the intended use case), just never onto one
+    # of origin's own existing substituents, which can never be a
+    # meaningful "new" connection anyway. See _current_snap_target()'s own
+    # docstring -- factored out so this and update_bond_drag()'s live
+    # preview (the "which atom is about to light up" ring) always agree.
+    snap_target = _current_snap_target ( vismol_object, origin_atom, new_atom )
+
+    # [EN] Drag-to-bond BY DISTANCE (Builder roadmap section 4): only
+    # kicks in when the sidebar is at its default, unmodified selection
+    # (Single, non-aromatic) -- an EXPLICIT sidebar choice (Double/
+    # Triple/Aromatic) always wins over the drag distance, per the
+    # user's own decision (asked directly: distance should be a
+    # convenience for the common "just drag" case, not something that
+    # can silently override a deliberate sidebar pick). Measures against
+    # whichever atom origin_atom ends up ACTUALLY bonded to -- new_atom's
+    # own (live, cursor-following) position in the normal case, or
+    # snap_target's position when dropping onto an existing atom (new_atom
+    # sits right on top of snap_target at that point anyway, so either
+    # position gives essentially the same distance).
+    if drag_bond_order == 1 and not drag_bond_aromatic:
+        partner_atom = snap_target if snap_target is not None else new_atom
+        distance = float ( np.linalg.norm (
+                _current_frame_position ( vismol_object, origin_atom.atom_id ) -
+                _current_frame_position ( vismol_object, partner_atom.atom_id ) ) )
+        from gui.windows.builder.atom_ops import bond_order_from_distance
+        drag_bond_order = bond_order_from_distance ( origin_atom, partner_atom, distance )
 
     if snap_target is not None:
         # [EN] Dropped onto an existing atom -- connect origin directly
@@ -964,14 +1213,14 @@ def finish_bond_drag ( vm_glcore ):
         origin_id = origin_atom.atom_id
         target_id = snap_target.atom_id
         remove_atom ( vismol_object, new_atom.atom_id )
-        add_bond ( vismol_object, origin_id, target_id )
+        add_bond ( vismol_object, origin_id, target_id, bond_order = drag_bond_order, aromatic = drag_bond_aromatic )
 
         dprint ( "DEBUG click_mode: bond-drag finished -- snapped onto existing atom #{} ('{}'), connected to atom #{} ('{}'); temporary dragged atom removed".format (
                 target_id, snap_target.symbol, origin_id, origin_atom.symbol ) )
 
         finalised_atom = vismol_object.atoms[target_id]
     else:
-        add_bond ( vismol_object, origin_atom.atom_id, new_atom.atom_id )
+        add_bond ( vismol_object, origin_atom.atom_id, new_atom.atom_id, bond_order = drag_bond_order, aromatic = drag_bond_aromatic )
 
         dprint ( "DEBUG click_mode: bond-drag finished -- atom #{} ('{}') dropped, bonded to atom #{} ('{}')".format (
                 new_atom.atom_id, new_atom.symbol, origin_atom.atom_id, origin_atom.symbol ) )
@@ -989,19 +1238,32 @@ def finish_bond_drag ( vm_glcore ):
     # .atom_id IN PLACE, so reading it fresh off the object is always
     # correct regardless of what the first call did, even though a
     # lower-numbered atom may have been removed in between the two calls.
-    adjust_hydrogens ( vismol_object, origin_atom.atom_id )
-    adjust_hydrogens ( vismol_object, finalised_atom.atom_id )
+    #
+    # [EN] 2026-09-25, user's own explicit request: gated by the
+    # sidebar's own "Adjust hydrogen count" switch -- this is the
+    # EXACT "new atom + the atom it's bonded to" scenario the request
+    # named directly (drag FROM an existing atom TO create a new bonded
+    # one). Off leaves both atoms' hydrogens exactly as the drag itself
+    # left them -- e.g. dragging out a 4th hydrogen onto an already-
+    # fully-substituted nitrogen builds a real ammonium ion instead of
+    # being silently stripped back down to 3 bonds right here.
+    if builder_adjust_hydrogen_count_enabled ( vismol_object ):
+        adjust_hydrogens ( vismol_object, origin_atom.atom_id )
+        adjust_hydrogens ( vismol_object, finalised_atom.atom_id )
 
     from gui.windows.builder.empty_object import sync_pdynamo_system
     sync_pdynamo_system ( vismol_object )
 
-    vm_session.builder_bond_drag_active      = False
-    vm_session.builder_bond_drag_origin_atom = None
-    vm_session.builder_bond_drag_new_atom    = None
-    vm_session.builder_bond_drag_object      = None
-    vm_session.builder_bond_drag_depth       = None
-    vm_session.builder_press_candidate_atom  = None
-    vm_session.builder_press_candidate_depth = None
+    vm_session.builder_bond_drag_active        = False
+    vm_session.builder_bond_drag_origin_atom   = None
+    vm_session.builder_bond_drag_new_atom      = None
+    vm_session.builder_bond_drag_object        = None
+    vm_session.builder_bond_drag_depth         = None
+    vm_session.builder_bond_drag_preview_order    = None
+    vm_session.builder_bond_drag_preview_aromatic = False
+    vm_session.builder_bond_drag_snap_target      = None
+    vm_session.builder_press_candidate_atom       = None
+    vm_session.builder_press_candidate_depth      = None
 
     vm_glcore.updated_coords = False
     vm_glcore.queue_draw ( )
@@ -1027,9 +1289,9 @@ def finish_bond_drag ( vm_glcore ):
 #   atom picking (vm_session.atom_dic_id / VismolGLCore._pick()). Building
 #   a parallel colour-ID system for bonds would need a genuinely separate
 #   VAO/VBO (each bond needs its OWN 2 vertices with a UNIFORM colour --
-#   the existing "lines" representation shares vertex data with atoms,
-#   colouring each line endpoint by its OWN atom's colour, which can't
-#   also encode "this bond" since one atom can be an endpoint of several
+#   the existing "sticks" representation shares vertex data with atoms,
+#   colouring each endpoint by its OWN atom's colour, which can't also
+#   encode "this bond" since one atom can be an endpoint of several
 #   different bonds at once) and a brand new GPU render pass, which isn't
 #   feasible to get right without a live GL context to test against. The
 #   projection-distance approach only needs plain Python/numpy -- the
@@ -1100,9 +1362,9 @@ def find_bond_at_pixel ( vm_glcore, vismol_object, mouse_x, mouse_y, pixel_thres
     distance check rather than a GPU colour-ID pick.
 
     Only ever called with vismol_object = vm_session.builder_target_object
-    (see cycle_bond_order()'s caller in vismol_glcore.py) -- bonds of any
-    OTHER object are never even considered, by construction, matching the
-    "only one object is editable at a time" design.
+    (see apply_selected_bond_order()'s caller in vismol_glcore.py) --
+    bonds of any OTHER object are never even considered, by construction,
+    matching the "only one object is editable at a time" design.
 
     Returns the closest Bond within range, or None. """
     best_bond = None
@@ -1217,24 +1479,43 @@ def find_atom_at_pixel_2d_any_object ( vm_glcore, mouse_x, mouse_y, pixel_thresh
     return best_atom
 
 
-def cycle_bond_order ( vm_glcore, vismol_object, bond ):
-    """ Cycles bond.bond_order: 1 -> 2 -> 3 -> 1 (single -> double ->
-    triple -> single). Triggered by Ctrl+click on an existing bond (see
-    the mouse_released() hook in vismol_glcore.py).
+def apply_selected_bond_order ( vm_glcore, vismol_object, bond ):
+    """ Sets bond.bond_order/aromaticity to whatever is CURRENTLY chosen
+    in the Builder sidebar's "Bond order (new bonds)" radio group
+    (vm_session.builder_bond_order/builder_bond_aromatic -- the same
+    state that already decides the order of bonds CREATED via drag-to-
+    bond or the 'b' key, see click_mode.finish_bond_drag()/
+    handle_bond_shortcut()). Triggered by Ctrl+click on an existing bond
+    (see the mouse_released() hook in vismol_glcore.py).
+
+    [EN] REPLACES this function's old behaviour (was cycle_bond_order():
+    unconditionally cycled 1 -> 2 -> 3 -> 1 on every Ctrl+click,
+    regardless of the sidebar). Changed after the user asked for a way to
+    change an EXISTING bond's order (and have hydrogens follow) -- rather
+    than adding a second, separate mechanism, Ctrl+click was repointed at
+    the SAME sidebar selection new bonds already use, so "pick an order
+    in the sidebar" now consistently means "this is what bonds -- new OR
+    Ctrl+clicked -- become", and an existing bond can now also be set to
+    Aromatic this way (impossible with plain numeric cycling, since
+    aromaticity was never part of that 1-2-3 cycle). See also
+    handle_click_to_set_bond_order() below -- a dedicated click-TOOL for
+    the same idea (click 2 atoms in sequence, no Ctrl needed).
 
     Persists the new order in vismol_object.manual_bond_orders (keyed by
-    the normalized (min,max) atom-id pair), which atom_ops.
-    _reapply_manual_bonds() now feeds into vismol_object.
+    the normalized (min,max) atom-id pair), and the aromatic flag in
+    manual_aromatic_bonds the same way -- both of which atom_ops.
+    _reapply_manual_bonds() feeds into vismol_object.
     _bonds_from_pair_of_indexes_list() as `external_orders` -- REQUIRED,
     not optional: bonds get recreated FROM SCRATCH (fresh Bond() objects)
     every time ANYTHING changes on this object (add_atom(), remove_atom(),
-    add_bond()...), so without persisting it somewhere durable, cycling a
+    add_bond()...), so without persisting it somewhere durable, changing a
     bond's order here would get silently overwritten back to the default
     the very next time anything else is edited -- the exact same class of
     bug manual_bonds itself had to be fixed for (see
     _reapply_manual_bonds()'s own docstring).
 
-    [EN] BUG FIX, found while wiring this up: vismol_object.
+    [EN] HISTORICAL BUG FIX, found while first wiring this up (still
+    relevant -- the underlying mechanism is unchanged): vismol_object.
     _bonds_from_pair_of_indexes_list()'s external_orders parameter
     already existed but its actual assignment (bond.bond_order = ...) was
     commented out (a dead "pass" in its place) -- passing external_orders
@@ -1244,9 +1525,11 @@ def cycle_bond_order ( vm_glcore, vismol_object, bond ):
     pair = ( bond.atom_index_i, bond.atom_index_j )
     pair = ( min ( pair ), max ( pair ) )
 
-    new_order = ( bond.bond_order % 3 ) + 1
+    vm_session   = vismol_object.vm_session
+    new_order    = getattr ( vm_session, "builder_bond_order", 1 )
+    new_aromatic = getattr ( vm_session, "builder_bond_aromatic", False )
 
-    from gui.windows.builder.atom_ops import _reapply_manual_bonds, push_undo_snapshot, adjust_hydrogens
+    from gui.windows.builder.atom_ops import _reapply_manual_bonds, push_undo_snapshot, adjust_hydrogens, builder_adjust_hydrogen_count_enabled
     push_undo_snapshot ( vismol_object )
 
     # capturados ANTES de qualquer ajuste de hidrogenio -- ver comentario
@@ -1258,31 +1541,384 @@ def cycle_bond_order ( vm_glcore, vismol_object, bond ):
         vismol_object.manual_bond_orders = { }
     vismol_object.manual_bond_orders[pair] = new_order
 
+    if not hasattr ( vismol_object, "manual_aromatic_bonds" ) or vismol_object.manual_aromatic_bonds is None:
+        vismol_object.manual_aromatic_bonds = set ( )
+    if new_aromatic:
+        vismol_object.manual_aromatic_bonds.add ( pair )
+    else:
+        vismol_object.manual_aromatic_bonds.discard ( pair )
+
     _reapply_manual_bonds ( vismol_object )
 
-    vismol_object.create_representation ( rep_type = "lines" )
+    vismol_object.create_representation ( rep_type = "sticks" )
+    vismol_object.create_representation ( rep_type = "stick_spheres" )
+    from gui.windows.builder.atom_ops import _activate_new_sphere_representation
+    _activate_new_sphere_representation ( vismol_object, "stick_spheres" )
     vismol_object.create_representation ( rep_type = "nonbonded" )
     vismol_object.core_representations["picking_dots"] = None
     vismol_object.core_representations["picking_text"] = None
 
     # [EN] The bond's order changed, so BOTH atoms' valence sums changed
     # (e.g. single -> double frees up one unit of valence on each side,
-    # which could now need one FEWER hydrogen apiece). Same "re-read
-    # .atom_id from the live object" reasoning as finish_bond_drag()'s
-    # own hydrogen-adjustment call -- adjusting atom_a_obj first might
-    # remove a lower-numbered hydrogen than atom_b_obj, which would shift
-    # atom_b_obj's own id if we used a stale cached int instead.
-    adjust_hydrogens ( vismol_object, atom_a_obj.atom_id )
-    adjust_hydrogens ( vismol_object, atom_b_obj.atom_id )
+    # which could now need one FEWER hydrogen apiece) -- and, per this
+    # session's rewrite of adjust_hydrogens() (see its own docstring),
+    # this now also REPOSITIONS every surviving hydrogen to match the new
+    # hybridisation (e.g. sp3 -> sp2), not just adjusts the count. Same
+    # "re-read .atom_id from the live object" reasoning as finish_bond_
+    # drag()'s own hydrogen-adjustment call -- adjusting atom_a_obj first
+    # might remove a lower-numbered hydrogen than atom_b_obj, which would
+    # shift atom_b_obj's own id if we used a stale cached int instead.
+    if builder_adjust_hydrogen_count_enabled ( vismol_object ):
+        adjust_hydrogens ( vismol_object, atom_a_obj.atom_id )
+        adjust_hydrogens ( vismol_object, atom_b_obj.atom_id )
 
     from gui.windows.builder.empty_object import sync_pdynamo_system
     sync_pdynamo_system ( vismol_object )
 
-    dprint ( "DEBUG click_mode: bond order cycled -- atoms #{} <-> #{} now order {}".format (
-            pair[0], pair[1], new_order ) )
+    dprint ( "DEBUG click_mode: bond order set (Ctrl+click) -- atoms #{} <-> #{} now order {}{}".format (
+            pair[0], pair[1], new_order, " (aromatic)" if new_aromatic else "" ) )
 
     vm_glcore.queue_draw ( )
     return new_order
+
+
+def _apply_sidebar_bond_order_between ( vm_session, atom_a, atom_b ):
+    """ [EN] Core used by handle_click_to_set_bond_order() below (the
+    "Bond Order" tool -- plain click on 2 atoms in sequence): applies
+    the sidebar's CURRENT Bond order selection
+    (vm_session.builder_bond_order/builder_bond_aromatic) to the
+    EXISTING bond between atom_a and atom_b, then updates both atoms'
+    hydrogens. Callers are responsible for their OWN validation of
+    atom_a/atom_b (distinct, same object) before calling this -- this
+    function only checks that a bond actually exists between them.
+
+    REQUIRES a bond to already exist (returns an error string otherwise,
+    never silently creates one) -- this is "change an ALREADY-MADE
+    bond", per the user's own request; creating a brand-new bond between
+    2 arbitrary atoms is handle_bond_shortcut()'s ('b' key) job instead.
+
+    Returns a short status string (never raises) -- same contract as
+    every other "handle_*" function in this module. """
+    vismol_object = atom_a.vm_object
+    key = ( min ( atom_a.atom_id, atom_b.atom_id ), max ( atom_a.atom_id, atom_b.atom_id ) )
+    if not vismol_object.bonds or key not in vismol_object.bonds:
+        return "No bond exists between atom {} and atom {} -- nothing to change.".format (
+                atom_a.atom_id, atom_b.atom_id )
+
+    new_order    = getattr ( vm_session, "builder_bond_order", 1 )
+    new_aromatic = getattr ( vm_session, "builder_bond_aromatic", False )
+
+    from gui.windows.builder.atom_ops import set_bond_order, adjust_hydrogens, push_undo_snapshot, builder_adjust_hydrogen_count_enabled
+    push_undo_snapshot ( vismol_object )
+    set_bond_order ( vismol_object, atom_a.atom_id, atom_b.atom_id, bond_order = new_order, aromatic = new_aromatic )
+    if builder_adjust_hydrogen_count_enabled ( vismol_object ):
+        adjust_hydrogens ( vismol_object, atom_a.atom_id )
+        adjust_hydrogens ( vismol_object, atom_b.atom_id )
+
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( vismol_object )
+
+    order_word = "aromatic" if new_aromatic else { 1: "single", 2: "double", 3: "triple" }[ int ( new_order ) ]
+    return "Bond order between atom {} and atom {} set to {}.".format ( atom_a.atom_id, atom_b.atom_id, order_word )
+
+
+# [EN] 2026-09-24: handle_set_bond_order_picking() (the pk1/pk2
+# "Set Bond Order" sidebar button's own handler) was removed here --
+# user's own explicit request: "Nao precisamos do botao 'Set Bond
+# order (pk1/pk2)', vamos retirar" -- superseded by handle_click_to_
+# set_bond_order() below (the "Bond Order" click-tool), which already
+# covers the same "change an existing bond's order" need without the
+# extra pk1/pk2 picking step. _apply_sidebar_bond_order_between()
+# above (the shared core) is UNCHANGED -- handle_click_to_set_bond_
+# order() still uses it.
+
+
+def handle_click_to_set_bond_order ( vm_glcore ):
+    """ [EN] The Builder's "Bond Order" tool (vm_session.builder_tool ==
+    "bond_order", see set_tool()/builder_sidebar.py's Tool radio group) --
+    a plain click on an atom "arms" it (remembered in vm_session.
+    builder_bond_pick_first_atom, and highlighted with the SAME coloured
+    ring + numeric label the drag-to-bond preview uses -- see the
+    render() hook in vismol_glcore.py -- so it's visually obvious which
+    atom is waiting for a partner); clicking a SECOND, different atom
+    immediately applies the sidebar's current Bond order selection to
+    the bond between them (via _apply_sidebar_bond_order_between()
+    above) and clears the armed state, ready for the next pair.
+
+    Added after the user found both the existing mechanisms for
+    changing an EXISTING bond's order -- Ctrl+click directly on the
+    bond's line (apply_selected_bond_order(), fiddly to hit precisely),
+    and the pk1/pk2 "Set Bond Order" button (handle_set_bond_order_
+    picking(), requires switching to the separate measurement-picking
+    tool first) -- "muito ruim" (too fiddly): this tool needs nothing
+    but two plain clicks, no line-hitting precision and no mode-
+    switching to a different picking tool.
+
+    Clicking the SAME armed atom again cancels the pending pick (rather
+    than trying to bond an atom to itself). Clicking an atom belonging
+    to a DIFFERENT object than vm_session.builder_target_object is
+    ignored entirely (same "only one object is editable at a time"
+    scoping used throughout this Builder).
+
+    Only ever called (see the mouse_released()/render() hook added for
+    it) when vm_glcore.atom_picked is already set by the NORMAL picking
+    pass -- same wiring handle_click_to_delete_atom() already relies on.
+
+    Returns a short status string (for logging, dprint()'d by the
+    caller) or None if nothing happened this click (e.g. no atom under
+    the cursor). """
+    atom = getattr ( vm_glcore, "atom_picked", None )
+    if atom is None:
+        return None
+
+    vm_session     = vm_glcore.vm_session
+    target_object  = getattr ( vm_session, "builder_target_object", None )
+    if target_object is None or atom.vm_object is not target_object:
+        return None
+
+    vm_glcore.atom_picked = None   # consumed -- same convention handle_click_to_delete_atom() follows
+
+    first_atom = getattr ( vm_session, "builder_bond_pick_first_atom", None )
+
+    # [EN] Also treats a stale reference (the previously-armed atom was
+    # since deleted by some OTHER action, e.g. the "Delete" tool or an
+    # Undo) as "nothing armed" -- an Atom object whose .atom_id no
+    # longer exists in the object would otherwise crash the "is atom
+    # equal" check below with a confusing error far from its real cause.
+    if first_atom is not None and first_atom.atom_id not in target_object.atoms:
+        first_atom = None
+
+    if first_atom is None:
+        vm_session.builder_bond_pick_first_atom = atom
+        return "Bond Order tool: atom {} armed -- click a second atom to apply the sidebar's order to the bond between them.".format ( atom.atom_id )
+
+    if first_atom is atom:
+        vm_session.builder_bond_pick_first_atom = None
+        return "Bond Order tool: cancelled (clicked the same atom twice)."
+
+    vm_session.builder_bond_pick_first_atom = None
+    return _apply_sidebar_bond_order_between ( vm_session, first_atom, atom )
+
+
+def handle_click_to_attach_fragment ( vm_glcore ):
+    """ [EN] The Builder's "Attach Fragment" tool (vm_session.builder_tool
+    == "attach_fragment") -- a plain click on a HYDROGEN atom replaces it
+    with whatever fragment is currently selected in the Fragment Library
+    window (vm_session.builder_selected_fragment -- a dict from
+    fragment_library.load_fragment(), set by fragment_library_window.py
+    when the user picks one). See atom_ops.attach_fragment_at_hydrogen()
+    for the actual geometry/insertion logic this just wires up.
+
+    Same "let the click fall through to normal picking first" wiring as
+    handle_click_to_delete_atom()/handle_click_to_set_bond_order() (reads
+    vm_glcore.atom_picked, scoped to vm_session.builder_target_object).
+
+    Returns a short status string (for logging, dprint()'d by the
+    caller) -- an actionable error if no fragment is selected yet, or if
+    the clicked atom isn't a hydrogen, rather than silently doing
+    nothing either way. """
+    atom = getattr ( vm_glcore, "atom_picked", None )
+    if atom is None:
+        return None
+
+    vm_session    = vm_glcore.vm_session
+    target_object = getattr ( vm_session, "builder_target_object", None )
+    if target_object is None or atom.vm_object is not target_object:
+        return None
+
+    vm_glcore.atom_picked = None
+
+    fragment = getattr ( vm_session, "builder_selected_fragment", None )
+    if fragment is None:
+        return "Attach Fragment tool: no fragment selected -- open \"Fragments...\" first."
+
+    if atom.symbol != 'H':
+        return "Attach Fragment tool: click a HYDROGEN atom to replace it with the fragment (clicked a {} atom, #{}).".format (
+                atom.symbol, atom.atom_id )
+
+    from gui.windows.builder.atom_ops import attach_fragment_at_hydrogen, push_undo_snapshot
+    push_undo_snapshot ( target_object )
+    try:
+        attach_fragment_at_hydrogen ( target_object, atom.atom_id, fragment )
+    except ValueError as e:
+        return "Attach Fragment tool: {}".format ( e )
+
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( target_object )
+
+    return "Attach Fragment tool: '{}' attached (replaced atom #{}).".format ( fragment["name"], atom.atom_id )
+
+
+def handle_click_to_add_structure ( vm_glcore, mouse_x, mouse_y ):
+    """ [EN] The Builder's "Add Structure" tool (vm_session.builder_tool ==
+    "add_structure") -- user's own request: "adicionar estruturas prontas
+    ... ao clicar no background ... semelhante a ferramenta de fragmentos,
+    mas nao tem necessidade de ter um H como referencia." A plain click
+    places whatever COMPLETE structure is currently selected in the
+    Structure Library window (vm_session.builder_selected_structure -- a
+    dict from structure_library.load_structure(), set by structure_
+    library_window.py) at the click's 3D position -- see atom_ops.
+    add_structure_at_position() for the actual insertion logic.
+
+    Deliberately does NOT care what (if anything) is under the cursor --
+    unlike handle_click_to_attach_fragment() (which needs to know whether a
+    HYDROGEN was clicked) or handle_click_to_place_atom()'s "replace an
+    existing atom" branch, this tool only ever does one thing: drop the
+    selected structure at the unprojected click position. Reuses the exact
+    same depth-read / unprojection / model-space-conversion sequence
+    handle_click_to_place_atom() already established for its OWN "click
+    landed on empty space" branch (see that function's own docstring for
+    the full reasoning on why the inverse-model_mat step is needed) --
+    called the same deferred way, from render(), for the same GL-context
+    reason (see vismol_glcore.py's mouse_released()/render() hooks).
+
+    Returns a short status string (for logging, dprint()'d by the caller)
+    -- an actionable message if no structure is selected yet, or if the
+    Builder has no target object -- rather than silently doing nothing. """
+    vm_session    = vm_glcore.vm_session
+    vismol_object = getattr ( vm_session, "builder_target_object", None )
+    if vismol_object is None:
+        return None
+
+    structure = getattr ( vm_session, "builder_selected_structure", None )
+    if structure is None:
+        return "Add Structure tool: no structure selected -- open \"Structures...\" first."
+
+    _picked_atom, depth = _read_depth_and_atom_at_pixel ( vm_glcore, mouse_x, mouse_y )
+    if depth is None:
+        depth = float ( abs ( vm_glcore.dist_cam_zrp ) )
+
+    wx, wy, wz = world_pos_from_mouse ( vm_glcore, mouse_x, mouse_y, depth = depth )
+
+    world_point = np.array ( [ wx, wy, wz, 1.0 ], dtype = np.float32 )
+    inv_model = np.linalg.inv ( vismol_object.model_mat )
+    local_point = world_point @ inv_model
+    x, y, z = float ( local_point[0] ), float ( local_point[1] ), float ( local_point[2] )
+
+    from gui.windows.builder.atom_ops import add_structure_at_position, push_undo_snapshot
+    push_undo_snapshot ( vismol_object )
+    add_structure_at_position ( vismol_object, structure, x, y, z )
+
+    from gui.windows.builder.empty_object import sync_pdynamo_system
+    sync_pdynamo_system ( vismol_object )
+
+    return "Add Structure tool: '{}' placed ({} atom(s)).".format ( structure["name"], len ( structure["atoms"] ) )
+
+
+def _sync_dihedral_slider_widget ( vm_session, armed, angle_deg = None ):
+    """ [EN] Cross-window sync helper -- same pattern fragment_library_
+    window.py already uses to keep the Builder sidebar's Tool radio in
+    sync (getattr chain through vm_session.main, no-op if the sidebar
+    isn't currently open). Called by handle_click_to_pick_dihedral_atom()
+    below whenever a dihedral pick completes, is cancelled, or is
+    rejected, so the sidebar's slider enable state / starting value
+    always reflects whatever click_mode.py just decided, without this
+    module needing to import/depend on builder_sidebar.py at module
+    level (avoids a circular import -- builder_sidebar.py already imports
+    FROM this module's sibling, empty_object.py). """
+    main    = getattr ( vm_session, "main", None )
+    sidebar = getattr ( main, "builder_sidebar_window", None ) if main is not None else None
+    if sidebar is None or not getattr ( sidebar, "visible", False ):
+        return
+    if armed:
+        sidebar.arm_dihedral_slider ( angle_deg )
+    else:
+        sidebar.disarm_dihedral_slider ( )
+
+
+def handle_click_to_pick_dihedral_atom ( vm_glcore ):
+    """ [EN] The Builder's "Rotate Dihedral" tool (vm_session.builder_tool
+    == "rotate_dihedral") -- click 4 atoms in sequence (pk1->pk4, same
+    convention the existing dihedral MEASUREMENT tool uses: atoms #2/#3
+    are the rotation axis, #1/#4 just define which dihedral angle is
+    being set) to arm the Builder sidebar's rotation slider.
+
+    State lives in vm_session.builder_dihedral_pick_atoms (a plain list,
+    NOT the older, separate app-wide pk1..pk4 measurement-picking
+    mechanism -- see this tool's own entry in the plan file for why).
+    Clicking the LAST atom already picked cancels the whole pick (same
+    "click same atom = cancel" convention as handle_click_to_set_bond_
+    order()); clicking a 5th, distinct atom after 4 are already picked
+    starts a completely fresh pick with that atom as #1.
+
+    On the 4th pick: validates atoms #2-#3 are an actual bonded pair,
+    computes the rotatable subgroup (atom_ops.
+    compute_dihedral_rotation_subgroup(), None if the bond is part of a
+    ring), and -- on success -- arms vm_session.builder_dihedral_axis /
+    builder_dihedral_subgroup and pushes ONE undo snapshot covering the
+    whole rotation session that follows (see builder_sidebar.py's slider
+    handler, which rotates in place without pushing further snapshots
+    per slider move).
+
+    Returns a short status string (for logging, dprint()'d by the
+    caller) or None if nothing happened this click. """
+    atom = getattr ( vm_glcore, "atom_picked", None )
+    if atom is None:
+        return None
+
+    vm_session    = vm_glcore.vm_session
+    target_object = getattr ( vm_session, "builder_target_object", None )
+    if target_object is None or atom.vm_object is not target_object:
+        return None
+
+    vm_glcore.atom_picked = None
+
+    picked = getattr ( vm_session, "builder_dihedral_pick_atoms", None )
+    if not picked:
+        picked = [ ]
+    else:
+        # [EN] Stale-reference guard -- same reasoning as handle_click_to_
+        # set_bond_order()'s own: an atom armed earlier may have since
+        # been removed by Undo/the Delete tool.
+        picked = [ a for a in picked if a.atom_id in target_object.atoms ]
+
+    if picked and picked[-1] is atom:
+        vm_session.builder_dihedral_pick_atoms = [ ]
+        vm_session.builder_dihedral_axis       = None
+        vm_session.builder_dihedral_subgroup   = None
+        _sync_dihedral_slider_widget ( vm_session, armed = False )
+        return "Rotate Dihedral tool: cancelled (clicked the same atom twice)."
+
+    if len ( picked ) >= 4:
+        picked = [ ]   # 5th distinct atom -- start a fresh pick
+
+    picked.append ( atom )
+    vm_session.builder_dihedral_pick_atoms = picked
+    vm_session.builder_dihedral_axis       = None
+    vm_session.builder_dihedral_subgroup   = None
+
+    if len ( picked ) < 4:
+        return "Rotate Dihedral tool: atom {} picked ({}/4) -- click {} more atom(s).".format (
+                atom.atom_id, len ( picked ), 4 - len ( picked ) )
+
+    atom2, atom3 = picked[1], picked[2]
+    bond_key = ( min ( atom2.atom_id, atom3.atom_id ), max ( atom2.atom_id, atom3.atom_id ) )
+    if bond_key not in target_object.bonds:
+        vm_session.builder_dihedral_pick_atoms = [ ]
+        _sync_dihedral_slider_widget ( vm_session, armed = False )
+        return "Rotate Dihedral tool: atoms #2 and #3 ({} and {}) must be bonded to each other.".format (
+                atom2.atom_id, atom3.atom_id )
+
+    from gui.windows.builder.atom_ops import compute_dihedral_rotation_subgroup, push_undo_snapshot
+    subgroup = compute_dihedral_rotation_subgroup ( target_object, atom2.atom_id, atom3.atom_id )
+    if subgroup is None:
+        vm_session.builder_dihedral_pick_atoms = [ ]
+        _sync_dihedral_slider_widget ( vm_session, armed = False )
+        return "Rotate Dihedral tool: the bond between atoms #2 and #3 is part of a ring -- rotation isn't supported."
+
+    vm_session.builder_dihedral_axis     = ( atom2.atom_id, atom3.atom_id )
+    vm_session.builder_dihedral_subgroup = subgroup
+    push_undo_snapshot ( target_object )
+
+    from util.geometric_analysis import get_dihedral
+    try:
+        current_angle = get_dihedral ( target_object, picked[0].atom_id, atom2.atom_id, atom3.atom_id, picked[3].atom_id )
+    except ValueError:
+        current_angle = 0.0
+    _sync_dihedral_slider_widget ( vm_session, armed = True, angle_deg = current_angle )
+
+    return "Rotate Dihedral tool: dihedral armed (atoms {}-{}-{}-{}, {:.1f} deg) -- use the slider to rotate.".format (
+            picked[0].atom_id, atom2.atom_id, atom3.atom_id, picked[3].atom_id, current_angle )
 
 
 # =====================================================================================
@@ -1301,8 +1937,9 @@ def cycle_bond_order ( vm_glcore, vismol_object, bond ):
 #   "fixed depth for the whole gesture" design as start_bond_drag()/
 #   update_bond_drag()/finish_bond_drag() above (see those functions'
 #   own docstrings for the reasoning -- it's identical here): a plain
-#   Ctrl+CLICK (no real drag) on a BOND still means "cycle its order"
-#   (cycle_bond_order() above) -- these two Ctrl interactions never
+#   Ctrl+CLICK (no real drag) on a BOND still means "set its order to the
+#   sidebar's current selection" (apply_selected_bond_order() above) --
+#   these two Ctrl interactions never
 #   conflict because they target different things (an ATOM vs. a BOND's
 #   on-screen LINE), and because the atom-drag only ever actually
 #   STARTS on real mouse movement, exactly like the plain click-and-
@@ -1514,6 +2151,21 @@ def _get_hover_fill_program ( vm_glcore ):
     return program
 
 
+def bond_order_preview_color ( order, aromatic ):
+    """ [EN] Shared colour scheme for every "what bond order is this
+    about to become" ring in the Builder: drag-to-bond-by-distance
+    (vismol_glcore.py's render() hook) and the "Bond Order" tool's armed-
+    first-atom highlight (same render() hook) both call this, so the
+    colour language stays identical everywhere it appears -- green/
+    orange/red for single/double/triple, a distinct purple for aromatic
+    (aromatic bonds are order=1 internally, see add_bond()'s own
+    docstring, so it needs its own colour to stay visually distinct from
+    a plain single bond). """
+    if aromatic:
+        return ( 0.7, 0.3, 1.0 )
+    return { 1: ( 0.2, 1.0, 0.2 ), 2: ( 1.0, 0.6, 0.0 ), 3: ( 1.0, 0.15, 0.15 ) }[ order ]
+
+
 def draw_hover_highlight ( vm_glcore, atom, n_segments = 24, filled = True,
                             color = ( 1.0, 1.0, 0.0 ), alpha = 0.10 ):
                             #color = ( 1.0, 1.0, 0.0 ), alpha = 0.15 ):
@@ -1656,6 +2308,147 @@ def draw_hover_highlight ( vm_glcore, atom, n_segments = 24, filled = True,
     return world_center, up, radius
 
 
+def draw_ring_label ( vm_glcore, world_center, text, color = ( 1.0, 1.0, 1.0, 1.0 ) ):
+    """ [EN] Draws a short (typically single-character) text label
+    CENTRED on `world_center` -- the exact same already-fully-transformed
+    WORLD-space point draw_hover_highlight() computes and returns, so no
+    further model_mat transform is needed here (unlike vismol_glcore.
+    _draw_text_labels(), which applies its OWN vm_glcore.model_mat --
+    semantics uncertain enough, per that attribute's own long-standing
+    "# Not sure if this is used :S" comment in VismolGLCore.__init__,
+    that this function avoids depending on it at all, staying consistent
+    with how this whole Builder feature set has used vismol_object.
+    model_mat-derived world positions everywhere else). Added for the
+    Builder's drag-to-bond preview ring, at the user's own request, to
+    show the numeric bond order (1/2/3) directly on the coloured ring
+    (see draw_hover_highlight()) instead of relying on colour alone.
+
+    [EN] NOT a revival of the dead draw_hover_info_text() below (that
+    one still returns False immediately, unchanged) -- confirmed, by
+    reading vismol_font.py directly, that its low-level VAO population
+    (only 2 attributes: xyz_pos + uv_coords) predates VismolFont's THIRD
+    attribute, char_idx_vbo (added later for _draw_text_labels()'s own
+    "billboard fix" -- computing each glyph's advance in screen-aligned
+    space on the GPU instead of baking it into world-space X on the CPU).
+    make_freetype_texture() unconditionally enables vert_char_idx on the
+    VAO now, so drawing with draw_hover_info_text()'s old 2-buffer
+    approach today would read out-of-bounds from char_idx_vbo's original,
+    never-updated single-float placeholder for every glyph -- silently
+    wrong (or at best all glyphs landing on the same spot), not just
+    "unused". This function populates all 3 buffers correctly instead.
+    Only matters for MULTI-character strings in practice -- but it's
+    also simply the correct, current API to draw through, matching what
+    every other LIVE label drawer in this codebase already does (see
+    VismolGLCore._draw_text_labels()'s own docstring for the full
+    history of that fix).
+
+    Lazily creates and caches ONE shared VismolFont on vm_glcore
+    (vm_glcore._bond_order_label_font) -- zoom_sensitivity left at
+    VismolFont's own default (0.0, constant on-screen size regardless of
+    camera distance), matching how the ring itself doesn't shrink to
+    invisibility or balloon out oddly as the user zooms while dragging. """
+    font = getattr ( vm_glcore, "_bond_order_label_font", None )
+    if font is None:
+        from vismol.libgl.vismol_font import VismolFont
+        font = VismolFont ( color = list ( color ) )
+        font.set_dimensions ( width = 0.4, height = 0.4 )
+        # [EN] BUG FIX (user's own explicit request -- "vamos deixar os
+        # caracteres dos labels mais proximos, no momento, estao muito
+        # afastados"): VismolFont.set_dimensions() ties char_advance
+        # (font.char_width, the per-glyph horizontal STEP the geometry
+        # shader uses -- shaders/vm_freetype.py's own "advance = (char_
+        # idx + string_shift.x) * char_advance * depth_factor") to the
+        # SAME value as the glyph's own render size (offset, computed
+        # from that call as [width/2, height/2] and never touched
+        # again) -- confirmed by reading VismolFont.set_dimensions()
+        # directly. That means consecutive glyph QUADS only ever just
+        # touch edge-to-edge at best, never overlap -- but each glyph's
+        # actual visible ink sits with margin INSIDE its own quad (normal
+        # font-rendering bearing/padding), so two "touching" quads still
+        # show a visible gap between the INK of one character and the
+        # next. Tightening char_advance below the full glyph width (kept
+        # here for MULTI-character labels, e.g. atom-id "12"/"103" --
+        # single-character labels are unaffected, char_idx==0 either
+        # way) closes that gap without shrinking the glyphs themselves
+        # (offset, the actual render size, is untouched). 0.65 is a
+        # reasonable starting ratio for this font/geometry-shader
+        # combination -- easy to retune here alone if still too tight
+        # or too loose once seen live.
+        font.char_width = font.char_width * 0.65
+        font.make_freetype_font ( )
+        font.make_freetype_texture ( vm_glcore.core_shader_programs["freetype"] )
+        vm_glcore._bond_order_label_font = font
+    font.color = np.array ( color, dtype = np.float32 )
+
+    xyz_pos   = [ ]
+    uv_coords = [ ]
+    char_idx  = [ ]
+
+    GL.glBindTexture ( GL.GL_TEXTURE_2D, font.texture_id )
+    for i, c in enumerate ( text ):
+        c_id = ord ( c )
+        cx = c_id % 16
+        cy = c_id // 16 - 2
+        xyz_pos.append ( world_center[0] )
+        xyz_pos.append ( world_center[1] )
+        xyz_pos.append ( world_center[2] )
+        uv_coords.append ( cx * font.text_u )
+        uv_coords.append ( cy * font.text_v )
+        uv_coords.append ( ( cx + 1 ) * font.text_u )
+        uv_coords.append ( ( cy + 1 ) * font.text_v )
+        # [EN] BUG FIX (found by the user's own live testing -- "os
+        # labels nao estao centrados nas esferas"): the geometry shader
+        # (shaders/vm_freetype.py's calculate_points()) positions each
+        # glyph by its OWN CENTER -- "center_x = coord.x + char_idx *
+        # char_advance * depth_factor", the quad itself built
+        # symmetrically around that centre -- confirmed by reading the
+        # shader source directly, not assumed. For the whole STRING's
+        # average glyph centre to land exactly on world_center (i.e. for
+        # this to actually BE centred), the correct per-glyph offset is
+        # `i - (len(text)-1)/2.0`, NOT `i - len(text)/2.0` (the OLD
+        # formula here, and also what this codebase's OTHER label
+        # drawer, VismolGLCore._draw_text_labels(), documents as its own
+        # x_shift convention -- same bug, not fixed there in this pass,
+        # scope kept to this Builder-only function). The old formula is
+        # off by a CONSTANT half a character-width for every string
+        # length (e.g. a single-digit atom-id label -- this function's
+        # main use case now, see the Atom Types window -- got char_idx
+        # -0.5 instead of the correct 0, i.e. was NEVER actually
+        # centred, contrary to this comment's own former "harmless no-op
+        # for a single character" claim, which was wrong). Verified by
+        # direct substitution: len(text)==1 now gives i-0/2.0 == 0 for
+        # i==0, exactly on-centre, as it should always have been.
+        char_idx.append ( float ( i ) - ( len ( text ) - 1 ) / 2.0 )
+
+    xyz_pos   = np.array ( xyz_pos, dtype = np.float32 )
+    uv_coords = np.array ( uv_coords, dtype = np.float32 )
+    char_idx  = np.array ( char_idx, dtype = np.float32 )
+
+    GL.glBindBuffer ( GL.GL_ARRAY_BUFFER, font.coord_vbo )
+    GL.glBufferData ( GL.GL_ARRAY_BUFFER, xyz_pos.nbytes, xyz_pos, GL.GL_DYNAMIC_DRAW )
+    GL.glBindBuffer ( GL.GL_ARRAY_BUFFER, font.text_vbo )
+    GL.glBufferData ( GL.GL_ARRAY_BUFFER, uv_coords.nbytes, uv_coords, GL.GL_DYNAMIC_DRAW )
+    GL.glBindBuffer ( GL.GL_ARRAY_BUFFER, font.char_idx_vbo )
+    GL.glBufferData ( GL.GL_ARRAY_BUFFER, char_idx.nbytes, char_idx, GL.GL_DYNAMIC_DRAW )
+    GL.glBindBuffer ( GL.GL_ARRAY_BUFFER, 0 )
+
+    GL.glDisable ( GL.GL_DEPTH_TEST )   # texto sempre legivel, mesma convencao de LabelRepresentation/_draw_text_labels
+    GL.glEnable ( GL.GL_BLEND )
+    GL.glBlendFunc ( GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA )
+    GL.glUseProgram ( vm_glcore.core_shader_programs["freetype"] )
+
+    font.load_matrices ( vm_glcore.core_shader_programs["freetype"],
+                          vm_glcore.glcamera.view_matrix, vm_glcore.glcamera.projection_matrix )
+    font.load_font_params ( vm_glcore.core_shader_programs["freetype"] )
+
+    GL.glBindVertexArray ( font.vao )
+    GL.glDrawArrays ( GL.GL_POINTS, 0, len ( text ) )
+    GL.glDisable ( GL.GL_BLEND )
+    GL.glEnable ( GL.GL_DEPTH_TEST )
+    GL.glBindVertexArray ( 0 )
+    GL.glUseProgram ( 0 )
+
+
 def draw_hover_info_text ( vm_glcore, atom, world_center, up, radius ):
     """ [EN] Draws a short info line (atom index, element, residue/chain,
     object name) just below the hover ring built by draw_hover_highlight()
@@ -1764,3 +2557,134 @@ def draw_hover_info_text ( vm_glcore, atom, world_center, up, radius ):
     GL.glEnable ( GL.GL_DEPTH_TEST )
     GL.glBindVertexArray ( 0 )
     GL.glUseProgram ( 0 )
+
+
+# =====================================================================================
+#   Hover -> atom info in the terminal
+#   ------------------------------------------------------------------------------
+#   [EN] 2026-10-03 user request: whenever the cursor lands on an atom (the
+#   moment the yellow hover ring appears), print the atom's details -- system,
+#   chain, residue, element, atom name, atom type and atom type in the force
+#   field -- to the terminal (for now). Called by vismol_glcore.render() only
+#   when the hovered atom CHANGES, never once per frame.
+#
+#   "Atom type" = the DYFF type the Builder perceives for the CURRENT
+#   structure (atom_types.compute_atom_types(), the same column the Atom
+#   Types window shows, manual overrides included). Perceiving needs a
+#   whole scratch pDynamo system, so the result is cached per object and
+#   recomputed only after the structure changed (signature below).
+#   "FF atom type" = the type actually assigned by the MM model of the
+#   object's linked pDynamo system (mmState), if that system has one.
+# =====================================================================================
+
+_hover_dyff_cache = { }      # id(vismol_object) -> ( signature, {atom_id: (perceived, effective)} )
+
+
+def _structure_signature ( vismol_object ):
+    atoms = vismol_object.atoms
+    return hash ( (
+        len ( atoms ),
+        tuple ( ( a.symbol, getattr ( a, "formal_charge", 0 ) ) for a in atoms.values ( ) ),
+        frozenset ( getattr ( vismol_object, "manual_bonds", None ) or ( ) ),
+        frozenset ( ( getattr ( vismol_object, "manual_bond_orders", None ) or { } ).items ( ) ),
+        frozenset ( ( getattr ( vismol_object, "manual_atom_type_overrides", None ) or { } ).items ( ) ),
+    ) )
+
+
+def _hover_dyff_types ( vismol_object ):
+    key = id ( vismol_object )
+    try:
+        signature = _structure_signature ( vismol_object )
+    except Exception:
+        return { }
+    cached = _hover_dyff_cache.get ( key )
+    if cached is not None and cached[0] == signature:
+        return cached[1]
+    try:
+        from gui.windows.builder.atom_types import compute_atom_types
+        types = compute_atom_types ( vismol_object )
+    except Exception as error:
+        dprint ( "hover info: DYFF perception failed: {}".format ( error ) )
+        types = { }
+    _hover_dyff_cache.clear ( )          # only the object being edited matters
+    _hover_dyff_cache[key] = ( signature, types )
+    return types
+
+
+def _hover_ff_atom_type ( vm_session, vismol_object, atom ):
+    """ (type label, charge) from the linked pDynamo system's MM model, or
+        (None, None) when there is no system / no MM model. """
+    try:
+        p_session = vm_session.main_session.p_session
+        system = p_session.psystem.get ( vismol_object.e_id ) if vismol_object.e_id is not None else None
+    except Exception:
+        system = None
+    state = getattr ( system, "mmState", None ) if system is not None else None
+    note  = ""
+    if state is None or getattr ( state, "atomTypes", None ) is None:
+        # "Edit in Builder" works on a clone whose rebuilt system has no MM
+        # model; while the atom list still matches the ORIGINAL system
+        # (same count = no atom added/removed yet), report its types
+        source = None
+        source_e_id = getattr ( vismol_object, "builder_edit_source_e_id", None )
+        if source_e_id is not None:
+            try:
+                source = vm_session.main_session.p_session.psystem.get ( source_e_id )
+            except Exception:
+                source = None
+        source_state = getattr ( source, "mmState", None ) if source is not None else None
+        if ( source_state is not None and getattr ( source_state, "atomTypes", None ) is not None
+                and len ( source.atoms ) == len ( vismol_object.atoms ) ):
+            state = source_state
+            note  = "original system"
+        elif system is None:
+            return None, None, "no pDynamo system"
+        else:
+            return None, None, "no MM model"
+    index = atom.atom_id
+    try:
+        label  = state.atomTypes[state.atomTypeIndices[index]]
+        charge = float ( state.charges[index] ) if state.charges is not None else None
+        return label, charge, note
+    except Exception:
+        return None, None, "index outside the MM model"
+
+
+def print_hover_atom_info ( vm_glcore, atom ):
+    """ Prints the hovered atom's details to the terminal (see above). """
+    try:
+        vismol_object = atom.vm_object
+        vm_session    = vm_glcore.vm_session
+        chain   = atom.chain.name   if atom.chain   is not None else "-"
+        residue = "{} {}".format ( atom.residue.name, atom.residue.index ) if atom.residue is not None else "-"
+        dyff = _hover_dyff_types ( vismol_object ).get ( atom.atom_id )
+        if dyff is None:
+            dyff_text = "?"
+        else:
+            perceived, effective = dyff
+            dyff_text = str ( effective ) if effective is not None else "untyped"
+            if effective is not None and perceived is not None and effective != perceived:
+                dyff_text += "  (manual override; perceived {})".format ( perceived )
+        ff_label, ff_charge, ff_note = _hover_ff_atom_type ( vm_session, vismol_object, atom )
+        if ff_label is not None:
+            ff_text = str ( ff_label )
+            if ff_charge is not None:
+                ff_text += "  (charge {:+.4f})".format ( ff_charge )
+            if ff_note:
+                ff_text += "  [{}]".format ( ff_note )
+        else:
+            ff_text = "-  ({})".format ( ff_note )
+        formal = getattr ( atom, "formal_charge", 0 ) or 0
+        print ( "\n".join ( [
+            "-" * 60,
+            "Atom #{}".format ( atom.atom_id ),
+            "  System        : {}  (e_id {})".format ( vismol_object.name, vismol_object.e_id ),
+            "  Chain         : {}".format ( chain ),
+            "  Residue       : {}".format ( residue ),
+            "  Element       : {}{}".format ( atom.symbol, "  (formal charge {:+d})".format ( formal ) if formal else "" ),
+            "  Atom name     : {}".format ( atom.name ),
+            "  Atom type     : {}  (DYFF, Builder perception)".format ( dyff_text ),
+            "  FF atom type  : {}".format ( ff_text ),
+        ] ), flush = True )
+    except Exception as error:
+        dprint ( "hover info failed: {}".format ( error ) )

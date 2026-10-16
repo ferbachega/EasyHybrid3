@@ -1,0 +1,581 @@
+{
+  "library_name": "EasyHybrid Organic Solvent Library",
+  "version": "0.1",
+  "created": "2026-09-07",
+  "count": 30,
+  "description": "Initial collection of 30 common solvents with 3D XYZ/PDB geometries.",
+  "geometry_note": "Coordinates in this package were generated locally with RDKit (ETKDGv3 followed by MMFF94 when available, otherwise UFF). They are suitable as starting geometries, not as validated force-field solvent templates.",
+  "pubchem_note": "PubChem PUG REST supports retrieval of 3D compound records and SDF output; the URLs recorded in each solvent entry can be used to retrieve PubChem 3D records independently.",
+  "entries": [
+    {
+      "id": "water",
+      "name": "Water",
+      "formula": "H2O",
+      "molecular_weight_g_mol": 18.015,
+      "smiles": "O",
+      "class": "polar_protic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.997,
+      "boiling_point_C_approx": 78.37,
+      "geometry": {
+        "xyz": "water/water.xyz",
+        "pdb": "water/water.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/water/SDF?record_type=3d"
+    },
+    {
+      "id": "methanol",
+      "name": "Methanol",
+      "formula": "CH4O",
+      "molecular_weight_g_mol": 32.042,
+      "smiles": "CO",
+      "class": "polar_protic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.792,
+      "boiling_point_C_approx": 64.7,
+      "geometry": {
+        "xyz": "methanol/methanol.xyz",
+        "pdb": "methanol/methanol.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/methanol/SDF?record_type=3d"
+    },
+    {
+      "id": "ethanol",
+      "name": "Ethanol",
+      "formula": "C2H6O",
+      "molecular_weight_g_mol": 46.069,
+      "smiles": "CCO",
+      "class": "polar_protic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.789,
+      "boiling_point_C_approx": 78.4,
+      "geometry": {
+        "xyz": "ethanol/ethanol.xyz",
+        "pdb": "ethanol/ethanol.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ethanol/SDF?record_type=3d"
+    },
+    {
+      "id": "1-propanol",
+      "name": "1-Propanol",
+      "formula": "C3H8O",
+      "molecular_weight_g_mol": 60.096,
+      "smiles": "CCCO",
+      "class": "polar_protic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.803,
+      "boiling_point_C_approx": 97.2,
+      "geometry": {
+        "xyz": "1-propanol/1-propanol.xyz",
+        "pdb": "1-propanol/1-propanol.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/1-propanol/SDF?record_type=3d"
+    },
+    {
+      "id": "2-propanol",
+      "name": "2-Propanol",
+      "formula": "C3H8O",
+      "molecular_weight_g_mol": 60.096,
+      "smiles": "CC(C)O",
+      "class": "polar_protic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.785,
+      "boiling_point_C_approx": 82.6,
+      "geometry": {
+        "xyz": "2-propanol/2-propanol.xyz",
+        "pdb": "2-propanol/2-propanol.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/2-propanol/SDF?record_type=3d"
+    },
+    {
+      "id": "1-butanol",
+      "name": "1-Butanol",
+      "formula": "C4H10O",
+      "molecular_weight_g_mol": 74.123,
+      "smiles": "CCCCO",
+      "class": "polar_protic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.81,
+      "boiling_point_C_approx": 117.7,
+      "geometry": {
+        "xyz": "1-butanol/1-butanol.xyz",
+        "pdb": "1-butanol/1-butanol.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/1-butanol/SDF?record_type=3d"
+    },
+    {
+      "id": "tert-butanol",
+      "name": "tert-Butanol",
+      "formula": "C4H10O",
+      "molecular_weight_g_mol": 74.123,
+      "smiles": "CC(C)(C)O",
+      "class": "polar_protic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.781,
+      "boiling_point_C_approx": 82.2,
+      "geometry": {
+        "xyz": "tert-butanol/tert-butanol.xyz",
+        "pdb": "tert-butanol/tert-butanol.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/tert-butanol/SDF?record_type=3d"
+    },
+    {
+      "id": "acetone",
+      "name": "Acetone",
+      "formula": "C3H6O",
+      "molecular_weight_g_mol": 58.08,
+      "smiles": "CC(C)=O",
+      "class": "polar_aprotic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.785,
+      "boiling_point_C_approx": 56.1,
+      "geometry": {
+        "xyz": "acetone/acetone.xyz",
+        "pdb": "acetone/acetone.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/acetone/SDF?record_type=3d"
+    },
+    {
+      "id": "methyl-ethyl-ketone",
+      "name": "2-Butanone",
+      "formula": "C4H8O",
+      "molecular_weight_g_mol": 72.107,
+      "smiles": "CCC(C)=O",
+      "class": "polar_aprotic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.805,
+      "boiling_point_C_approx": 79.6,
+      "geometry": {
+        "xyz": "methyl-ethyl-ketone/methyl-ethyl-ketone.xyz",
+        "pdb": "methyl-ethyl-ketone/methyl-ethyl-ketone.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/methyl-ethyl-ketone/SDF?record_type=3d"
+    },
+    {
+      "id": "acetonitrile",
+      "name": "Acetonitrile",
+      "formula": "C2H3N",
+      "molecular_weight_g_mol": 41.053,
+      "smiles": "CC#N",
+      "class": "polar_aprotic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.786,
+      "boiling_point_C_approx": 81.6,
+      "geometry": {
+        "xyz": "acetonitrile/acetonitrile.xyz",
+        "pdb": "acetonitrile/acetonitrile.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/acetonitrile/SDF?record_type=3d"
+    },
+    {
+      "id": "propionitrile",
+      "name": "Propionitrile",
+      "formula": "C3H5N",
+      "molecular_weight_g_mol": 55.08,
+      "smiles": "CCC#N",
+      "class": "polar_aprotic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.782,
+      "boiling_point_C_approx": 97.2,
+      "geometry": {
+        "xyz": "propionitrile/propionitrile.xyz",
+        "pdb": "propionitrile/propionitrile.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/propionitrile/SDF?record_type=3d"
+    },
+    {
+      "id": "dmso",
+      "name": "Dimethyl sulfoxide",
+      "formula": "C2H6OS",
+      "molecular_weight_g_mol": 78.136,
+      "smiles": "CS(C)=O",
+      "class": "polar_aprotic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 1.026,
+      "boiling_point_C_approx": 189.0,
+      "geometry": {
+        "xyz": "dmso/dmso.xyz",
+        "pdb": "dmso/dmso.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/dmso/SDF?record_type=3d"
+    },
+    {
+      "id": "dmf",
+      "name": "N,N-Dimethylformamide",
+      "formula": "C3H7NO",
+      "molecular_weight_g_mol": 73.095,
+      "smiles": "CN(C)C=O",
+      "class": "polar_aprotic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.944,
+      "boiling_point_C_approx": 153.0,
+      "geometry": {
+        "xyz": "dmf/dmf.xyz",
+        "pdb": "dmf/dmf.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/dmf/SDF?record_type=3d"
+    },
+    {
+      "id": "nmp",
+      "name": "N-Methyl-2-pyrrolidone",
+      "formula": "C5H9NO",
+      "molecular_weight_g_mol": 99.133,
+      "smiles": "CN1CCCC1=O",
+      "class": "polar_aprotic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 1.028,
+      "boiling_point_C_approx": 202.0,
+      "geometry": {
+        "xyz": "nmp/nmp.xyz",
+        "pdb": "nmp/nmp.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/nmp/SDF?record_type=3d"
+    },
+    {
+      "id": "thf",
+      "name": "Tetrahydrofuran",
+      "formula": "C4H8O",
+      "molecular_weight_g_mol": 72.107,
+      "smiles": "C1CCOC1",
+      "class": "ether",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.889,
+      "boiling_point_C_approx": 66.0,
+      "geometry": {
+        "xyz": "thf/thf.xyz",
+        "pdb": "thf/thf.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/thf/SDF?record_type=3d"
+    },
+    {
+      "id": "2-methyltetrahydrofuran",
+      "name": "2-Methyltetrahydrofuran",
+      "formula": "C5H10O",
+      "molecular_weight_g_mol": 86.134,
+      "smiles": "CC1CCCO1",
+      "class": "ether",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.854,
+      "boiling_point_C_approx": 80.0,
+      "geometry": {
+        "xyz": "2-methyltetrahydrofuran/2-methyltetrahydrofuran.xyz",
+        "pdb": "2-methyltetrahydrofuran/2-methyltetrahydrofuran.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/2-methyltetrahydrofuran/SDF?record_type=3d"
+    },
+    {
+      "id": "diethyl-ether",
+      "name": "Diethyl ether",
+      "formula": "C4H10O",
+      "molecular_weight_g_mol": 74.123,
+      "smiles": "CCOCC",
+      "class": "ether",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.713,
+      "boiling_point_C_approx": 34.6,
+      "geometry": {
+        "xyz": "diethyl-ether/diethyl-ether.xyz",
+        "pdb": "diethyl-ether/diethyl-ether.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/diethyl-ether/SDF?record_type=3d"
+    },
+    {
+      "id": "diisopropyl-ether",
+      "name": "Diisopropyl ether",
+      "formula": "C6H14O",
+      "molecular_weight_g_mol": 102.177,
+      "smiles": "CC(C)OC(C)C",
+      "class": "ether",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.725,
+      "boiling_point_C_approx": 68.5,
+      "geometry": {
+        "xyz": "diisopropyl-ether/diisopropyl-ether.xyz",
+        "pdb": "diisopropyl-ether/diisopropyl-ether.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/diisopropyl-ether/SDF?record_type=3d"
+    },
+    {
+      "id": "dioxane",
+      "name": "1,4-Dioxane",
+      "formula": "C4H8O2",
+      "molecular_weight_g_mol": 88.106,
+      "smiles": "C1COCCO1",
+      "class": "ether",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 1.033,
+      "boiling_point_C_approx": 101.1,
+      "geometry": {
+        "xyz": "dioxane/dioxane.xyz",
+        "pdb": "dioxane/dioxane.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/dioxane/SDF?record_type=3d"
+    },
+    {
+      "id": "ethyl-acetate",
+      "name": "Ethyl acetate",
+      "formula": "C4H8O2",
+      "molecular_weight_g_mol": 88.106,
+      "smiles": "CCOC(C)=O",
+      "class": "ester",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.902,
+      "boiling_point_C_approx": 77.1,
+      "geometry": {
+        "xyz": "ethyl-acetate/ethyl-acetate.xyz",
+        "pdb": "ethyl-acetate/ethyl-acetate.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ethyl-acetate/SDF?record_type=3d"
+    },
+    {
+      "id": "butyl-acetate",
+      "name": "Butyl acetate",
+      "formula": "C6H12O2",
+      "molecular_weight_g_mol": 116.16,
+      "smiles": "CCCCOC(C)=O",
+      "class": "ester",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.882,
+      "boiling_point_C_approx": 126.0,
+      "geometry": {
+        "xyz": "butyl-acetate/butyl-acetate.xyz",
+        "pdb": "butyl-acetate/butyl-acetate.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/butyl-acetate/SDF?record_type=3d"
+    },
+    {
+      "id": "dichloromethane",
+      "name": "Dichloromethane",
+      "formula": "CH2Cl2",
+      "molecular_weight_g_mol": 84.933,
+      "smiles": "ClCCl",
+      "class": "halogenated",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 1.325,
+      "boiling_point_C_approx": 39.6,
+      "geometry": {
+        "xyz": "dichloromethane/dichloromethane.xyz",
+        "pdb": "dichloromethane/dichloromethane.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/dichloromethane/SDF?record_type=3d"
+    },
+    {
+      "id": "chloroform",
+      "name": "Chloroform",
+      "formula": "CHCl3",
+      "molecular_weight_g_mol": 119.378,
+      "smiles": "ClC(Cl)Cl",
+      "class": "halogenated",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 1.489,
+      "boiling_point_C_approx": 61.2,
+      "geometry": {
+        "xyz": "chloroform/chloroform.xyz",
+        "pdb": "chloroform/chloroform.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/chloroform/SDF?record_type=3d"
+    },
+    {
+      "id": "carbon-tetrachloride",
+      "name": "Carbon tetrachloride",
+      "formula": "CCl4",
+      "molecular_weight_g_mol": 153.823,
+      "smiles": "ClC(Cl)(Cl)Cl",
+      "class": "halogenated",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 1.594,
+      "boiling_point_C_approx": 76.7,
+      "geometry": {
+        "xyz": "carbon-tetrachloride/carbon-tetrachloride.xyz",
+        "pdb": "carbon-tetrachloride/carbon-tetrachloride.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/carbon-tetrachloride/SDF?record_type=3d"
+    },
+    {
+      "id": "benzene",
+      "name": "Benzene",
+      "formula": "C6H6",
+      "molecular_weight_g_mol": 78.114,
+      "smiles": "c1ccccc1",
+      "class": "aromatic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.879,
+      "boiling_point_C_approx": 80.1,
+      "geometry": {
+        "xyz": "benzene/benzene.xyz",
+        "pdb": "benzene/benzene.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/benzene/SDF?record_type=3d"
+    },
+    {
+      "id": "toluene",
+      "name": "Toluene",
+      "formula": "C7H8",
+      "molecular_weight_g_mol": 92.141,
+      "smiles": "Cc1ccccc1",
+      "class": "aromatic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.867,
+      "boiling_point_C_approx": 110.6,
+      "geometry": {
+        "xyz": "toluene/toluene.xyz",
+        "pdb": "toluene/toluene.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/toluene/SDF?record_type=3d"
+    },
+    {
+      "id": "ethylbenzene",
+      "name": "Ethylbenzene",
+      "formula": "C8H10",
+      "molecular_weight_g_mol": 106.168,
+      "smiles": "CCc1ccccc1",
+      "class": "aromatic",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.867,
+      "boiling_point_C_approx": 136.2,
+      "geometry": {
+        "xyz": "ethylbenzene/ethylbenzene.xyz",
+        "pdb": "ethylbenzene/ethylbenzene.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ethylbenzene/SDF?record_type=3d"
+    },
+    {
+      "id": "hexane",
+      "name": "n-Hexane",
+      "formula": "C6H14",
+      "molecular_weight_g_mol": 86.178,
+      "smiles": "CCCCCC",
+      "class": "apolar",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.655,
+      "boiling_point_C_approx": 68.7,
+      "geometry": {
+        "xyz": "hexane/hexane.xyz",
+        "pdb": "hexane/hexane.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/hexane/SDF?record_type=3d"
+    },
+    {
+      "id": "cyclohexane",
+      "name": "Cyclohexane",
+      "formula": "C6H12",
+      "molecular_weight_g_mol": 84.162,
+      "smiles": "C1CCCCC1",
+      "class": "apolar",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.779,
+      "boiling_point_C_approx": 80.7,
+      "geometry": {
+        "xyz": "cyclohexane/cyclohexane.xyz",
+        "pdb": "cyclohexane/cyclohexane.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/cyclohexane/SDF?record_type=3d"
+    },
+    {
+      "id": "heptane",
+      "name": "n-Heptane",
+      "formula": "C7H16",
+      "molecular_weight_g_mol": 100.205,
+      "smiles": "CCCCCCC",
+      "class": "apolar",
+      "charge": 0,
+      "multiplicity": 1,
+      "density_g_mL_approx": 0.684,
+      "boiling_point_C_approx": 98.4,
+      "geometry": {
+        "xyz": "heptane/heptane.xyz",
+        "pdb": "heptane/heptane.pdb",
+        "generator": "RDKit ETKDGv3 + MMFF94",
+        "units": "angstrom"
+      },
+      "pubchem_reference": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/heptane/SDF?record_type=3d"
+    }
+  ]
+}
