@@ -60,6 +60,11 @@ TERM_OF_CONTAINER = { "HarmonicBondContainer": "bond", "CosineAngleContainer": "
 #=============================================================================
 _AS_OBJECT = object ( )
 
+def soften_polar_hydrogens ( system ):
+    """ pdynamo.dyff_edits.soften_polar_hydrogens (imported late: pDynamo order). """
+    from pdynamo.dyff_edits import soften_polar_hydrogens as soften
+    return soften ( system )
+
 def build_dyff_system ( vismol_object, parameter_set = "dyff-1.0", edits = _AS_OBJECT ):
     """ ( system or None, error text ). Same typing as define_MMModel('DYFF');
         the parameter edits are the object's unless given. """
@@ -74,6 +79,8 @@ def build_dyff_system ( vismol_object, parameter_set = "dyff-1.0", edits = _AS_O
         _apply_dyff_guanidinium_correction ( system )
         added = _apply_manual_atom_type_overrides ( system, overrides )
         if edits is _AS_OBJECT: edits = getattr ( vismol_object, "dyff_parameter_edits", None )
+        from pdynamo.dyff_edits import applicable_edits
+        edits, _ = applicable_edits ( edits, len ( vismol_object.atoms ), getattr ( vismol_object, "manual_bonds", None ) or ( ) )
         system.DefineMMModel ( dyff_model ( parameter_set, edits ), log = None )
     except Exception as error:
         return system, str ( error ).split ( "\n" )[0]
@@ -261,7 +268,7 @@ def build_tables ( vismol_object ):
                         if energy > atom_worst[i][0]: atom_worst[i] = ( energy, term )
                 v0, v1 = equilibrium_text ( term, values )
                 example = "-".join ( vismol_object.atoms[i].name for i in instances[0] )
-                edited = keys[p] in ( edits.get ( term ) or { } )
+                edited = keys[p] in ( edits.get ( term ) or { } ) or "term " in keys[p] or "bond " in keys[p]
                 tables[term].append ( { "key": keys[p], "types": _key_text ( keys[p] ), "value": values, "v0": v0, "v1": v1,
                                         "edited": edited,
                                         "instances": instances, "count": len ( instances ), "example": example,
@@ -315,7 +322,8 @@ def _dyff_lj ( ):
     global _LJ
     if _LJ is None:
         import os, yaml
-        path = os.path.join ( os.environ["PDYNAMO3_PARAMETERS"], "forceFields", "dyff", "dyff-1.0", "lennardJonesParameters.yaml" )
+        from pdynamo.dyff_edits import dyff_parameter_dir   # EasyHybrid extended set (dyff-1.0-eh)
+        path = os.path.join ( dyff_parameter_dir ( "dyff-1.0" ), "lennardJonesParameters.yaml" )
         with open ( path ) as handle: data = yaml.safe_load ( handle )
         fields = data["Parameter Fields"]
         ie, isg = fields.index ( "Epsilon" ), fields.index ( "Sigma" )
@@ -422,6 +430,7 @@ def make_fit_system_factory ( vismol_object, term, key ):
         if error: raise RuntimeError ( "DYFF model not built: " + error )
         if all ( q is not None for q in charges ):
             for i, q in enumerate ( charges ): system.mmState.charges[i] = float ( q )
+            soften_polar_hydrogens ( system )                     # as define_MMModel does with charges
         system.DefineNBModel ( NBModelFull.WithDefaults ( ) )
         return system
     return make_system
@@ -525,3 +534,428 @@ def incorporate_with_dyff ( main, vismol_object ):
         n = sum ( len ( t ) for t in vismol_object.dyff_parameter_edits.values ( ) )
         if n: message += " ({} edited DYFF parameter(s).)".format ( n )
     return ok, message
+
+
+#=============================================================================
+#  Bonds and angles from an xTB Hessian (modified Seminario)
+#=============================================================================
+def molecule_arrays ( vismol_object ):
+    """ ( atomic numbers, bonds [ ( a, b, order, aromatic ) ], formal charges, coordinates )
+        in system index order (atoms sorted by id). """
+    ids = sorted ( vismol_object.atoms )
+    index = { aid: k for k, aid in enumerate ( ids ) }
+    orders = getattr ( vismol_object, "manual_bond_orders", None ) or { }
+    aromatic = getattr ( vismol_object, "manual_aromatic_bonds", None ) or set ( )
+    bonds = [ ( index[a], index[b], int ( orders.get ( ( a, b ), orders.get ( ( b, a ), 1 ) ) ), ( a, b ) in aromatic or ( b, a ) in aromatic )
+              for ( a, b ) in ( getattr ( vismol_object, "manual_bonds", None ) or set ( ) ) if a in index and b in index ]
+    z = [ _atomic_number ( vismol_object.atoms[aid].symbol ) for aid in ids ]
+    formal = [ int ( getattr ( vismol_object.atoms[aid], "formal_charge", 0 ) or 0 ) for aid in ids ]
+    xyz = np.array ( [ vismol_object.frames[0, aid] for aid in ids ], dtype = float )
+    return z, bonds, formal, xyz
+
+def hessian_calibration ( vismol_object ):
+    """ pdynamo/bond_library.HessianCalibration of the molecule (DFT/xTB correction
+        of the Seminario constants by environment), or None (no table, no RDKit,
+        unsanitizable molecule). """
+    try:
+        from pdynamo import bond_library as BL
+        if BL.load_hessian_library ( ) is None: return None
+        return BL.HessianCalibration ( *molecule_arrays ( vismol_object ) )
+    except Exception:
+        return None
+
+def hessian_bonds_angles ( vismol_object, total_charge = None, multiplicity = 1, adopt_geometry = False, threads = 4,
+                           solvent = None, progress = None ):
+    """ xtb --ohess on the Builder molecule (its own atoms and bonds: no
+        typing, metals included), modified Seminario on the Hessian
+        (pdynamo/seminario.py) and per-term DYFF edits "bond_terms" /
+        "angle_terms" (b0 and theta0 from the xTB minimum), tied to the
+        molecule's topology (term_signature). One Undo step. adopt_geometry:
+        the Builder coordinates become the xTB minimum.
+        The xTB part can run in a worker thread (compute_hessian_edits);
+        store_hessian_edits() must run in the GTK thread. """
+    result = compute_hessian_edits ( vismol_object, total_charge, multiplicity, threads, solvent )
+    return store_hessian_edits ( vismol_object, result, adopt_geometry )
+
+def compute_hessian_edits ( vismol_object, total_charge = None, multiplicity = 1, threads = 4, solvent = None, calibrate = True ):
+    from pdynamo import seminario as SM
+    symbols, coordinates, bonds = scan_inputs ( vismol_object )
+    if total_charge is None:
+        total_charge = sum ( int ( getattr ( a, "formal_charge", 0 ) or 0 ) for a in vismol_object.atoms.values ( ) )
+    xyz, hessian, freqs = SM.xtb_hessian ( symbols, coordinates, charge = total_charge, multiplicity = multiplicity,
+                                           threads = threads, solvent = solvent )
+    skipped = [ ]
+    calibration = hessian_calibration ( vismol_object ) if calibrate else None
+    edits = SM.dyff_edits_from_hessian ( hessian, xyz, bonds, skipped, calibration = calibration )
+    n_imag = int ( sum ( 1 for f in freqs if f < -50.0 ) )
+    return { "edits": edits, "xyz": xyz, "n_atoms": len ( symbols ), "bonds": bonds, "n_imaginary": n_imag,
+             "frequencies": freqs, "skipped": skipped, "solvent": solvent,
+             "calibrated": dict ( calibration.used ) if calibration is not None else { } }
+
+def store_hessian_edits ( vismol_object, result, adopt_geometry = False ):
+    from gui.windows.builder.atom_ops import push_undo_snapshot
+    from pdynamo.dyff_edits import term_signature
+    if len ( vismol_object.atoms ) != result["n_atoms"]:
+        raise ValueError ( "The molecule changed while xTB was running: run it again." )
+    push_undo_snapshot ( vismol_object )
+    edits = getattr ( vismol_object, "dyff_parameter_edits", None )
+    if edits is None:
+        edits = vismol_object.dyff_parameter_edits = { }
+    edits["bond_terms"] = result["edits"]["bond_terms"]
+    edits["angle_terms"] = result["edits"]["angle_terms"]
+    edits["term_signature"] = term_signature ( result["n_atoms"], result["bonds"] )
+    if adopt_geometry:
+        for i, aid in enumerate ( sorted ( vismol_object.atoms ) ):
+            vismol_object.frames[0, aid] = result["xyz"][i]
+        from gui.windows.builder.empty_object import sync_pdynamo_system
+        sync_pdynamo_system ( vismol_object )
+    return { "bonds": len ( edits["bond_terms"] ), "angles": len ( edits["angle_terms"] ),
+             "n_imaginary": result["n_imaginary"], "skipped": result.get ( "skipped", [ ] ) }
+
+def clear_hessian_edits ( vismol_object ):
+    from gui.windows.builder.atom_ops import push_undo_snapshot
+    edits = getattr ( vismol_object, "dyff_parameter_edits", None ) or { }
+    if not ( edits.get ( "bond_terms" ) or edits.get ( "angle_terms" ) or edits.get ( "dihedral_bonds" ) ):
+        return False
+    push_undo_snapshot ( vismol_object )
+    for key in ( "bond_terms", "angle_terms", "dihedral_bonds", "term_signature" ): edits.pop ( key, None )
+    return True
+
+
+
+#=============================================================================
+#  Rotatable-bond torsions fitted to xTB scans of the molecule itself
+#=============================================================================
+def rotatable_bonds ( vismol_object ):
+    """ [ ( ( j, k ), quad ) ] -- single, acyclic bonds between two atoms that
+        both have other neighbours; quad: the heavy-atom dihedral i-j-k-l with
+        the heaviest outer atoms (deterministic). Indices = system order. """
+    ids = sorted ( vismol_object.atoms )
+    index = { aid: k for k, aid in enumerate ( ids ) }
+    orders = getattr ( vismol_object, "manual_bond_orders", None ) or { }
+    aromatic = getattr ( vismol_object, "manual_aromatic_bonds", None ) or set ( )
+    bonds = [ ( index[a], index[b] ) for ( a, b ) in ( getattr ( vismol_object, "manual_bonds", None ) or set ( ) )
+              if a in index and b in index ]
+    neighbours = defaultdict ( set )
+    for a, b in bonds:
+        neighbours[a].add ( b ); neighbours[b].add ( a )
+    z = [ _atomic_number ( vismol_object.atoms[aid].symbol ) for aid in ids ]
+    def in_ring ( a, b ):
+        seen, stack = { a }, [ a ]
+        while stack:
+            u = stack.pop ( )
+            for v in neighbours[u]:
+                if ( u, v ) in ( ( a, b ), ( b, a ) ): continue
+                if v == b: return True
+                if v not in seen: seen.add ( v ); stack.append ( v )
+        return False
+    out = [ ]
+    for ( a, b ) in ( getattr ( vismol_object, "manual_bonds", None ) or set ( ) ):
+        if a not in index or b not in index: continue
+        if int ( orders.get ( ( a, b ), orders.get ( ( b, a ), 1 ) ) ) != 1 or ( a, b ) in aromatic or ( b, a ) in aromatic: continue
+        j, k = index[a], index[b]
+        if len ( neighbours[j] ) < 2 or len ( neighbours[k] ) < 2 or in_ring ( j, k ): continue
+        outer_j = [ n for n in neighbours[j] if n != k ]
+        outer_k = [ n for n in neighbours[k] if n != j ]
+        i = max ( outer_j, key = lambda n: ( z[n], -n ) )
+        l = max ( outer_k, key = lambda n: ( z[n], -n ) )
+        if z[i] == 1 and z[l] == 1 and all ( z[n] == 1 for n in outer_j ) and all ( z[n] == 1 for n in outer_k ):
+            continue                                       # e.g. H3C-CH3: nothing but hydrogens around
+        out.append ( ( ( min ( j, k ), max ( j, k ) ), ( i, j, k, l ) ) )
+    return sorted ( out )
+
+
+def _atomic_number ( symbol ):
+    from pScientific import PeriodicTable
+    return PeriodicTable.AtomicNumber ( symbol )
+
+
+def system_factory ( vismol_object ):
+    """ make_system ( edits ) for pdynamo/dyff_bond_fit.py: the object's DYFF system
+        with these edits, its partial charges and all-pairs nonbonded (gas phase). """
+    import pBabel                                    # noqa: F401 -- pDynamo import order
+    from pMolecule.NBModel import NBModelFull
+    charges = [ getattr ( vismol_object.atoms[i], "mm_charge", None ) for i in sorted ( vismol_object.atoms ) ]
+    def make ( edits ):
+        system, error = build_dyff_system ( vismol_object, edits = edits )
+        if error: raise RuntimeError ( "DYFF model not built: " + error )
+        if all ( q is not None for q in charges ):
+            for i, q in enumerate ( charges ): system.mmState.charges[i] = float ( q )
+            soften_polar_hydrogens ( system )                     # as define_MMModel does with charges
+        system.DefineNBModel ( NBModelFull.WithDefaults ( ) )
+        return system
+    return make
+
+
+def torsion_library_available ( ):
+    from pdynamo import bond_library as BL
+    if BL.RDKIT_CODES:                                    # . RDKit codes only when asked for (EASYHYBRID_ENV_CODES=rdkit)
+        try:
+            import rdkit                                  # noqa: F401
+        except ImportError:
+            return False
+    return BL.load_library ( ) is not None
+
+
+def library_torsion_results ( vismol_object, targets, say = None ):
+    """ Per-bond torsions from the DFT library (pdynamo/bond_library.py) for the
+        targets ( ( j, k ), quad ) (system indices) whose bond environment is in
+        it. Returns ( results, remaining targets ); results like _scan_and_fit's,
+        with "source" instead of the fit statistics. """
+    from pdynamo import bond_library as BL
+    ids = sorted ( vismol_object.atoms )
+    # . the table fitted on the same model: with partial charges (CM5, residue library) or without
+    charged = all ( getattr ( vismol_object.atoms[aid], "mm_charge", None ) is not None for aid in ids )
+    library = BL.load_library ( charged = charged )
+    if library is None and charged:
+        library = BL.load_library ( )
+        if library is not None and say: say ( "no torsion table for charged molecules: using the uncharged one" )
+    if library is None or not targets: return [ ], list ( targets )
+    index = { aid: k for k, aid in enumerate ( ids ) }
+    orders = getattr ( vismol_object, "manual_bond_orders", None ) or { }
+    aromatic = getattr ( vismol_object, "manual_aromatic_bonds", None ) or set ( )
+    bonds = [ ( index[a], index[b], int ( orders.get ( ( a, b ), orders.get ( ( b, a ), 1 ) ) ), ( a, b ) in aromatic or ( b, a ) in aromatic )
+              for ( a, b ) in ( getattr ( vismol_object, "manual_bonds", None ) or set ( ) ) if a in index and b in index ]
+    z = [ _atomic_number ( vismol_object.atoms[aid].symbol ) for aid in ids ]
+    formal = [ int ( getattr ( vismol_object.atoms[aid], "formal_charge", 0 ) or 0 ) for aid in ids ]
+    xyz = np.array ( [ vismol_object.frames[0, aid] for aid in ids ], dtype = float )
+    try:
+        found = BL.library_torsions ( z, bonds, formal, [ bond for bond, quad in targets ], coordinates = xyz, library = library )
+    except Exception as error:                                   # e.g. RDKit cannot sanitize the molecule
+        if say: say ( "torsion library not used: {}".format ( str ( error ).split ( "\n" )[0][:120] ) )
+        return [ ], list ( targets )
+    results, remaining = [ ], [ ]
+    for bond, quad in targets:
+        if bond in found:
+            level, pairs, n = found[bond]
+            results.append ( { "bond": bond, "quad": quad, "pairs": pairs, "source": "library", "level": level, "n_scans": n,
+                               "table": "CM5" if charged and library is BL.load_library ( charged = True ) else "uncharged" } )
+        else:
+            remaining.append ( ( bond, quad ) )
+    if say: say ( "{} of {} rotatable bond(s) from the DFT torsion library".format ( len ( results ), len ( targets ) ) )
+    return results, remaining
+
+
+def refine_torsions ( vismol_object, total_charge = None, multiplicity = 1, solvent = None, step = 15.0, threads = 1,
+                      workers = 4, base_edits = None, progress = None, cancel = None, use_library = True ):
+    """ For every rotatable bond: the DFT torsion library when the bond's
+        environment is in it (use_library, library_torsion_results), else a
+        relaxed GFN2-xTB scan of the WHOLE molecule (pdynamo/torsion_fit.run_scan,
+        scans run in parallel) and the self-consistent per-bond fit
+        (pdynamo/dyff_bond_fit.fit_bond) on top of base_edits (e.g. the Hessian
+        bonds/angles). Worker-thread safe (reads the object, writes nothing).
+        Returns [ result per bond ]. """
+    say = progress or ( lambda text: None )
+    symbols, coordinates, bonds = scan_inputs ( vismol_object )
+    ids = sorted ( vismol_object.atoms )
+    index = { aid: k for k, aid in enumerate ( ids ) }
+    bonds = [ ( index[a], index[b] ) for a, b in bonds ]
+    if total_charge is None:
+        total_charge = sum ( int ( getattr ( a, "formal_charge", 0 ) or 0 ) for a in vismol_object.atoms.values ( ) )
+    targets = rotatable_bonds ( vismol_object )
+    library = [ ]
+    if use_library: library, targets = library_torsion_results ( vismol_object, targets, say )
+    return library + _scan_and_fit ( symbols, coordinates, bonds, targets, system_factory ( vismol_object ), base_edits, total_charge,
+                                     multiplicity, solvent, step, threads, workers, say, cancel )
+
+
+def _scan_and_fit ( symbols, coordinates, bonds, targets, make, base_edits, charge, multiplicity, solvent, step, threads,
+                    workers, say, cancel = None, report_bond = None ):
+    """ Relaxed xTB scans of the targets ( ( bond, quad ) ) in parallel, then the
+        self-consistent per-bond fit on the MM system given by make ( edits ).
+        report_bond ( bond ) -> the bond as reported (e.g. mapped to parent indices). """
+    import concurrent.futures
+    from pdynamo import torsion_fit as TF
+    from pdynamo import dyff_bond_fit as BF
+    if not targets: return [ ]
+    say ( "{} rotatable bond(s): xTB scans...".format ( len ( targets ) ) )
+    def scan ( item ):
+        bond, quad = item
+        if cancel is not None and cancel ( ): return bond, quad, None
+        runner = TF.XTBRunner ( gfn = 2, charge = charge, multiplicity = multiplicity, solvent = solvent, threads = threads )
+        return bond, quad, TF.run_scan ( symbols, coordinates, bonds, quad, step = step, relaxed = True, runner = runner )
+    scans = [ ]
+    with concurrent.futures.ThreadPoolExecutor ( max_workers = max ( 1, workers ) ) as pool:
+        for n, ( bond, quad, result ) in enumerate ( pool.map ( scan, targets ), 1 ):
+            scans.append ( ( bond, quad, result ) )
+            say ( "xTB scans {}/{}".format ( n, len ( targets ) ) )
+    results = [ ]
+    for n, ( bond, quad, scan_result ) in enumerate ( scans, 1 ):
+        if scan_result is None: continue
+        if cancel is not None and cancel ( ): break
+        reported = report_bond ( bond ) if report_bond else bond
+        say ( "fitting torsion {}/{} (bond {}-{})".format ( n, len ( scans ), *reported ) )
+        e_qm = np.array ( scan_result["e_qm"], dtype = float )            # torsion_fit.run_scan: already kJ/mol
+        broken = TF.broken_bonds ( symbols, bonds, scan_result["geometries"] )
+        if broken:
+            p, ( a, b ), d = broken[0]
+            results.append ( { "bond": reported, "quad": quad, "error": "the xTB scan changed the bonding (atoms {}-{} at {:.2f} A: "
+                               "proton transfer?) -- try implicit solvent (ALPB) or check charges/protonation".format ( a + 1, b + 1, d ) } )
+            continue
+        try:
+            pairs, wrmse, dropped = BF.fit_bond ( make, base_edits, bonds, quad, scan_result["geometries"], scan_result["phi"], e_qm )
+            before = BF.profile_error ( make, base_edits, quad, scan_result["geometries"], scan_result["phi"], e_qm )
+            results.append ( { "bond": reported, "quad": quad, "pairs": pairs, "fit_rmse": wrmse / 4.184, "before_rmse": before["rmse"] / 4.184,
+                               "barrier_xtb": float ( ( e_qm.max ( ) - e_qm.min ( ) ) / 4.184 ), "dropped": dropped } )
+        except Exception as error:
+            results.append ( { "bond": reported, "quad": quad, "error": str ( error ).split ( "\n" )[0][:160] } )
+    return results
+
+
+def store_torsion_edits ( vismol_object, results, hessian_result = None ):
+    """ One Undo step: per-bond torsions (+ Hessian bonds/angles when given). """
+    from gui.windows.builder.atom_ops import push_undo_snapshot
+    from pdynamo.dyff_edits import term_signature
+    symbols, coordinates, bonds = scan_inputs ( vismol_object )
+    push_undo_snapshot ( vismol_object )
+    edits = getattr ( vismol_object, "dyff_parameter_edits", None )
+    if edits is None: edits = vismol_object.dyff_parameter_edits = { }
+    if hessian_result is not None:
+        edits["bond_terms"] = hessian_result["edits"]["bond_terms"]
+        edits["angle_terms"] = hessian_result["edits"]["angle_terms"]
+    table = edits.setdefault ( "dihedral_bonds", { } )
+    n = 0
+    for r in results:
+        if "pairs" in r:
+            table["{}-{}".format ( *r["bond"] )] = [ list ( p ) for p in r["pairs"] ]; n += 1
+    edits["term_signature"] = term_signature ( len ( vismol_object.atoms ), bonds )     # same as store_hessian_edits
+    return n
+
+
+#=============================================================================
+#  Refinement of a SELECTION (capped subsystem, pdynamo/subsystem.py)
+#=============================================================================
+SELECTION_SHELL = 3          # bonds of chemical environment around a selection (see fraglib/run_selection_test.py)
+
+
+def selection_subsystem ( vismol_object, selection_ids, shell = SELECTION_SHELL ):
+    """ Capped subsystem around the selected atoms (atom ids). Indices in the
+        returned dict: subsystem order; "parent_index" maps to system order. """
+    from pdynamo import subsystem as SS
+    ids = sorted ( vismol_object.atoms )
+    index = { aid: k for k, aid in enumerate ( ids ) }
+    orders = getattr ( vismol_object, "manual_bond_orders", None ) or { }
+    aromatic = getattr ( vismol_object, "manual_aromatic_bonds", None ) or set ( )
+    bonds = [ ( index[a], index[b], int ( orders.get ( ( a, b ), orders.get ( ( b, a ), 1 ) ) ), ( a, b ) in aromatic or ( b, a ) in aromatic )
+              for ( a, b ) in ( getattr ( vismol_object, "manual_bonds", None ) or set ( ) ) if a in index and b in index ]
+    z = [ _atomic_number ( vismol_object.atoms[aid].symbol ) for aid in ids ]
+    xyz = np.array ( [ vismol_object.frames[0, aid] for aid in ids ], dtype = float )
+    formal = [ int ( getattr ( vismol_object.atoms[aid], "formal_charge", 0 ) or 0 ) for aid in ids ]
+    selection = [ index[a] for a in selection_ids if a in index ]
+    sub = SS.build_subsystem ( z, xyz, bonds, selection, shell = shell, formal_charges = formal )
+    sub["selection_parent"] = selection
+    sub["formal"] = [ formal[p] if p >= 0 else 0 for p in sub["parent_index"] ]
+    return sub
+
+
+def subsystem_factory ( vismol_object, sub ):
+    """ make_system ( edits ) on the capped subsystem: DYFF with the object's manual
+        types and partial charges (caps: 0), all-pairs nonbonded. """
+    import pBabel                                    # noqa: F401 -- pDynamo import order
+    from pMolecule.NBModel import NBModelFull
+    from pdynamo import subsystem as SS
+    from pdynamo.dyff_edits import dyff_model
+    from pdynamo.pDynamo2EasyHybrid.session import _apply_dyff_guanidinium_correction, _apply_manual_atom_type_overrides
+    ids = sorted ( vismol_object.atoms )
+    local = { p: k for k, p in enumerate ( sub["parent_index"] ) if p >= 0 }
+    overrides = { local[ids.index ( aid )]: label for aid, label in
+                  ( getattr ( vismol_object, "manual_atom_type_overrides", None ) or { } ).items ( ) if aid in vismol_object.atoms
+                  and ids.index ( aid ) in local }
+    charges = [ getattr ( vismol_object.atoms[aid], "mm_charge", None ) for aid in ids ]
+    has_charges = all ( q is not None for q in charges )
+    def make ( edits ):
+        import contextlib, io
+        with contextlib.redirect_stdout ( io.StringIO ( ) ):
+            system = SS.pdynamo_system ( sub["atomic_numbers"], sub["bonds"], sub["coordinates"], sub["formal"] )
+            added = [ ]
+            try:
+                _apply_dyff_guanidinium_correction ( system )
+                added = _apply_manual_atom_type_overrides ( system, overrides ) if overrides else [ ]
+                system.DefineMMModel ( dyff_model ( "dyff-1.0", edits ), log = None )
+            finally:
+                if added:
+                    from pBabel import MOL2AtomTypesToDYFF
+                    for key in added: MOL2AtomTypesToDYFF.TriposMOL2AtomTypes.pop ( key, None )
+            if has_charges:
+                for k, p in enumerate ( sub["parent_index"] ):
+                    system.mmState.charges[k] = float ( charges[p] ) if p >= 0 else 0.0
+                soften_polar_hydrogens ( system )
+            system.DefineNBModel ( NBModelFull.WithDefaults ( ) )
+        return system
+    return make
+
+
+def refine_selection ( vismol_object, selection_ids, multiplicity = 1, solvent = None, shell = SELECTION_SHELL, do_hessian = True,
+                       step = 15.0, workers = 4, progress = None, cancel = None, use_library = True ):
+    """ xTB refinement of the selected atoms only, computed on a capped subsystem
+        (selection + `shell` bonds): Hessian bonds/angles and the rotatable bonds
+        whose two central atoms are selected; only terms with ALL atoms in the
+        selection are returned, in system indices. Worker-thread safe. """
+    import copy
+    from pScientific import PeriodicTable
+    from pdynamo import seminario as SM
+    from pdynamo import subsystem as SS
+    say = progress or ( lambda text: None )
+    sub = selection_subsystem ( vismol_object, selection_ids, shell = shell )
+    symbols = [ PeriodicTable.Symbol ( z ) for z in sub["atomic_numbers"] ]
+    pairs = [ ( a, b ) for a, b, o, ar in sub["bonds"] ]
+    selection = set ( sub["selection_parent"] )
+    say ( "subsystem: {} atoms ({} capping H), charge {:+d}".format ( len ( symbols ), sub["n_caps"], sub["charge"] ) )
+    # . existing edits of the object, carried into the subsystem (type keys apply by themselves)
+    edits = getattr ( vismol_object, "dyff_parameter_edits", None ) or { }
+    base = { k: copy.deepcopy ( v ) for k, v in edits.items ( ) if k in ( "bond", "angle", "dihedral", "outofplane" ) and v }
+    base.update ( SS.map_term_edits_to_subsystem ( edits, sub["parent_index"] ) )
+    hessian_parent, skipped = None, [ ]
+    if do_hessian:
+        say ( "xTB Hessian of the subsystem..." )
+        xyz, hessian, freqs = SM.xtb_hessian ( symbols, sub["coordinates"], charge = sub["charge"], multiplicity = multiplicity,
+                                               threads = 2, solvent = solvent )
+        calibration = hessian_calibration ( vismol_object )
+        if calibration is not None:
+            from pdynamo.bond_library import HessianCalibration
+            calibration = HessianCalibration.mapped ( calibration, sub["parent_index"] )
+        sem = SM.dyff_edits_from_hessian ( hessian, xyz, pairs, skipped, calibration = calibration )
+        base["bond_terms"] = dict ( base.get ( "bond_terms", { } ), **sem["bond_terms"] )
+        base["angle_terms"] = dict ( base.get ( "angle_terms", { } ), **sem["angle_terms"] )
+        hessian_parent = SS.map_term_edits_to_parent ( sem, sub["parent_index"], selection )
+    # . rotatable bonds of the SYSTEM with both central atoms selected; the
+    #   library is searched with the codes of the whole molecule (caps would
+    #   change the environment near the cut)
+    local = { p: k for k, p in enumerate ( sub["parent_index"] ) if p >= 0 }
+    selected_bonds = [ ( bond, quad ) for bond, quad in rotatable_bonds ( vismol_object ) if bond[0] in selection and bond[1] in selection ]
+    library = [ ]
+    if use_library: library, selected_bonds = library_torsion_results ( vismol_object, selected_bonds, say )
+    targets = [ ]
+    for bond, quad in selected_bonds:
+        if all ( a in local for a in quad ):
+            q = tuple ( local[a] for a in quad )
+            targets.append ( ( ( min ( q[1], q[2] ), max ( q[1], q[2] ) ), q ) )
+    parent = sub["parent_index"]
+    results = library + _scan_and_fit ( symbols, sub["coordinates"], pairs, targets, subsystem_factory ( vismol_object, sub ), base,
+                                        sub["charge"], multiplicity, solvent, step, 1, workers, say, cancel,
+                                        report_bond = lambda b: ( min ( parent[b[0]], parent[b[1]] ), max ( parent[b[0]], parent[b[1]] ) ) )
+    return { "subsystem": { "n_atoms": len ( symbols ), "n_caps": sub["n_caps"], "charge": sub["charge"],
+                            "n_selected": len ( selection ), "whole": sub["whole"] },
+             "hessian": hessian_parent, "skipped": skipped, "results": results }
+
+
+def store_selection_refinement ( vismol_object, refinement ):
+    """ One Undo step; MERGES the selection's terms into the existing edits
+        (other regions keep theirs). """
+    from gui.windows.builder.atom_ops import push_undo_snapshot
+    from pdynamo.dyff_edits import term_signature
+    symbols, coordinates, bonds = scan_inputs ( vismol_object )
+    push_undo_snapshot ( vismol_object )
+    edits = getattr ( vismol_object, "dyff_parameter_edits", None )
+    if edits is None: edits = vismol_object.dyff_parameter_edits = { }
+    if refinement.get ( "hessian" ):
+        edits.setdefault ( "bond_terms", { } ).update ( refinement["hessian"]["bond_terms"] )
+        edits.setdefault ( "angle_terms", { } ).update ( refinement["hessian"]["angle_terms"] )
+    n = 0
+    for r in refinement["results"]:
+        if "pairs" in r:
+            edits.setdefault ( "dihedral_bonds", { } )["{}-{}".format ( *r["bond"] )] = [ list ( p ) for p in r["pairs"] ]; n += 1
+    edits["term_signature"] = term_signature ( len ( vismol_object.atoms ), bonds )
+    h = refinement.get ( "hessian" ) or { }
+    return { "torsions": n, "bonds": len ( h.get ( "bond_terms", { } ) ), "angles": len ( h.get ( "angle_terms", { } ) ) }
+

@@ -88,6 +88,7 @@ from gui.windows.setup.windows_and_dialogs.system_windows.solvate_system import 
 from gui.windows.setup.windows_and_dialogs.system_windows.prepare_amber_system import PrepareAmberSystemWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.prepare_opls_system import PrepareOPLSSystemWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.opls_parameters import OPLSParametersWindow
+from gui.windows.setup.windows_and_dialogs.system_windows.force_field_parameters import ForceFieldParametersWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.prepare_ligand_antechamber import PrepareLigandAntechamberWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.prepare_namd_run import PrepareNamdRunWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.prepare_smd_run import PrepareSMDWindow

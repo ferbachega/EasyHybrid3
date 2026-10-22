@@ -118,3 +118,11 @@ untitled.easy~
 
 
 src/gui/windows/builder/solvents/.cache/
+
+# --- 3.2.0 release cleanup -------------------------------------------
+# Editor backups (any folder)
+*~
+*.glade~
+# Research data, not needed at runtime (src/pdynamo/data holds what the program uses)
+DYFF_validation/
+fraglib/

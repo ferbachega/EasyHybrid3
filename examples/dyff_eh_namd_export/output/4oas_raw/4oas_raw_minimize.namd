@@ -1,0 +1,21 @@
+# NAMD input for 4oas_raw (EasyHybrid DYFF -> CHARMM format, dyff_eh_to_namd.py)
+structure          4oas_raw.psf
+coordinates        4oas_raw.pdb
+paraTypeCharmm     on
+parameters         4oas_raw.prm
+
+# . DYFF specific: geometric combining of sigma (and epsilon), 1-4 electrostatics
+vdwGeometricSigma  yes
+exclude            scaled1-4
+1-4scaling         0.5000   ;# NAMD 3 also accepts the newer name oneFourScaling
+
+temperature        300
+cutoff             999.0
+pairlistdist       1001.0
+switching          off
+
+outputName         4oas_raw_minimize
+binaryOutput       no
+outputEnergies     100
+
+minimize 1000

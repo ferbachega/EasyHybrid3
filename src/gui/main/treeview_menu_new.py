@@ -166,15 +166,15 @@ class TreeViewMenu_new:
                     
 
         menu_items = {
-            "Abrir": self._menu_rename,
-            "Salvar": self._menu_rename,
+            "Open": self._menu_rename,
+            "Save": self._menu_rename,
             "_separator": None,
 
             "Exportar": {
                 "Como PNG": self._menu_rename,
                 "Como JPG": self._menu_rename,
                 "_separator": None,
-                "Avançado": {
+                "Advanced": {
                     "Alta Qualidade": self._menu_rename,
                     "Baixa Qualidade": self._menu_rename,
                 }

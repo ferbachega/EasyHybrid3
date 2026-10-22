@@ -358,8 +358,9 @@ class ImportANewSystemWindow(Gtk.Window):
             #try:
             '''Eventually, the user may have another set of parameters, but 
             by default, the pDynamo3 parameter directories are first searched.'''
-            path = os.environ.get('PDYNAMO3_PARAMETERS')            
-            path = os.path.join(path,'forceFields/dyff/dyff-1.0')
+            # 2026-10-08: EasyHybrid's extension of dyff-1.0 (aromatic P/Se/B, borane clusters)
+            from pdynamo.dyff_edits import dyff_parameter_dir
+            path = dyff_parameter_dir('dyff-1.0')
             self.builder.get_object('OPLS_folderchooserbutton').set_filename(path)
             self.system_types_combo.set_tooltip_text(self.DYFF_txt)
                 

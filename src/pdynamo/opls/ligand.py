@@ -351,15 +351,44 @@ def _formal_charges ( elements, bonds ):
         else:          charges.append ( 0 )
     return charges
 
+_ALLOWED_VALENCES = { "N": ( 3, 5 ), "O": ( 2, ), "S": ( 2, 4, 6 ), "Se": ( 2, 4, 6 ), "P": ( 3, 5 ), "F": ( 1, ),
+                      "Cl": ( 1, 3, 5, 7 ), "Br": ( 1, 3, 5 ), "I": ( 1, 3, 5, 7 ) }
+
+def _valences_complete ( elements, bonds, formal_charges = None ):
+    """ True when every atom's bond-order sum matches an allowed valence for its
+        formal charge (given ones, else none) -- i.e. no hydrogen is missing.
+        Unknown elements -> False (the caller keeps the old behaviour). """
+    total = [ 0 ] * len ( elements )
+    for ( i, j, order ) in bonds:
+        total[i] += int ( order ); total[j] += int ( order )
+    charges = list ( formal_charges ) if formal_charges is not None else [ 0 ] * len ( elements )
+    for element, v, q in zip ( elements, total, charges ):
+        q = int ( q or 0 )
+        if element in ( "C", "Si" ):
+            if v != 4 - abs ( q ): return False
+        elif element == "B":
+            if v != 3 - q: return False
+        elif element in _ALLOWED_VALENCES:
+            if not any ( v == a + q for a in _ALLOWED_VALENCES[element] ): return False
+        else:
+            return False
+    return True
+
+
 def ligand_chemistry ( residue_name, atoms, ph = 7.4, add_hydrogens = None, obabel = None, bonds = None,
-                       formal_charges = None ):
+                       formal_charges = None, h_counts = None ):
     """ LigandParameters with atoms (names kept for the input atoms, new
         hydrogens named H1, H2, ...), bonds, formal charges. atoms: [ ( name,
         Z, xyz ) ] -- heavy atoms with or without hydrogens. add_hydrogens:
         None = only when the input has none. bonds/formal_charges: the
         input's own chemistry ( i, j, order ) -- used as is (no Open Babel)
-        when given and the molecule already has hydrogens. """
+        when given and the molecule already has hydrogens.
+        h_counts: { heavy atom name: hydrogen count } chosen by the user
+        (protonation review, 2026-10-18): the input hydrogens are dropped and
+        rebuilt with these counts; bond orders and formal charges follow. """
     lig = LigandParameters ( residue_name )
+    if h_counts:
+        return _ligand_chemistry_native ( lig, atoms, ph, True, bonds, h_counts = h_counts )
     obabel = obabel or find_obabel ( )
     heavy = [ a for a in atoms if a[1] != 1 ]
     if len ( heavy ) == 1 and len ( atoms ) == 1:
@@ -371,7 +400,16 @@ def ligand_chemistry ( residue_name, atoms, ph = 7.4, add_hydrogens = None, obab
             return lig
         raise ValueError ( "Monoatomic residue {} ({}) has no OPLS ion parameters.".format ( residue_name, element ) )
     has_h = any ( a[1] == 1 for a in atoms )
-    if bonds and has_h and add_hydrogens is not True:
+    # . [EN] 2026-10-17 BUG FIX: a molecule that really has no hydrogens (SO2(N3)2
+    #   from the Builder, CCl4, CO2, SF6) was taken as "heavy atoms only" and got
+    #   hydrogens rebuilt from the geometry (the azide nitrogens became amines).
+    #   With the input's own bond orders, an H-free molecule whose valences are
+    #   already complete is used as it is; deficits still mean missing hydrogens.
+    if bonds and not has_h and add_hydrogens is not True:
+        complete = _valences_complete ( [ Z_ELEMENT.get ( z, "X" ) for ( _, z, _ ) in atoms ], bonds, formal_charges )
+    else:
+        complete = False
+    if bonds and ( has_h or complete ) and add_hydrogens is not True:
         counts = Counter ( a[0] for a in atoms )
         names, used = [ ], set ( )
         for ( name, z, xyz ) in atoms:
@@ -392,8 +430,13 @@ def ligand_chemistry ( residue_name, atoms, ph = 7.4, add_hydrogens = None, obab
         lig.formal_charges = [ g if g else d for g, d in zip ( given, derived ) ]
         lig.notes.append ( "bond orders and formal charges from the input" )
         return lig
-    if obabel is None:
-        raise RuntimeError ( "Open Babel (obabel) was not found; it is needed for ligand hydrogens and bond orders." )
+    if add_hydrogens is None: add_hydrogens = not has_h
+    # . [EN] 2026-10-14: native chemistry (pdynamo/ligand_perception.py) by default;
+    #   Open Babel only when asked for (EASYHYBRID_LIGAND_CHEMISTRY=obabel) and found.
+    #   Validation on 523 prepared ligands (DYFF_validation/scripts/ligprep_validate.py):
+    #   native 507 identical to the reference, Open Babel 353.
+    if os.environ.get ( "EASYHYBRID_LIGAND_CHEMISTRY", "native" ).lower ( ) != "obabel" or obabel is None:
+        return _ligand_chemistry_native ( lig, atoms, ph, add_hydrogens, bonds if not has_h else None )
     if add_hydrogens is None: add_hydrogens = not has_h
     with tempfile.TemporaryDirectory ( ) as scratch:
         pdb  = os.path.join ( scratch, "lig.pdb" )
@@ -430,6 +473,56 @@ def ligand_chemistry ( residue_name, atoms, ph = 7.4, add_hydrogens = None, obab
         lig.notes.append ( "hydrogens added by Open Babel at pH {:.1f}".format ( ph ) )
     if any ( z == 0 for ( _, z, _ ) in lig.atoms ):
         raise ValueError ( "Residue {} has elements without OPLS support.".format ( residue_name ) )
+    return lig
+
+
+_NATIVE_Z_SYMBOL = { 5: "B", 6: "C", 7: "N", 8: "O", 9: "F", 14: "Si", 15: "P", 16: "S", 17: "Cl", 33: "As", 34: "Se",
+                     35: "Br", 52: "Te", 53: "I", 1: "H" }
+
+def _ligand_chemistry_native ( lig, atoms, ph, add_hydrogens, bonds, h_counts = None ):
+    """ ligand_chemistry() without Open Babel: pdynamo/ligand_perception.py
+        (geometric hydrogen counts, Wang & Case orders, protonation rules at pH,
+        VSEPR hydrogens). add_hydrogens: strip the input hydrogens and rebuild
+        them; otherwise the input hydrogens are kept. Names: input names where
+        unique, new hydrogens element + counter, at most 4 characters. """
+    from pdynamo import ligand_perception as LP
+    source = [ a for a in atoms if a[1] != 1 ] if add_hydrogens else list ( atoms )
+    symbols = [ _NATIVE_Z_SYMBOL.get ( int ( z ), Z_ELEMENT.get ( int ( z ), "X" ) ) for ( _, z, _ ) in source ]
+    if any ( s == "X" for s in symbols ):
+        raise ValueError ( "Residue {} has elements the ligand perception does not handle.".format ( lig.residue_name ) )
+    pairs = [ ( int ( b[0] ), int ( b[1] ) ) for b in bonds ] if ( bonds and not add_hydrogens ) or ( bonds and len ( source ) == len ( atoms ) ) else None
+    override = None
+    if h_counts:
+        # . the user's hydrogen counts (by atom name); the input's heavy-atom bonds
+        #   re-indexed onto the heavy atoms
+        override = { k: int ( h_counts.get ( a[0], 0 ) ) for k, a in enumerate ( source ) }
+        if bonds and pairs is None:
+            heavy_index = { i: k for k, i in enumerate ( i for i, a in enumerate ( atoms ) if a[1] != 1 ) }
+            pairs = [ ( heavy_index[int ( b[0] )], heavy_index[int ( b[1] )] ) for b in bonds
+                      if int ( b[0] ) in heavy_index and int ( b[1] ) in heavy_index ] or None
+    result = LP.perceive_ligand ( symbols, [ np.asarray ( a[2], float ) for a in source ], bonds = pairs, ph = ph,
+                                  h_counts = override )
+    counts = Counter ( a[0] for a in source )
+    names, used = [ ], set ( )
+    for k, element in enumerate ( result["symbols"] ):
+        new = None
+        if k < len ( source ) and counts[source[k][0]] == 1 and source[k][0][:4] not in used:
+            new = source[k][0][:4]
+        if new is None:
+            element = element.capitalize ( )
+            n = 1
+            while "{}{}".format ( element, n )[:4] in used or "{}{}".format ( element, n ) in counts: n += 1
+            new = "{}{}".format ( element, n )[:4]
+        used.add ( new ); names.append ( new )
+    lig.atoms = [ ( names[k], ELEMENT_Z.get ( result["symbols"][k].capitalize ( ), 0 ) or ( source[k][1] if k < len ( source ) else 1 ),
+                    np.asarray ( result["coords"][k], float ) ) for k in range ( len ( result["symbols"] ) ) ]
+    lig.bonds = [ ( int ( i ), int ( j ), int ( o ) ) for ( i, j, o ) in result["bonds"] ]
+    elements = [ s.capitalize ( ) for s in result["symbols"] ]
+    lig.aromatic_bonds = _aromatic_bonds ( elements, lig.bonds )
+    lig.formal_charges = [ int ( q ) for q in result["formal_charges"] ]
+    lig.notes.extend ( result["notes"] )
+    for line in LP.format_decisions ( result, names ):
+        lig.notes.append ( "protonation: " + line )
     return lig
 
 
@@ -681,11 +774,11 @@ def apply_user_charge ( lig, total_charge = None, multiplicity = None ):
 
 def parametrize_residue ( residue_name, atoms, ph = 7.4, xtb = None, cm5_scale = None, add_hydrogens = None,
                           keep_scratch = None, bonds = None, formal_charges = None, total_charge = None,
-                          multiplicity = None ):
+                          multiplicity = None, h_counts = None ):
     """ Full simplified parametrization of one residue. total_charge /
         multiplicity: the user's values (see apply_user_charge()). """
     lig = ligand_chemistry ( residue_name, atoms, ph = ph, add_hydrogens = add_hydrogens, bonds = bonds,
-                             formal_charges = formal_charges )
+                             formal_charges = formal_charges, h_counts = h_counts )
     if len ( lig.atoms ) == 1 and ( total_charge is not None or multiplicity not in ( None, 1 ) ):
         lig.warnings.append ( "charge/multiplicity of a monoatomic ion come from the OPLS-AA ion parameters (user values ignored)" )
     elif len ( lig.atoms ) > 1:

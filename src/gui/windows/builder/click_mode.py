@@ -101,6 +101,44 @@ def _current_frame_position ( vismol_object, atom_id ):
     return vismol_object.frames[frame_idx, atom_id]
 
 
+def is_live_atom ( atom ):
+    """ [EN] 2026-10-17: True while `atom` still belongs to its object with
+    a coordinate in the current frames. Delete/Undo replace or renumber
+    atoms, so an Atom kept across edits (hover, Bond Order first pick,
+    dihedral picks) can point past the end of vismol_object.frames. """
+    vismol_object = getattr ( atom, "vm_object", None )
+    if vismol_object is None or vismol_object.atoms.get ( atom.atom_id ) is not atom:
+        return False
+    frames = getattr ( vismol_object, "frames", None )
+    return frames is not None and frames.ndim == 3 and 0 <= atom.atom_id < frames.shape[1]
+
+
+def drop_stale_builder_atoms ( vm_glcore ):
+    """ [EN] 2026-10-17 BUG FIX (user's report: Delete by molecule -> white
+    screen, IndexError in draw_hover_highlight()): called by render() before
+    the Builder's per-frame highlights. The hovered atom was the one just
+    deleted (with the whole molecule gone the object had 0 coordinates),
+    and the exception repeated on every frame. Drops every stale atom
+    reference those highlights read; a dihedral pick with a stale atom is
+    cancelled (its axis/subgroup ids no longer mean the same atoms). """
+    if getattr ( vm_glcore, "builder_hover_atom", None ) is not None and not is_live_atom ( vm_glcore.builder_hover_atom ):
+        vm_glcore.builder_hover_atom = None
+    vm_session = vm_glcore.vm_session
+    first = getattr ( vm_session, "builder_bond_pick_first_atom", None )
+    if first is not None and not is_live_atom ( first ):
+        vm_session.builder_bond_pick_first_atom = None
+    for name in ( "builder_bond_drag_snap_target", "builder_bond_drag_new_atom" ):
+        atom = getattr ( vm_session, name, None )
+        if atom is not None and not is_live_atom ( atom ):
+            setattr ( vm_session, name, None )
+    picked = getattr ( vm_session, "builder_dihedral_pick_atoms", None )
+    if picked and not all ( is_live_atom ( a ) for a in picked ):
+        vm_session.builder_dihedral_pick_atoms = [ ]
+        vm_session.builder_dihedral_axis       = None
+        vm_session.builder_dihedral_subgroup   = None
+        _sync_dihedral_slider_widget ( vm_session, armed = False )
+
+
 def atom_world_position ( atom ):
     """ [EN] The SAME world-space transform draw_hover_highlight() below
     computes internally (_current_frame_position() + the atom's own
@@ -155,7 +193,7 @@ def set_tool ( vm_session, tool ):
     Builder editing isn't currently on -- just sets the tool for whenever
     it next is. """
     if tool not in ( "add", "delete" ):
-        raise ValueError ( "set_tool: tool deve ser 'add' ou 'delete', recebido: {}".format ( tool ) )
+        raise ValueError ( "set_tool: tool must be 'add' or 'delete', got: {}".format ( tool ) )
     vm_session.builder_tool = tool
 
 
@@ -471,10 +509,30 @@ def handle_click_to_delete_atom ( vm_glcore ):
     # delete re-ran (and re-failed) on every redraw, leaving the picking
     # pass's ID colours on screen for good.
     vm_glcore.atom_picked = None
+    # the hover ring sits on the atom being deleted
+    vm_glcore.builder_hover_atom = None
 
     from gui.windows.builder.atom_ops import remove_atom, push_undo_snapshot, builder_adjust_hydrogen_count_enabled
     vismol_object = atom.vm_object
     atom_id = atom.atom_id
+
+    # [EN] 2026-10-17, user's request: the Delete page of the side panel
+    # chooses what a click removes -- the atom (below, unchanged) or its
+    # whole residue / molecule / chain (atom_ops.remove_atoms(): one undo
+    # step, same hydrogen rules as deleting a selection).
+    scope = getattr ( vm_glcore.vm_session, "builder_delete_scope", "atom" )
+    if scope != "atom":
+        from gui.windows.builder.atom_ops import remove_atoms
+        atoms = atoms_in_delete_scope ( vismol_object, atom, scope )
+        n_removed = remove_atoms ( vismol_object, atoms )
+        from gui.windows.builder.empty_object import sync_pdynamo_system
+        sync_pdynamo_system ( vismol_object )
+        main = getattr ( vm_glcore.vm_session, "main", None )
+        statusbar = getattr ( main, "statusbar_main", None )
+        if statusbar is not None:
+            statusbar.push ( 1, "Builder: deleted the {} of {} ({} atoms; Undo restores them).".format (
+                    scope, atom.name, n_removed ) )
+        return atom_id
     # [EN] BUG FIX: every other Builder mutation in this file pushes an undo
     # snapshot before mutating -- this one didn't, so deleting an atom could
     # never be undone (Undo either did nothing or reverted an unrelated
@@ -504,26 +562,61 @@ def handle_click_to_delete_atom ( vm_glcore ):
                     and other_atom not in orphaned_h_atoms:
                 orphaned_h_atoms.append ( other_atom )
 
-    remove_atom ( vismol_object, atom_id )
+    # [EN] 2026-10-17: one topology rebuild for the atom and its hydrogens
+    # (atom_ops.batched_edit) instead of one per removed atom
+    from gui.windows.builder.atom_ops import batched_edit
+    batch = batched_edit ( vismol_object )
+    batch.__enter__ ( )
+    try:
+        remove_atom ( vismol_object, atom_id )
 
-    # [EN] Removes every orphaned hydrogen too -- re-sorts by each
-    # object's CURRENT .atom_id right before every single removal
-    # (remove_atom() renumbers every id ABOVE the one just removed,
-    # mutating every SURVIVING atom's own .atom_id IN PLACE -- same
-    # "re-read from the live object" convention adjust_hydrogens()/
-    # finish_bond_drag() already use), always removing the currently-
-    # highest one first so an earlier removal in this same batch never
-    # invalidates a not-yet-processed one.
-    while orphaned_h_atoms:
-        orphaned_h_atoms.sort ( key = lambda a: a.atom_id, reverse = True )
-        h_atom = orphaned_h_atoms.pop ( 0 )
-        remove_atom ( vismol_object, h_atom.atom_id )
+        # [EN] Removes every orphaned hydrogen too -- re-sorts by each
+        # object's CURRENT .atom_id right before every single removal
+        # (remove_atom() renumbers every id ABOVE the one just removed,
+        # mutating every SURVIVING atom's own .atom_id IN PLACE -- same
+        # "re-read from the live object" convention adjust_hydrogens()/
+        # finish_bond_drag() already use), always removing the currently-
+        # highest one first so an earlier removal in this same batch never
+        # invalidates a not-yet-processed one.
+        while orphaned_h_atoms:
+            orphaned_h_atoms.sort ( key = lambda a: a.atom_id, reverse = True )
+            h_atom = orphaned_h_atoms.pop ( 0 )
+            remove_atom ( vismol_object, h_atom.atom_id )
+    finally:
+        batch.__exit__ ( None, None, None )
 
     from gui.windows.builder.empty_object import sync_pdynamo_system
     sync_pdynamo_system ( vismol_object )
 
     vm_glcore.atom_picked = None
     return atom_id
+
+
+def atoms_in_delete_scope ( vismol_object, atom, scope ):
+    """ [EN] 2026-10-17: atoms of vismol_object deleted together with
+    `atom` by the Delete tool -- scope "residue" (same Residue object),
+    "chain" (same Chain object), "molecule" (every atom reachable through
+    bonds -- the residue/molecule bookkeeping of a Builder object is not
+    kept up to date edit by edit, its bond graph is) or "atom". """
+    atoms = [ a for a in vismol_object.atoms.values ( ) ]
+    if scope == "residue" and getattr ( atom, "residue", None ) is not None:
+        return [ a for a in atoms if a.residue is atom.residue ]
+    if scope == "chain" and getattr ( atom, "chain", None ) is not None:
+        return [ a for a in atoms if a.chain is atom.chain ]
+    if scope == "molecule":
+        neighbours = { }
+        for bond in ( vismol_object.bonds or { } ).values ( ):
+            neighbours.setdefault ( bond.atom_index_i, [ ] ).append ( bond.atom_index_j )
+            neighbours.setdefault ( bond.atom_index_j, [ ] ).append ( bond.atom_index_i )
+        seen = { atom.atom_id }
+        stack = [ atom.atom_id ]
+        while stack:
+            for other in neighbours.get ( stack.pop ( ), ( ) ):
+                if other not in seen:
+                    seen.add ( other )
+                    stack.append ( other )
+        return [ vismol_object.atoms[i] for i in seen if i in vismol_object.atoms ]
+    return [ atom ]
 
 
 def delete_selected_atoms ( vm_session ):
@@ -816,9 +909,16 @@ def handle_click_to_place_atom ( vm_glcore, mouse_x, mouse_y ):
     dprint ( "DEBUG click_mode: world_point=({:.3f}, {:.3f}, {:.3f})  -> local_point (after inv(model_mat))=({:.3f}, {:.3f}, {:.3f})".format (
             wx, wy, wz, x, y, z ) )
 
-    from gui.windows.builder.atom_ops import add_atom, push_undo_snapshot
+    from gui.windows.builder.atom_ops import add_atom, push_undo_snapshot, batched_edit
     push_undo_snapshot ( vismol_object )
-    atom = add_atom ( vismol_object, symbol = symbol, x = x, y = y, z = z )
+    # [EN] 2026-10-17: the atom and its hydrogens in one topology rebuild
+    batch = batched_edit ( vismol_object )
+    batch.__enter__ ( )
+    try:
+        atom = add_atom ( vismol_object, symbol = symbol, x = x, y = y, z = z )
+    except Exception:
+        batch.__exit__ ( None, None, None )
+        raise
 
     # [EN] DESIGN CHANGE: this used to have its own ad-hoc hydrogenation
     # logic here (a `tmp` dict of fixed C/N/O direction templates),
@@ -832,8 +932,11 @@ def handle_click_to_place_atom ( vm_glcore, mouse_x, mouse_y ):
     # see each of those call sites' own comment), instead of being a
     # one-off special case just for this one interaction.
     from gui.windows.builder.atom_ops import adjust_hydrogens, builder_adjust_hydrogen_count_enabled
-    if builder_adjust_hydrogen_count_enabled ( vismol_object ):
-        adjust_hydrogens ( vismol_object, atom.atom_id )
+    try:
+        if builder_adjust_hydrogen_count_enabled ( vismol_object ):
+            adjust_hydrogens ( vismol_object, atom.atom_id )
+    finally:
+        batch.__exit__ ( None, None, None )
 
     from gui.windows.builder.empty_object import sync_pdynamo_system
     sync_pdynamo_system ( vismol_object )
@@ -2616,7 +2719,12 @@ def _hover_ff_atom_type ( vm_session, vismol_object, atom ):
         (None, None) when there is no system / no MM model. """
     try:
         p_session = vm_session.main_session.p_session
-        system = p_session.psystem.get ( vismol_object.e_id ) if vismol_object.e_id is not None else None
+        # . peek: the hover never waits for a background rebuild (empty_object._BackgroundSync);
+        #   a stale system is caught by the atom-count checks below
+        read = getattr ( p_session.psystem, "peek", p_session.psystem.get )
+        system = read ( vismol_object.e_id ) if vismol_object.e_id is not None else None
+        if system is not None and len ( system.atoms ) != len ( vismol_object.atoms ):
+            system = None
     except Exception:
         system = None
     state = getattr ( system, "mmState", None ) if system is not None else None
@@ -2629,7 +2737,8 @@ def _hover_ff_atom_type ( vm_session, vismol_object, atom ):
         source_e_id = getattr ( vismol_object, "builder_edit_source_e_id", None )
         if source_e_id is not None:
             try:
-                source = vm_session.main_session.p_session.psystem.get ( source_e_id )
+                psystem = vm_session.main_session.p_session.psystem
+                source = getattr ( psystem, "peek", psystem.get ) ( source_e_id )
             except Exception:
                 source = None
         source_state = getattr ( source, "mmState", None ) if source is not None else None

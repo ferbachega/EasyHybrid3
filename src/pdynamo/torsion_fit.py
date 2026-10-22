@@ -289,7 +289,7 @@ def best_offset_rmse ( reference, model, weights = None ):
     d = r - m - offset
     return float ( np.sqrt ( np.mean ( d * d ) ) ), float ( np.sqrt ( np.sum ( w * d * d ) / np.sum ( w ) ) ), offset
 
-def fit_periods ( geometries, e_qm, e_mm_zero, instances, max_period = 3, min_coefficient = 1.0e-3 ):
+def fit_periods ( geometries, e_qm, e_mm_zero, instances, max_period = 3, min_coefficient = 1.0e-3, ridge = 0.0 ):
     """ Weighted linear least squares of the cosine series. Returns
         ( pairs [ ( c_n, n ) ], dropped periods, weights ). """
     e_qm = np.asarray ( e_qm, dtype = float ); e_mm_zero = np.asarray ( e_mm_zero, dtype = float )
@@ -313,7 +313,15 @@ def fit_periods ( geometries, e_qm, e_mm_zero, instances, max_period = 3, min_co
         raise ValueError ( "None of the periods 1-{} changes along this scan (symmetric rotor).".format ( max_period ) )
     A = np.column_stack ( columns + [ np.ones ( n_points ) ] )
     sw = np.sqrt ( weights )
-    solution, *_ = np.linalg.lstsq ( A * sw[:, None], target * sw, rcond = None )
+    Aw, bw = A * sw[:, None], target * sw
+    if ridge > 0.0:
+        # . Tikhonov penalty on the cosine coefficients (not on the offset), relative to
+        #   the scale of the problem: ridge * mean( diag ( Aw^T Aw ) ) * |c|^2 -- damps the large,
+        #   compensating coefficient sets that partially cancelling terms allow
+        scale = float ( np.mean ( np.sum ( Aw[:, :-1] ** 2, axis = 0 ) ) )
+        penalty = np.sqrt ( ridge * scale ) * np.eye ( len ( columns ) + 1 )[:-1]
+        Aw = np.vstack ( [ Aw, penalty ] ); bw = np.concatenate ( [ bw, np.zeros ( len ( columns ) ) ] )
+    solution, *_ = np.linalg.lstsq ( Aw, bw, rcond = None )
     pairs = [ ( float ( c ), n ) for c, n in zip ( solution[:-1], periods ) if abs ( c ) >= min_coefficient ]
     if not pairs: pairs = list ( ZERO_TERM )
     return pairs, dropped, weights
@@ -390,3 +398,24 @@ def report_text ( result ):
     for row in zip ( result["phi"], result["qm"], result["before"], result["after"], result["weights"] ):
         lines.append ( "{:8.2f} {:8.3f} {:8.3f} {:8.3f} {:6.3f}".format ( *row ) )
     return "\n".join ( lines )
+
+
+#=============================================================================
+#  Topology check of a scan
+#=============================================================================
+_COVALENT = { "H": 0.31, "B": 0.84, "C": 0.76, "N": 0.71, "O": 0.66, "F": 0.57, "Si": 1.11, "P": 1.07, "S": 1.05, "Cl": 1.02,
+              "Br": 1.20, "I": 1.39, "Fe": 1.32, "Zn": 1.22, "Cu": 1.32, "Co": 1.26, "Ni": 1.24, "Mn": 1.39, "Mg": 1.41 }
+
+def broken_bonds ( symbols, bonds, geometries, factor = 1.35 ):
+    """ [ ( point, ( a, b ), length ) ] of bonds longer than factor x the sum of
+        the covalent radii in any geometry of a scan (proton transfer, bond
+        breaking: the scan left the molecule it was meant to describe). """
+    out = [ ]
+    for k, x in enumerate ( geometries ):
+        x = np.asarray ( x, dtype = float )
+        for a, b in bonds:
+            limit = factor * ( _COVALENT.get ( symbols[a], 1.5 ) + _COVALENT.get ( symbols[b], 1.5 ) )
+            d = float ( np.linalg.norm ( x[a] - x[b] ) )
+            if d > limit: out.append ( ( k, ( int ( a ), int ( b ) ), d ) )
+    return out
+

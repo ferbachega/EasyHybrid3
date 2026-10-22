@@ -58,6 +58,98 @@ from vismol.model.residue import Residue
 from util.debug import dprint
 
 
+# =====================================================================================
+#   Batched edits -- 2026-10-17, user's report: editing a big system is slow
+#   --------------------------------------------------------------------------------
+#   add_atom()/remove_atom() rebuilt the whole object's topology (bonds,
+#   molecules, colours) and representations on EVERY atom: adding one carbon
+#   = 5 rebuilds (C + 4 H), deleting a residue = one per atom (~0.3 s each at
+#   20k atoms). Inside `with batched_edit ( obj ):` they only update the data
+#   (atoms, frames, manual bonds) plus a light `obj.bonds` -- what the
+#   neighbour helpers read (_bonded_neighbors_with_symbol(), ...), built
+#   from manual_bonds, the Builder's source of truth -- and the real rebuild
+#   runs ONCE when the outermost batch ends. Nested batches are fine.
+# =====================================================================================
+class _LightBond:
+    """ What the Builder helpers read from a vismol Bond while a batch runs. """
+    __slots__ = ( "atom_i", "atom_j", "atom_index_i", "atom_index_j", "bond_order" )
+    def __init__ ( self, atom_i, atom_j, i, j, order ):
+        self.atom_i, self.atom_j, self.atom_index_i, self.atom_index_j, self.bond_order = atom_i, atom_j, i, j, order
+
+
+def _batching ( vismol_object ):
+    return getattr ( vismol_object, "_batch_depth", 0 ) > 0
+
+
+def _light_bonds ( vismol_object ):
+    """ obj.bonds from manual_bonds (H-H pairs excluded, as _reapply_manual_bonds()
+        does); orders from manual_bond_orders, else the order the pair had when
+        the batch started (keyed by the Atom objects: ids are renumbered). """
+    atoms  = vismol_object.atoms
+    orders = getattr ( vismol_object, "manual_bond_orders", None ) or { }
+    old    = getattr ( vismol_object, "_batch_old_orders", None ) or { }
+    bonds  = { }
+    for ( i, j ) in ( getattr ( vismol_object, "manual_bonds", None ) or ( ) ):
+        a, b = atoms.get ( i ), atoms.get ( j )
+        if a is None or b is None or ( a.symbol == 'H' and b.symbol == 'H' ):
+            continue
+        order = orders.get ( ( i, j ) ) or old.get ( ( id ( a ), id ( b ) ) ) or old.get ( ( id ( b ), id ( a ) ) ) or 1
+        bonds[( i, j )] = _LightBond ( a, b, i, j, order )
+    vismol_object.bonds = bonds
+    vismol_object._batch_dirty = True
+
+
+def _finish_topology_change ( vismol_object ):
+    """ The full rebuild add_atom()/remove_atom() do after a change. """
+    vm_session = vismol_object.vm_session
+    vismol_object._generate_color_vectors ( vm_session.atom_id_counter )
+    vismol_object.cov_radii_array = None
+    vismol_object.electronegativity_array = None
+    vismol_object.index_bonds = None
+    vismol_object.bonds = None
+    vismol_object.non_bonded_atoms = None
+    if len ( vismol_object.atoms ) > 0:
+        _reapply_manual_bonds ( vismol_object )
+    else:
+        vismol_object.index_bonds = []
+        vismol_object.bonds = {}
+        vismol_object.non_bonded_atoms = []
+    vismol_object.create_representation ( rep_type = "sticks" )
+    vismol_object.create_representation ( rep_type = "stick_spheres" )
+    _activate_new_sphere_representation ( vismol_object, "stick_spheres" )
+    vismol_object.create_representation ( rep_type = "nonbonded" )
+    vismol_object.core_representations["picking_dots"] = None
+    vismol_object.core_representations["picking_text"] = None
+    _refresh_bond_dependent_representations ( vismol_object )
+    if getattr ( vm_session, "vm_glcore", None ) is not None:
+        vm_session.vm_glcore.queue_draw ( )
+
+
+class batched_edit:
+    """ with batched_edit ( obj ): ...  -- see the note above. """
+    def __init__ ( self, vismol_object ):
+        self.obj = vismol_object
+
+    def __enter__ ( self ):
+        obj = self.obj
+        if not _batching ( obj ):
+            obj._batch_old_orders = { ( id ( b.atom_i ), id ( b.atom_j ) ): b.bond_order
+                                      for b in ( obj.bonds or { } ).values ( )
+                                      if getattr ( b, "atom_i", None ) is not None }
+            obj._batch_dirty = False
+        obj._batch_depth = getattr ( obj, "_batch_depth", 0 ) + 1
+        return obj
+
+    def __exit__ ( self, *exc ):
+        obj = self.obj
+        obj._batch_depth -= 1
+        if obj._batch_depth == 0:
+            dirty, obj._batch_dirty, obj._batch_old_orders = obj._batch_dirty, False, None
+            if dirty:
+                _finish_topology_change ( obj )
+        return False
+
+
 def add_atom ( vismol_object, symbol, x, y, z, name = None,
                chain_id = None, resi = None, resn = None,
                bonded_to = None, bond_order = 1, aromatic = False,
@@ -152,6 +244,9 @@ def add_atom ( vismol_object, symbol, x, y, z, name = None,
     Returns the new Atom object.
     """
     vm_session = vismol_object.vm_session
+    batching = _batching ( vismol_object )
+    if batching:
+        recompute_bonds = update_representation = False
 
     # --- Chain / Residue ---
     # [EN] 2026-10-02 (user request: "os hidrogenios adicionados devem ser
@@ -349,6 +444,8 @@ def add_atom ( vismol_object, symbol, x, y, z, name = None,
         if getattr ( vm_session, "vm_glcore", None ) is not None:
             vm_session.vm_glcore.queue_draw ( )
 
+    if batching:
+        _light_bonds ( vismol_object )
     return atom
 
 
@@ -785,6 +882,9 @@ def remove_atom ( vismol_object, atom_id ):
     vismol_object.mass_center = ( np.mean ( vismol_object.frames[0], axis = 0 )
                                   if vismol_object.frames.shape[1] > 0
                                   else np.zeros ( 3, dtype = np.float32 ) )
+    if _batching ( vismol_object ):
+        _light_bonds ( vismol_object )          # rebuilt once when the batch ends
+        return
     vismol_object._generate_color_vectors ( vm_session.atom_id_counter )
 
     # bonds/topology now come entirely from vismol_object.manual_bonds
@@ -1564,16 +1664,16 @@ def resolve_frame_arg ( vismol_object, frame ):
                 a = int ( a_str.strip ( ) )
                 b = int ( b_str.strip ( ) )
             except ValueError:
-                raise ValueError ( "frame: intervalo invalido {!r} (use algo como '1:5').".format ( frame ) )
+                raise ValueError ( "frame: invalid range {!r} (use something like '1:5').".format ( frame ) )
             if a > b:
                 a, b = b, a
             return list ( range ( a, b + 1 ) )
         try:
             return [ int ( s ) ]
         except ValueError:
-            raise ValueError ( "frame: valor invalido {!r} (use um inteiro, 'A:B' ou 'all').".format ( frame ) )
+            raise ValueError ( "frame: invalid value {!r} (use an integer, 'A:B' or 'all').".format ( frame ) )
 
-    raise ValueError ( "frame: tipo invalido {!r} (use um inteiro, 'A:B' ou 'all').".format ( frame ) )
+    raise ValueError ( "frame: invalid type {!r} (use an integer, 'A:B' or 'all').".format ( frame ) )
 
 
 def _refresh_dynamic_bond_representations ( vismol_object, affected_frames ):
@@ -2065,7 +2165,7 @@ STANDARD_VALENCE = {
 }
 
 
-def _bond_order_sum_excluding_symbol ( vismol_object, atom_id, exclude_symbol ):
+def _bond_order_sum_excluding_symbol ( vismol_object, atom_id, exclude_symbol, exclude_metals = False ):
     """ Sum of bond_order over every bond touching atom_id, EXCLUDING
     bonds to a neighbour whose symbol == exclude_symbol (used to exclude
     hydrogens -- see adjust_hydrogens(), which needs "how much valence is
@@ -2078,6 +2178,10 @@ def _bond_order_sum_excluding_symbol ( vismol_object, atom_id, exclude_symbol ):
         other_id = bond.atom_index_j if bond.atom_index_i == atom_id else bond.atom_index_i
         if vismol_object.atoms[other_id].symbol == exclude_symbol:
             continue
+        if exclude_metals:
+            from util.hydrogen_builder import is_hydrogen_free_metal
+            if is_hydrogen_free_metal ( vismol_object.atoms[other_id].symbol ):
+                continue
         total += bond.bond_order
     return total
 
@@ -2433,6 +2537,77 @@ def remove_atoms ( vismol_object, atoms ):
     if not doomed:
         return 0
     push_undo_snapshot ( vismol_object )
+    with batched_edit ( vismol_object ):
+        return _remove_atoms_batched ( vismol_object, doomed )
+
+
+def _remove_atom_ids ( vismol_object, atom_ids ):
+    """ [EN] 2026-10-17: remove_atom() for many atoms in ONE pass (one frames
+    delete, one renumbering, one bond remap) -- remove_atom() per atom is
+    O(atoms) each, i.e. 300 waters of a 22k-atom box took ~14 s. Same
+    bookkeeping as remove_atom(); call inside batched_edit() (the topology
+    rebuild is left to the batch). """
+    vm_session = vismol_object.vm_session
+    doomed = set ( i for i in atom_ids if i in vismol_object.atoms )
+    if not doomed:
+        return 0
+    removed_atoms = [ vismol_object.atoms[i] for i in doomed ]
+    for atom in removed_atoms:
+        vm_session.atom_dic_id.pop ( atom.unique_id, None )
+        if atom.residue is not None:
+            atom.residue.atoms.pop ( atom.atom_id, None )
+    for sel in vm_session.selections.values ( ):
+        if sel.selected_atoms:
+            sel.selected_atoms.difference_update ( removed_atoms )
+    vismol_object.frames = np.delete ( vismol_object.frames, sorted ( doomed ), axis = 1 )
+
+    id_map = { }
+    new_atoms = { }
+    shift = 0
+    for old_id in sorted ( vismol_object.atoms.keys ( ) ):
+        atom = vismol_object.atoms[old_id]
+        if old_id in doomed:
+            shift += 1
+            continue
+        new_id = old_id - shift
+        id_map[old_id] = new_id
+        if new_id != old_id:
+            atom.atom_id = new_id
+            atom.index = new_id + 1
+            if atom.residue is not None:
+                atom.residue.atoms.pop ( old_id, None )
+                atom.residue.atoms[new_id] = atom
+        new_atoms[new_id] = atom
+    vismol_object.atoms = new_atoms
+
+    def remap_pair ( pair ):
+        a, b = pair
+        if a not in id_map or b not in id_map:
+            return None
+        return ( min ( id_map[a], id_map[b] ), max ( id_map[a], id_map[b] ) )
+    if getattr ( vismol_object, "manual_bonds", None ):
+        vismol_object.manual_bonds = set ( p for p in ( remap_pair ( q ) for q in vismol_object.manual_bonds ) if p is not None )
+    if getattr ( vismol_object, "manual_bond_orders", None ):
+        orders = { }
+        for pair, order in vismol_object.manual_bond_orders.items ( ):
+            new_pair = remap_pair ( pair )
+            if new_pair is not None:
+                orders[new_pair] = order
+        vismol_object.manual_bond_orders = orders
+    if getattr ( vismol_object, "manual_aromatic_bonds", None ):
+        vismol_object.manual_aromatic_bonds = set ( p for p in ( remap_pair ( q ) for q in vismol_object.manual_aromatic_bonds ) if p is not None )
+
+    vismol_object.mass_center = ( np.mean ( vismol_object.frames[0], axis = 0 )
+                                  if vismol_object.frames.shape[1] > 0
+                                  else np.zeros ( 3, dtype = np.float32 ) )
+    if _batching ( vismol_object ):
+        _light_bonds ( vismol_object )
+    else:
+        _finish_topology_change ( vismol_object )
+    return len ( doomed )
+
+
+def _remove_atoms_batched ( vismol_object, doomed ):
     adjust = builder_adjust_hydrogen_count_enabled ( vismol_object )
     doomed_set = set ( id ( a ) for a in doomed )
     neighbours = { }
@@ -2447,9 +2622,7 @@ def remove_atoms ( vismol_object, atoms ):
                         doomed.append ( y ); doomed_set.add ( id ( y ) )
                 else:
                     neighbours[id ( y )] = y
-    for atom in sorted ( doomed, key = lambda a: a.atom_id, reverse = True ):
-        if vismol_object.atoms.get ( atom.atom_id ) is atom:
-            remove_atom ( vismol_object, atom.atom_id )
+    _remove_atom_ids ( vismol_object, [ a.atom_id for a in doomed if vismol_object.atoms.get ( a.atom_id ) is a ] )
     if adjust:
         for atom in neighbours.values ( ):
             if id ( atom ) not in doomed_set and vismol_object.atoms.get ( atom.atom_id ) is atom:
@@ -2528,6 +2701,11 @@ def adjust_hydrogens ( vismol_object, atom_id ):
     Returns the number of hydrogens added (positive) or removed
     (negative), or 0 if the count didn't change (positions may still
     have been adjusted even when this returns 0). """
+    with batched_edit ( vismol_object ):
+        return _adjust_hydrogens ( vismol_object, atom_id )
+
+
+def _adjust_hydrogens ( vismol_object, atom_id ):
     if atom_id not in vismol_object.atoms:
         return 0
 
@@ -2543,7 +2721,11 @@ def adjust_hydrogens ( vismol_object, atom_id ):
         return 0
     target_valence = base_valence + getattr ( atom, 'formal_charge', 0 )
 
-    heavy_bond_order_sum = _bond_order_sum_excluding_symbol ( vismol_object, atom_id, exclude_symbol = 'H' )
+    # [EN] 2026-10-08: a bond to a metal is dative here, the convention of Prepare DYFF
+    # System (dyff_prep): a donor keeps the protonation of the free ligand -- thiolate S-
+    # (no H), hydroxide O- with its H, His N without H. Counting the metal bond stripped
+    # the H of a hydroxide bonded to Zn.
+    heavy_bond_order_sum = _bond_order_sum_excluding_symbol ( vismol_object, atom_id, exclude_symbol = 'H', exclude_metals = True )
     needed_h = max ( 0, target_valence - heavy_bond_order_sum )
 
     current_h_ids = sorted ( _bonded_neighbors_with_symbol ( vismol_object, atom_id, 'H' ) )
@@ -3470,6 +3652,10 @@ def add_structure_at_position ( vismol_object, structure, x, y, z ):
     letters = "".join ( ch for ch in str ( structure.get ( "name", "" ) ) if ch.isalnum ( ) ).upper ( )
     chain, residue = _free_residue ( vismol_object, residue_name = ( letters[:3] or "UNK" ), reuse = False )
 
+    # [EN] 2026-10-13: per-atom formal charges from the file's UNITY_ATOM_ATTR
+    # section (structure_library.load_structure; 0 when absent) -- the metal
+    # complexes of category 31_* rely on them for the metal oxidation state.
+    struct_charges = structure.get ( "formal_charges" ) or [ 0 ] * len ( struct_atoms )
     local_index_to_new_id = { }
     new_atoms = [ ]
     for local_index, ( symbol, ax, ay, az ) in enumerate ( struct_atoms ):
@@ -3479,6 +3665,7 @@ def add_structure_at_position ( vismol_object, structure, x, y, z ):
                                x = float ( world_pos[0] ), y = float ( world_pos[1] ), z = float ( world_pos[2] ),
                                name = _unique_atom_name ( residue, symbol ),
                                chain_id = chain.name, resi = residue.index, resn = residue.name,
+                               formal_charge = int ( struct_charges[local_index] ),
                                recompute_bonds = False, update_representation = False )
         local_index_to_new_id[local_index] = new_atom.atom_id
         new_atoms.append ( new_atom )
@@ -3530,7 +3717,34 @@ def add_structure_at_position ( vismol_object, structure, x, y, z ):
 #  below).
 # ============================================================================
 
-def bootstrap_manual_bonds_from_existing ( vismol_object, source_vobject = None ):
+def _bootstrap_from_pdynamo_system ( vismol_object, system ):
+    """ manual_bonds / manual_bond_orders / formal_charge of vismol_object from the
+        pDynamo system it mirrors (same atom order). Only when every bond has an explicit
+        Single/Double/Triple type and at least one is not single (a system read without
+        bond orders is left to the template/perception path). True when applied. """
+    if system is None or getattr ( system, "connectivity", None ) is None:
+        return False
+    if len ( system.atoms ) != len ( vismol_object.atoms ) or any ( i not in vismol_object.atoms for i in range ( len ( system.atoms ) ) ):
+        return False
+    orders = { "Single": 1, "Double": 2, "Triple": 3 }
+    pairs = { }
+    for bond in system.connectivity.bonds:
+        order = orders.get ( getattr ( getattr ( bond, "type", None ), "name", None ) )
+        if order is None:
+            return False
+        i, j = bond.node1.index, bond.node2.index
+        pairs[( min ( i, j ), max ( i, j ) )] = order
+    if not pairs or max ( pairs.values ( ) ) == 1:
+        return False
+    vismol_object.manual_bonds          = set ( pairs )
+    vismol_object.manual_bond_orders    = dict ( pairs )
+    vismol_object.manual_aromatic_bonds = set ( )
+    for k, atom in enumerate ( system.atoms ):
+        vismol_object.atoms[k].formal_charge = int ( getattr ( atom, "formalCharge", 0 ) or 0 )
+    return True
+
+
+def bootstrap_manual_bonds_from_existing ( vismol_object, source_vobject = None, source_system = None ):
     """ [EN] Populates manual_bonds/manual_bond_orders/manual_aromatic_
     bonds (the Builder's own explicit bond bookkeeping -- see add_atom()'s
     docstring for why every Builder mutation is driven from these instead
@@ -3623,6 +3837,14 @@ def bootstrap_manual_bonds_from_existing ( vismol_object, source_vobject = None 
     vismol_object.manual_bonds          = set ( )
     vismol_object.manual_bond_orders    = { }
     vismol_object.manual_aromatic_bonds = set ( )
+
+    # [EN] 2026-10-08: a pDynamo system with explicit bond orders (Prepare DYFF, OPLS
+    # prep, a previous Builder round) already holds the exact chemistry -- thiolate Cys,
+    # carboxylates, His tautomers, metal-donor bonds: take bonds, orders and formal
+    # charges from it. Re-deriving them from residue templates lost every negative
+    # formal charge, and the vobject's distance bonds added a Zn-water bond.
+    if _bootstrap_from_pdynamo_system ( vismol_object, source_system ):
+        return
 
     reference = source_vobject if source_vobject is not None else vismol_object
 

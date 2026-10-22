@@ -1,0 +1,2151 @@
+# . EasyHybrid extension of pDynamo3 dyff-1.0 (2026-10-08), see atomTypes.yaml. ADDED patterns
+#   (marked "EasyHybrid"); dyff-1.0 patterns are unchanged and keep their order:
+#     aromatic B (borazine)            -> B:Tri   (dyff-1.0 B patterns require a non-aromatic atom)
+#     other B (borane clusters, >= 5 neighbours: no UFF geometry) -> B:Tet
+#     aromatic P, 2 connections (phosphinines) -> P:Res (new type)
+#     aromatic P, 3 connections (P4, P4S3 cages flagged aromatic by pDynamo) -> P:Tet:+3
+#     aromatic Se, 2 connections (selenophenes, selenazoles) -> Se:Res (new type)
+#   Bridging hydrogens of boranes are typed by the existing "H:::b" pattern (two connections).
+# . DYFF patterns.
+# . Order is important with specific before general patterns.
+---
+# . !MMPatternContainer
+Atom Fields:
+    - Key
+    - Atomic Number
+    - Charge
+    - Connections
+    - Formal Charge
+    - Geometry
+    - Hydrogens
+    - Is Aromatic
+    - Is Supporting
+    - Oxidation State
+    - Atom Type Label
+Atom Result Fields:
+    - Atom Type Label
+    - Charge
+Bond Fields:
+    - Atom Key 1
+    - Atom Key 2
+    - Type
+Label: DYFF-1.0
+Patterns:
+
+    # . Group patterns.
+    # . Amide.
+    - Label: Amide
+      Atom Patterns:
+          - [ 0, 7, 0.0, 3, 0, Tri, ., False, False, ., "N:Tri" ]
+          - [ 1, 6, 0.0, 3, 0, Tri, ., False, False, ., "C:Tri" ]
+          - [ 2, 8, 0.0, 1, 0, Tri, ., False, False, ., "O:Tri" ]
+      Bond Patterns:
+          - [ 0, 1, Single ]
+          - [ 1, 2, Double ]
+
+    # . Guanidinium cation.
+    - Label: Guanidinium Cation
+      Atom Patterns:
+          - [ 0, 7, 0.0, 3, 0, Tri, 2, False, False, ., "N:Tri" ]
+          - [ 1, 6, 0.0, 3, 1, Tri, 0, False, False, ., "C:Tri" ]
+          - [ 2, 7, 0.0, 3, 0, Tri, 2, False, False, ., "N:Tri" ]
+          - [ 3, 7, 0.0, 3, 0, Tri, 1, False, False, ., "N:Tri" ]
+          - [ 4, 6, 0.0, 4, 0, Tet, ., False, True , ., .       ]
+          - [ 5, 6, 0.0, 4, 0, Tet, ., False, True , ., .       ]
+      Bond Patterns:
+          - [ 0, 1, Double ]
+          - [ 1, 2, Single ]
+          - [ 1, 3, Single ]
+          - [ 3, 4, Single ]
+          - [ 4, 5, Single ]
+
+    # . N-Car.
+    - Label: N-Car
+      Atom Patterns:
+          - [ 0, 7, 0.0, 3, 0, ., ., False, False, ., "N:Tri" ]
+          - [ 1, 6, 0.0, 3, 0, ., ., True , True , ., .       ]
+      Bond Patterns:
+          - [ 0, 1, Single ]
+
+    # . N-Csp2.
+    - Label: N-Csp2
+      Atom Patterns:
+          - [ 0, 7, 0.0, 3, 0,   ., ., False, False, ., "N:Tri" ]
+          - [ 1, 6, 0.0, ., ., Tri, ., False, True , ., .       ]
+      Bond Patterns:
+          - [ 0, 1, Single ]
+
+    # . O-Car.
+    - Label: O-Car
+      Atom Patterns:
+          - [ 0, 8, 0.0, 2, 0, ., ., False, False, ., "O:Tri" ]
+          - [ 1, 6, 0.0, 3, 0, ., ., True , True , ., .       ]
+      Bond Patterns:
+          - [ 0, 1, Single ]
+
+    # . O-Csp2.
+    - Label: O-Csp2
+      Atom Patterns:
+          - [ 0, 8, 0.0, 2, 0,   ., ., False, False, ., "O:Tri" ]
+          - [ 1, 6, 0.0, ., ., Tri, ., False, True , ., .       ]
+      Bond Patterns:
+          - [ 0, 1, Single ]
+
+    # . O-Csp2.
+    - Label: O-Csp2
+      Atom Patterns:
+          - [ 0, 8, 0.0, 1, -1,   ., ., False, False, ., "O:Tri" ]
+          - [ 1, 6, 0.0, .,  ., Tri, ., False, True , ., .       ]
+      Bond Patterns:
+          - [ 0, 1, Single ]
+
+    # . Si-O.
+    - Label: Si-O
+      Atom Patterns:
+          - [ 0,  8, 0.0, 2, 0, ., ., False, False, ., "O:Tet::z" ]
+          - [ 0, 14, 0.0, ., 0, ., ., False, True , ., .          ]
+      Bond Patterns:
+          - [ 0, 1, Single ]
+
+    # . Si=O.
+    - Label: Si=O
+      Atom Patterns:
+          - [ 0,  8, 0.0, 1, 0, ., ., False, False, ., "O:Tri::z" ]
+          - [ 0, 14, 0.0, ., 0, ., ., False, True , ., .          ]
+      Bond Patterns:
+          - [ 0, 1, Double ]
+
+    # . Element patterns.
+    # . Unknown element.
+    - Label: "Qq"
+      Atom Patterns:
+          - [ 0, 0, 0.0, ., ., ., ., ., ., "Qq" ]
+
+    # . Hydrogen - bridging and then all others.
+    - Label: "H:::b"
+      Atom Patterns:
+          - [ 0, 1, 0.0, 2, ., ., ., False, False, ., "H:::b" ]
+
+    - Label: "H"
+      Atom Patterns:
+          - [ 0, 1, 0.0, ., ., ., ., False, False, ., "H" ]
+
+    # . Helium.
+    - Label: "He:SPl:+4"
+      Atom Patterns:
+          - [ 0, 2, 0.0, ., ., ., ., False, False, ., "He:SPl:+4" ]
+
+    # . Lithium.
+    - Label: "Li"
+      Atom Patterns:
+          - [ 0, 3, 0.0, ., ., ., ., False, False, ., "Li" ]
+
+    - Label: "Li:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 3, 0.0, ., ., Tet, ., False, False, ., "Li:Tet:+2:f" ] # . To resolve.
+
+    # . Beryllium.
+    - Label: "Be:Tet:+2"
+      Atom Patterns:
+          - [ 0, 4, 0.0, ., ., ., ., False, False, ., "Be:Tet:+2" ]
+
+    # . Boron.
+    - Label: "B:Tet"
+      Atom Patterns:
+          - [ 0, 5, 0.0, ., ., Tet, ., False, False, ., "B:Tet" ]
+
+    - Label: "B:Tri"
+      Atom Patterns:
+          - [ 0, 5, 0.0, ., ., Tri, ., False, False, ., "B:Tri" ]
+
+    # . EasyHybrid: aromatic boron (borazine) and boron in borane clusters.
+    - Label: "B:Tri aromatic"
+      Atom Patterns:
+          - [ 0, 5, 0.0, ., ., ., ., True , False, ., "B:Tri" ]
+
+    - Label: "B:Cluster"
+      Atom Patterns:
+          - [ 0, 5, 0.0, ., ., ., ., False, False, ., "B:Tet" ]
+
+    # . Carbon.
+    - Label: "C:Lin"
+      Atom Patterns:
+          - [ 0, 6, 0.0, ., ., Lin, ., False, False, ., "C:Lin" ]
+
+    - Label: "C:Res"
+      Atom Patterns:
+          - [ 0, 6, 0.0, ., ., Res, ., True, False, ., "C:Res" ]
+
+    - Label: "C:Tet"
+      Atom Patterns:
+          - [ 0, 6, 0.0, ., ., Tet, ., False, False, ., "C:Tet" ]
+
+    - Label: "C:Tri"
+      Atom Patterns:
+          - [ 0, 6, 0.0, ., ., Tri, ., False, False, ., "C:Tri" ]
+
+    # . Nitrogen.
+    - Label: "N:Lin"
+      Atom Patterns:
+          - [ 0, 7, 0.0, ., ., Lin, ., False, False, ., "N:Lin" ]
+
+    - Label: "N:Res"
+      Atom Patterns:
+          - [ 0, 7, 0.0, ., ., Res, ., True, False, ., "N:Res" ]
+
+    - Label: "N:Tet"
+      Atom Patterns:
+          - [ 0, 7, 0.0, ., ., Tet, ., False, False, ., "N:Tet" ]
+
+    - Label: "N:Tri"
+      Atom Patterns:
+          - [ 0, 7, 0.0, ., ., Tri, ., False, False, ., "N:Tri" ]
+
+    - Label: "N:Tet4"
+      Atom Patterns:
+          - [ 0, 7, 0.0, 4, ., ., ., False, False, ., "N:Tet" ] # . A catch-all for 4-coordinate nitrogen.
+
+    - Label: "N:Tri3"
+      Atom Patterns:
+          - [ 0, 7, 0.0, 3, ., ., ., False, False, ., "N:Tri" ] # . A catch-all for 3-coordinate nitrogen.
+
+    # . Oxygen.
+    - Label: "O:Lin"
+      Atom Patterns:
+          - [ 0, 8, 0.0, ., ., Lin, ., False, False, ., "O:Lin" ]
+
+    - Label: "O:Res"
+      Atom Patterns:
+          - [ 0, 8, 0.0, ., ., Res, ., True, False, ., "O:Res" ]
+
+    - Label: "O:Tet"
+      Atom Patterns:
+          - [ 0, 8, 0.0, ., ., Tet, ., False, False, ., "O:Tet" ]
+
+    - Label: "O:Tet::f"
+      Atom Patterns:
+          - [ 0, 8, 0.0, ., ., Tet, ., False, False, ., "O:Tet::f" ] # . To resolve.
+
+    - Label: "O:Tet::z"
+      Atom Patterns:
+          - [ 0, 8, 0.0, ., ., Tet, ., False, False, ., "O:Tet::z" ] # . To resolve.
+
+    - Label: "O:Tri"
+      Atom Patterns:
+          - [ 0, 8, 0.0, ., ., Tri, ., False, False, ., "O:Tri" ]
+
+    - Label: "O:Tri::z"
+      Atom Patterns:
+          - [ 0, 8, 0.0, ., ., Tri, ., False, False, ., "O:Tri::z" ] # . To resolve.
+
+    # . Fluorine.
+    - Label: "F"
+      Atom Patterns:
+          - [ 0, 9, 0.0, ., ., ., ., False, False, ., "F" ]
+
+    # . Neon.
+    - Label: "Ne:SPl:+4"
+      Atom Patterns:
+          - [ 0, 10, 0.0, ., ., ., ., False, False, ., "Ne:SPl:+4" ]
+
+    # . Sodium.
+    - Label: "Na"
+      Atom Patterns:
+          - [ 0, 11, 0.0, ., ., ., ., False, False, ., "Na" ]
+
+    - Label: "Na:SPl:+2:f"
+      Atom Patterns:
+          - [ 0, 11, 0.0, ., ., SPl, ., False, False, ., "Na:SPl:+2:f" ] # . To resolve.
+
+    - Label: "Na:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 11, 0.0, ., ., Tet, ., False, False, ., "Na:Tet:+2:f" ] # . To resolve.
+
+    # . Magnesium.
+    - Label: "Mg"
+      Atom Patterns:
+          - [  0, 12, 0.0, ., ., ., ., False, False, ., "Mg" ] # . To resolve.
+    
+    - Label: "Mg:Oct:+3:f"
+      Atom Patterns:
+          - [ 0, 12, 0.0, ., ., Oct, ., False, False, ., "Mg:Oct:+3:f" ] # . To resolve.
+
+    - Label: "Mg:Tet:+2"
+      Atom Patterns:
+          - [ 0, 12, 0.0, ., ., Tet, ., False, False, ., "Mg:Tet:+2" ]
+
+    # . Aluminium.
+    - Label: "Al:Oct:+3"
+      Atom Patterns:
+          - [ 0, 13, 0.0, ., ., Oct, ., False, False, ., "Al:Oct:+3" ]
+
+    - Label: "Al:Tet"
+      Atom Patterns:
+          - [ 0, 13, 0.0, ., ., Tet, ., False, False, ., "Al:Tet" ]
+
+    - Label: "Al:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 13, 0.0, ., ., Tet, ., False, False, ., "Al:Tet:+2:f" ] # . To resolve.
+
+    # . Silicon.
+    - Label: "Si:Tet"
+      Atom Patterns:
+          - [ 0, 14, 0.0, ., ., ., ., False, False, ., "Si:Tet" ]
+
+    # . Phosphorus.
+    # . EasyHybrid: aromatic phosphorus. Two connections: phosphinines (P:Res). Three
+    #   connections: pDynamo's aromaticity flags the P4 / P4S3 cages (each P gives its lone
+    #   pair to the 3-membered rings) -- those are pyramidal phosphines (P:Tet:+3).
+    - Label: "P:Res"
+      Atom Patterns:
+          - [ 0, 15, 0.0, 2, ., ., ., True , False, ., "P:Res" ]
+
+    - Label: "P:Tet:+3 aromatic cage"
+      Atom Patterns:
+          - [ 0, 15, 0.0, 3, ., ., ., True , False, ., "P:Tet:+3" ]
+
+    - Label: "P:Tet:+3"
+      Atom Patterns:
+          - [ 0, 15, 0.0, ., ., ., ., False, False, 3, "P:Tet:+3" ]
+
+    - Label: "P:Tet:+5"
+      Atom Patterns:
+          - [ 0, 15, 0.0, ., ., ., ., False, False, 5, "P:Tet:+5" ]
+
+    - Label: "P:Hypervalent"
+      Atom Patterns:
+          - [ 0, 15, 0.0, ., ., ., ., False, False, ., "P:Tet:+3" ] # . A catch-all for hypervalent phosphorus.
+
+    - Label: "P:Tet::q"
+      Atom Patterns:
+          - [ 0, 15, 0.0, ., ., Tet, ., False, False, ., "P:Tet::q" ] # . To resolve.
+
+    # . Sulfur.
+    - Label: "S:Res"
+      Atom Patterns:
+          - [ 0, 16, 0.0, ., ., Res, ., True, False, ., "S:Res" ]
+
+    - Label: "S:Tet:+2"
+      Atom Patterns:
+          - [ 0, 16, 0.0, ., ., Tet, ., False, False, 2, "S:Tet:+2" ]
+
+    - Label: "S:Tet:+4"
+      Atom Patterns:
+          - [ 0, 16, 0.0, ., ., Tet, ., False, False, 4, "S:Tet:+4" ]
+
+    - Label: "S:Tri"
+      Atom Patterns:
+          - [ 0, 16, 0.0, ., ., Tri, ., False, False, ., "S:Tri" ]
+
+    - Label: "S:Tet:+6"
+      Atom Patterns:
+          - [ 0, 16, 0.0, ., ., ., ., False, False, ., "S:Tet:+2" ] # . A catch-all for hypervalent sulfur.
+
+    - Label: "S:Tet::f"
+      Atom Patterns:
+          - [ 0, 16, 0.0, ., ., Tet, ., False, False, ., "S:Tet::f" ] # . To resolve.
+
+    # . Chlorine.
+    - Label: "Cl"
+      Atom Patterns:
+          - [ 0, 17, 0.0, ., ., ., ., False, False, ., "Cl" ]
+
+    # . Argon.
+    - Label: "Ar:SPl:+4"
+      Atom Patterns:
+          - [ 0, 18, 0.0,., ., ., ., False, False, ., "Ar:SPl:+4" ]
+
+    # . Potassium.
+    - Label: "K"
+      Atom Patterns:
+          - [ 0, 19, 0.0, ., ., ., ., False, False, ., "K" ]
+
+    - Label: "K:SPl:+2:f"
+      Atom Patterns:
+          - [ 0, 19, 0.0, ., ., ., ., False, False, ., "K:SPl:+2:f" ] # . To resolve.
+
+    - Label: "K:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 19, 0.0, ., ., ., ., False, False, ., "K:Tet:+2:f" ] # . To resolve.
+
+    # . Calcium.
+    - Label: "Ca:Oct:+2"
+      Atom Patterns:
+          - [ 0, 20, 0.0, ., ., Oct, ., False, False, ., "Ca:Oct:+2" ]
+
+    - Label: "Ca:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 20, 0.0, ., ., Tet, ., False, False, ., "Ca:Tet:+2:f" ] # . To resolve.
+
+    # . Scandium.
+    - Label: "Sc:SPy:+3"
+      Atom Patterns:
+          - [ 0, 21, 0.0, ., ., SPy, ., False, False, 3, "Sc:SPy:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 63
+
+    - Label: "Sc:Oct:+3"
+      Atom Patterns:
+          - [ 0, 21, 0.0, ., ., Oct, ., False, False, ., "Sc:Oct:+3" ]
+
+    - Label: "Sc:Tet:+3"
+      Atom Patterns:
+          - [ 0, 21, 0.0, ., ., Tet, ., False, False, ., "Sc:Tet:+3" ]
+    - Label: "Sc:SPy:+3"
+      Atom Patterns:
+          - [ 0, 21, 0.0, ., ., SPy, ., False, False, ., "Sc:SPy:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 66
+
+    - Label: "Sc:TBp:+3"
+      Atom Patterns:
+          - [ 0, 21, 0.0, ., ., TBp, ., False, False, ., "Sc:TBp:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 28
+
+    - Label: "Sc:PBp:+3"
+      Atom Patterns:
+          - [ 0, 21, 0.0, ., ., PBp, ., False, False, ., "Sc:PBp:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 17
+
+
+    # . Titanium.
+    - Label: "Ti:TBp:+4"
+      Atom Patterns:
+          - [ 0, 22, 0.0, ., ., TBp, ., False, False, 4, "Ti:TBp:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 137
+
+    - Label: "Ti:SPy:+4"
+      Atom Patterns:
+          - [ 0, 22, 0.0, ., ., SPy, ., False, False, 4, "Ti:SPy:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 86
+
+    - Label: "Ti:Oct:+4"
+      Atom Patterns:
+          - [ 0, 22, 0.0, ., ., Oct, ., False, False, ., "Ti:Oct:+4" ]
+
+    - Label: "Ti:SPl:+2"
+      Atom Patterns:
+          - [ 0, 22, 0.0, ., ., SPl, ., False, False, ., "Ti:SPl:+2" ]
+
+    - Label: "Ti:Tet:+4"
+      Atom Patterns:
+          - [ 0, 22, 0.0, ., ., Tet, ., False, False, ., "Ti:Tet:+4" ]
+    - Label: "Ti:TBp:+4"
+      Atom Patterns:
+          - [ 0, 22, 0.0, ., ., TBp, ., False, False, ., "Ti:TBp:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 138
+
+    - Label: "Ti:SPy:+4"
+      Atom Patterns:
+          - [ 0, 22, 0.0, ., ., SPy, ., False, False, ., "Ti:SPy:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 103
+
+    - Label: "Ti:PBp:+4"
+      Atom Patterns:
+          - [ 0, 22, 0.0, ., ., PBp, ., False, False, ., "Ti:PBp:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 24
+
+    - Label: "Ti:Cub:+4"
+      Atom Patterns:
+          - [ 0, 22, 0.0, ., ., Cub, ., False, False, ., "Ti:Cub:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 9
+
+
+    # . Vanadium.
+    - Label: "V:SPy:+5"
+      Atom Patterns:
+          - [ 0, 23, 0.0, ., ., SPy, ., False, False, 5, "V:SPy:+5" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 281
+
+    - Label: "V:Oct:+5"
+      Atom Patterns:
+          - [ 0, 23, 0.0, ., ., Oct, ., False, False, 5, "V:Oct:+5" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 237
+
+    - Label: "V:TBp:+5"
+      Atom Patterns:
+          - [ 0, 23, 0.0, ., ., TBp, ., False, False, 5, "V:TBp:+5" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 111
+
+    - Label: "V:SPy:+3"
+      Atom Patterns:
+          - [ 0, 23, 0.0, ., ., SPy, ., False, False, 3, "V:SPy:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 33
+
+    - Label: "V:Oct:+3"
+      Atom Patterns:
+          - [ 0, 23, 0.0, ., ., Oct, ., False, False, ., "V:Oct:+3" ]
+
+    - Label: "V:SPl:+2"
+      Atom Patterns:
+          - [ 0, 23, 0.0, ., ., SPl, ., False, False, ., "V:SPl:+2" ]
+
+    - Label: "V:Tet:+5"
+      Atom Patterns:
+          - [ 0, 23, 0.0, ., ., Tet, ., False, False, ., "V:Tet:+5" ]
+
+    - Label: "V:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 23, 0.0, ., ., Tet, ., False, False, ., "V:Tet:+2:f" ] # . To resolve.
+    - Label: "V:SPy:+5"
+      Atom Patterns:
+          - [ 0, 23, 0.0, ., ., SPy, ., False, False, ., "V:SPy:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 323
+
+    - Label: "V:TBp:+5"
+      Atom Patterns:
+          - [ 0, 23, 0.0, ., ., TBp, ., False, False, ., "V:TBp:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 130
+
+    - Label: "V:PBp:+3"
+      Atom Patterns:
+          - [ 0, 23, 0.0, ., ., PBp, ., False, False, ., "V:PBp:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 11
+
+
+    # . Chromium.
+    - Label: "Cr:Oct:+0"
+      Atom Patterns:
+          - [ 0, 24, 0.0, ., ., Oct, ., False, False, 0, "Cr:Oct:+0" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 479
+
+    - Label: "Cr:Tet:+6"
+      Atom Patterns:
+          - [ 0, 24, 0.0, ., ., Tet, ., False, False, 6, "Cr:Tet:+6" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 66
+
+    - Label: "Cr:Oct:+2"
+      Atom Patterns:
+          - [ 0, 24, 0.0, ., ., Oct, ., False, False, 2, "Cr:Oct:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 44
+
+    - Label: "Cr:Oct:+3"
+      Atom Patterns:
+          - [ 0, 24, 0.0, ., ., Oct, ., False, False, ., "Cr:Oct:+3" ]
+
+    - Label: "Cr:Oct:+3:f"
+      Atom Patterns:
+          - [ 0, 24, 0.0, ., ., Oct, ., False, False, ., "Cr:Oct:+3:f" ] # . To resolve.
+
+    - Label: "Cr:SPl:+2"
+      Atom Patterns:
+          - [ 0, 24, 0.0, ., ., SPl, ., False, False, ., "Cr:SPl:+2" ]
+    - Label: "Cr:Tet:+6"
+      Atom Patterns:
+          - [ 0, 24, 0.0, ., ., Tet, ., False, False, ., "Cr:Tet:+6" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 96
+
+    - Label: "Cr:SPy:+2"
+      Atom Patterns:
+          - [ 0, 24, 0.0, ., ., SPy, ., False, False, ., "Cr:SPy:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 34
+
+    - Label: "Cr:TBp:+2"
+      Atom Patterns:
+          - [ 0, 24, 0.0, ., ., TBp, ., False, False, ., "Cr:TBp:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 20
+
+
+    # . Manganese.
+    - Label: "Mn:Oct:+1"
+      Atom Patterns:
+          - [ 0, 25, 0.0, ., ., Oct, ., False, False, 1, "Mn:Oct:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 516
+
+    - Label: "Mn:SPy:+3"
+      Atom Patterns:
+          - [ 0, 25, 0.0, ., ., SPy, ., False, False, 3, "Mn:SPy:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 76
+
+    - Label: "Mn:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 25, 0.0, ., ., CAp, ., False, False, ., "Mn:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Mn:Lin:+1:f"
+      Atom Patterns:
+          - [ 0, 25, 0.0, ., ., Lin, ., False, False, ., "Mn:Lin:+1:f" ] # . To resolve.
+
+    - Label: "Mn:Oct:+2"
+      Atom Patterns:
+          - [ 0, 25, 0.0, ., ., Oct, ., False, False, ., "Mn:Oct:+2" ] # . To resolve.
+
+    - Label: "Mn:Oct:+3"
+      Atom Patterns:
+          - [ 0, 25, 0.0, ., ., Oct, ., False, False, ., "Mn:Oct:+3" ] # . To resolve.
+
+    - Label: "Mn:SPl:+2"
+      Atom Patterns:
+          - [ 0, 25, 0.0, ., ., SPl, ., False, False, ., "Mn:SPl:+2" ]
+
+    - Label: "Mn:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 25, 0.0, ., ., Tet, ., False, False, ., "Mn:Tet:+2:f" ] # . To resolve.
+    - Label: "Mn:SPy:+3"
+      Atom Patterns:
+          - [ 0, 25, 0.0, ., ., SPy, ., False, False, ., "Mn:SPy:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 116
+
+    - Label: "Mn:TBp:+3"
+      Atom Patterns:
+          - [ 0, 25, 0.0, ., ., TBp, ., False, False, ., "Mn:TBp:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 37
+
+    - Label: "Mn:PBp:+3"
+      Atom Patterns:
+          - [ 0, 25, 0.0, ., ., PBp, ., False, False, ., "Mn:PBp:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 6
+
+
+    # . Iron.
+    - Label: "Fe:SPy:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., SPy, ., False, False, 2, "Fe:SPy:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 335
+
+    - Label: "Fe:TBp:+0"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., TBp, ., False, False, 0, "Fe:TBp:+0" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 143
+
+    - Label: "Fe:Tri:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., Tri, ., False, False, 2, "Fe:Tri:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 90
+
+    - Label: "Fe:SPy:+0"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., SPy, ., False, False, 0, "Fe:SPy:+0" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 75
+
+    - Label: "Fe:Oct:+0"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., Oct, ., False, False, 0, "Fe:Oct:+0" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 37
+
+    - Label: "Fe:Oct:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., Oct, ., False, False, 2, "Fe:Oct:+2" ]
+
+    - Label: "Fe:Oct:+3"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., Oct, ., False, False, 3, "Fe:Oct:+3" ]
+
+    - Label: "Fe:SPl:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., SPl, ., False, False, 2, "Fe:SPl:+2" ]
+
+    - Label: "Fe:Tet:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., Tet, ., False, False, 2, "Fe:Tet:+2" ]
+
+    - Label: "Fe:Oct:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., Oct, ., False, False, ., "Fe:Oct:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 1218
+
+    - Label: "Fe:SPy:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., SPy, ., False, False, ., "Fe:SPy:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 434
+
+    - Label: "Fe:Tet:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., Tet, ., False, False, ., "Fe:Tet:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 422
+
+    - Label: "Fe:TBp:+0"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., TBp, ., False, False, ., "Fe:TBp:+0" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 180
+
+    - Label: "Fe:Tri:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., Tri, ., False, False, ., "Fe:Tri:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 98
+
+    - Label: "Fe:SPl:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., SPl, ., False, False, ., "Fe:SPl:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 54
+
+    - Label: "Fe:Lin:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., Lin, ., False, False, ., "Fe:Lin:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 19
+
+    - Label: "Fe:PBp:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., PBp, ., False, False, ., "Fe:PBp:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 16
+
+    - Label: "Fe:Oct:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., 2, ., ., False, False, ., "Fe:Oct:+2" ] # . A catch-all for Fe2+.
+
+    - Label: "Fe:Oct:+3"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., 3, ., ., False, False, ., "Fe:Oct:+3" ] # . A catch-all for Fe3+.
+
+    - Label: "Fe:Oct:+2"
+      Atom Patterns:
+          - [ 0, 26, 0.0, ., ., ., ., False, False, ., "Fe:Oct:+2" ] # . A catch-all for Fe.
+
+    # . Cobalt.
+    - Label: "Co:TBp:+1"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., TBp, ., False, False, 1, "Co:TBp:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 103
+
+    - Label: "Co:SPl:+1"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., SPl, ., False, False, 1, "Co:SPl:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 86
+
+    - Label: "Co:Oct:+1"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., Oct, ., False, False, 1, "Co:Oct:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 80
+
+    - Label: "Co:Tet:+1"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., Tet, ., False, False, 1, "Co:Tet:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 69
+
+    - Label: "Co:SPy:+1"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., SPy, ., False, False, 1, "Co:SPy:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 66
+
+    - Label: "Co:SPy:+3"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., SPy, ., False, False, 3, "Co:SPy:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 64
+
+    - Label: "Co:Tet:+3"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., Tet, ., False, False, 3, "Co:Tet:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 30
+
+    - Label: "Co:Lin:+1:f"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., Lin, ., False, False, ., "Co:Lin:+1:f" ] # . To resolve.
+
+    - Label: "Co:Oct:+3"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., Oct, ., False, False, ., "Co:Oct:+3" ]
+
+    - Label: "Co:SPl:+2"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., SPl, ., False, False, ., "Co:SPl:+2" ]
+
+    - Label: "Co:Tet:+2"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., Tet, ., False, False, ., "Co:Tet:+2" ]
+    - Label: "Co:SPy:+1"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., SPy, ., False, False, ., "Co:SPy:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 146
+
+    - Label: "Co:TBp:+1"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., TBp, ., False, False, ., "Co:TBp:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 112
+
+    - Label: "Co:Tri:+1"
+      Atom Patterns:
+          - [ 0, 27, 0.0, ., ., Tri, ., False, False, ., "Co:Tri:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 22
+
+
+    # . Nickel.
+    - Label: "Ni:Oct:+2"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., Oct, ., False, False, 2, "Ni:Oct:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 1246
+
+    - Label: "Ni:SPy:+2"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., SPy, ., False, False, 2, "Ni:SPy:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 686
+
+    - Label: "Ni:Tet:+2"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., Tet, ., False, False, 2, "Ni:Tet:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 401
+
+    - Label: "Ni:SPl:+0"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., SPl, ., False, False, 0, "Ni:SPl:+0" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 191
+
+    - Label: "Ni:Tet:+0"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., Tet, ., False, False, 0, "Ni:Tet:+0" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 179
+
+    - Label: "Ni:TBp:+2"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., TBp, ., False, False, 2, "Ni:TBp:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 123
+
+    - Label: "Ni:Tri:+2"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., Tri, ., False, False, 2, "Ni:Tri:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 49
+
+    - Label: "Ni:SPl:+2"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., SPl, ., False, False, ., "Ni:SPl:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 4166
+
+    - Label: "Ni:Oct:+2"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., Oct, ., False, False, ., "Ni:Oct:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 1398
+
+    - Label: "Ni:SPy:+2"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., SPy, ., False, False, ., "Ni:SPy:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 714
+
+    - Label: "Ni:Tet:+2"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., Tet, ., False, False, ., "Ni:Tet:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 591
+
+    - Label: "Ni:TBp:+2"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., TBp, ., False, False, ., "Ni:TBp:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 131
+
+    - Label: "Ni:Tri:+2"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., Tri, ., False, False, ., "Ni:Tri:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 71
+
+    - Label: "Ni:PBp:+2"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., PBp, ., False, False, ., "Ni:PBp:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 11
+
+    - Label: "Ni:SPl:+2"
+      Atom Patterns:
+          - [ 0, 28, 0.0, ., ., ., ., False, False, ., "Ni:SPl:+2" ]
+
+    # . Copper.
+    - Label: "Cu:Tri:+1"
+      Atom Patterns:
+          - [ 0, 29, 0.0, ., ., Tri, ., False, False, 1, "Cu:Tri:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 741
+
+    - Label: "Cu:Lin:+1"
+      Atom Patterns:
+          - [ 0, 29, 0.0, ., ., Lin, ., False, False, 1, "Cu:Lin:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 354
+
+    - Label: "Cu:Lin:+1:f"
+      Atom Patterns:
+          - [ 0, 29, 0.0, ., ., Lin, ., False, False, ., "Cu:Lin:+1:f" ] # . To resolve.
+
+    - Label: "Cu:SPl:+2"
+      Atom Patterns:
+          - [ 0, 29, 0.0, ., ., SPl, ., False, False, ., "Cu:SPl:+2" ]
+
+    - Label: "Cu:Tet:+1"
+      Atom Patterns:
+          - [ 0, 29, 0.0, ., ., Tet, ., False, False, ., "Cu:Tet:+1" ]
+
+    - Label: "Cu:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 29, 0.0, ., ., Tet, ., False, False, ., "Cu:Tet:+2:f" ] # . To resolve.
+
+    - Label: "Cu:Tri:+2:f"
+      Atom Patterns:
+          - [ 0, 29, 0.0, ., ., Tri, ., False, False, ., "Cu:Tri:+2:f" ] # . To resolve.
+    - Label: "Cu:SPy:+1"
+      Atom Patterns:
+          - [ 0, 29, 0.0, ., ., SPy, ., False, False, ., "Cu:SPy:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 92
+
+    - Label: "Cu:TBp:+1"
+      Atom Patterns:
+          - [ 0, 29, 0.0, ., ., TBp, ., False, False, ., "Cu:TBp:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 26
+
+    - Label: "Cu:Oct:+1"
+      Atom Patterns:
+          - [ 0, 29, 0.0, ., ., Oct, ., False, False, ., "Cu:Oct:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 17
+
+
+    # . Zinc.
+    - Label: "Zn:Oct:+2"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., Oct, ., False, False, 2, "Zn:Oct:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 1299
+
+    - Label: "Zn:SPy:+2"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., SPy, ., False, False, 2, "Zn:SPy:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 766
+
+    - Label: "Zn:TBp:+2"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., TBp, ., False, False, 2, "Zn:TBp:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 280
+
+    - Label: "Zn:Tri:+2"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., Tri, ., False, False, 2, "Zn:Tri:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 222
+
+    - Label: "Zn:PBp:+2"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., PBp, ., False, False, 2, "Zn:PBp:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 48
+
+    - Label: "Zn:Lin:+2"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., Lin, ., False, False, 2, "Zn:Lin:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 43
+
+    - Label: "Zn:Lin:+1:f"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., Lin, ., False, False, ., "Zn:Lin:+1:f" ] # . To resolve.
+
+    - Label: "Zn:SPl:+2"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., SPl, ., False, False, ., "Zn:SPl:+2" ]
+
+    - Label: "Zn:Tet:+2"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., Tet, ., False, False, ., "Zn:Tet:+2" ]
+
+    - Label: "Zn:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., Tet, ., False, False, ., "Zn:Tet:+2:f" ] # . To resolve.
+
+    - Label: "Zn:Tri:+2:f"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., Tri, ., False, False, ., "Zn:Tri:+2:f" ] # . To resolve.
+
+    - Label: "Zn:Oct:+2"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., Oct, ., False, False, ., "Zn:Oct:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 1429
+
+    - Label: "Zn:SPy:+2"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., SPy, ., False, False, ., "Zn:SPy:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 860
+
+    - Label: "Zn:TBp:+2"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., TBp, ., False, False, ., "Zn:TBp:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 301
+
+    - Label: "Zn:PBp:+2"
+      Atom Patterns:
+          - [ 0, 30, 0.0, ., ., PBp, ., False, False, ., "Zn:PBp:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 48
+
+    - Label: "Zn2+"
+      Atom Patterns:
+          - [ 0, 30, 0.0, 0, 2, ., ., False, False, ., "Zn:Tet:+2" ]
+
+    # . Gallium.
+    - Label: "Ga:Oct:+3:f"
+      Atom Patterns:
+          - [ 0, 31, 0.0, ., ., Oct, ., False, False, ., "Ga:Oct:+3:f" ] # . To resolve.
+
+    - Label: "Ga:Tet:+3"
+      Atom Patterns:
+          - [ 0, 31, 0.0, ., ., Tet, ., False, False, ., "Ga:Tet:+3" ]
+
+    - Label: "Ga:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 31, 0.0, ., ., Tet, ., False, False, ., "Ga:Tet:+2:f" ] # . To resolve.
+
+    # . Germanium.
+    - Label: "Ge:Tet"
+      Atom Patterns:
+          - [ 0, 32, 0.0, ., ., ., ., False, False, ., "Ge:Tet" ]
+
+    # . Arsenic.
+    - Label: "As:Tet:+3"
+      Atom Patterns:
+          - [ 0, 33, 0.0, ., ., ., ., False, False, ., "As:Tet:+3" ]
+
+    # . Selenium.
+    # . EasyHybrid: aromatic selenium.
+    - Label: "Se:Res"
+      Atom Patterns:
+          - [ 0, 34, 0.0, 2, ., ., ., True , False, ., "Se:Res" ]
+
+    - Label: "Se:Tet:+2"
+      Atom Patterns:
+          - [ 0, 34, 0.0, ., ., ., ., False, False, ., "Se:Tet:+2" ]
+
+    # . Bromine.
+    - Label: "Br"
+      Atom Patterns:
+          - [ 0, 35, 0.0, ., ., ., ., False, False, ., "Br" ]
+
+    # . Krypton.
+    - Label: "Kr:SPl:+4"
+      Atom Patterns:
+          - [ 0, 36, 0.0, ., ., ., ., False, False, ., "Kr:SPl:+4" ]
+
+    # . Rubidium.
+    - Label: "Rb"
+      Atom Patterns:
+          - [ 0, 37, 0.0, ., ., ., ., False, False, ., "Rb" ]
+
+    # . Strontium.
+    - Label: "Sr:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 38, 0.0, ., ., CAp, ., False, False, ., "Sr:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Sr:Oct:+2"
+      Atom Patterns:
+          - [ 0, 38, 0.0, ., ., ., ., False, False, ., "Sr:Oct:+2" ]
+
+    # . Yttrium.
+    - Label: "Y:Oct:+3"
+      Atom Patterns:
+          - [ 0, 39, 0.0, ., ., Oct, ., False, False, 3, "Y:Oct:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 140
+
+    - Label: "Y:SPy:+3"
+      Atom Patterns:
+          - [ 0, 39, 0.0, ., ., SPy, ., False, False, 3, "Y:SPy:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 93
+
+    - Label: "Y:PBp:+3"
+      Atom Patterns:
+          - [ 0, 39, 0.0, ., ., PBp, ., False, False, 3, "Y:PBp:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 54
+
+    - Label: "Y:TBp:+3"
+      Atom Patterns:
+          - [ 0, 39, 0.0, ., ., TBp, ., False, False, 3, "Y:TBp:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 35
+
+    - Label: "Y:Cub:+3"
+      Atom Patterns:
+          - [ 0, 39, 0.0, ., ., Cub, ., False, False, 3, "Y:Cub:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 31
+
+    - Label: "Y:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 39, 0.0, ., ., CAp, ., False, False, ., "Y:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Y:Oct:+3:f"
+      Atom Patterns:
+          - [ 0, 39, 0.0, ., ., Oct, ., False, False, ., "Y:Oct:+3:f" ] # . To resolve.
+
+    - Label: "Y:Tet:+3"
+      Atom Patterns:
+          - [ 0, 39, 0.0, ., ., Tet, ., False, False, ., "Y:Tet:+3" ]
+    - Label: "Y:SPy:+3"
+      Atom Patterns:
+          - [ 0, 39, 0.0, ., ., SPy, ., False, False, ., "Y:SPy:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 97
+
+    - Label: "Y:PBp:+3"
+      Atom Patterns:
+          - [ 0, 39, 0.0, ., ., PBp, ., False, False, ., "Y:PBp:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 57
+
+    - Label: "Y:Cub:+3"
+      Atom Patterns:
+          - [ 0, 39, 0.0, ., ., Cub, ., False, False, ., "Y:Cub:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 40
+
+    - Label: "Y:TBp:+3"
+      Atom Patterns:
+          - [ 0, 39, 0.0, ., ., TBp, ., False, False, ., "Y:TBp:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 36
+
+    - Label: "Y:Tri:+3"
+      Atom Patterns:
+          - [ 0, 39, 0.0, ., ., Tri, ., False, False, ., "Y:Tri:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 18
+
+
+    # . Zirconium.
+    - Label: "Zr:Oct:+4"
+      Atom Patterns:
+          - [ 0, 40, 0.0, ., ., Oct, ., False, False, 4, "Zr:Oct:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 339
+
+    - Label: "Zr:TBp:+4"
+      Atom Patterns:
+          - [ 0, 40, 0.0, ., ., TBp, ., False, False, 4, "Zr:TBp:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 73
+
+    - Label: "Zr:SPy:+4"
+      Atom Patterns:
+          - [ 0, 40, 0.0, ., ., SPy, ., False, False, 4, "Zr:SPy:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 66
+
+    - Label: "Zr:PBp:+4"
+      Atom Patterns:
+          - [ 0, 40, 0.0, ., ., PBp, ., False, False, 4, "Zr:PBp:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 62
+
+    - Label: "Zr:Cub:+4"
+      Atom Patterns:
+          - [ 0, 40, 0.0, ., ., Cub, ., False, False, 4, "Zr:Cub:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 58
+
+    - Label: "Zr:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 40, 0.0, ., ., CAp, ., False, False, ., "Zr:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Zr:Tet:+4"
+      Atom Patterns:
+          - [ 0, 40, 0.0, ., ., Tet, ., False, False, ., "Zr:Tet:+4" ]
+    - Label: "Zr:Oct:+4"
+      Atom Patterns:
+          - [ 0, 40, 0.0, ., ., Oct, ., False, False, ., "Zr:Oct:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 349
+
+    - Label: "Zr:TBp:+4"
+      Atom Patterns:
+          - [ 0, 40, 0.0, ., ., TBp, ., False, False, ., "Zr:TBp:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 75
+
+    - Label: "Zr:SPy:+4"
+      Atom Patterns:
+          - [ 0, 40, 0.0, ., ., SPy, ., False, False, ., "Zr:SPy:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 68
+
+    - Label: "Zr:PBp:+4"
+      Atom Patterns:
+          - [ 0, 40, 0.0, ., ., PBp, ., False, False, ., "Zr:PBp:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 64
+
+    - Label: "Zr:Cub:+4"
+      Atom Patterns:
+          - [ 0, 40, 0.0, ., ., Cub, ., False, False, ., "Zr:Cub:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 62
+
+
+    # . Niobium.
+    - Label: "Nb:Oct:+5"
+      Atom Patterns:
+          - [ 0, 41, 0.0, ., ., Oct, ., False, False, 5, "Nb:Oct:+5" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 96
+
+    - Label: "Nb:SPy:+5"
+      Atom Patterns:
+          - [ 0, 41, 0.0, ., ., SPy, ., False, False, 5, "Nb:SPy:+5" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 32
+
+    - Label: "Nb:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 41, 0.0, ., ., CAp, ., False, False, ., "Nb:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Nb:Tet:+5"
+      Atom Patterns:
+          - [ 0, 41, 0.0, ., ., Tet, ., False, False, ., "Nb:Tet:+5" ]
+    - Label: "Nb:Oct:+5"
+      Atom Patterns:
+          - [ 0, 41, 0.0, ., ., Oct, ., False, False, ., "Nb:Oct:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 103
+
+    - Label: "Nb:SPy:+5"
+      Atom Patterns:
+          - [ 0, 41, 0.0, ., ., SPy, ., False, False, ., "Nb:SPy:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 36
+
+    - Label: "Nb:TBp:+5"
+      Atom Patterns:
+          - [ 0, 41, 0.0, ., ., TBp, ., False, False, ., "Nb:TBp:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 28
+
+    - Label: "Nb:PBp:+5"
+      Atom Patterns:
+          - [ 0, 41, 0.0, ., ., PBp, ., False, False, ., "Nb:PBp:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 14
+
+    - Label: "Nb:Cub:+5"
+      Atom Patterns:
+          - [ 0, 41, 0.0, ., ., Cub, ., False, False, ., "Nb:Cub:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 7
+
+
+    # . Molybdenum.
+    - Label: "Mo:Oct:+0"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., Oct, ., False, False, 0, "Mo:Oct:+0" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 557
+
+    - Label: "Mo:Oct:+4"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., Oct, ., False, False, 4, "Mo:Oct:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 182
+
+    - Label: "Mo:Oct:+2"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., Oct, ., False, False, 2, "Mo:Oct:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 88
+
+    - Label: "Mo:SPy:+6"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., SPy, ., False, False, 6, "Mo:SPy:+6" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 82
+
+    - Label: "Mo:Tet:+4"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., Tet, ., False, False, 4, "Mo:Tet:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 44
+
+    - Label: "Mo:TBp:+6"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., TBp, ., False, False, 6, "Mo:TBp:+6" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 36
+
+    - Label: "Mo:SPy:+4"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., SPy, ., False, False, 4, "Mo:SPy:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 31
+
+    - Label: "Mo:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., CAp, ., False, False, ., "Mo:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Mo:Oct:+6"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., Oct, ., False, False, ., "Mo:Oct:+6" ]
+
+    - Label: "Mo:SPl:+2:f"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., SPl, ., False, False, ., "Mo:SPl:+2:f" ] # . To resolve.
+
+    - Label: "Mo:Tet:+6"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., Tet, ., False, False, ., "Mo:Tet:+6" ]
+
+    - Label: "Mo:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., Tet, ., False, False, ., "Mo:Tet:+2:f" ] # . To resolve.
+
+    - Label: "Mo:SPy:+6"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., SPy, ., False, False, ., "Mo:SPy:+6" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 120
+
+    - Label: "Mo:TBp:+6"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., TBp, ., False, False, ., "Mo:TBp:+6" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 47
+
+    - Label: "Mo:PBp:+2"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., PBp, ., False, False, ., "Mo:PBp:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 45
+
+    - Label: "Mo:Cub:+4"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., Cub, ., False, False, ., "Mo:Cub:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 16
+
+    - Label: "Mo:Tet:+6"
+      Atom Patterns:
+          - [ 0, 42, 0.0, ., ., ., ., False, False, ., "Mo:Tet:+6" ] # . A catch-all.
+
+    # . Technetium.
+    - Label: "Tc:Oct:+1"
+      Atom Patterns:
+          - [ 0, 43, 0.0, ., ., Oct, ., False, False, 1, "Tc:Oct:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 51
+
+    - Label: "Tc:SPy:+5"
+      Atom Patterns:
+          - [ 0, 43, 0.0, ., ., SPy, ., False, False, 5, "Tc:SPy:+5" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 50
+
+    - Label: "Tc:Oct:+5"
+      Atom Patterns:
+          - [ 0, 43, 0.0, ., ., Oct, ., False, False, ., "Tc:Oct:+5" ]
+
+    - Label: "Tc:SPl:+2:f"
+      Atom Patterns:
+          - [ 0, 43, 0.0, ., ., SPl, ., False, False, ., "Tc:SPl:+2:f" ] # . To resolve.
+    - Label: "Tc:SPy:+5"
+      Atom Patterns:
+          - [ 0, 43, 0.0, ., ., SPy, ., False, False, ., "Tc:SPy:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 54
+
+    - Label: "Tc:TBp:+5"
+      Atom Patterns:
+          - [ 0, 43, 0.0, ., ., TBp, ., False, False, ., "Tc:TBp:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 20
+
+
+    # . Ruthenium.
+    - Label: "Ru:SPy:+2"
+      Atom Patterns:
+          - [ 0, 44, 0.0, ., ., SPy, ., False, False, 2, "Ru:SPy:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 362
+
+    - Label: "Ru:Oct:+4"
+      Atom Patterns:
+          - [ 0, 44, 0.0, ., ., Oct, ., False, False, 4, "Ru:Oct:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 350
+
+    - Label: "Ru:SPy:+4"
+      Atom Patterns:
+          - [ 0, 44, 0.0, ., ., SPy, ., False, False, 4, "Ru:SPy:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 71
+
+    - Label: "Ru:Oct:+6"
+      Atom Patterns:
+          - [ 0, 44, 0.0, ., ., Oct, ., False, False, 6, "Ru:Oct:+6" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 58
+
+    - Label: "Ru:Oct:+0"
+      Atom Patterns:
+          - [ 0, 44, 0.0, ., ., Oct, ., False, False, 0, "Ru:Oct:+0" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 37
+
+    - Label: "Ru:Oct:+2"
+      Atom Patterns:
+          - [ 0, 44, 0.0, ., ., Oct, ., False, False, ., "Ru:Oct:+2" ]
+
+    - Label: "Ru:SPl:+2:f"
+      Atom Patterns:
+          - [ 0, 44, 0.0, ., ., SPl, ., False, False, ., "Ru:SPl:+2:f" ] # . To resolve.
+    - Label: "Ru:SPy:+2"
+      Atom Patterns:
+          - [ 0, 44, 0.0, ., ., SPy, ., False, False, ., "Ru:SPy:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 468
+
+    - Label: "Ru:TBp:+2"
+      Atom Patterns:
+          - [ 0, 44, 0.0, ., ., TBp, ., False, False, ., "Ru:TBp:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 68
+
+    - Label: "Ru:PBp:+4"
+      Atom Patterns:
+          - [ 0, 44, 0.0, ., ., PBp, ., False, False, ., "Ru:PBp:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 29
+
+    - Label: "Ru:Tet:+2"
+      Atom Patterns:
+          - [ 0, 44, 0.0, ., ., Tet, ., False, False, ., "Ru:Tet:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 11
+
+    - Label: "Ru:Cub:+6"
+      Atom Patterns:
+          - [ 0, 44, 0.0, ., ., Cub, ., False, False, ., "Ru:Cub:+6" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 11
+
+
+    # . Rhodium.
+    - Label: "Rh:SPl:+1"
+      Atom Patterns:
+          - [ 0, 45, 0.0, ., ., SPl, ., False, False, 1, "Rh:SPl:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 611
+
+    - Label: "Rh:SPy:+3"
+      Atom Patterns:
+          - [ 0, 45, 0.0, ., ., SPy, ., False, False, 3, "Rh:SPy:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 87
+
+    - Label: "Rh:SPy:+1"
+      Atom Patterns:
+          - [ 0, 45, 0.0, ., ., SPy, ., False, False, 1, "Rh:SPy:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 77
+
+    - Label: "Rh:SPl:+1"
+      Atom Patterns:
+          - [ 0, 45, 0.0, ., ., SPl, ., False, False, ., "Rh:SPl:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 626
+
+    - Label: "Rh:Oct:+3"
+      Atom Patterns:
+          - [ 0, 45, 0.0, ., ., Oct, ., False, False, ., "Rh:Oct:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 614
+
+    - Label: "Rh:SPy:+3"
+      Atom Patterns:
+          - [ 0, 45, 0.0, ., ., SPy, ., False, False, ., "Rh:SPy:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 168
+
+    - Label: "Rh:TBp:+1"
+      Atom Patterns:
+          - [ 0, 45, 0.0, ., ., TBp, ., False, False, ., "Rh:TBp:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 26
+
+    - Label: "Rh:Tet:+1"
+      Atom Patterns:
+          - [ 0, 45, 0.0, ., ., Tet, ., False, False, ., "Rh:Tet:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 13
+
+    - Label: "Rh:Oct:+3"
+      Atom Patterns:
+          - [ 0, 45, 0.0, ., ., ., ., False, False, ., "Rh:Oct:+3" ]
+
+    # . Palladium.
+    - Label: "Pd:SPy:+2"
+      Atom Patterns:
+          - [ 0, 46, 0.0, ., ., SPy, ., False, False, 2, "Pd:SPy:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 288
+
+    - Label: "Pd:SPl:+4"
+      Atom Patterns:
+          - [ 0, 46, 0.0, ., ., SPl, ., False, False, 4, "Pd:SPl:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 133
+
+    - Label: "Pd:SPl:+0"
+      Atom Patterns:
+          - [ 0, 46, 0.0, ., ., SPl, ., False, False, 0, "Pd:SPl:+0" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 84
+
+    - Label: "Pd:Oct:+2"
+      Atom Patterns:
+          - [ 0, 46, 0.0, ., ., Oct, ., False, False, 2, "Pd:Oct:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 42
+
+    - Label: "Pd:Oct:+4"
+      Atom Patterns:
+          - [ 0, 46, 0.0, ., ., Oct, ., False, False, 4, "Pd:Oct:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 41
+
+    - Label: "Pd:Lin:+0"
+      Atom Patterns:
+          - [ 0, 46, 0.0, ., ., Lin, ., False, False, 0, "Pd:Lin:+0" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 32
+
+    - Label: "Pd:Oct:+3:f"
+      Atom Patterns:
+          - [ 0, 46, 0.0, ., ., Oct, ., False, False, ., "Pd:Oct:+3:f" ] # . To resolve.
+
+    - Label: "Pd:SPl:+2"
+      Atom Patterns:
+          - [ 0, 46, 0.0, ., ., SPl, ., False, False, ., "Pd:SPl:+2" ]
+    - Label: "Pd:SPy:+2"
+      Atom Patterns:
+          - [ 0, 46, 0.0, ., ., SPy, ., False, False, ., "Pd:SPy:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 299
+
+    - Label: "Pd:Tet:+2"
+      Atom Patterns:
+          - [ 0, 46, 0.0, ., ., Tet, ., False, False, ., "Pd:Tet:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 40
+
+    - Label: "Pd:Tri:+2"
+      Atom Patterns:
+          - [ 0, 46, 0.0, ., ., Tri, ., False, False, ., "Pd:Tri:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 40
+
+    - Label: "Pd:Lin:+0"
+      Atom Patterns:
+          - [ 0, 46, 0.0, ., ., Lin, ., False, False, ., "Pd:Lin:+0" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 34
+
+    - Label: "Pd:TBp:+2"
+      Atom Patterns:
+          - [ 0, 46, 0.0, ., ., TBp, ., False, False, ., "Pd:TBp:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 13
+
+
+    # . Silver.
+    - Label: "Ag:Tet:+1"
+      Atom Patterns:
+          - [ 0, 47, 0.0, ., ., Tet, ., False, False, 1, "Ag:Tet:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 454
+
+    - Label: "Ag:Tri:+1"
+      Atom Patterns:
+          - [ 0, 47, 0.0, ., ., Tri, ., False, False, 1, "Ag:Tri:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 243
+
+    - Label: "Ag:SPy:+1"
+      Atom Patterns:
+          - [ 0, 47, 0.0, ., ., SPy, ., False, False, 1, "Ag:SPy:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 67
+
+    - Label: "Ag:Oct:+1"
+      Atom Patterns:
+          - [ 0, 47, 0.0, ., ., Oct, ., False, False, 1, "Ag:Oct:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 37
+
+    - Label: "Ag:Lin:+1"
+      Atom Patterns:
+          - [ 0, 47, 0.0, ., ., Lin, ., False, False, ., "Ag:Lin:+1" ]
+
+    - Label: "Ag:Lin:+1:f"
+      Atom Patterns:
+          - [ 0, 47, 0.0, ., ., Lin, ., False, False, ., "Ag:Lin:+1:f" ] # . To resolve.
+
+    - Label: "Ag:SPl:+2:f"
+      Atom Patterns:
+          - [ 0, 47, 0.0, ., ., SPl, ., False, False, ., "Ag:SPl:+2:f" ] # . To resolve.
+
+    - Label: "Ag:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 47, 0.0, ., ., Tet, ., False, False, ., "Ag:Tet:+2:f" ] # . To resolve.
+
+    - Label: "Ag:Tri:+2:f"
+      Atom Patterns:
+          - [ 0, 47, 0.0, ., ., Tri, ., False, False, ., "Ag:Tri:+2:f" ] # . To resolve.
+    - Label: "Ag:SPy:+1"
+      Atom Patterns:
+          - [ 0, 47, 0.0, ., ., SPy, ., False, False, ., "Ag:SPy:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 76
+
+    - Label: "Ag:Oct:+1"
+      Atom Patterns:
+          - [ 0, 47, 0.0, ., ., Oct, ., False, False, ., "Ag:Oct:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 42
+
+
+    # . Cadmium.
+    - Label: "Cd:Oct:+2"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., Oct, ., False, False, 2, "Cd:Oct:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 507
+
+    - Label: "Cd:SPy:+2"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., SPy, ., False, False, 2, "Cd:SPy:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 164
+
+    - Label: "Cd:PBp:+2"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., PBp, ., False, False, 2, "Cd:PBp:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 112
+
+    - Label: "Cd:Cub:+2"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., Cub, ., False, False, 2, "Cd:Cub:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 72
+
+    - Label: "Cd:TBp:+2"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., TBp, ., False, False, 2, "Cd:TBp:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 35
+
+    - Label: "Cd:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., CAp, ., False, False, ., "Cd:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Cd:Lin:+1:f"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., Lin, ., False, False, ., "Cd:Lin:+1:f" ] # . To resolve.
+
+    - Label: "Cd:SPl:+2:f"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., SPl, ., False, False, ., "Cd:SPl:+2:f" ] # . To resolve.
+
+    - Label: "Cd:Tet:+2"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., Tet, ., False, False, ., "Cd:Tet:+2" ]
+
+    - Label: "Cd:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., Tet, ., False, False, ., "Cd:Tet:+2:f" ] # . To resolve.
+    - Label: "Cd:Oct:+2"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., Oct, ., False, False, ., "Cd:Oct:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 546
+
+    - Label: "Cd:SPy:+2"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., SPy, ., False, False, ., "Cd:SPy:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 171
+
+    - Label: "Cd:PBp:+2"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., PBp, ., False, False, ., "Cd:PBp:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 117
+
+    - Label: "Cd:Cub:+2"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., Cub, ., False, False, ., "Cd:Cub:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 77
+
+    - Label: "Cd:TBp:+2"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., TBp, ., False, False, ., "Cd:TBp:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 35
+
+    - Label: "Cd:Tri:+2"
+      Atom Patterns:
+          - [ 0, 48, 0.0, ., ., Tri, ., False, False, ., "Cd:Tri:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 16
+
+
+    # . Indium.
+    - Label: "In:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 49, 0.0, ., ., CAp, ., False, False, ., "In:CAp:+4:f" ] # . To resolve.
+
+    - Label: "In:Oct:+3:f"
+      Atom Patterns:
+          - [ 0, 49, 0.0, ., ., Oct, ., False, False, ., "In:Oct:+3:f" ] # . To resolve.
+
+    - Label: "In:Tet:+3"
+      Atom Patterns:
+          - [ 0, 49, 0.0, ., ., Tet, ., False, False, ., "In:Tet:+3" ]
+
+    - Label: "In:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 49, 0.0, ., ., Tet, ., False, False, ., "In:Tet:+2:f" ] # . To resolve.
+
+    # . Tin.
+    - Label: "Sn:Tet"
+      Atom Patterns:
+          - [ 0, 50, 0.0, ., ., ., ., False, False, ., "Sn:Tet" ]
+
+    # . Antimony.
+    - Label: "Sb:Tet:+3"
+      Atom Patterns:
+          - [ 0, 51, 0.0, ., ., ., ., False, False, ., "Sb:Tet:+3" ]
+
+    # . Tellurium.
+    - Label: "Te:Tet:+2"
+      Atom Patterns:
+          - [ 0, 52, 0.0, ., ., ., ., False, False, ., "Te:Tet:+2" ]
+
+    # . Iodine.
+    - Label: "I"
+      Atom Patterns:
+          - [ 0, 53, 0.0, ., ., ., ., False, False, ., "I" ]
+
+    # . Xenon.
+    - Label: "Xe:SPl:+4"
+      Atom Patterns:
+          - [ 0, 54, 0.0, ., ., ., ., False, False, ., "Xe:SPl:+4" ]
+
+    # . Cesium.
+    - Label: "Cs"
+      Atom Patterns:
+          - [ 0, 55, 0.0, ., ., ., ., False, False, ., "Cs" ]
+
+    # . Barium.
+    - Label: "Ba:Oct:+2"
+      Atom Patterns:
+          - [ 0, 56, 0.0, ., ., Oct, ., False, False, ., "Ba:Oct:+2" ]
+
+    - Label: "Ba:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 56, 0.0, ., ., Tet, ., False, False, ., "Ba:Tet:+2:f" ] # . To resolve.
+
+    # . Lanthanum.
+    - Label: "La:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 57, 0.0, ., ., CAp, ., False, False, ., "La:CAp:+4:f" ] # . To resolve.
+
+    - Label: "La:Tet:+3"
+      Atom Patterns:
+          - [ 0, 57, 0.0, ., ., Tet, ., False, False, ., "La:Tet:+3" ]
+
+    # . Cerium.
+    - Label: "Ce:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 58, 0.0, ., ., CAp, ., False, False, ., "Ce:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Ce:Oct:+3"
+      Atom Patterns:
+          - [ 0, 58, 0.0, ., ., Oct, ., False, False, ., "Ce:Oct:+3" ]
+
+    # . Praseodymium.
+    - Label: "Pr:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 59, 0.0, ., ., CAp, ., False, False, ., "Pr:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Pr:Oct:+3"
+      Atom Patterns:
+          - [ 0, 59, 0.0, ., ., Oct, ., False, False, ., "Pr:Oct:+3" ]
+
+    # . Neodymium.
+    - Label: "Nd:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 60, 0.0, ., ., CAp, ., False, False, ., "Nd:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Nd:Oct:+3"
+      Atom Patterns:
+          - [ 0, 60, 0.0, ., ., Oct, ., False, False, ., "Nd:Oct:+3" ]
+
+    # . Promethium.
+    - Label: "Pm:Oct:+3"
+      Atom Patterns:
+          - [ 0, 61, 0.0, ., ., ., ., False, False, ., "Pm:Oct:+3" ]
+
+    # . Samarium.
+    - Label: "Sm:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 62, 0.0, ., ., CAp, ., False, False, ., "Sm:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Sm:Oct:+3"
+      Atom Patterns:
+          - [ 0, 62, 0.0, ., ., Oct, ., False, False, ., "Sm:Oct:+3" ]
+
+    # . Europium.
+    - Label: "Eu:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 63, 0.0, ., ., CAp, ., False, False, ., "Eu:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Eu:Oct:+3"
+      Atom Patterns:
+          - [ 0, 63, 0.0, ., ., Oct, ., False, False, ., "Eu:Oct:+3" ]
+
+    - Label: "Eu:Oct:+3:f"
+      Atom Patterns:
+          - [ 0, 63, 0.0, ., ., Oct, ., False, False, ., "Eu:Oct:+3:f" ] # . To resolve.
+
+    # . Gadolinium.
+    - Label: "Gd:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 64, 0.0, ., ., CAp, ., False, False, ., "Gd:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Gd:Oct:+3"
+      Atom Patterns:
+          - [ 0, 64, 0.0, ., ., Oct, ., False, False, ., "Gd:Oct:+3" ]
+
+    - Label: "Gd:Oct:+3:f"
+      Atom Patterns:
+          - [ 0, 64, 0.0, ., ., Oct, ., False, False, ., "Gd:Oct:+3:f" ] # . To resolve.
+
+    # . Terbium.
+    - Label: "Tb:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 65, 0.0, ., ., CAp, ., False, False, ., "Tb:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Tb:Oct:+3"
+      Atom Patterns:
+          - [ 0, 65, 0.0, ., ., Oct, ., False, False, ., "Tb:Oct:+3" ]
+
+    # . Dysprosium.
+    - Label: "Dy:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 66, 0.0, ., ., CAp, ., False, False, ., "Dy:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Dy:Oct:+3"
+      Atom Patterns:
+          - [ 0, 66, 0.0, ., ., Oct, ., False, False, ., "Dy:Oct:+3" ]
+
+    - Label: "Dy:Oct:+3:f"
+      Atom Patterns:
+          - [ 0, 66, 0.0, ., ., Oct, ., False, False, ., "Dy:Oct:+3:f" ] # . To resolve.
+
+    # . Holmium.
+    - Label: "Ho:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 67, 0.0, ., ., CAp, ., False, False, ., "Ho:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Ho:Oct:+3"
+      Atom Patterns:
+          - [ 0, 67, 0.0, ., ., Oct, ., False, False, ., "Ho:Oct:+3" ]
+
+    # . Erbium.
+    - Label: "Er:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 68, 0.0, ., ., CAp, ., False, False, ., "Er:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Er:Oct:+3"
+      Atom Patterns:
+          - [ 0, 68, 0.0, ., ., Oct, ., False, False, ., "Er:Oct:+3" ]
+
+    # . Thulium.
+    - Label: "Tm:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 69, 0.0, ., ., CAp, ., False, False, ., "Tm:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Tm:Oct:+3"
+      Atom Patterns:
+          - [ 0, 69, 0.0, ., ., Oct, ., False, False, ., "Tm:Oct:+3" ]
+
+    # . Ytterbium.
+    - Label: "Yb:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 70, 0.0, ., ., CAp, ., False, False, ., "Yb:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Yb:Oct:+3"
+      Atom Patterns:
+          - [ 0, 70, 0.0, ., ., Oct, ., False, False, ., "Yb:Oct:+3" ]
+
+    - Label: "Yb:Oct:+3:f"
+      Atom Patterns:
+          - [ 0, 70, 0.0, ., ., Oct, ., False, False, ., "Yb:Oct:+3:f" ] # . To resolve.
+
+    # . Lutetium.
+    - Label: "Lu:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 71, 0.0, ., ., CAp, ., False, False, ., "Lu:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Lu:Oct:+3"
+      Atom Patterns:
+          - [ 0, 71, 0.0, ., ., Oct, ., False, False, ., "Lu:Oct:+3" ]
+
+    # . Hafnium.
+    - Label: "Hf:Oct:+4"
+      Atom Patterns:
+          - [ 0, 72, 0.0, ., ., Oct, ., False, False, 4, "Hf:Oct:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 102
+
+    - Label: "Hf:TBp:+4"
+      Atom Patterns:
+          - [ 0, 72, 0.0, ., ., TBp, ., False, False, 4, "Hf:TBp:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 41
+
+    - Label: "Hf:SPy:+4"
+      Atom Patterns:
+          - [ 0, 72, 0.0, ., ., SPy, ., False, False, 4, "Hf:SPy:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 39
+
+    - Label: "Hf:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 72, 0.0, ., ., CAp, ., False, False, ., "Hf:CAp:+4:f" ] # . To resolve.
+
+    - Label: "Hf:Tet:+4"
+      Atom Patterns:
+          - [ 0, 72, 0.0, ., ., Tet, ., False, False, ., "Hf:Tet:+4" ]
+    - Label: "Hf:Oct:+4"
+      Atom Patterns:
+          - [ 0, 72, 0.0, ., ., Oct, ., False, False, ., "Hf:Oct:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 108
+
+    - Label: "Hf:SPy:+4"
+      Atom Patterns:
+          - [ 0, 72, 0.0, ., ., SPy, ., False, False, ., "Hf:SPy:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 41
+
+    - Label: "Hf:TBp:+4"
+      Atom Patterns:
+          - [ 0, 72, 0.0, ., ., TBp, ., False, False, ., "Hf:TBp:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 41
+
+    - Label: "Hf:Cub:+4"
+      Atom Patterns:
+          - [ 0, 72, 0.0, ., ., Cub, ., False, False, ., "Hf:Cub:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 18
+
+    - Label: "Hf:PBp:+4"
+      Atom Patterns:
+          - [ 0, 72, 0.0, ., ., PBp, ., False, False, ., "Hf:PBp:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 15
+
+
+    # . Tantalum.
+    - Label: "Ta:Oct:+5"
+      Atom Patterns:
+          - [ 0, 73, 0.0, ., ., Oct, ., False, False, 5, "Ta:Oct:+5" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 170
+
+    - Label: "Ta:TBp:+5"
+      Atom Patterns:
+          - [ 0, 73, 0.0, ., ., TBp, ., False, False, 5, "Ta:TBp:+5" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 60
+
+    - Label: "Ta:SPy:+5"
+      Atom Patterns:
+          - [ 0, 73, 0.0, ., ., SPy, ., False, False, 5, "Ta:SPy:+5" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 55
+
+    - Label: "Ta:Oct:+5"
+      Atom Patterns:
+          - [ 0, 73, 0.0, ., ., Oct, ., False, False, ., "Ta:Oct:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 182
+
+    - Label: "Ta:SPy:+5"
+      Atom Patterns:
+          - [ 0, 73, 0.0, ., ., SPy, ., False, False, ., "Ta:SPy:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 74
+
+    - Label: "Ta:TBp:+5"
+      Atom Patterns:
+          - [ 0, 73, 0.0, ., ., TBp, ., False, False, ., "Ta:TBp:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 63
+
+    - Label: "Ta:Tet:+5"
+      Atom Patterns:
+          - [ 0, 73, 0.0, ., ., Tet, ., False, False, ., "Ta:Tet:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 32
+
+    - Label: "Ta:PBp:+5"
+      Atom Patterns:
+          - [ 0, 73, 0.0, ., ., PBp, ., False, False, ., "Ta:PBp:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 24
+
+    - Label: "Ta:Tri:+3"
+      Atom Patterns:
+          - [ 0, 73, 0.0, ., ., Tri, ., False, False, ., "Ta:Tri:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 14
+
+    - Label: "Ta:Cub:+5"
+      Atom Patterns:
+          - [ 0, 73, 0.0, ., ., Cub, ., False, False, ., "Ta:Cub:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 7
+
+    - Label: "Ta:Tet:+5"
+      Atom Patterns:
+          - [ 0, 73, 0.0, ., ., ., ., False, False, ., "Ta:Tet:+5" ]
+
+    # . Tungsten.
+    - Label: "W:Oct:+0"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., Oct, ., False, False, 0, "W:Oct:+0" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 967
+
+    - Label: "W:Oct:+4"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., Oct, ., False, False, 4, "W:Oct:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 125
+
+    - Label: "W:Oct:+2"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., Oct, ., False, False, 2, "W:Oct:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 100
+
+    - Label: "W:SPy:+6"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., SPy, ., False, False, 6, "W:SPy:+6" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 37
+
+    - Label: "W:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., CAp, ., False, False, ., "W:CAp:+4:f" ] # . To resolve.
+
+    - Label: "W:Oct:+6"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., Oct, ., False, False, ., "W:Oct:+6" ]
+
+    - Label: "W:SPl:+2:f"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., SPl, ., False, False, ., "W:SPl:+2:f" ] # . To resolve.
+
+    - Label: "W:Tet:+4"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., Tet, ., False, False, ., "W:Tet:+4" ] # . To resolve.
+
+    - Label: "W:Tet:+6"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., Tet, ., False, False, ., "W:Tet:+6" ] # . To resolve.
+
+    - Label: "W:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., Tet, ., False, False, ., "W:Tet:+2:f" ] # . To resolve.
+    - Label: "W:SPy:+6"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., SPy, ., False, False, ., "W:SPy:+6" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 59
+
+    - Label: "W:PBp:+2"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., PBp, ., False, False, ., "W:PBp:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 51
+
+    - Label: "W:TBp:+6"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., TBp, ., False, False, ., "W:TBp:+6" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 34
+
+    - Label: "W:Cub:+4"
+      Atom Patterns:
+          - [ 0, 74, 0.0, ., ., Cub, ., False, False, ., "W:Cub:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 16
+
+
+    # . Rhenium.
+    - Label: "Re:Oct:+1"
+      Atom Patterns:
+          - [ 0, 75, 0.0, ., ., Oct, ., False, False, 1, "Re:Oct:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 1541
+
+    - Label: "Re:Oct:+3"
+      Atom Patterns:
+          - [ 0, 75, 0.0, ., ., Oct, ., False, False, 3, "Re:Oct:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 214
+
+    - Label: "Re:SPy:+5"
+      Atom Patterns:
+          - [ 0, 75, 0.0, ., ., SPy, ., False, False, 5, "Re:SPy:+5" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 125
+
+    - Label: "Re:TBp:+5"
+      Atom Patterns:
+          - [ 0, 75, 0.0, ., ., TBp, ., False, False, 5, "Re:TBp:+5" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 75
+
+    - Label: "Re:Oct:+7"
+      Atom Patterns:
+          - [ 0, 75, 0.0, ., ., Oct, ., False, False, 7, "Re:Oct:+7" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 44
+
+    - Label: "Re:TBp:+3"
+      Atom Patterns:
+          - [ 0, 75, 0.0, ., ., TBp, ., False, False, 3, "Re:TBp:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 31
+
+    - Label: "Re:Oct:+5"
+      Atom Patterns:
+          - [ 0, 75, 0.0, ., ., Oct, ., False, False, ., "Re:Oct:+5" ]
+
+    - Label: "Re:Oct:+3:f"
+      Atom Patterns:
+          - [ 0, 75, 0.0, ., ., Oct, ., False, False, ., "Re:Oct:+3:f" ] # . To resolve.
+
+    - Label: "Re:Tet:+7"
+      Atom Patterns:
+          - [ 0, 75, 0.0, ., ., Tet, ., False, False, ., "Re:Tet:+7" ]
+    - Label: "Re:SPy:+5"
+      Atom Patterns:
+          - [ 0, 75, 0.0, ., ., SPy, ., False, False, ., "Re:SPy:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 163
+
+    - Label: "Re:TBp:+5"
+      Atom Patterns:
+          - [ 0, 75, 0.0, ., ., TBp, ., False, False, ., "Re:TBp:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 130
+
+    - Label: "Re:PBp:+3"
+      Atom Patterns:
+          - [ 0, 75, 0.0, ., ., PBp, ., False, False, ., "Re:PBp:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 30
+
+    - Label: "Re:Cub:+5"
+      Atom Patterns:
+          - [ 0, 75, 0.0, ., ., Cub, ., False, False, ., "Re:Cub:+5" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 10
+
+
+    # . Osmium.
+    - Label: "Os:Oct:+2"
+      Atom Patterns:
+          - [ 0, 76, 0.0, ., ., Oct, ., False, False, 2, "Os:Oct:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 268
+
+    - Label: "Os:Oct:+4"
+      Atom Patterns:
+          - [ 0, 76, 0.0, ., ., Oct, ., False, False, 4, "Os:Oct:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 121
+
+    - Label: "Os:PBp:+4"
+      Atom Patterns:
+          - [ 0, 76, 0.0, ., ., PBp, ., False, False, 4, "Os:PBp:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 68
+
+    - Label: "Os:Oct:+6"
+      Atom Patterns:
+          - [ 0, 76, 0.0, ., ., Oct, ., False, False, ., "Os:Oct:+6" ]
+
+    - Label: "Os:SPl:+2:f"
+      Atom Patterns:
+          - [ 0, 76, 0.0, ., ., SPl, ., False, False, ., "Os:SPl:+2:f" ] # . To resolve.
+    - Label: "Os:PBp:+4"
+      Atom Patterns:
+          - [ 0, 76, 0.0, ., ., PBp, ., False, False, ., "Os:PBp:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 68
+
+    - Label: "Os:SPy:+6"
+      Atom Patterns:
+          - [ 0, 76, 0.0, ., ., SPy, ., False, False, ., "Os:SPy:+6" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 54
+
+    - Label: "Os:Tet:+6"
+      Atom Patterns:
+          - [ 0, 76, 0.0, ., ., Tet, ., False, False, ., "Os:Tet:+6" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 24
+
+    - Label: "Os:TBp:+4"
+      Atom Patterns:
+          - [ 0, 76, 0.0, ., ., TBp, ., False, False, ., "Os:TBp:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 23
+
+    - Label: "Os:Cub:+6"
+      Atom Patterns:
+          - [ 0, 76, 0.0, ., ., Cub, ., False, False, ., "Os:Cub:+6" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 6
+
+
+    # . Iridium.
+    - Label: "Ir:SPl:+1"
+      Atom Patterns:
+          - [ 0, 77, 0.0, ., ., SPl, ., False, False, 1, "Ir:SPl:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 219
+
+    - Label: "Ir:SPy:+3"
+      Atom Patterns:
+          - [ 0, 77, 0.0, ., ., SPy, ., False, False, 3, "Ir:SPy:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 97
+
+    - Label: "Ir:Oct:+1"
+      Atom Patterns:
+          - [ 0, 77, 0.0, ., ., Oct, ., False, False, 1, "Ir:Oct:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 39
+
+    - Label: "Ir:Oct:+3"
+      Atom Patterns:
+          - [ 0, 77, 0.0, ., ., Oct, ., False, False, ., "Ir:Oct:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 1577
+
+    - Label: "Ir:SPl:+1"
+      Atom Patterns:
+          - [ 0, 77, 0.0, ., ., SPl, ., False, False, ., "Ir:SPl:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 228
+
+    - Label: "Ir:SPy:+3"
+      Atom Patterns:
+          - [ 0, 77, 0.0, ., ., SPy, ., False, False, ., "Ir:SPy:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 122
+
+    - Label: "Ir:TBp:+1"
+      Atom Patterns:
+          - [ 0, 77, 0.0, ., ., TBp, ., False, False, ., "Ir:TBp:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 31
+
+    - Label: "Ir:Tri:+1"
+      Atom Patterns:
+          - [ 0, 77, 0.0, ., ., Tri, ., False, False, ., "Ir:Tri:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 12
+
+    - Label: "Ir:Tet:+1"
+      Atom Patterns:
+          - [ 0, 77, 0.0, ., ., Tet, ., False, False, ., "Ir:Tet:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 10
+
+    - Label: "Ir:PBp:+3"
+      Atom Patterns:
+          - [ 0, 77, 0.0, ., ., PBp, ., False, False, ., "Ir:PBp:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 9
+
+    - Label: "Ir:Oct:+3"
+      Atom Patterns:
+          - [ 0, 77, 0.0, ., ., ., ., False, False, ., "Ir:Oct:+3" ]
+
+    # . Platinum.
+    - Label: "Pt:Oct:+4"
+      Atom Patterns:
+          - [ 0, 78, 0.0, ., ., Oct, ., False, False, 4, "Pt:Oct:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 690
+
+    - Label: "Pt:SPl:+4"
+      Atom Patterns:
+          - [ 0, 78, 0.0, ., ., SPl, ., False, False, 4, "Pt:SPl:+4" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 111
+
+    - Label: "Pt:SPl:+0"
+      Atom Patterns:
+          - [ 0, 78, 0.0, ., ., SPl, ., False, False, 0, "Pt:SPl:+0" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 101
+
+    - Label: "Pt:SPy:+2"
+      Atom Patterns:
+          - [ 0, 78, 0.0, ., ., SPy, ., False, False, 2, "Pt:SPy:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 56
+
+    - Label: "Pt:SPl:+2"
+      Atom Patterns:
+          - [ 0, 78, 0.0, ., ., SPl, ., False, False, ., "Pt:SPl:+2" ]
+
+    - Label: "Pt:Oct:+4"
+      Atom Patterns:
+          - [ 0, 78, 0.0, ., ., Oct, ., False, False, ., "Pt:Oct:+4" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 730
+
+    - Label: "Pt:SPy:+2"
+      Atom Patterns:
+          - [ 0, 78, 0.0, ., ., SPy, ., False, False, ., "Pt:SPy:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 69
+
+    - Label: "Pt:Tri:+2"
+      Atom Patterns:
+          - [ 0, 78, 0.0, ., ., Tri, ., False, False, ., "Pt:Tri:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 21
+
+    - Label: "Pt:Tet:+0"
+      Atom Patterns:
+          - [ 0, 78, 0.0, ., ., Tet, ., False, False, ., "Pt:Tet:+0" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 16
+
+    - Label: "Pt:Lin:+0"
+      Atom Patterns:
+          - [ 0, 78, 0.0, ., ., Lin, ., False, False, ., "Pt:Lin:+0" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 9
+
+    - Label: "Pt:SPl:+2"
+      Atom Patterns:
+          - [ 0, 78, 0.0, 4, ., ., ., False, False, ., "Pt:SPl:+2" ] # . A catch-all for 4-coordinate platinum.
+
+    - Label: "Pt:SPl:+2:f"
+      Atom Patterns:
+          - [ 0, 78, 0.0, ., ., SPl, ., False, False, ., "Pt:SPl:+2:f" ] # . To resolve.
+
+    # . Gold.
+    - Label: "Au:Lin:+1"
+      Atom Patterns:
+          - [ 0, 79, 0.0, ., ., Lin, ., False, False, 1, "Au:Lin:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 2112
+
+    - Label: "Au:Tri:+1"
+      Atom Patterns:
+          - [ 0, 79, 0.0, ., ., Tri, ., False, False, 1, "Au:Tri:+1" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 114
+
+    - Label: "Au:SPy:+3"
+      Atom Patterns:
+          - [ 0, 79, 0.0, ., ., SPy, ., False, False, 3, "Au:SPy:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 50
+
+    - Label: "Au:Lin:+3"
+      Atom Patterns:
+          - [ 0, 79, 0.0, ., ., Lin, ., False, False, 3, "Au:Lin:+3" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 48
+
+    - Label: "Au:Lin:+1:f"
+      Atom Patterns:
+          - [ 0, 79, 0.0, ., ., Lin, ., False, False, ., "Au:Lin:+1:f" ] # . To resolve.
+
+    - Label: "Au:SPl:+3"
+      Atom Patterns:
+          - [ 0, 79, 0.0, ., ., SPl, ., False, False, ., "Au:SPl:+3" ]
+    - Label: "Au:Tri:+1"
+      Atom Patterns:
+          - [ 0, 79, 0.0, ., ., Tri, ., False, False, ., "Au:Tri:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 118
+
+    - Label: "Au:SPy:+3"
+      Atom Patterns:
+          - [ 0, 79, 0.0, ., ., SPy, ., False, False, ., "Au:SPy:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 50
+
+    - Label: "Au:Tet:+1"
+      Atom Patterns:
+          - [ 0, 79, 0.0, ., ., Tet, ., False, False, ., "Au:Tet:+1" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 29
+
+    - Label: "Au:Oct:+3"
+      Atom Patterns:
+          - [ 0, 79, 0.0, ., ., Oct, ., False, False, ., "Au:Oct:+3" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 7
+
+
+    # . Mercury.
+    - Label: "Hg:Tet:+2"
+      Atom Patterns:
+          - [ 0, 80, 0.0, ., ., Tet, ., False, False, 2, "Hg:Tet:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 297
+
+    - Label: "Hg:Tri:+2"
+      Atom Patterns:
+          - [ 0, 80, 0.0, ., ., Tri, ., False, False, 2, "Hg:Tri:+2" ] # . EasyHybrid (tmQM): geometry + oxidation state, n_train 175
+
+    - Label: "Hg:Lin:+2"
+      Atom Patterns:
+          - [ 0, 80, 0.0, ., ., Lin, ., False, False, ., "Hg:Lin:+2" ]
+
+    - Label: "Hg:Tet:+2:f"
+      Atom Patterns:
+          - [ 0, 80, 0.0, ., ., Tet, ., False, False, ., "Hg:Tet:+2:f" ] # . To resolve.
+    - Label: "Hg:Tri:+2"
+      Atom Patterns:
+          - [ 0, 80, 0.0, ., ., Tri, ., False, False, ., "Hg:Tri:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 184
+
+    - Label: "Hg:Oct:+2"
+      Atom Patterns:
+          - [ 0, 80, 0.0, ., ., Oct, ., False, False, ., "Hg:Oct:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 31
+
+    - Label: "Hg:SPy:+2"
+      Atom Patterns:
+          - [ 0, 80, 0.0, ., ., SPy, ., False, False, ., "Hg:SPy:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 30
+
+    - Label: "Hg:SPl:+2"
+      Atom Patterns:
+          - [ 0, 80, 0.0, ., ., SPl, ., False, False, ., "Hg:SPl:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 22
+
+    - Label: "Hg:TBp:+2"
+      Atom Patterns:
+          - [ 0, 80, 0.0, ., ., TBp, ., False, False, ., "Hg:TBp:+2" ] # . EasyHybrid (tmQM): geometry wildcard, n_train 5
+
+
+    # . Thallium.
+    - Label: "Tl:Tet:+3"
+      Atom Patterns:
+          - [ 0, 81, 0.0, ., ., ., ., False, False, ., "Tl:Tet:+3" ]
+
+    # . Lead.
+    - Label: "Pb:SPl:+2:f"
+      Atom Patterns:
+          - [ 0, 82, 0.0, ., ., SPl, ., False, False, ., "Pb:SPl:+2:f" ] # . To resolve.
+
+    - Label: "Pb:Tet"
+      Atom Patterns:
+          - [ 0, 82, 0.0, ., ., Tet, ., False, False, ., "Pb:Tet" ]
+
+    # . Bismuth.
+    - Label: "Bi:Tet:+3"
+      Atom Patterns:
+          - [ 0, 83, 0.0, ., ., ., ., False, False, ., "Bi:Tet:+3" ]
+
+    # . Polonium.
+    - Label: "Po:Tet:+2"
+      Atom Patterns:
+          - [ 0, 84, 0.0, ., ., ., ., False, False, ., "Po:Tet:+2" ]
+
+    # . Astatine.
+    - Label: "At"
+      Atom Patterns:
+          - [ 0, 85, 0.0, ., ., ., ., False, False, ., "At" ]
+
+    # . Radon.
+    - Label: "Rn:SPl:+4"
+      Atom Patterns:
+          - [ 0, 86, 0.0, ., ., ., ., False, False, ., "Rn:SPl:+4" ]
+
+    # . Francium.
+    - Label: "Fr"
+      Atom Patterns:
+          - [ 0, 87, 0.0, ., ., ., ., False, False, ., "Fr" ]
+
+    # . Radon.
+    - Label: "Ra:Oct:+2"
+      Atom Patterns:
+          - [ 0, 88, 0.0, ., ., ., ., False, False, ., "Ra:Oct:+2" ]
+
+    # . Actinium.
+    - Label: "Ac:Oct:+3"
+      Atom Patterns:
+          - [ 0, 89, 0.0, ., ., ., ., False, False, ., "Ac:Oct:+3" ]
+
+    # . Thorium.
+    - Label: "Th:Oct:+4"
+      Atom Patterns:
+          - [ 0, 90, 0.0, ., ., ., ., False, False, ., "Th:Oct:+4" ]
+
+    # . Protactinium.
+    - Label: "Pa:Oct:+4"
+      Atom Patterns:
+          - [ 0, 91, 0.0, ., ., ., ., False, False, ., "Pa:Oct:+4" ]
+
+    # . Uranium.
+    - Label: "U:CAp:+4:f"
+      Atom Patterns:
+          - [ 0, 92, 0.0, ., ., CAp, ., False, False, ., "U:CAp:+4:f" ] # . To resolve.
+
+    - Label: "U:Oct:+4"
+      Atom Patterns:
+          - [ 0, 92, 0.0, ., ., Oct, ., False, False, ., "U:Oct:+4" ]
+
+    - Label: "U:Oct:+3:f"
+      Atom Patterns:
+          - [ 0, 92, 0.0, ., ., Oct, ., False, False, ., "U:Oct:+3:f" ] # . To resolve.
+
+    # . Neptunium.
+    - Label: "Np:Oct:+4"
+      Atom Patterns:
+          - [ 0, 93, 0.0, ., ., ., ., False, False, ., "Np:Oct:+4" ]
+
+    # . Plutonium.
+    - Label: "Pu:Oct:+4"
+      Atom Patterns:
+          - [ 0, 94, 0.0, ., ., ., ., False, False, ., "Pu:Oct:+4" ]
+
+    # . Americium.
+    - Label: "Am:Oct:+4"
+      Atom Patterns:
+          - [ 0, 95, 0.0, ., ., ., ., False, False, ., "Am:Oct:+4" ]
+
+    # . Curium.
+    - Label: "Cm:Oct:+3"
+      Atom Patterns:
+          - [ 0, 96, 0.0, ., ., ., ., False, False, ., "Cm:Oct:+3" ]
+
+    # . Berkelium.
+    - Label: "Bk:Oct:+3"
+      Atom Patterns:
+          - [ 0, 97, 0.0, ., ., ., ., False, False, ., "Bk:Oct:+3" ]
+
+    # . Californium.
+    - Label: "Cf:Oct:+3"
+      Atom Patterns:
+          - [ 0, 98, 0.0, ., ., ., ., False, False, ., "Cf:Oct:+3" ]
+
+    # . Einsteinium.
+    - Label: "Es:Oct:+3"
+      Atom Patterns:
+          - [ 0, 99, 0.0, ., ., ., ., False, False, ., "Es:Oct:+3" ]
+
+    # . Fermium. 
+    - Label: "Fm:Oct:+3"
+      Atom Patterns:
+          - [ 0, 100, 0.0, ., ., ., ., False, False, ., "Fm:Oct:+3" ]
+
+    # . Mendelevium.
+    - Label: "Md:Oct:+3"
+      Atom Patterns:
+          - [ 0, 101, 0.0, ., ., ., ., False, False, ., "Md:Oct:+3" ]
+
+    # . Nobelium.
+    - Label: "No:Oct:+3"
+      Atom Patterns:
+          - [ 0, 102, 0.0, ., ., ., ., False, False, ., "No:Oct:+3" ]
+
+    # . Lawrencium.
+    - Label: "Lr:Oct:+3"
+      Atom Patterns:
+          - [ 0, 103, 0.0, ., ., ., ., False, False, ., "Lr:Oct:+3" ]
+...

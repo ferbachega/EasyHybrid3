@@ -1,0 +1,67 @@
+{
+ "input": "../dyff_eh_system_preparation/output/theophylline_dyff_eh.pkl",
+ "conversion": {
+  "atoms": 21,
+  "atom_types": 21,
+  "bonds": 22,
+  "angles": 37,
+  "dihedrals": 48,
+  "impropers": 24,
+  "bond_types": 22,
+  "angle_types": 37,
+  "dihedral_types": 48,
+  "improper_types": 24,
+  "electrostaticScale14": 0.5
+ },
+ "single_point": [
+  {
+   "term": "BOND",
+   "pdynamo": 0.5306965486972612,
+   "namd": 0.5307,
+   "expected": 0.5306965486972612,
+   "note": "exact"
+  },
+  {
+   "term": "DIHED",
+   "pdynamo": -0.43480488395809846,
+   "namd": 10.3196,
+   "expected": 10.319592821586834,
+   "note": "exact (pDynamo minus the constants of the cosine series, -10.7544)"
+  },
+  {
+   "term": "ELECT",
+   "pdynamo": -88.69989241067181,
+   "namd": -88.6999,
+   "expected": -88.69989241067181,
+   "note": "exact (incl. 1-4)"
+  },
+  {
+   "term": "VDW",
+   "pdynamo": 7.495910951903846,
+   "namd": 7.496,
+   "expected": 7.495910951903846,
+   "note": "exact (incl. 1-4)"
+  },
+  {
+   "term": "ANGLE",
+   "pdynamo": 1.5193061332481739,
+   "namd": 1.5108,
+   "expected": 1.5108454356570684,
+   "note": "harmonic approximation; pDynamo relative to the minima: 1.5193"
+  },
+  {
+   "term": "IMPRP",
+   "pdynamo": 7.156765219238312e-05,
+   "namd": 0.0001,
+   "expected": 7.155646381251382e-05,
+   "note": "harmonic approximation"
+  }
+ ],
+ "namd_minimization": {
+  "rmsd": 0.000835837171580843,
+  "rmsd_heavy": 0.0007964987110881009,
+  "max_displacement": 0.001452178521489071,
+  "E_pdynamo_pkl": -79.59107300953727,
+  "E_pdynamo_at_namd_minimum": -79.58891994188018
+ }
+}

@@ -32,6 +32,11 @@
 import shutil
 
 
+def _residue_key(line):
+    """ chain + resSeq + insertion code + resName of an ATOM/HETATM line. """
+    return (line[21], line[22:26], line[26:27], line[17:20])
+
+
 def dedupe_pdb_atom_names(pdb_path, output_path=None):
     """ Rewrites ATOM/HETATM atom names (PDB columns 13-16) that
         DUPLICATE another atom's name within the same residue (chain +
@@ -76,13 +81,29 @@ def dedupe_pdb_atom_names(pdb_path, output_path=None):
     with open(pdb_path, "r") as handle:
         lines = handle.readlines()
 
+    # . [EN] 2026-10-08: the same name under DIFFERENT alternate locations
+    #   (column 17, e.g. "O  AHOH" / "O  BHOH" in 3KS3) is not a duplicate --
+    #   pDynamo's reader keeps one altLoc by itself. Counting those as
+    #   collisions renamed every atom of such residues (HIS 4 -> N1, C1, ...,
+    #   waters -> O1/O2), which broke every later template-based step (the
+    #   Prepare DYFF build left all 479 waters with undefined coordinates).
+    #   The insertion code (column 27) is part of the residue key too.
+    # . [EN] 2026-10-21 BUG FIX: in a multi-model file (NMR ensembles, e.g. 1ZNF
+    #   with 37 models) every residue comes back once per MODEL; counting those
+    #   as duplicates renamed every atom (HE2 -> H100, five characters: the
+    #   columns shifted and pDynamo's reader failed). The model number is part
+    #   of the residue key.
     seen_per_residue = {}
     residues_with_duplicates = set()
+    model = 0
     for line in lines:
+        if line.startswith("MODEL"):
+            model += 1
+            continue
         if not (line.startswith("ATOM") or line.startswith("HETATM")):
             continue
-        key = (line[21], line[22:26], line[17:20])
-        name = line[12:16]
+        key = (model,) + _residue_key(line)
+        name = (line[12:16], line[16:17])
         seen = seen_per_residue.setdefault(key, set())
         if name in seen:
             residues_with_duplicates.add(key)
@@ -96,11 +117,14 @@ def dedupe_pdb_atom_names(pdb_path, output_path=None):
 
     per_residue_element_counts = {}
     new_lines = []
+    model = 0
     for line in lines:
+        if line.startswith("MODEL"):
+            model += 1
         if not (line.startswith("ATOM") or line.startswith("HETATM")):
             new_lines.append(line)
             continue
-        key = (line[21], line[22:26], line[17:20])
+        key = (model,) + _residue_key(line)
         if key not in residues_with_duplicates:
             new_lines.append(line)
             continue
@@ -115,10 +139,10 @@ def dedupe_pdb_atom_names(pdb_path, output_path=None):
         # . PDB's own right/left-justification convention: a 1-character
         #   element's name field starts at column 14 (index 13); a
         #   2-character element's starts at column 13 (index 12).
-        if len(element) == 1:
+        if len(element) == 1 and len(new_name) < 4:
             name_field = (" " + new_name).ljust(4)
         else:
-            name_field = new_name.ljust(4)
+            name_field = new_name.ljust(4)[:4]        # . never wider than the 4-column field
 
         new_lines.append(line[:12] + name_field + line[16:])
 

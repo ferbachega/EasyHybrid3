@@ -52,6 +52,7 @@
 #  structure_library_window.py re-scans on every open).
 # ============================================================================
 import os
+import re
 from vismol.utils.elements import PeriodicTable
 from vismol.utils.debug import dprint
 
@@ -150,7 +151,20 @@ def _resolve_symbol ( atom_name, atom_type ):
     resolves to Calcium) -- unavoidable with this pure structural/textual
     heuristic (no dictionary of standard residue atom names is consulted).
     If that ever becomes a real, hit case, the fix is a residue-name-aware
-    exception list, not another column-priority flip. """
+    exception list, not another column-priority flip.
+
+    [EN] 2026-10-17 BUG FIX (user's report: ethanolamine.mol2's "CA" atom,
+    type "C.3", came in as Calcium -- so DYFF + xTB ran on a calcium
+    complex). The SYBYL type column IS unambiguous in two cases, so it
+    now wins there, before the name: a dotted type ("C.3", "N.ar", "O.co2"
+    -- AMBER/GAFF types never have a dot) and a type written exactly as
+    an element symbol ("C", "H", "Cl", "Ca", "Zn" -- AMBER types are
+    upper case, "CA"/"NA"/"OS", GAFF lower case, "ca"/"c3"). Only the
+    other types (AMBER/GAFF) fall back to name-first, as before. """
+    base_type = atom_type.strip ( ).split ( "." )[0]
+    resolved = _PERIODIC_TABLE_SYMBOLS.get ( base_type.upper ( ) )
+    if resolved is not None and ( "." in atom_type or base_type == resolved ):
+        return resolved
     for candidate in ( atom_name.rstrip ( "0123456789" ), atom_type.split ( "." )[0] ):
         resolved = _PERIODIC_TABLE_SYMBOLS.get ( candidate.strip ( ).upper ( ) )
         if resolved is not None:
@@ -237,6 +251,81 @@ def _parse_mol2 ( path ):
     return atoms, bonds
 
 
+def _parse_formal_charges ( path ):
+    """ [EN] 2026-10-13: { 0-based atom index: formal charge } from the file's
+    @<TRIPOS>UNITY_ATOM_ATTR section (the standard Tripos place for FORMAL
+    charges, same convention as fragment_library: blocks of "<atom_id>
+    <n_attrs>" followed by "<name> <value>" lines, only "charge" used). Added
+    for the transition-metal complexes (category 31_*), whose donor and metal
+    formal charges make DYFF give the metal its oxidation state (covalent
+    model: X donors neutral, L donors +1, the metal the rest). A file
+    without the section -> { } (every atom neutral, as before). """
+    charges = { }
+    with open ( path, "r" ) as handle:
+        lines = [ line.rstrip ( "\n" ) for line in handle ]
+    i = 0
+    while i < len ( lines ):
+        if lines[i].strip ( ) == "@<TRIPOS>UNITY_ATOM_ATTR":
+            i += 1
+            while i < len ( lines ) and not lines[i].strip ( ).startswith ( "@<TRIPOS>" ):
+                fields = lines[i].split ( )
+                if len ( fields ) == 2 and fields[0].isdigit ( ) and fields[1].isdigit ( ):
+                    atom_index = int ( fields[0] ) - 1
+                    for _ in range ( int ( fields[1] ) ):
+                        i += 1
+                        attr = lines[i].split ( ) if i < len ( lines ) else [ ]
+                        if len ( attr ) == 2 and attr[0].lower ( ) == "charge":
+                            try:
+                                charges[atom_index] = int ( float ( attr[1] ) )
+                            except ValueError:
+                                raise StructureError ( "{}: bad formal charge {!r} for atom #{}.".format ( path, attr[1], atom_index + 1 ) )
+                i += 1
+            continue
+        i += 1
+    return charges
+
+
+# . target valence (sum of bond orders) of an atom with formal charge q, for the Kekulization
+_KEKULE_VALENCE = { "C": lambda q: 4 - abs ( q ), "N": lambda q: 3 + q, "O": lambda q: 2 + q, "S": lambda q: 2 + q,
+                    "Se": lambda q: 2 + q, "P": lambda q: 3 + q, "B": lambda q: 3 + q }
+
+def _kekulize_aromatic ( symbols, bonds, formal ):
+    """ Orders for every bond (list, same order as bonds [ i, j, order, aromatic ])
+        with the aromatic bonds turned into single/double so that every atom that
+        lacks valence gets exactly one double bond -- explicit orders and formal
+        charges respected (maximum matching on the aromatic bonds). None when no
+        such assignment exists (or networkx is missing). """
+    try:
+        import networkx as nx
+    except ImportError:
+        return None
+    used = [ 0 ] * len ( symbols )
+    for i, j, order, aromatic in bonds:
+        used[i] += order; used[j] += order
+    deficit = [ ]
+    for a, symbol in enumerate ( symbols ):
+        rule = _KEKULE_VALENCE.get ( symbol )
+        deficit.append ( rule ( formal[a] ) - used[a] if rule is not None else 0 )
+    graph = nx.Graph ( )
+    needing = set ( )
+    for k, ( i, j, order, aromatic ) in enumerate ( bonds ):
+        if aromatic and deficit[i] >= 1 and deficit[j] >= 1:
+            graph.add_edge ( i, j, bond = k ); needing.update ( ( i, j ) )
+    for i, j, order, aromatic in bonds:
+        for a in ( i, j ):
+            if aromatic and deficit[a] >= 1: needing.add ( a )
+    if any ( deficit[a] > 1 for a in needing ):
+        return None
+    matching = nx.max_weight_matching ( graph, maxcardinality = True )
+    matched = { a for pair in matching for a in pair }
+    if matched != needing:
+        return None
+    orders = [ order for ( i, j, order, aromatic ) in bonds ]
+    for a, b in matching:
+        orders[graph[a][b]["bond"]] = 2
+    return orders
+
+
 def load_structure ( path ):
     """ [EN] Parses a COMPLETE-molecule .mol2 file, returning a plain dict
     ready for atom_ops.add_structure_at_position():
@@ -301,7 +390,23 @@ def load_structure ( path ):
     # around the ring. Same "never let a perception failure block loading"
     # guard as bootstrap_manual_bonds_from_existing() -- falls back to the
     # OLD order=1 behaviour (not a crash) if perception itself raises.
-    if any ( is_aromatic for ( _i, _j, _order, is_aromatic ) in bonds ):
+    charges = _parse_formal_charges ( path )
+    for k in charges:
+        if not 0 <= k < len ( atoms ):
+            raise StructureError ( "{}: formal charge given for non-existent atom #{}.".format ( path, k + 1 ) )
+    formal = [ charges.get ( k, 0 ) for k in range ( len ( atoms ) ) ]
+
+    # [EN] 2026-10-21: the "ar" bonds are first Kekulized with the file's explicit
+    # orders and formal charges as constraints (_kekulize_aromatic). The perceiver
+    # below ignores both: on files that mix explicit "2" and "ar" bonds (porphine,
+    # protoporphyrin, cobalamins, F420) it put a second double bond on carbons that
+    # already had one (C with 5 bonds). The perceiver stays as the fallback.
+    kekule = _kekulize_aromatic ( [ atom[0] for atom in atoms ], bonds, formal ) \
+             if any ( is_aromatic for ( _i, _j, _order, is_aromatic ) in bonds ) else None
+    if kekule is not None:
+        for entry, order in zip ( bonds, kekule ):
+            entry[2] = order
+    elif any ( is_aromatic for ( _i, _j, _order, is_aromatic ) in bonds ):
         try:
             from vismol.core.bond_order_perception import perceive_bond_orders
             symbols = [ atom[0] for atom in atoms ]
@@ -322,4 +427,93 @@ def load_structure ( path ):
         "name"  : os.path.splitext ( os.path.basename ( path ) )[0],
         "atoms" : atoms,
         "bonds" : bonds,
+        "formal_charges" : formal,
     }
+
+
+#=============================================================================
+#  Charge and spin of a library structure (2026-10-21)
+#=============================================================================
+#  [EN] User's request: the Structures tab shows, for the selected structure, its
+#  total charge and spin multiplicity -- above all for the transition-metal
+#  complexes. The charge is the sum of the file's formal charges. The
+#  multiplicity: structures/structure_info.json when the structure has an
+#  entry (metal cofactors, curated); the transition-metal complexes of the
+#  31-33 folders come from tmQM, whose structures are all closed-shell DFT
+#  references (multiplicity 1) -- their metal and oxidation state are in the
+#  file name ("Fe_II_octahedral_PIMMOQ"); any other molecule: 1 for an even
+#  number of electrons, 2 for an odd one.
+
+_ROMAN = { "0": 0, "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8 }
+_D_BLOCK = { s: g for row in ( ( "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn" ),
+                               ( "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd" ),
+                               ( "La", "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg" ) )
+             for g, s in zip ( range ( 3, 13 ), row ) }
+_INFO_CACHE = { }
+
+def _structure_info_table ( base_dir ):
+    path = os.path.join ( base_dir, "structure_info.json" )
+    if path not in _INFO_CACHE:
+        import json
+        try:
+            with open ( path ) as handle:
+                _INFO_CACHE[path] = { k: v for k, v in json.load ( handle ).items ( ) if not k.startswith ( "_" ) }
+        except ( OSError, ValueError ):
+            _INFO_CACHE[path] = { }
+    return _INFO_CACHE[path]
+
+def _d_electrons ( metal, oxidation ):
+    group = _D_BLOCK.get ( metal )
+    return None if group is None or oxidation is None else group - oxidation
+
+def describe_structure ( structure, path ):
+    """ { "charge", "multiplicity", "source", "metal", "oxidation", "d_electrons",
+          "high_spin", "note" } for a structure returned by load_structure(). """
+    from vismol.utils.elements import PeriodicTable as _PT
+    table = _PT ( ).elements_by_symbol
+    charge = int ( sum ( structure.get ( "formal_charges" ) or [ ] ) )
+    electrons = sum ( int ( table[a[0]][0] ) for a in structure["atoms"] if a[0] in table ) - charge
+    folder = os.path.basename ( os.path.dirname ( path ) )
+    key = "{}/{}".format ( folder, os.path.basename ( path ) )
+    entry = _structure_info_table ( os.path.dirname ( os.path.dirname ( path ) ) ).get ( key, { } )
+    metals = sorted ( { a[0] for a in structure["atoms"] if a[0] in _D_BLOCK } )
+    info = { "charge": charge, "multiplicity": 2 if electrons % 2 else 1, "source": "electron count",
+             "metal": metals[0] if len ( metals ) == 1 else ( ", ".join ( metals ) or None ),
+             "oxidation": None, "d_electrons": None, "high_spin": None, "note": None }
+    match = re.match ( r"^([A-Z][a-z]?)_(0|[IVX]+)_", os.path.basename ( path ) )
+    if match and match.group ( 1 ) in _D_BLOCK and folder[:2] in ( "31", "32", "33" ):
+        info.update ( metal = match.group ( 1 ), oxidation = _ROMAN.get ( match.group ( 2 ) ), multiplicity = 1,
+                      source = "tmQM reference (closed-shell DFT)" )
+    if entry:
+        info.update ( { k: entry[k] for k in ( "metal", "oxidation", "multiplicity", "note" ) if k in entry } )
+        info["source"] = "curated"
+    if info["metal"] in _D_BLOCK and info["oxidation"] is not None:
+        d = _d_electrons ( info["metal"], info["oxidation"] )
+        info["d_electrons"] = d
+        # . high spin only matters for 3d metals; 4d/5d and organometallic eta
+        #   (18-electron) complexes are low spin
+        three_d = _D_BLOCK.get ( info["metal"] ) is not None and info["metal"] in ( "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn" )
+        if d is not None and 2 <= d <= 8 and three_d and "eta_complex" not in os.path.basename ( path ):
+            info["high_spin"] = ( d if d <= 5 else 10 - d ) + 1
+    return info
+
+_MULTIPLICITY_NAMES = { 1: "singlet", 2: "doublet", 3: "triplet", 4: "quartet", 5: "quintet", 6: "sextet" }
+
+def describe_structure_text ( structure, path ):
+    """ The text of the Structures tab's status label. """
+    info = describe_structure ( structure, path )
+    m = info["multiplicity"]
+    lines = [ "{} · {} atoms".format ( structure["name"], len ( structure["atoms"] ) ),
+              "Charge {:+d} · multiplicity {} ({})".format ( info["charge"], m, _MULTIPLICITY_NAMES.get ( m, "" ) ).replace ( "+0", "0" ) ]
+    if info["metal"] and info["oxidation"] is not None:
+        roman = { v: k for k, v in _ROMAN.items ( ) }.get ( info["oxidation"], str ( info["oxidation"] ) )
+        text = "{}({})".format ( info["metal"], roman )
+        if info["d_electrons"] is not None: text += ", d{}".format ( info["d_electrons"] )
+        if info["source"].startswith ( "tmQM" ):
+            text += " · multiplicity from the tmQM reference (closed shell)"
+        if info["high_spin"] and info["high_spin"] != m:
+            text += " · high spin would be {}".format ( info["high_spin"] )
+        lines.append ( text )
+    if info["note"]:
+        lines.append ( info["note"] )
+    return "\n".join ( lines )

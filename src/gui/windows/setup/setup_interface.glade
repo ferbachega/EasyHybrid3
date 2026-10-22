@@ -27,6 +27,48 @@
     <property name="step-increment">0.01</property>
     <property name="page-increment">0.10</property>
   </object>
+  <object class="GtkAdjustment" id="adjustment_lines_bond_spacing">
+    <property name="lower">0.3</property>
+    <property name="upper">3</property>
+    <property name="value">1</property>
+    <property name="step-increment">0.1</property>
+    <property name="page-increment">0.5</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment_sticks_radius_single">
+    <property name="lower">0.01</property>
+    <property name="upper">1</property>
+    <property name="value">0.16</property>
+    <property name="step-increment">0.01</property>
+    <property name="page-increment">0.05</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment_sticks_radius_double">
+    <property name="lower">0.005</property>
+    <property name="upper">0.5</property>
+    <property name="value">0.064</property>
+    <property name="step-increment">0.005</property>
+    <property name="page-increment">0.02</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment_sticks_radius_triple">
+    <property name="lower">0.005</property>
+    <property name="upper">0.5</property>
+    <property name="value">0.064</property>
+    <property name="step-increment">0.005</property>
+    <property name="page-increment">0.02</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment_sticks_spacing_double">
+    <property name="lower">0.01</property>
+    <property name="upper">1</property>
+    <property name="value">0.16</property>
+    <property name="step-increment">0.01</property>
+    <property name="page-increment">0.05</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment_sticks_spacing_triple">
+    <property name="lower">0.01</property>
+    <property name="upper">1</property>
+    <property name="value">0.16</property>
+    <property name="step-increment">0.01</property>
+    <property name="page-increment">0.05</property>
+  </object>
   <object class="GtkWindow" id="window">
     <property name="can-focus">False</property>
     <signal name="delete-event" handler="close_window" swapped="no"/>
@@ -2147,6 +2189,36 @@
                                     <property name="top-attach">1</property>
                                   </packing>
                                 </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="margin-left">10</property>
+                                    <property name="margin-start">10</property>
+                                    <property name="label" translatable="yes">Bond spacing:</property>
+                                    <property name="tooltip-text" translatable="yes">Distance between the parallel lines of double and triple bonds in lines, relative to the default (1.0). Applied immediately.</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">3</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkSpinButton" id="spin_lines_bond_spacing">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="tooltip-text" translatable="yes">Distance between the parallel lines of double and triple bonds in lines, relative to the default (1.0). Applied immediately.</property>
+                                    <property name="adjustment">adjustment_lines_bond_spacing</property>
+                                    <property name="digits">1</property>
+                                    <property name="numeric">True</property>
+                                    <signal name="value-changed" handler="on_spin_lines_bond_spacing_changed" swapped="no"/>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">1</property>
+                                    <property name="top-attach">3</property>
+                                  </packing>
+                                </child>
                               </object>
                             </child>
                             <child type="label">
@@ -2217,14 +2289,19 @@
                                 <property name="row-spacing">5</property>
                                 <property name="column-spacing">10</property>
                                 <child>
-                                  <object class="GtkEntry" id="entry_stick_radius">
+                                  <object class="GtkSpinButton" id="spin_sticks_radius_single">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
+                                    <property name="tooltip-text" translatable="yes">Radius of single bonds, in Angstrom (sticks and dynamic bonds). Applied immediately.</property>
                                     <property name="hexpand">True</property>
+                                    <property name="adjustment">adjustment_sticks_radius_single</property>
+                                    <property name="digits">3</property>
+                                    <property name="numeric">True</property>
+                                    <signal name="value-changed" handler="on_spin_sticks_bond_geometry_changed" swapped="no"/>
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
-                                    <property name="top-attach">0</property>
+                                    <property name="top-attach">3</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -2233,12 +2310,12 @@
                                     <property name="can-focus">False</property>
                                     <property name="margin-left">10</property>
                                     <property name="margin-start">10</property>
-                                    <property name="label" translatable="yes">Radius:</property>
+                                    <property name="label" translatable="yes">Radius (single):</property>
                                     <property name="xalign">0</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">0</property>
-                                    <property name="top-attach">0</property>
+                                    <property name="top-attach">3</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -2252,7 +2329,7 @@
                                   </object>
                                   <packing>
                                     <property name="left-attach">0</property>
-                                    <property name="top-attach">1</property>
+                                    <property name="top-attach">0</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -2262,7 +2339,7 @@
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
-                                    <property name="top-attach">1</property>
+                                    <property name="top-attach">0</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -2276,7 +2353,7 @@
                                   </object>
                                   <packing>
                                     <property name="left-attach">0</property>
-                                    <property name="top-attach">2</property>
+                                    <property name="top-attach">1</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -2288,7 +2365,7 @@
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
-                                    <property name="top-attach">2</property>
+                                    <property name="top-attach">1</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -2297,13 +2374,133 @@
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">False</property>
-                                    <property name="tooltip-text" translatable="yes">When off, all bonds are drawn as single sticks regardless of their perceived bond order.</property>
+                                    <property name="tooltip-text" translatable="yes">Lines and sticks. When off, all bonds are drawn as single bonds regardless of their perceived bond order.</property>
                                     <property name="draw-indicator">True</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">0</property>
-                                    <property name="top-attach">3</property>
+                                    <property name="top-attach">2</property>
                                     <property name="width">2</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="margin-left">10</property>
+                                    <property name="margin-start">10</property>
+                                    <property name="label" translatable="yes">Radius (double):</property>
+                                    <property name="tooltip-text" translatable="yes">Radius of each cylinder of a double bond, in Angstrom (sticks and dynamic bonds). Applied immediately.</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">4</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkSpinButton" id="spin_sticks_radius_double">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="tooltip-text" translatable="yes">Radius of each cylinder of a double bond, in Angstrom (sticks and dynamic bonds). Applied immediately.</property>
+                                    <property name="adjustment">adjustment_sticks_radius_double</property>
+                                    <property name="digits">3</property>
+                                    <property name="numeric">True</property>
+                                    <signal name="value-changed" handler="on_spin_sticks_bond_geometry_changed" swapped="no"/>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">1</property>
+                                    <property name="top-attach">4</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="margin-left">10</property>
+                                    <property name="margin-start">10</property>
+                                    <property name="label" translatable="yes">Radius (triple):</property>
+                                    <property name="tooltip-text" translatable="yes">Radius of each cylinder of a triple bond, in Angstrom (sticks and dynamic bonds). Applied immediately.</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">5</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkSpinButton" id="spin_sticks_radius_triple">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="tooltip-text" translatable="yes">Radius of each cylinder of a triple bond, in Angstrom (sticks and dynamic bonds). Applied immediately.</property>
+                                    <property name="adjustment">adjustment_sticks_radius_triple</property>
+                                    <property name="digits">3</property>
+                                    <property name="numeric">True</property>
+                                    <signal name="value-changed" handler="on_spin_sticks_bond_geometry_changed" swapped="no"/>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">1</property>
+                                    <property name="top-attach">5</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="margin-left">10</property>
+                                    <property name="margin-start">10</property>
+                                    <property name="label" translatable="yes">Spacing (double):</property>
+                                    <property name="tooltip-text" translatable="yes">Distance between the axes of the two cylinders of a double bond, in Angstrom (sticks and dynamic bonds). Applied immediately.</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">6</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkSpinButton" id="spin_sticks_spacing_double">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="tooltip-text" translatable="yes">Distance between the axes of the two cylinders of a double bond, in Angstrom (sticks and dynamic bonds). Applied immediately.</property>
+                                    <property name="adjustment">adjustment_sticks_spacing_double</property>
+                                    <property name="digits">3</property>
+                                    <property name="numeric">True</property>
+                                    <signal name="value-changed" handler="on_spin_sticks_bond_geometry_changed" swapped="no"/>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">1</property>
+                                    <property name="top-attach">6</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="margin-left">10</property>
+                                    <property name="margin-start">10</property>
+                                    <property name="label" translatable="yes">Spacing (triple):</property>
+                                    <property name="tooltip-text" translatable="yes">Distance from the bond axis to each of the three cylinders of a triple bond, in Angstrom (sticks and dynamic bonds). Applied immediately.</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">7</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkSpinButton" id="spin_sticks_spacing_triple">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="tooltip-text" translatable="yes">Distance from the bond axis to each of the three cylinders of a triple bond, in Angstrom (sticks and dynamic bonds). Applied immediately.</property>
+                                    <property name="adjustment">adjustment_sticks_spacing_triple</property>
+                                    <property name="digits">3</property>
+                                    <property name="numeric">True</property>
+                                    <signal name="value-changed" handler="on_spin_sticks_bond_geometry_changed" swapped="no"/>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">1</property>
+                                    <property name="top-attach">7</property>
                                   </packing>
                                 </child>
                               </object>
@@ -2313,7 +2510,7 @@
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="xpad">10</property>
-                                <property name="label" translatable="yes">Sticks</property>
+                                <property name="label" translatable="yes">Sticks and Dynamic Bonds</property>
                               </object>
                             </child>
                           </object>
@@ -2349,55 +2546,6 @@
                                 <property name="row-spacing">5</property>
                                 <property name="column-spacing">10</property>
                                 <child>
-                                  <object class="GtkEntry" id="entry_dbond_radius">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="hexpand">True</property>
-                                  </object>
-                                  <packing>
-                                    <property name="left-attach">1</property>
-                                    <property name="top-attach">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkLabel">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="margin-left">10</property>
-                                    <property name="margin-start">10</property>
-                                    <property name="label" translatable="yes">Radius:</property>
-                                    <property name="xalign">0</property>
-                                  </object>
-                                  <packing>
-                                    <property name="left-attach">0</property>
-                                    <property name="top-attach">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkLabel">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="margin-left">10</property>
-                                    <property name="margin-start">10</property>
-                                    <property name="label" translatable="yes">Type:</property>
-                                    <property name="xalign">0</property>
-                                  </object>
-                                  <packing>
-                                    <property name="left-attach">0</property>
-                                    <property name="top-attach">1</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkEntry" id="entry_dbond_type">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                  </object>
-                                  <packing>
-                                    <property name="left-attach">1</property>
-                                    <property name="top-attach">1</property>
-                                  </packing>
-                                </child>
-                                <child>
                                   <object class="GtkCheckButton" id="checkbox_dbond_unique_color">
                                     <property name="label" translatable="yes">Use single color</property>
                                     <property name="visible">True</property>
@@ -2407,7 +2555,7 @@
                                   </object>
                                   <packing>
                                     <property name="left-attach">0</property>
-                                    <property name="top-attach">2</property>
+                                    <property name="top-attach">0</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -2418,7 +2566,22 @@
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
-                                    <property name="top-attach">2</property>
+                                    <property name="top-attach">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="margin-left">10</property>
+                                    <property name="margin-start">10</property>
+                                    <property name="label" translatable="yes">Radius, double and triple bonds: as Sticks.</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">1</property>
+                                    <property name="width">2</property>
                                   </packing>
                                 </child>
                               </object>

@@ -71,10 +71,16 @@ class VismolConfig                       :
                                       #"sticks_radius"             : 2.5,
                                       
                                       "sticks_radius"              : 0.16, # not being used (defined in the shader)
-                                      "multiple_bonds"             : False,
+                                      "multiple_bonds"             : True,
+                                      "lines_bond_spacing"         : 1.0, # factor on the default spacing of double/triple bonds in lines
+                                      "sticks_radius_double"       : 0.064, # A, each cylinder of a double bond (sticks and dynamic bonds)
+                                      "sticks_radius_triple"       : 0.064, # A, each cylinder of a triple bond
+                                      "sticks_spacing_double"      : 0.16,  # A, between the two cylinder axes of a double bond
+                                      "sticks_spacing_triple"      : 0.16,  # A, from the bond axis to each cylinder of a triple bond
                                       "sticks_color"               : 0,
                                       "sticks_type"                : 0,
                                       "antialias"                  : True,
+                                      "antialias_samples"          : 4,
                                       "mouse_rotation_sensibility" : 1.5,
                                       "scroll_step"                : 0.9,
                                       "scroll_step_fraction"       : 0.138,
@@ -97,6 +103,15 @@ class VismolConfig                       :
                                       "light_shininess"            : 5.5,
                                       "light_intensity"            : [0.6, 0.6, 0.6],
                                       "light_specular_color"       : [1.0, 1.0, 1.0],
+                                      # Preferences > Light (2026-10-13) -- see vismol
+                                      # libgl/shaders/lighting.py and
+                                      # VismolGLCore.apply_light_parameters(); these
+                                      # defaults reproduce the original single light.
+                                      "light_preset"               : "headlight",  # or "three_point"
+                                      "extra_lights"               : [],   # {"direction":[x,y,z], "intensity":[r,g,b]}
+                                      "shading_mode"               : "standard",   # "flat", "toon", "matte", "glossy", "rim"
+                                      "flat_softness"              : 0.25,
+                                      "toon_bands"                 : 3,
                                       "center_on_coord_sleep_time" : 0.01,
                                       "gridsize"                   : 0.8,
                                       "maxbond"                    : 2.6,
@@ -181,6 +196,12 @@ class VismolConfig                       :
                                       # add_recent_file/get_recent_files/clear_recent_files
                                       # below and MainWindow's "Open Recent" submenu.
                                       'recent_files'        : [],
+
+                                      # [EN] 2026-10-17: Builder > Force Field Settings --
+                                      # force field given to systems drawn in the Builder
+                                      # when the session closes (see builder_sidebar.py's
+                                      # FF_SETTINGS_DEFAULTS for the keys).
+                                      'builder_ff_settings' : {},
 
                                       # [EN] Cartoon (ribbon) representation --
                                       # "Preferences > Cartoon" tab (user
@@ -460,6 +481,23 @@ class VismolConfig                       :
         except Exception as e:
             dprint("Could not load saved preferences (%s): %s" % (config_path, e))
             return False
+        # [EN] 2026-10-15: one "Bond spacing" (multiple_bond_spacing) was split
+        # into lines_bond_spacing and sticks_bond_spacing; an old saved value
+        # becomes the value of both.
+        old_spacing = loaded.pop('multiple_bond_spacing', None)
+        if old_spacing is not None:
+            loaded.setdefault('lines_bond_spacing', old_spacing)
+            loaded.setdefault('sticks_bond_spacing', old_spacing)
+        # [EN] 2026-10-15: the sticks factor was replaced by spacings in Angstrom
+        # for double and triple bonds (factor x stick radius).
+        old_sticks = loaded.pop('sticks_bond_spacing', None)
+        if old_sticks is not None:
+            try:
+                radius = float(loaded.get('sticks_radius', self.gl_parameters.get('sticks_radius', 0.16)))
+                loaded.setdefault('sticks_spacing_double', round(float(old_sticks) * radius, 4))
+                loaded.setdefault('sticks_spacing_triple', round(float(old_sticks) * radius, 4))
+            except (TypeError, ValueError):
+                pass
         self.gl_parameters.update(loaded)
         return True
 

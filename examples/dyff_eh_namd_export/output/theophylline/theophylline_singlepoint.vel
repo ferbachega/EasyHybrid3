@@ -1,0 +1,23 @@
+REMARK  FINAL VELOCITIES WRITTEN BY NAMD AT TIMESTEP 0
+ATOM      1  C0  LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   C 
+ATOM      2  N1  LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   N 
+ATOM      3  C2  LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   C 
+ATOM      4  O3  LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   O 
+ATOM      5  N4  LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   N 
+ATOM      6  C5  LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   C 
+ATOM      7  C6  LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   C 
+ATOM      8  C7  LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   C 
+ATOM      9  C8  LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   C 
+ATOM     10  O9  LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   O 
+ATOM     11  N10 LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   N 
+ATOM     12  C11 LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   C 
+ATOM     13  N12 LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   N 
+ATOM     14  H13 LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   H 
+ATOM     15  H14 LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   H 
+ATOM     16  H15 LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   H 
+ATOM     17  H16 LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   H 
+ATOM     18  H17 LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   H 
+ATOM     19  H18 LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   H 
+ATOM     20  H19 LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   H 
+ATOM     21  H20 LIG A   1       0.000   0.000   0.000  1.00  0.00      AX   H 
+END

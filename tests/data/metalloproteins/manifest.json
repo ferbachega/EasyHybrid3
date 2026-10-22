@@ -1,0 +1,633 @@
+{
+ "created": "2026-10-08",
+ "source": "RCSB PDB (https://www.rcsb.org)",
+ "entries": [
+  {
+   "id": "1ZNF",
+   "protein": "Zinc finger Xfin-31 (NMR)",
+   "expected": [
+    "ZN"
+   ],
+   "site_literature": "Zn Cys2His2 (structural)",
+   "why": "classic structural Zn site; NMR model, caps ACE/NH2",
+   "title": "THREE-DIMENSIONAL SOLUTION STRUCTURE OF A SINGLE ZINC FINGER DNA- BINDING DOMAIN",
+   "method": "SOLUTION NMR",
+   "resolution": null,
+   "models": 37,
+   "atoms_first_model": 424,
+   "metal_sites": [
+    {
+     "metal": "ZN A27",
+     "element": "ZN",
+     "ligands": [
+      "CYS A3 SG",
+      "CYS A6 SG",
+      "HIS A19 NE2",
+      "HIS A23 NE2"
+     ],
+     "source": "LINK"
+    }
+   ],
+   "expected_found": true,
+   "file": "1ZNF.pdb"
+  },
+  {
+   "id": "3KS3",
+   "protein": "Carbonic anhydrase II, human (0.9 A)",
+   "expected": [
+    "ZN"
+   ],
+   "site_literature": "Zn His3 + OH-/H2O (catalytic)",
+   "why": "the reference catalytic Zn site",
+   "title": "HIGH RESOLUTION STRUCTURE OF HUMAN CARBONIC ANHYDRASE II AT 0.9 A",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 0.9,
+   "models": 1,
+   "atoms_first_model": 2629,
+   "metal_sites": [
+    {
+     "metal": "ZN A262",
+     "element": "ZN",
+     "ligands": [
+      "HIS A119 ND1",
+      "HIS A94 NE2",
+      "HIS A96 NE2",
+      "HOH A402 O",
+      "HOH A707 O"
+     ],
+     "source": "LINK"
+    }
+   ],
+   "expected_found": true,
+   "file": "3KS3.pdb"
+  },
+  {
+   "id": "8TLN",
+   "protein": "Thermolysin",
+   "expected": [
+    "ZN",
+    "CA"
+   ],
+   "site_literature": "Zn His2Glu + H2O; four Ca sites",
+   "why": "Zn protease with structural Ca",
+   "title": "STRUCTURAL COMPARISON SUGGESTS THAT THERMOLYSIN AND RELATED NEUTRAL PROTEASES UNDERGO HINGE-BENDING MOTION DURING CATALYSIS",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.6,
+   "models": 1,
+   "atoms_first_model": 2621,
+   "metal_sites": [
+    {
+     "metal": "CA E317",
+     "element": "CA",
+     "ligands": [
+      "ASP E138 OD2",
+      "ASP E185 OD1",
+      "GLU E177 OE1",
+      "GLU E177 OE2",
+      "GLU E187 O",
+      "GLU E190 OE1",
+      "GLU E190 OE2",
+      "HOH E346 O"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "CA E318",
+     "element": "CA",
+     "ligands": [
+      "ASN E183 O",
+      "ASP E185 OD2",
+      "GLU E177 OE2",
+      "GLU E190 OE2",
+      "HOH E353 O",
+      "HOH E475 O"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "CA E319",
+     "element": "CA",
+     "ligands": [
+      "ASP E57 OD1",
+      "ASP E57 OD2",
+      "ASP E59 OD1",
+      "GLN E61 O",
+      "HOH E419 O",
+      "HOH E482 O",
+      "HOH E503 O"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "CA E320",
+     "element": "CA",
+     "ligands": [
+      "ASP E200 OD1",
+      "HOH E354 O",
+      "HOH E480 O",
+      "ILE E197 O",
+      "THR E194 O",
+      "THR E194 OG1",
+      "TYR E193 O"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "ZN E321",
+     "element": "ZN",
+     "ligands": [
+      "GLU E166 OE2",
+      "HIS E142 NE2",
+      "HIS E146 NE2",
+      "HOH E392 O"
+     ],
+     "source": "LINK"
+    }
+   ],
+   "expected_found": true,
+   "file": "8TLN.pdb"
+  },
+  {
+   "id": "4INS",
+   "protein": "Insulin hexamer (2Zn)",
+   "expected": [
+    "ZN"
+   ],
+   "site_literature": "Zn His3 x2 (on the 3-fold axis)",
+   "why": "Zn at symmetry axis, multi-chain",
+   "title": "THE STRUCTURE OF 2ZN PIG INSULIN CRYSTALS AT 1.5 ANGSTROMS RESOLUTION",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.5,
+   "models": 1,
+   "atoms_first_model": 1182,
+   "metal_sites": [
+    {
+     "metal": "ZN B101",
+     "element": "ZN",
+     "ligands": [
+      "HIS B10 NE2",
+      "HOH B213 O"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "ZN D101",
+     "element": "ZN",
+     "ligands": [
+      "HIS D10 NE2"
+     ],
+     "source": "LINK"
+    }
+   ],
+   "expected_found": true,
+   "file": "4INS.pdb"
+  },
+  {
+   "id": "2C9V",
+   "protein": "Cu,Zn superoxide dismutase 1, human",
+   "expected": [
+    "CU",
+    "ZN"
+   ],
+   "site_literature": "Cu His4 (bridging His); Zn His3Asp",
+   "why": "binuclear Cu/Zn with bridging imidazolate",
+   "title": "ATOMIC RESOLUTION STRUCTURE OF CU-ZN HUMAN SUPEROXIDE DISMUTASE",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.07,
+   "models": 1,
+   "atoms_first_model": 3043,
+   "metal_sites": [
+    {
+     "metal": "CU A154",
+     "element": "CU",
+     "ligands": [
+      "HIS A120 NE2",
+      "HIS A46 ND1",
+      "HIS A48 NE2",
+      "HIS A63 NE2"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "ZN A155",
+     "element": "ZN",
+     "ligands": [
+      "ASP A83 OD1",
+      "HIS A63 ND1",
+      "HIS A71 ND1",
+      "HIS A80 ND1"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "NA A158",
+     "element": "NA",
+     "ligands": [],
+     "source": "distance"
+    },
+    {
+     "metal": "CU F154",
+     "element": "CU",
+     "ligands": [
+      "HIS F120 NE2",
+      "HIS F46 ND1",
+      "HIS F48 NE2",
+      "HIS F63 NE2"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "ZN F155",
+     "element": "ZN",
+     "ligands": [
+      "ASP F83 OD1",
+      "HIS F63 ND1",
+      "HIS F71 ND1",
+      "HIS F80 ND1"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "NA F159",
+     "element": "NA",
+     "ligands": [],
+     "source": "distance"
+    }
+   ],
+   "expected_found": true,
+   "file": "2C9V.pdb"
+  },
+  {
+   "id": "4AZU",
+   "protein": "Azurin, Pseudomonas aeruginosa",
+   "expected": [
+    "CU"
+   ],
+   "site_literature": "Cu(II) type 1: His2 Cys Met (+Gly O)",
+   "why": "blue copper, open-shell Cu(II)",
+   "title": "CRYSTAL STRUCTURE ANALYSIS OF OXIDIZED PSEUDOMONAS AERUGINOSA AZURIN AT PH 5.5 AND PH 9.0. A PH-INDUCED CONFORMATIONAL TRANSITION INVOLVES A PEPTIDE BOND FLIP",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.9,
+   "models": 1,
+   "atoms_first_model": 4228,
+   "metal_sites": [
+    {
+     "metal": "CU A400",
+     "element": "CU",
+     "ligands": [
+      "CYS A112 SG",
+      "HIS A117 ND1",
+      "HIS A46 ND1"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "CU B401",
+     "element": "CU",
+     "ligands": [
+      "CYS B112 SG",
+      "HIS B117 ND1",
+      "HIS B46 ND1"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "CU C402",
+     "element": "CU",
+     "ligands": [
+      "CYS C112 SG",
+      "HIS C117 ND1",
+      "HIS C46 ND1"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "CU D403",
+     "element": "CU",
+     "ligands": [
+      "CYS D112 SG",
+      "HIS D117 ND1",
+      "HIS D46 ND1"
+     ],
+     "source": "LINK"
+    }
+   ],
+   "expected_found": true,
+   "file": "4AZU.pdb"
+  },
+  {
+   "id": "1PLC",
+   "protein": "Plastocyanin, poplar (1.33 A)",
+   "expected": [
+    "CU"
+   ],
+   "site_literature": "Cu type 1: His2 Cys Met",
+   "why": "blue copper reference",
+   "title": "ACCURACY AND PRECISION IN PROTEIN CRYSTAL STRUCTURE ANALYSIS: RESTRAINED LEAST-SQUARES REFINEMENT OF THE CRYSTAL STRUCTURE OF POPLAR PLASTOCYANIN AT 1.33 ANGSTROMS RESOLUTION",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.33,
+   "models": 1,
+   "atoms_first_model": 1657,
+   "metal_sites": [
+    {
+     "metal": "CU A100",
+     "element": "CU",
+     "ligands": [
+      "CYS A84 SG",
+      "HIS A37 ND1",
+      "HIS A87 ND1"
+     ],
+     "source": "LINK"
+    }
+   ],
+   "expected_found": true,
+   "file": "1PLC.pdb"
+  },
+  {
+   "id": "1IRO",
+   "protein": "Rubredoxin, Clostridium pasteurianum (1.1 A)",
+   "expected": [
+    "FE"
+   ],
+   "site_literature": "Fe Cys4 (high-spin Fe(II)/Fe(III))",
+   "why": "simplest Fe-S site, open shell",
+   "title": "RUBREDOXIN (OXIDIZED, FE(III)) AT 1.1 ANGSTROMS RESOLUTION",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.1,
+   "models": 1,
+   "atoms_first_model": 858,
+   "metal_sites": [
+    {
+     "metal": "FE A55",
+     "element": "FE",
+     "ligands": [
+      "CYS A39 SG",
+      "CYS A42 SG",
+      "CYS A6 SG",
+      "CYS A9 SG"
+     ],
+     "source": "LINK"
+    }
+   ],
+   "expected_found": true,
+   "file": "1IRO.pdb"
+  },
+  {
+   "id": "1FDN",
+   "protein": "Ferredoxin 2[4Fe-4S], C. acidurici",
+   "expected": [
+    "SF4"
+   ],
+   "site_literature": "two [4Fe-4S] clusters, Cys4 each",
+   "why": "iron-sulfur clusters (cluster residues)",
+   "title": "REFINED CRYSTAL STRUCTURE OF THE 2[4FE-4S] FERREDOXIN FROM CLOSTRIDIUM ACIDURICI AT 1.84 ANGSTROMS RESOLUTION",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.84,
+   "models": 1,
+   "atoms_first_model": 445,
+   "metal_sites": [
+    {
+     "metal": "SF4 A56",
+     "element": "FE",
+     "ligands": [
+      "CYS A47 SG"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "SF4 A56",
+     "element": "FE",
+     "ligands": [
+      "CYS A14 SG"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "SF4 A56",
+     "element": "FE",
+     "ligands": [
+      "CYS A8 SG"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "SF4 A56",
+     "element": "FE",
+     "ligands": [
+      "CYS A11 SG"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "SF4 A57",
+     "element": "FE",
+     "ligands": [
+      "CYS A18 SG"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "SF4 A57",
+     "element": "FE",
+     "ligands": [
+      "CYS A43 SG"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "SF4 A57",
+     "element": "FE",
+     "ligands": [
+      "CYS A37 SG"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "SF4 A57",
+     "element": "FE",
+     "ligands": [
+      "CYS A40 SG"
+     ],
+     "source": "LINK"
+    }
+   ],
+   "expected_found": true,
+   "file": "1FDN.pdb"
+  },
+  {
+   "id": "1A6M",
+   "protein": "Myoglobin, sperm whale, oxy (1.0 A)",
+   "expected": [
+    "HEM"
+   ],
+   "site_literature": "heme Fe + proximal His + O2",
+   "why": "heme cofactor (porphyrin as one residue)",
+   "title": "OXY-MYOGLOBIN, ATOMIC RESOLUTION",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.0,
+   "models": 1,
+   "atoms_first_model": 1584,
+   "metal_sites": [
+    {
+     "metal": "HEM A154",
+     "element": "FE",
+     "ligands": [
+      "HIS A93 NE2",
+      "OXY A157 O1",
+      "OXY A157 O2"
+     ],
+     "source": "LINK"
+    }
+   ],
+   "expected_found": true,
+   "file": "1A6M.pdb"
+  },
+  {
+   "id": "1HRC",
+   "protein": "Cytochrome c, horse heart",
+   "expected": [
+    "HEC"
+   ],
+   "site_literature": "heme c, Fe His/Met, thioether links to Cys",
+   "why": "covalently attached heme",
+   "title": "HIGH-RESOLUTION THREE-DIMENSIONAL STRUCTURE OF HORSE HEART CYTOCHROME C",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.9,
+   "models": 1,
+   "atoms_first_model": 993,
+   "metal_sites": [
+    {
+     "metal": "HEC A105",
+     "element": "FE",
+     "ligands": [
+      "HIS A18 NE2",
+      "MET A80 SD"
+     ],
+     "source": "LINK"
+    }
+   ],
+   "expected_found": true,
+   "file": "1HRC.pdb"
+  },
+  {
+   "id": "1CLL",
+   "protein": "Calmodulin, human (Ca4)",
+   "expected": [
+    "CA"
+   ],
+   "site_literature": "four EF-hand Ca sites (Asp/Glu carboxylates, O)",
+   "why": "hard ion, O-only coordination",
+   "title": "CALMODULIN STRUCTURE REFINED AT 1.7 ANGSTROMS RESOLUTION",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.7,
+   "models": 1,
+   "atoms_first_model": 1279,
+   "metal_sites": [
+    {
+     "metal": "CA A149",
+     "element": "CA",
+     "ligands": [
+      "ASP A20 OD1",
+      "ASP A22 OD1",
+      "ASP A24 OD1",
+      "GLU A31 OE1",
+      "GLU A31 OE2",
+      "HOH A181 O",
+      "THR A26 O"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "CA A150",
+     "element": "CA",
+     "ligands": [
+      "ASN A60 OD1",
+      "ASP A56 OD1",
+      "ASP A58 OD1",
+      "GLU A67 OE1",
+      "GLU A67 OE2",
+      "HOH A240 O",
+      "THR A62 O"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "CA A151",
+     "element": "CA",
+     "ligands": [
+      "ASN A97 OD1",
+      "ASP A93 OD1",
+      "ASP A95 OD1",
+      "GLU A104 OE1",
+      "GLU A104 OE2",
+      "HOH A188 O",
+      "TYR A99 O"
+     ],
+     "source": "LINK"
+    },
+    {
+     "metal": "CA A152",
+     "element": "CA",
+     "ligands": [
+      "ASP A129 OD1",
+      "ASP A131 OD1",
+      "ASP A133 OD1",
+      "GLN A135 O",
+      "GLU A140 OE1",
+      "GLU A140 OE2",
+      "HOH A233 O"
+     ],
+     "source": "LINK"
+    }
+   ],
+   "expected_found": true,
+   "file": "1CLL.pdb"
+  },
+  {
+   "id": "5P21",
+   "protein": "H-Ras p21 with GppNHp and Mg",
+   "expected": [
+    "MG"
+   ],
+   "site_literature": "Mg Ser/Thr + phosphate oxygens + waters",
+   "why": "Mg with nucleotide",
+   "title": "REFINED CRYSTAL STRUCTURE OF THE TRIPHOSPHATE CONFORMATION OF H-RAS P21 AT 1.35 ANGSTROMS RESOLUTION: IMPLICATIONS FOR THE MECHANISM OF GTP HYDROLYSIS",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.35,
+   "models": 1,
+   "atoms_first_model": 1567,
+   "metal_sites": [
+    {
+     "metal": "MG A168",
+     "element": "MG",
+     "ligands": [
+      "GNP A167 O2B",
+      "GNP A167 O2G",
+      "HOH A172 O",
+      "HOH A173 O",
+      "SER A17 OG",
+      "THR A35 OG1"
+     ],
+     "source": "LINK"
+    }
+   ],
+   "expected_found": true,
+   "file": "5P21.pdb"
+  },
+  {
+   "id": "1UBQ",
+   "protein": "Ubiquitin, human (no metal)",
+   "expected": [],
+   "site_literature": "negative control: no metal",
+   "why": "checks that nothing is detected",
+   "title": "STRUCTURE OF UBIQUITIN REFINED AT 1.8 ANGSTROMS RESOLUTION",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.8,
+   "models": 1,
+   "atoms_first_model": 660,
+   "metal_sites": [],
+   "expected_found": true,
+   "file": "1UBQ.pdb"
+  }
+ ]
+}

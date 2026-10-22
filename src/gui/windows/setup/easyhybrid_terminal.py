@@ -80,6 +80,23 @@
 #     load file=/path/system.pdb
 #     load file="/with space/sys.xyz"   (use quotes for paths with spaces)
 #
+#  Systems and force fields  (sys= is the id shown by 'systems'; without it,
+#  the ACTIVE system. dyff/opls/solvate run in the background -- the result
+#  appears in the Logs panel)
+#     systems                      list pDynamo systems (* = active)
+#     activate sys=2               make system 2 the active one
+#     rename sys=2 name=1ZNF_DYFF
+#     energy                       single-point energy (frame shown)
+#     metals                       metal sites, donors, caps, truncated residues
+#     dyff                         Prepare DYFF System (modified, new system)
+#     dyff name=1ZNF_DYFF charge=4 mult=1 scan=true
+#     dyff version=eh new=false    DYFF rules only, on this system
+#     opls rebuild=true ph=7.4     Prepare OPLS System (new system)
+#     ffinfo                       force field summary (parameters, terms)
+#     solvate padding=12 conc=0.15 water box + ions (new system)
+#     namd prefix=/path/name       export DYFF/OPLS to NAMD (PSF/PRM/PDB/CRD)
+#     play fps=10  /  pause        trajectory playback (mini player)
+#
 #  Keys: Up/Down arrows browse history; Tab completes the command;
 #        double-Tab lists the options matching the current prefix.
 #
@@ -91,6 +108,8 @@
 #     cmd.bond(order=2, frame="1:20")         # Dynamic Bonds, frames 1-20
 #     cmd.unbond()                            # unbonds pk1-pk2
 #     for i in range(0, 2000, 100): cmd.frame(n=i)
+#     cmd.dyff(sys=0, name="1ZNF_DYFF")       # every command, without cmd_
+#     print(cmd.systems())
 # ============================================================================
 import gi
 import sys
@@ -1295,22 +1314,444 @@ class Command:
         return "Atom {} removed -- object now has {} atom(s).".format(atom, len(vobj.atoms))
 
     def cmd_load(self, file=None, **_):
-        """ Loads a molecule from a file on disk (PDB, XYZ, and any
-        other format the existing file loaders support), adding it as a
-        new object in the session (see 'list' afterwards for its index).
+        """ Opens a file as File > Open: coordinates (PDB, XYZ, MOL2,
+        ...) become a new pDynamo system with its object; .easy opens a
+        session, .pkl / .yaml a pDynamo system. See 'systems' and 'list'
+        afterwards for the new ids.
 
         file : full path to the file
 
         Examples:
           load file=/home/user/structure.pdb
           load file=/home/user/molecule.xyz
+          load file="/with space/project.easy"
         """
         if self.vm_session is None:
             return "Session unavailable."
         if file is None:
             return "Usage: load file=/path/to/file"
-        self.vm_session.load_molecule(file)
-        return "Loaded: {}".format(file)
+        path = os.path.abspath(os.path.expanduser(str(file)))
+        if not os.path.isfile(path):
+            return "File not found: {}".format(path)
+        self.vm_session.load(path)
+        return "Loaded: {}".format(path)
+
+    # ========================================================================
+    #  SYSTEMS AND FORCE FIELDS  (2026-10-22, version 3.2)
+    #  pDynamo systems (sys= is the system id shown by 'systems'; without it,
+    #  the ACTIVE system), DYFF / OPLS preparation, solvation, NAMD export.
+    #  The long jobs (xTB, OPLS ligands, solvation) run in the background, as
+    #  from the menus: the command returns at once and the result appears in
+    #  the Logs panel.
+    # ========================================================================
+    def _main(self):
+        main = getattr(self.vm_session, "main_session", None)
+        return main if main is not None else getattr(self.console, "main", None)
+
+    def _system(self, sys=None):
+        """ (e_id, system) of sys= (a system id) or of the active system. """
+        main = self._main()
+        if main is None:
+            raise ValueError("Session unavailable.")
+        psystem = main.p_session.psystem
+        e_id = main.p_session.active_id if sys is None else int(sys)
+        system = psystem.get(e_id)
+        if system is None:
+            raise ValueError("No system {} (see 'systems').".format(e_id) if sys is not None else "No active system.")
+        return e_id, system
+
+    def _vobject_of(self, system):
+        """ The last object of `system` (its current coordinates). """
+        objs = [v for v in self.vm_session.vm_objects_dic.values() if getattr(v, "e_id", None) == system.e_id]
+        return objs[-1] if objs else None
+
+    def _sync_coordinates(self, e_id, system):
+        """ The system takes the coordinates of the frame shown in its last object. """
+        vobject = self._vobject_of(system)
+        if vobject is None or len(vobject.atoms) != len(system.atoms) or not len(vobject.frames):
+            return
+        frame = min(int(self.vm_session.get_frame() or 0), len(vobject.frames) - 1)
+        self._main().p_session.set_psystem_coordinates_from_vobject(vobject=vobject, system_id=e_id, frame=frame)
+
+    def cmd_systems(self, **_):
+        """ Lists the pDynamo systems of the session: id (use it as sys=
+        in the commands below), name, atoms, force field, QC region and
+        tag. The active system (target of the menus and of commands
+        without sys=) is marked with *.
+
+        Examples:
+          systems
+        """
+        from pdynamo import mm_inspect
+        main = self._main()
+        if main is None:
+            return "Session unavailable."
+        systems = [(e_id, s) for e_id, s in main.p_session.psystem.items() if s is not None]
+        if not systems:
+            return "No system loaded."
+        lines = ["      id  atoms  force field     QC   tag         name"]
+        for e_id, s in systems:
+            ff = mm_inspect.force_field_name(s) or "-"
+            qc = "yes" if getattr(s, "qcModel", None) is not None else "-"
+            lines.append("  {} {:>4}  {:>5}  {:<14}  {:<3}  {:<10}  {}".format(
+                "*" if e_id == main.p_session.active_id else " ", e_id, len(s.atoms), ff[:14], qc,
+                str(getattr(s, "e_tag", "") or "")[:10], s.label))
+        return "\n".join(lines)
+
+    def cmd_activate(self, sys=None, **_):
+        """ Makes system sys= the active one (the radio button of the
+        Objects panel): the menus and the commands without sys= act on it.
+
+        Examples:
+          activate sys=2
+        """
+        if sys is None:
+            return "Usage: activate sys=<id>  (see 'systems')"
+        e_id, system = self._system(sys)
+        main = self._main()
+        for row in main.main_treeview.treestore:
+            row[4] = (row[0] == e_id)
+        main.p_session.active_id = e_id
+        main.refresh_main_statusbar()
+        return "Active system: [{}] {}".format(e_id, system.label)
+
+    def cmd_rename(self, sys=None, name=None, **_):
+        """ Renames a system (System > Rename).
+
+        Examples:
+          rename name=1ZNF_DYFF          (the active system)
+          rename sys=2 name="zinc finger"
+        """
+        if not name:
+            return "Usage: rename sys=<id> name=<new name>"
+        e_id, system = self._system(sys)
+        old = system.label
+        if not self._main().rename(e_id=e_id, name=str(name)):
+            return "Not renamed: a system named '{}' already exists.".format(name)
+        return "Renamed: '{}' -> '{}'".format(old, name)
+
+    def cmd_energy(self, sys=None, **_):
+        """ Single-point energy of a system (MM, QC or QC/MM, as defined),
+        at the coordinates of the frame shown -- same as Simulate > Energy,
+        without the log file.
+
+        Examples:
+          energy
+          energy sys=1
+        """
+        e_id, system = self._system(sys)
+        if getattr(system, "mmModel", None) is None and getattr(system, "qcModel", None) is None:
+            return "'{}' has no energy model (define a force field or a QC model first).".format(system.label)
+        self._sync_coordinates(e_id, system)
+        energy = system.Energy(log=None)
+        return "[{}] {}: energy {:.4f} kJ/mol ({:.4f} kcal/mol)".format(e_id, system.label, energy, energy / 4.184)
+
+    def cmd_metals(self, sys=None, **_):
+        """ Metal sites of a system as Prepare DYFF System sees them:
+        metal, default oxidation state, spin multiplicity, model (bonded
+        or ionic) and donor atoms with distances (A). Also lists metal
+        cofactors (heme, Fe-S clusters: not supported yet), covalently
+        bound residues (peptide caps) and truncated residues.
+
+        Examples:
+          metals
+          metals sys=0
+        """
+        from pdynamo import dyff_prep as DP
+        e_id, system = self._system(sys)
+        info = DP.analyze(system)
+        residues = info["analysis"].residues
+        lines = ["[{}] {}: {} metal site(s).".format(e_id, system.label, len(info["metals"]))]
+        for s in info["metals"]:
+            donors = ", ".join("{} {} {:.2f}".format(residues[j].label.split(":")[-1], n, d) for j, n, d in s["donors"]) or "none"
+            lines.append("  {:<12} {:<2} {:+d}  mult {}  {:<7} donors: {}".format(
+                s["label"], s["element"], s["charge"], s["multiplicity"], s["model"], donors))
+        if info["metal_cofactors"]:
+            lines.append("  Not supported (metal cofactors): " + ", ".join(residues[i].label for i in info["metal_cofactors"]))
+        if info["covalent"]:
+            lines.append("  Covalently bound, removed by 'dyff': " + ", ".join(residues[i].label for i in info["covalent"]))
+        if info["truncated"]:
+            lines.append("  Truncated: " + ", ".join("{} ({})".format(l, " ".join(m)) for _, l, m in info["truncated"][:12]))
+        return "\n".join(lines)
+
+    def cmd_dyff(self, sys=None, version="modified", new=True, name=None, ph=7.4, water=True, method="gfn2",
+                 scale=1.0, scan=False, complete=True, caps="remove", charge=None, mult=None, **_):
+        """ Prepare DYFF System without dialogs (System > Force Field >
+        Define Force Field > Prepare DYFF System).
+
+        version : modified (default: residue library + xTB for the rest;
+                  raw PDBs get hydrogens, protonation, metal sites)
+                  | eh | pdynamo (DYFF rules from the bond orders only)
+        new     : true (default) = new system <name>_DYFF; false = apply to
+                  this system (a raw structure always gives a new system)
+        name    : name of the new system
+        ph      : pH of the ligand hydrogens (7.4)
+        water   : implicit water (ALPB) for CM5 and Hessians (true)
+        method  : gfn2 | gxtb (Hessians of the atoms outside the library)
+        scale   : CM5 charge scale factor (1.0)
+        scan    : automatic xTB torsion scans of the flexible bonds (false)
+        complete: rebuild truncated residues (true)
+        caps    : remove | keep  peptide caps / covalent ligands (remove)
+        charge  : total charge of the xTB calculations (default: sum of
+                  the formal charges)
+        mult    : multiplicity (default: the metal sites' own; with one
+                  metal, its spin state)
+        Runs in the background; the result appears in the Logs panel.
+
+        Examples:
+          dyff
+          dyff sys=0 name=1ZNF_DYFF
+          dyff version=eh new=false
+          dyff charge=-1 mult=5 scan=true
+        """
+        from gui.windows.setup.prepare_dyff_dialog import prepare_dyff_headless
+        e_id, system = self._system(sys)
+        return prepare_dyff_headless(self._main(), system, version=str(version), new=bool(new), name=name, ph=float(ph),
+                                     water=bool(water), method=str(method), scale=float(scale), scan=bool(scan),
+                                     complete=bool(complete), remove_caps=(str(caps) != "keep"), charge=charge, mult=mult)
+
+    def cmd_opls(self, sys=None, name=None, rebuild=True, ph=7.4, ligands=True, folder=None, contacts="stop", **_):
+        """ Prepare OPLS System without the window: a new, typed system
+        with an OPLS-AA MM model (hydrogens, protonation at pH, ligands
+        parametrized with CM5 charges from xTB).
+
+        name    : name of the new system (default <name>_OPLS)
+        rebuild : true = rebuild truncated residues (heavy atoms placed
+                  geometrically); false = truncate them (ALA / GLY)
+        ph      : pH of the protonation (7.4)
+        ligands : parametrize residues without OPLS templates (true)
+        folder  : working folder (default: the system's one); the
+                  parameters and the report go to <folder>/<name>_opls
+        contacts: stop (default) | ignore -- two atoms of different
+                  residues closer than a bond (e.g. a peptide cap): stop
+                  and report, or ignore it (only the drawn bonds are bonds)
+        Runs in the background; the result appears in the Logs panel.
+
+        Examples:
+          opls
+          opls sys=0 name=crambin_OPLS rebuild=false
+          opls contacts=ignore
+        """
+        import threading
+        from pdynamo.opls import prep, ligand
+        e_id, system = self._system(sys)
+        main = self._main()
+        name = name or "{}_OPLS".format(system.label or "system")
+        if any(s is not None and s.label == name for s in main.p_session.psystem.values()):
+            return "A system named '{}' already exists: choose another name=.".format(name)
+        folder = folder or getattr(system, "e_working_folder", None) or os.getcwd()
+        if not os.path.isdir(folder):
+            return "Folder not found: {}".format(folder)
+        safe = "".join(c if c.isalnum() or c in "_-." else "_" for c in name)
+        work_dir = os.path.join(folder, safe + "_opls")
+        analysis = prep.analyze_system(system)
+        incomplete = [i for i, r in enumerate(analysis.residues) if r.missing_heavy]
+        if incomplete and not rebuild:
+            for i in incomplete:
+                prep.truncate_residue(analysis, i)
+        xtb = self.vm_session.vm_config.gl_parameters.get("xtb_command") or ligand.find_xtb()
+        if analysis.unsupported and ligands and not xtb:
+            return "Ligand charges (CM5) need the xtb executable: not found."
+        main.statusbar_main.push(1, "Prepare OPLS System: {}...".format(name))
+
+        def say(text):
+            GLib.idle_add(lambda: main.statusbar_main.push(1, "Prepare OPLS System: " + text) and False)
+
+        def done(new_system, report, error):
+            if isinstance(error, prep.CloseContactError):
+                main.simple_dialog.error(msg="Prepare OPLS System stopped:\n{}\n\nRun 'opls contacts=ignore' to treat only "
+                                             "the drawn bonds as bonds.".format(error)); return False
+            if error is not None:
+                main.simple_dialog.error(msg="Prepare OPLS System failed:\n{}".format(error)); return False
+            text = prep.report_markdown(report, analysis, title="OPLS system preparation: {}".format(name))
+            report_path = os.path.join(work_dir, "prepare_opls_report.md")
+            try:
+                os.makedirs(work_dir, exist_ok=True)
+                with open(report_path, "w") as handle: handle.write(text)
+            except OSError:
+                report_path = None
+            if not report["ok"]:
+                main.simple_dialog.error_details(msg="The system could not be fully typed/parametrized.", details=text,
+                                                 title="Prepare OPLS System")
+                return False
+            new = main.p_session.add_prepared_pdynamo_system(new_system, name=name, tag="OPLS", working_folder=folder,
+                                                             input_files={"opls_parameters": report.get("parameter_folder"),
+                                                                          "report": report_path})
+            msg = "Prepare OPLS System: '{}' added ({} atoms).".format(name, report["atoms"])
+            if report.get("rebuilt_residues"):
+                msg += " Rebuilt residues (minimize and check them): {}.".format(", ".join(report["rebuilt_residues"]))
+            if report.get("ligands"):
+                msg += " Ligands parametrized: {}.".format(", ".join(report["ligands"]))
+            main.bottom_notebook.status_teeview_add_new_item(message=msg, system=new)
+            main.refresh_main_statusbar()
+            return False
+
+        def work():
+            try:
+                new_system, report = prep.prepare_opls_system(system, analysis=analysis, work_dir=work_dir, label=name,
+                                                              progress=say, parametrize_unsupported=bool(ligands),
+                                                              ligand_ph=float(ph), xtb=xtb,
+                                                              trust_connectivity=(str(contacts) == "ignore"),
+                                                              complete_truncated=bool(incomplete) and bool(rebuild))
+                GLib.idle_add(done, new_system, report, None)
+            except prep.CloseContactError as exc:
+                GLib.idle_add(done, None, None, exc)
+            except Exception as exc:
+                traceback.print_exc()
+                GLib.idle_add(done, None, None, exc)
+        threading.Thread(target=work, daemon=True).start()
+        return ("Prepare OPLS System started: new system '{}' ({} residues, {} unsupported, {} truncated -> {}). "
+                "The result appears in the Logs panel.".format(name, len(analysis.residues), len(analysis.unsupported),
+                                                               len(incomplete), "rebuilt" if rebuild else "truncated"))
+
+    def cmd_ffinfo(self, sys=None, **_):
+        """ Summary of the force field of a system (any MM model: DYFF,
+        OPLS, AMBER, CHARMM): atoms, total charge and the number of
+        parameters and terms of each kind. The full tables are in
+        System > Force Field > Force Field Parameters...
+
+        Examples:
+          ffinfo
+          ffinfo sys=2
+        """
+        from gui.windows.setup.windows_and_dialogs.system_windows.force_field_parameters import MMInspectBackend
+        e_id, system = self._system(sys)
+        if not MMInspectBackend.available(system):
+            return "'{}' has no force field.".format(system.label)
+        report = MMInspectBackend(system).report()
+        _, title, text = report["verdict"]
+        lines = ["[{}] {}: {}".format(e_id, system.label, title), text]
+        for _, issue, _, _ in report["issues"]:
+            lines.append("WARNING: " + issue)
+        return "\n".join(lines)
+
+    def cmd_solvate(self, sys=None, shape="cube", padding=10.0, conc=0.15, neutralize=True, cation=None, anion=None,
+                    name=None, **_):
+        """ Solvates a system that already has a force field (DYFF or OPLS)
+        in a water box, as System > Solvate System: a new system.
+
+        shape     : cube | box | sphere (cube)
+        padding   : water layer around the solute, A (10)
+        conc      : salt concentration, mol/L (0.15)
+        neutralize: add counter-ions to a zero total charge (true)
+        cation / anion : Na+ / Cl- by default (DYFF also K+ Li+ / Br-)
+        name      : name of the new system (default <name>_solvated)
+        Runs in the background; the result appears in the Logs panel.
+
+        Examples:
+          solvate
+          solvate padding=12 conc=0
+          solvate shape=sphere padding=15
+        """
+        import threading
+        from pdynamo import solvate_system as SS
+        from gui.windows.setup.windows_and_dialogs.system_windows.solvate_ready_system import SolvateReadySystemWindow
+        e_id, system = self._system(sys)
+        SS.check(system)
+        kind = SS.force_field_kind(system) or "OPLS"
+        cations, anions = SS.IONS_BY_FORCE_FIELD[kind]
+        cation = cation or cations[0]; anion = anion or anions[0]
+        if cation not in cations or anion not in anions:
+            return "{} ions: cations {}, anions {}.".format(kind, ", ".join(cations), ", ".join(anions))
+        self._sync_coordinates(e_id, system)
+        main = self._main()
+        name = name or "{}_solvated".format(system.label)
+        if any(s is not None and s.label == name for s in main.p_session.psystem.values()):
+            return "A system named '{}' already exists: choose another name=.".format(name)
+        options = {"shape": str(shape), "padding": float(padding), "closeness": 2.4, "neutralize": bool(neutralize),
+                   "concentration": float(conc), "cation": cation, "anion": anion, "align": False, "seed": 1}
+        main.statusbar_main.push(1, "Solvate System: {}...".format(system.label))
+
+        def done(new, report, error):
+            if error:
+                main.simple_dialog.error(msg="Solvate System failed:\n{}".format(error)); return False
+            new_system = main.p_session.add_prepared_pdynamo_system(new, name=name, tag="solvated",
+                                                                    working_folder=getattr(system, "e_working_folder", None),
+                                                                    input_files=dict(getattr(system, "e_input_files", None) or {}))
+            # . selections, fixed atoms and the DYFF data of the object, as the window does
+            SolvateReadySystemWindow(main)._carry_over(system, new_system)
+            main.bottom_notebook.status_teeview_add_new_item(
+                message="Solvated '{}': {} waters, ions {}, {} atoms. Minimize it before MD.".format(
+                    system.label, report["waters"],
+                    ", ".join("{} {}".format(n, k) for k, n in sorted(report["ions"].items())) or "none", report["atoms"]),
+                system=new_system)
+            main.refresh_main_statusbar()
+            return False
+
+        def work():
+            try:
+                new, report = SS.solvate(system, label=name, **options)
+                GLib.idle_add(done, new, report, None)
+            except Exception as exc:
+                traceback.print_exc()
+                GLib.idle_add(done, None, None, "{}: {}".format(type(exc).__name__, exc))
+        threading.Thread(target=work, daemon=True).start()
+        return "Solvate System started: '{}' -> new system '{}'. The result appears in the Logs panel.".format(system.label, name)
+
+    def cmd_namd(self, sys=None, prefix=None, **_):
+        """ Exports a DYFF or OPLS system to NAMD (CHARMM-format PSF, PRM,
+        PDB, CRD and a minimization configuration), at the coordinates of
+        the frame shown -- as File > Export As... > NAMD.
+
+        prefix : output path without extension (default: <working
+                 folder>/<system name>)
+
+        Examples:
+          namd
+          namd prefix=/home/user/md/zinc_finger
+        """
+        from util import dyff_eh_to_namd
+        e_id, system = self._system(sys)
+        model = type(getattr(system, "mmModel", None)).__name__
+        if getattr(system, "mmModel", None) is None:
+            return "'{}' has no force field: NAMD export needs a DYFF or OPLS MM model.".format(system.label)
+        if not (model.startswith("MMModelDYFF") or model == "MMModelOPLS"):
+            return "NAMD export writes DYFF and OPLS systems ({} systems are read by NAMD from their own files).".format(
+                model.replace("MMModel", ""))
+        if getattr(system, "qcModel", None) is not None:
+            return "NAMD export writes the MM model only: remove the QC region first."
+        if prefix is None:
+            folder = getattr(system, "e_working_folder", None) or os.getcwd()
+            prefix = os.path.join(folder, "".join(c if c.isalnum() or c in "_-." else "_" for c in system.label))
+        self._sync_coordinates(e_id, system)
+        _, data = dyff_eh_to_namd.convert(system, str(prefix))
+        s = dyff_eh_to_namd.summary(data)
+        return ("NAMD files written: {0}.psf .prm .pdb .crd and {0}_minimize.namd ({1} atoms, {2} atom types, {3} bonds, "
+                "{4} angles, {5} dihedrals, {6} impropers).".format(prefix, s["atoms"], s["atom_types"], s["bonds"],
+                                                                     s["angles"], s["dihedrals"], s["impropers"]))
+
+    def cmd_play(self, fps=None, **_):
+        """ Plays the trajectory of the shown object in a loop (the mini
+        player under the Objects panel).
+
+        fps : frames per second (default 20)
+
+        Examples:
+          play
+          play fps=5
+        """
+        player = getattr(self._main(), "mini_player", None)
+        if player is None:
+            return "Player unavailable."
+        if fps is not None:
+            player.FPS = max(1, int(fps))
+        player.pause()
+        player.play()
+        if player._play_id is None:
+            return "Nothing to play: the object has a single frame."
+        return "Playing {} frames at {} fps ('pause' to stop).".format(player.n_frames, player.FPS)
+
+    def cmd_pause(self, **_):
+        """ Stops the trajectory started with 'play'.
+
+        Examples:
+          pause
+        """
+        player = getattr(self._main(), "mini_player", None)
+        if player is None:
+            return "Player unavailable."
+        player.pause()
+        return "Paused at frame {}.".format(int(self.vm_session.get_frame() or 0))
 
     # --- atalhos de API direta (mesma logica, nomes "pythonicos") -----------
     #  Permitem cmd.show(rep="sticks") em scripts externos sem o prefixo cmd_.
@@ -1333,6 +1774,16 @@ class Command:
     def unbond(self, obj=None, atom1=None, atom2=None, frame=None):
         return self.cmd_unbond(obj=obj, atom1=atom1, atom2=atom2, frame=frame)
     def list(self):                         return self.cmd_list()
+
+    def __getattr__(self, name):
+        """ Every other command is also callable without the cmd_ prefix in
+            scripts: cmd.systems(), cmd.dyff(sys=0, name="1ZNF_DYFF"), ... """
+        if name.startswith("_") or name.startswith("cmd_"):
+            raise AttributeError(name)
+        try:
+            return object.__getattribute__(self, "cmd_" + name)
+        except AttributeError:
+            raise AttributeError(name) from None
 
 
 class TerminalWindow():

@@ -35,6 +35,14 @@
 #  by setup/easyhybrid_terminal.py's TerminalWindow (same Gtk.Builder +
 #  add_from_file + connect_signals(self) flow), for consistency with the
 #  rest of this codebase's auxiliary windows.
+#
+#  [EN] 2026-10-17, user's request (LibreOffice-like layout): there is no
+#  separate window any more. The tools are in the main window's
+#  toolbar_edit (MainWindow.glade), shown only while editing, and the
+#  options of the active tool (elements + fragments for "Add", bond order
+#  for "Bond Order") in the right side panel (MainWindow.show_sidebar_page()).
+#  builder_sidebar.glade is no longer loaded; the class keeps its name and
+#  its open_window()/close_window()/visible interface for its callers.
 # ============================================================================
 import os
 import gi
@@ -94,6 +102,34 @@ _QUICK_FRAGMENT_FILES = {
 }
 
 
+# [EN] 2026-10-17: Force Field Settings (toolbar_edit "FF" toggle, side
+# panel page builder_ff_settings), kept in .config.json as
+# gl_parameters['builder_ff_settings']. Defaults = the behaviour before
+# the settings existed (ask on close, plain DYFF).
+FF_SETTINGS_DEFAULTS = {
+    "force_field": "dyff",        # none | dyff | dyff_xtb | opls
+    "method":      "gfn2",        # gfn2 | gxtb (dyff_xtb only)
+    "water":       True,          # implicit water in the xTB calculations
+    "bonded":      True,          # Hessian bonds/angles + torsions
+    "cm5_scale":   1.0,
+    "nb_model":    "cutoff",      # cutoff | full
+    "on_close":    "ask",         # ask | apply
+    "opls_cm5_scale": 1.0,        # GFN1-xTB CM5 scale of the OPLS ligand charges (opls only)
+}
+
+FF_NAMES = { "none": "no force field", "dyff": "DYFF", "dyff_xtb": "DYFF + xTB refinement", "opls": "OPLS-AA" }
+
+FF_DESCRIPTIONS = {
+    "none":     "The system is kept without a force field.",
+    "dyff":     "Atom types from element + bond orders. No partial charges, except those set in DYFF Parameters.",
+    "dyff_xtb": "DYFF with CM5 charges, Hessian bonds/angles and torsions from xTB (standard residues from the "
+                "residue library). Runs in the background after the Builder closes.",
+    "opls":     "OPLS-AA parameter set. If parameters are missing, a dialog offers the Prepare OPLS System procedure: "
+                "OPLS-AA classes by rules (Lennard-Jones, bonded terms), CM5 charges from one GFN1-xTB calculation, "
+                "missing terms estimated (Dodda et al., JCTC 2015). No solvation: that is a separate step.",
+}
+
+
 class BuilderSidebarWindow ( ):
     """ Builder editing sidebar. """
 
@@ -102,22 +138,37 @@ class BuilderSidebarWindow ( ):
         self.main       = main
         self.vm_session = main.vm_session
         self.visible    = False
+        self._widgets_bound = False
 
     def open_window ( self ):
-        """ Opens the sidebar -- and, per this module's own design note
+        """ Opens the Builder -- and, per this module's own design note
         above, turns Builder editing mode ON, creating a fresh empty
-        target object first if none exists yet. """
+        target object first if none exists yet. [EN] 2026-10-17: no
+        separate window any more -- shows the main window's toolbar_edit
+        and the right side panel (see _bind_widgets()). """
         if self.visible:
-            self.window.present ( )
             return
 
-        self.builder = Gtk.Builder ( )
-        self.builder.add_from_file ( os.path.join ( self.main.home, 'src/gui/windows/builder/builder_sidebar.glade' ) )
-        self.builder.connect_signals ( self )
+        self._bind_widgets ( )
 
-        self.window = self.builder.get_object ( 'window' )
-        self.window.set_title ( 'Builder' )
-        self.window.set_keep_above ( True )
+        if getattr ( self.vm_session, "builder_target_object", None ) is None:
+            vismol_object = create_empty_vismol_object ( self.vm_session, name = "builder_molecule" )
+            self.vm_session.builder_target_object = vismol_object
+        self._start_session ( )
+
+    def _bind_widgets ( self ):
+        """ [EN] 2026-10-17, user's request (LibreOffice-like layout): the
+        Builder's tools live in the main window -- MainWindow.glade's
+        toolbar_edit (visible only while editing) and, for the tool that
+        needs it, a page of the right side panel (sidebar_root_box /
+        sidebar_stack: elements + fragments for "Add", Single/Double/Triple
+        for "Bond Order"). Same widget ids as the old builder_sidebar.glade
+        window (no longer loaded); the main window's glade has no signals for
+        them, so they are connected here, once. """
+        if self._widgets_bound:
+            return
+        self.builder = self.main.builder
+        self.toolbar_edit = self.builder.get_object ( 'toolbar_edit' )
 
         self.placemode_toggle  = self.builder.get_object ( 'placemode_toggle' )
         self.tool_add_radio    = self.builder.get_object ( 'tool_add_radio' )
@@ -126,7 +177,8 @@ class BuilderSidebarWindow ( ):
         self.tool_bond_order_radio = self.builder.get_object ( 'tool_bond_order_radio' )
         # [EN] 2026-09-25: no more dedicated "Fragment" TOOL radio -- see
         # this module's own _QUICK_FRAGMENT_FILES comment above.
-        self.tool_add_structure_radio   = self.builder.get_object ( 'tool_add_structure_radio' )
+        # [EN] 2026-10-17: no "Structure" tool radio either -- structures are
+        # the "Structures" tab of the Add panel (see _bind_add_panel_tabs()).
         self.tool_rotate_dihedral_radio = self.builder.get_object ( 'tool_rotate_dihedral_radio' )
         self.element_C_radio   = self.builder.get_object ( 'element_C_radio' )
         self.element_N_radio   = self.builder.get_object ( 'element_N_radio' )
@@ -165,12 +217,8 @@ class BuilderSidebarWindow ( ):
         self.frag_coo_radio2   = self.builder.get_object ( 'frag_coo_radio2' )
         self.frag_other_radio  = self.builder.get_object ( 'frag_other_radio' )
         # [EN] 2026-10-02: every mapped quick-fragment button gets its
-        # widget attribute and its "toggled" handler from here -- several
-        # of the user's buttons have no signal in the glade (e.g.
-        # frag_con_radio1, frag_benz_radio), so they did nothing when
-        # clicked. Buttons whose glade DOES wire on_fragment_quick_changed
-        # get it twice; the handler ignores the duplicate call (see
-        # _last_quick_fragment there).
+        # widget attribute and its "toggled" handler from here (the Python
+        # connections below are the only ones -- 2026-10-17).
         for attr_name in _QUICK_FRAGMENT_FILES:
             widget = self.builder.get_object ( attr_name )
             setattr ( self, attr_name, widget )
@@ -185,12 +233,9 @@ class BuilderSidebarWindow ( ):
         self.redo_button       = self.builder.get_object ( 'redo_button' )
         # [EN] 2026-10-03 user request: the Bond Order radios only serve the
         # "Bond Order" tool (re-defining an EXISTING bond), so their row is
-        # shown only while that tool is active (see _sync_bond_order_row()).
+        # shown only while that tool is active (see _sync_side_panel()).
         # "Add" no longer reads them: a dragged bond's order always comes
         # from the drag distance (click_mode.update/finish_bond_drag()).
-        self.bond_order_row = self.bond_order_single_radio.get_parent ( )
-        if self.bond_order_row is not None:
-            self.bond_order_row.set_no_show_all ( True )
         # [EN] 2026-10-03: the Clean Up button was removed (user request);
         # atom_ops.clean_up_structure() itself is kept.
         # [EN] 2026-10-02 user request ("ferramenta para adicionar os
@@ -206,14 +251,422 @@ class BuilderSidebarWindow ( ):
         # the default theme
         try:
             from gui.theme import adapt_icons_for_theme
-            adapt_icons_for_theme ( self.window )
+            adapt_icons_for_theme ( self.builder.get_object ( 'sidebar_root_box' ) )
         except Exception:
             pass
         self.clean_up_adjust_hydrogens_checkbutton = self.builder.get_object ( 'clean_up_adjust_hydrogens_checkbutton' )
 
-        if getattr ( self.vm_session, "builder_target_object", None ) is None:
-            vismol_object = create_empty_vismol_object ( self.vm_session, name = "builder_molecule" )
-            self.vm_session.builder_target_object = vismol_object
+        handlers = {
+            'placemode_toggle':                      ( 'toggled', self.on_placemode_toggled ),
+            'clean_up_adjust_hydrogens_checkbutton': ( 'toggled', self.on_adjust_hydrogen_count_toggled ),
+            'undo_button':                           ( 'clicked', self.on_undo_button_clicked ),
+            'redo_button':                           ( 'clicked', self.on_redo_button_clicked ),
+            'optimize_dyff_button':                  ( 'clicked', self.on_optimize_dyff_button_clicked ),
+            'add_hydrogens_button':                  ( 'clicked', self.on_add_hydrogens_button_clicked ),
+            'atom_types_button':                     ( 'clicked', self.on_atom_types_button_clicked ),
+            'solvate_button':                        ( 'clicked', self.on_solvate_button_clicked ),
+            'close_button':                          ( 'clicked', self.on_close_button_clicked ),
+            'frag_other_radio':                      ( 'toggled', self.on_fragment_quick_changed ),
+        }
+        for name in ( 'tool_add_radio', 'tool_delete_radio', 'tool_bond_order_radio', 'tool_move_radio',
+                      'tool_rotate_dihedral_radio', 'transform_selection_button' ):
+            handlers[name] = ( 'toggled', self.on_tool_changed )
+        for name in ( 'bond_order_single_radio', 'bond_order_double_radio', 'bond_order_triple_radio' ):
+            handlers[name] = ( 'toggled', self.on_bond_order_changed )
+        for symbol in ( 'C', 'N', 'O', 'H', 'B', 'P', 'S', 'F', 'Cl', 'Br', 'I', 'other' ):
+            handlers['element_{}_radio'.format ( symbol )] = ( 'toggled', self.on_element_changed )
+        for name, ( signal, handler ) in handlers.items ( ):
+            widget = self.builder.get_object ( name )
+            if widget is not None:
+                widget.connect ( signal, handler )
+        self._bind_add_panel_tabs ( )
+        self._bind_delete_panel ( )
+        self._bind_dihedral_panel ( )
+        self._bind_transform_panel ( )
+        self._bind_ff_panel ( )
+        self._widgets_bound = True
+
+    # ------------------------------------------------------------------
+    #  Side panel pages (MainWindow.glade's sidebar_stack) -- 2026-10-17
+    # ------------------------------------------------------------------
+
+    def _bind_add_panel_tabs ( self ):
+        """ [EN] 2026-10-17, user's request: the Structure Library is the
+        "Structures" tab of the Add panel, next to elements and fragments
+        ("Chemical"), instead of a tool of its own with a separate window.
+        Picking a row previews it and arms the "add_structure" tool (the
+        next click in the view places it -- click_mode.handle_click_to_add_
+        structure()); going back to "Chemical" restores the element or
+        fragment that was armed there. """
+        self.add_notebook            = self.builder.get_object ( 'builder_add_notebook' )
+        self.structures_page         = self.builder.get_object ( 'builder_structures_page' )
+        self.structure_treestore     = self.builder.get_object ( 'builder_structure_treestore' )
+        self.structure_treeview      = self.builder.get_object ( 'builder_structure_treeview' )
+        self.structure_preview_box   = self.builder.get_object ( 'builder_structure_preview_box' )
+        self.structure_status_label  = self.builder.get_object ( 'builder_structure_status_label' )
+        self.structure_preview       = None   # created the first time the tab is shown (GL widget)
+        self._selected_structure     = None
+        self._chemical_state         = None
+        self.add_notebook.connect ( 'switch-page', self.on_add_notebook_switch_page )
+        self.structure_treeview.get_selection ( ).connect ( 'changed', self.on_structure_selection_changed )
+        self.structure_treeview.connect ( 'row-activated', self.on_structure_row_activated )
+
+    def _populate_structure_tree ( self ):
+        """ Re-scanned at every Builder session (a structure added to the
+        folder while EasyHybrid is running shows up next time), every
+        category collapsed -- same as the old Structure Library window. """
+        from gui.windows.builder.structure_library import discover_structure_files
+        self.structure_treestore.clear ( )
+        for category_name, entries in discover_structure_files ( ):
+            category_iter = self.structure_treestore.append ( None, [ category_name, "" ] )
+            for display_name, file_path in entries:
+                self.structure_treestore.append ( category_iter, [ display_name, file_path ] )
+        self.structure_treeview.collapse_all ( )
+
+    def _structures_tab_active ( self ):
+        return self.add_notebook.get_current_page ( ) == self.add_notebook.page_num ( self.structures_page )
+
+    def on_add_notebook_switch_page ( self, notebook, page, page_num ):
+        """ "switch-page" runs before the current page changes: `page` is the
+        new one. """
+        if page is self.structures_page:
+            if self.structure_preview is None:
+                from gui.windows.builder.molecule_preview import MoleculePreview
+                self.structure_preview = MoleculePreview ( )
+                self.structure_preview_box.pack_start ( self.structure_preview.widget, True, True, 0 )
+                self.structure_preview.widget.show ( )
+            tool = getattr ( self.vm_session, "builder_tool", None )
+            if tool in ( "add", "attach_fragment" ):
+                self._chemical_state = ( tool, getattr ( self.vm_session, "builder_atom_symbol", "C" ),
+                                         getattr ( self.vm_session, "builder_selected_fragment", None ) )
+            if self.tool_add_radio.get_active ( ):
+                self.vm_session.builder_tool = "add_structure"
+            if self._selected_structure is None:
+                self.structure_status_label.set_text ( "No structure selected." )
+        elif self._chemical_state is not None and self.tool_add_radio.get_active ( ):
+            tool, symbol, fragment = self._chemical_state
+            self.vm_session.builder_tool = tool
+            self.vm_session.builder_atom_symbol = symbol
+            self.vm_session.builder_selected_fragment = fragment
+
+    def on_structure_selection_changed ( self, selection ):
+        """ Single click: preview + arm (the tab itself means "add a
+        structure", no separate Use step). Category rows and malformed files
+        only clear the preview. """
+        from gui.windows.builder.structure_library import load_structure, StructureError
+        model, tree_iter = selection.get_selected ( )
+        file_path = model[tree_iter][1] if tree_iter is not None else ""
+        if not file_path:
+            if self.structure_preview is not None:
+                self.structure_preview.clear ( )
+            return
+        try:
+            structure = load_structure ( file_path )
+        except StructureError as error:
+            if self.structure_preview is not None:
+                self.structure_preview.clear ( )
+            self.structure_status_label.set_text ( "Error: {}".format ( error ) )
+            return
+        if self.structure_preview is not None:
+            self.structure_preview.show ( structure["name"], structure["atoms"], structure["bonds"] )
+        self._selected_structure = structure
+        self.vm_session.builder_selected_structure = structure
+        if self.tool_add_radio.get_active ( ):
+            self.vm_session.builder_tool = "add_structure"
+        # . 2026-10-21: total charge and multiplicity (metal, oxidation state, spin note)
+        from gui.windows.builder.structure_library import describe_structure, describe_structure_text
+        try:
+            info = describe_structure ( structure, file_path )
+            structure["total_charge"], structure["multiplicity"] = info["charge"], info["multiplicity"]
+            text = describe_structure_text ( structure, file_path )
+        except Exception as error:
+            text = "{} ({} atoms)".format ( structure["name"], len ( structure["atoms"] ) )
+        self.structure_status_label.set_text ( text + "\nClick in the view to place it." )
+
+    def on_structure_row_activated ( self, treeview, path, column ):
+        """ Double-click on a category row expands/collapses it. """
+        if not self.structure_treestore[path][1]:
+            if treeview.row_expanded ( path ):
+                treeview.collapse_row ( path )
+            else:
+                treeview.expand_row ( path, False )
+
+    def _bind_transform_panel ( self ):
+        """ [EN] 2026-10-17, user's request: Transform Selection is a tool
+        (toolbar radio) with its sliders in the side panel instead of a
+        window, and it sets itself up -- entering it pauses Editing (the
+        viewing selection only works with Editing OFF, see on_placemode_
+        toggled()) and switches the selection to viewing mode; leaving it
+        for another tool turns Editing back on. The sliders act on the
+        CURRENT viewing selection (atoms of the Builder object), re-read at
+        the start of every drag; the header follows it live (see
+        _update_undo_redo_sensitivity()). Same rules as the old
+        TransformSelectionWindow: live sliders, delta from the last value,
+        rotation around the selection centroid, one undo snapshot per drag,
+        sliders back to 0 on release. """
+        self.transform_header_label = self.builder.get_object ( 'builder_transform_header_label' )
+        self.transform_scales = { }
+        for key in ( "tx", "ty", "tz", "rx", "ry", "rz" ):
+            scale = self.builder.get_object ( 'builder_transform_{}_scale'.format ( key ) )
+            self.transform_scales[key] = scale
+            scale.connect ( 'value-changed', self.on_transform_slider_changed, key )
+            scale.connect ( 'button-release-event', self.on_transform_slider_released )
+        self._transform_last_values = { key: 0.0 for key in self.transform_scales }
+        self._transform_suppress    = False
+        self._transform_gesture_atoms = None
+        self._transform_paused_editing = False
+        self._transform_sync_timer  = None
+
+    def _bind_ff_panel ( self ):
+        """ [EN] 2026-10-17, user's request: "Force Field Settings" button --
+        the force field (and its options) for the systems drawn in the
+        Builder. A toggle: while on, the side panel shows these settings
+        instead of the tool's page ("Done" or picking a tool turns it off).
+        Used by close_window() -> _ask_incorporate_with_dyff() /
+        _incorporate_with_dyff(). """
+        b = self.builder.get_object
+        self.ff_settings_toggle = b ( 'ff_settings_toggle' )
+        self.ff_radios = { "none": b ( 'ff_none_radio' ), "dyff": b ( 'ff_dyff_radio' ),
+                           "dyff_xtb": b ( 'ff_dyff_xtb_radio' ), "opls": b ( 'ff_opls_radio' ) }
+        self.ff_widgets = { "method": b ( 'ff_method_combo' ), "water": b ( 'ff_water_check' ),
+                            "bonded": b ( 'ff_bonded_check' ), "cm5_scale": b ( 'ff_cm5_spin' ),
+                            "nb_model": b ( 'ff_nb_combo' ), "on_close": b ( 'ff_on_close_combo' ),
+                            "opls_cm5_scale": b ( 'ff_opls_cm5_spin' ) }
+        self._ff_loading = True
+        self._load_ff_widgets ( )
+        self._ff_loading = False
+        self.ff_settings_toggle.connect ( 'toggled', lambda button: self._sync_side_panel ( ) )
+        b ( 'ff_done_button' ).connect ( 'clicked', lambda button: self.ff_settings_toggle.set_active ( False ) )
+        for radio in self.ff_radios.values ( ):
+            radio.connect ( 'toggled', self.on_ff_setting_changed )
+        for key, widget in self.ff_widgets.items ( ):
+            signal = 'toggled' if key in ( "water", "bonded" ) else 'value-changed' if "cm5_scale" in key else 'changed'
+            widget.connect ( signal, self.on_ff_setting_changed )
+
+    def ff_settings ( self ):
+        """ The Force Field Settings (defaults filled in). """
+        settings = dict ( FF_SETTINGS_DEFAULTS )
+        saved = self.vm_session.vm_config.gl_parameters.get ( 'builder_ff_settings' ) or { }
+        settings.update ( { k: v for k, v in saved.items ( ) if k in FF_SETTINGS_DEFAULTS } )
+        return settings
+
+    def _load_ff_widgets ( self ):
+        settings = self.ff_settings ( )
+        self.ff_radios.get ( settings["force_field"], self.ff_radios["dyff"] ).set_active ( True )
+        self.ff_widgets["method"].set_active_id ( settings["method"] )
+        self.ff_widgets["water"].set_active ( bool ( settings["water"] ) )
+        self.ff_widgets["bonded"].set_active ( bool ( settings["bonded"] ) )
+        self.ff_widgets["cm5_scale"].set_value ( float ( settings["cm5_scale"] ) )
+        self.ff_widgets["nb_model"].set_active_id ( settings["nb_model"] )
+        self.ff_widgets["on_close"].set_active_id ( settings["on_close"] )
+        self.ff_widgets["opls_cm5_scale"].set_value ( float ( settings["opls_cm5_scale"] ) )
+        self._update_ff_panel_state ( settings )
+
+    def _update_ff_panel_state ( self, settings ):
+        self.builder.get_object ( 'builder_ff_description_label' ).set_text ( FF_DESCRIPTIONS[settings["force_field"]] )
+        self.builder.get_object ( 'builder_ff_xtb_frame' ).set_sensitive ( settings["force_field"] == "dyff_xtb" )
+        self.builder.get_object ( 'builder_ff_opls_frame' ).set_sensitive ( settings["force_field"] == "opls" )
+        # . tblite (g-xTB) has no implicit solvent
+        self.ff_widgets["water"].set_sensitive ( settings["method"] == "gfn2" )
+        self.ff_widgets["nb_model"].set_sensitive ( settings["force_field"] != "none" )
+        self.ff_widgets["on_close"].set_sensitive ( settings["force_field"] != "none" )
+
+    def on_ff_setting_changed ( self, widget ):
+        if self._ff_loading or ( isinstance ( widget, Gtk.RadioButton ) and not widget.get_active ( ) ):
+            return
+        settings = {
+            "force_field": next ( key for key, radio in self.ff_radios.items ( ) if radio.get_active ( ) ),
+            "method":      self.ff_widgets["method"].get_active_id ( ) or "gfn2",
+            "water":       self.ff_widgets["water"].get_active ( ),
+            "bonded":      self.ff_widgets["bonded"].get_active ( ),
+            "cm5_scale":   round ( self.ff_widgets["cm5_scale"].get_value ( ), 2 ),
+            "nb_model":    self.ff_widgets["nb_model"].get_active_id ( ) or "cutoff",
+            "on_close":    self.ff_widgets["on_close"].get_active_id ( ) or "ask",
+            "opls_cm5_scale": round ( self.ff_widgets["opls_cm5_scale"].get_value ( ), 2 ),
+        }
+        self._update_ff_panel_state ( settings )
+        vm_config = self.vm_session.vm_config
+        vm_config.gl_parameters['builder_ff_settings'] = settings
+        try:
+            vm_config.save_easyhybrid_config ( )
+        except Exception as error:
+            print ( "Force Field Settings not saved:", error )
+
+    def _transform_selected_atom_ids ( self ):
+        target_object = getattr ( self.vm_session, "builder_target_object", None )
+        if target_object is None:
+            return [ ]
+        selection = self.vm_session.selections.get ( self.vm_session.current_selection )
+        selected_atoms = getattr ( selection, "selected_atoms", None ) or set ( )
+        return sorted ( atom.atom_id for atom in selected_atoms
+                        if atom.vm_object is target_object and target_object.atoms.get ( atom.atom_id ) is atom )
+
+    def _refresh_transform_header ( self ):
+        n = len ( self._transform_selected_atom_ids ( ) )
+        text = "{} atom(s) selected".format ( n ) if n else "No atoms selected."
+        if self.transform_header_label.get_text ( ) != text:
+            self.transform_header_label.set_text ( text )
+
+    def _enter_transform_mode ( self ):
+        if self.placemode_toggle.get_active ( ):
+            self.placemode_toggle.set_active ( False )
+            self._transform_paused_editing = True
+        selection_box = getattr ( self.vm_session, "selection_box_frame", None )
+        if selection_box is not None:
+            selection_box.change_toggle_button_selecting_mode_status ( False )
+        self.vm_session.picking_selection_mode = False
+        self._reset_transform_sliders ( )
+        self._refresh_transform_header ( )
+        self.vm_session.vm_glcore.queue_draw ( )
+        if getattr ( self.main, "statusbar_main", None ) is not None:
+            self.main.statusbar_main.push ( 1, "Transform: select atoms (click / shift+click / shift+drag), then use the sliders." )
+
+    def _leave_transform_mode ( self ):
+        if self._transform_paused_editing:
+            self._transform_paused_editing = False
+            self.placemode_toggle.set_active ( True )
+
+    def _reset_transform_sliders ( self ):
+        self._transform_last_values = { key: 0.0 for key in self.transform_scales }
+        self._transform_gesture_atoms = None
+        self._transform_suppress = True
+        for scale in self.transform_scales.values ( ):
+            scale.set_value ( 0.0 )
+        self._transform_suppress = False
+
+    def on_transform_slider_changed ( self, scale, key ):
+        if self._transform_suppress:
+            return
+        target_object = getattr ( self.vm_session, "builder_target_object", None )
+        if target_object is None:
+            return
+        new_value = scale.get_value ( )
+        delta = new_value - self._transform_last_values[key]
+        self._transform_last_values[key] = new_value
+        if abs ( delta ) < 1e-9:
+            return
+        from gui.windows.builder.atom_ops import ( translate_atoms, rotate_atoms_around_point,
+                                                   selection_centroid, push_undo_snapshot )
+        if self._transform_gesture_atoms is None:            # first move of this drag
+            atom_ids = self._transform_selected_atom_ids ( )
+            if not atom_ids:
+                if getattr ( self.main, "statusbar_main", None ) is not None:
+                    self.main.statusbar_main.push ( 1, "Transform: select some atoms first." )
+                return
+            push_undo_snapshot ( target_object )
+            self._transform_gesture_atoms = atom_ids
+        atom_ids = [ i for i in self._transform_gesture_atoms if i in target_object.atoms ]
+        if key[0] == "t":
+            d = [ 0.0, 0.0, 0.0 ]
+            d["xyz".index ( key[1] )] = delta
+            translate_atoms ( target_object, atom_ids, *d )
+        else:
+            import math
+            axis = tuple ( 1.0 if a == key[1] else 0.0 for a in "xyz" )
+            pivot = selection_centroid ( target_object, atom_ids )
+            rotate_atoms_around_point ( target_object, atom_ids, pivot, axis, math.radians ( delta ) )
+        # keyboard changes have no button release: sync once they stop
+        from gi.repository import GLib
+        if self._transform_sync_timer is not None:
+            GLib.source_remove ( self._transform_sync_timer )
+        self._transform_sync_timer = GLib.timeout_add ( 400, self._sync_after_transform, target_object )
+
+    def _sync_after_transform ( self, target_object ):
+        self._transform_sync_timer = None
+        if target_object in self.vm_session.vm_objects_dic.values ( ):
+            from gui.windows.builder.empty_object import sync_pdynamo_system
+            sync_pdynamo_system ( target_object )
+        return False
+
+    def on_transform_slider_released ( self, widget, event ):
+        """ End of a drag: the sliders go back to 0 so the next drag starts
+        from a clean baseline (the pDynamo sync is the debounced one above). """
+        from gi.repository import GLib
+        GLib.idle_add ( lambda: ( self._reset_transform_sliders ( ), False )[1] )
+        return False
+
+    def _bind_delete_panel ( self ):
+        """ [EN] 2026-10-17, user's request: what a Delete click removes --
+        the atom, or its whole residue / molecule (bonded fragment) / chain
+        (vm_session.builder_delete_scope, read by click_mode.handle_click_to_
+        delete_atom()). """
+        self.delete_scope_radios = { }
+        for scope in ( "atom", "residue", "molecule", "chain" ):
+            radio = self.builder.get_object ( 'delete_scope_{}_radio'.format ( scope ) )
+            self.delete_scope_radios[scope] = radio
+            radio.connect ( 'toggled', self.on_delete_scope_toggled, scope )
+
+    def on_delete_scope_toggled ( self, button, scope ):
+        if button.get_active ( ):
+            self.vm_session.builder_delete_scope = scope
+
+    def _bind_dihedral_panel ( self ):
+        """ [EN] 2026-10-17, user's request: the dihedral controls are a page
+        of the side panel (no Dihedral Angle window). click_mode.handle_click_
+        to_pick_dihedral_atom() still calls arm/disarm_dihedral_slider(). """
+        self.dihedral_adjustment   = self.builder.get_object ( 'builder_dihedral_adjustment' )
+        self.dihedral_status_label = self.builder.get_object ( 'builder_dihedral_status_label' )
+        self.dihedral_controls     = [ self.builder.get_object ( name ) for name in
+                                       ( 'builder_dihedral_scale', 'builder_dihedral_spin', 'builder_dihedral_preset_grid' ) ]
+        self._suppress_dihedral_signal = False
+        self._dihedral_sync_timer = None
+        self.dihedral_adjustment.connect ( 'value-changed', self.on_dihedral_value_changed )
+        for name, value in ( ( 'dihedral_preset_180', 180.0 ), ( 'dihedral_preset_p60', 60.0 ),
+                             ( 'dihedral_preset_m60', -60.0 ), ( 'dihedral_preset_0', 0.0 ) ):
+            self.builder.get_object ( name ).connect ( 'clicked', lambda button, v: self.dihedral_adjustment.set_value ( v ), value )
+        self._set_dihedral_controls_sensitive ( False )
+
+    def _set_dihedral_controls_sensitive ( self, sensitive ):
+        for widget in self.dihedral_controls:
+            if widget is not None:
+                widget.set_sensitive ( sensitive )
+
+    def on_dihedral_value_changed ( self, adjustment ):
+        """ Rotates the armed dihedral (vm_session.builder_dihedral_axis/
+        _subgroup) so that its angle -- re-measured every call, never
+        accumulated -- becomes the new value (moved unchanged from the old
+        DihedralAngleWindow). The pDynamo system is synced once the value
+        stops changing (debounced), not on every slider motion. """
+        if self._suppress_dihedral_signal:
+            return
+        target_object = getattr ( self.vm_session, "builder_target_object", None )
+        axis          = getattr ( self.vm_session, "builder_dihedral_axis", None )
+        subgroup      = getattr ( self.vm_session, "builder_dihedral_subgroup", None )
+        picked        = getattr ( self.vm_session, "builder_dihedral_pick_atoms", None )
+        if target_object is None or axis is None or subgroup is None or not picked or len ( picked ) < 4:
+            return
+
+        import math
+        from util.geometric_analysis import get_dihedral
+        try:
+            current_angle = get_dihedral ( target_object, *[ a.atom_id for a in picked ] )
+        except ValueError:
+            return
+        delta_deg = adjustment.get_value ( ) - current_angle
+        while delta_deg > 180.0:
+            delta_deg -= 360.0
+        while delta_deg <= -180.0:
+            delta_deg += 360.0
+        if abs ( delta_deg ) < 1e-9:
+            return
+
+        from gui.windows.builder.atom_ops import rotate_atoms_around_bond
+        rotate_atoms_around_bond ( target_object, axis[0], axis[1], subgroup, math.radians ( delta_deg ) )
+        self._set_dihedral_status ( adjustment.get_value ( ) )
+
+        from gi.repository import GLib
+        if self._dihedral_sync_timer is not None:
+            GLib.source_remove ( self._dihedral_sync_timer )
+        self._dihedral_sync_timer = GLib.timeout_add ( 400, self._sync_after_dihedral_change, target_object )
+
+    def _sync_after_dihedral_change ( self, target_object ):
+        self._dihedral_sync_timer = None
+        if target_object in self.vm_session.vm_objects_dic.values ( ):
+            from gui.windows.builder.empty_object import sync_pdynamo_system
+            sync_pdynamo_system ( target_object )
+        return False
+
+    def _start_session ( self ):
 
         # [EN] 2026-09-25, user's own explicit request: "quando um novo
         # vobject e criado para edicao, temos que desativar a
@@ -271,37 +724,75 @@ class BuilderSidebarWindow ( ):
         # de "toggled" de novo (eles ja rodariam com os valores certos,
         # mas sinalizar aqui deixa explicito o que esta acontecendo)
         self.placemode_toggle.set_active ( True )
+        self.ff_settings_toggle.set_active ( False )
         self.placemode_toggle.set_label ( "Editing: ON" )
         self.tool_add_radio.set_active ( True )
+        self.add_notebook.set_current_page ( 0 )      # "Chemical"
         self.element_C_radio.set_active ( True )
         self.bond_order_single_radio.set_active ( True )
         self.clean_up_adjust_hydrogens_checkbutton.set_active ( True )
+        self.vm_session.builder_delete_scope = "atom"
+        self.delete_scope_radios["atom"].set_active ( True )
+        self._chemical_state = None
+        self._selected_structure = None
+        self.vm_session.builder_selected_structure = None
+        self.structure_status_label.set_text ( "No structure selected." )
+        if self.structure_preview is not None:
+            self.structure_preview.clear ( )
+        self._populate_structure_tree ( )
 
-        self.window.show_all ( )
-        self._sync_bond_order_row ( )
+        self.toolbar_edit.set_no_show_all ( False )
+        self.toolbar_edit.show_all ( )
         self.visible = True
+        self._sync_side_panel ( )
+        self.sync_main_toggle ( )
         # keep Undo/Redo greyed out when there is nothing to undo/redo --
         # edits happen in click_mode.py/vismol_glcore.py, so poll cheaply
         from gi.repository import GLib
         self._undo_redo_timer = GLib.timeout_add ( 300, self._update_undo_redo_sensitivity )
         self._update_undo_redo_sensitivity ( )
 
-    def _sync_bond_order_row ( self ):
-        """ Bond order radios visible only with the "Bond Order" tool. """
-        row = getattr ( self, "bond_order_row", None )
-        if row is None:
+    def sync_main_toggle ( self ):
+        """ Main toolbar's "Edit and Build" toggle (_show_cell) follows the
+        real session state -- the session can also be opened from the
+        treeview ("Edit in Builder") or closed from toolbar_edit's Close. """
+        button = self.main.builder.get_object ( '_show_cell' )
+        if button is None or button.get_active ( ) == self.visible:
             return
-        if self.tool_bond_order_radio.get_active ( ):
-            row.set_no_show_all ( False )
-            row.show_all ( )
+        self.main._syncing_builder_toggle = True
+        try:
+            button.set_active ( self.visible )
+        finally:
+            self.main._syncing_builder_toggle = False
+
+    def _sync_side_panel ( self ):
+        """ [EN] 2026-10-17: the right side panel shows what the active tool
+        needs -- elements + fragments with "Add", the bond order radios with
+        "Bond Order" (used to be a row shown/hidden inside the old window);
+        no panel for the other tools. """
+        if not self.visible:
+            return
+        if self.ff_settings_toggle.get_active ( ):
+            self.main.show_sidebar_page ( "builder_ff_settings", "Force Field Settings" )
+        elif self.tool_add_radio.get_active ( ):
+            self.main.show_sidebar_page ( "builder_add", "Add" )
+        elif self.tool_bond_order_radio.get_active ( ):
+            self.main.show_sidebar_page ( "builder_bond_order", "Bond order" )
+        elif self.tool_delete_radio.get_active ( ):
+            self.main.show_sidebar_page ( "builder_delete", "Delete" )
+        elif self.tool_rotate_dihedral_radio.get_active ( ):
+            self.main.show_sidebar_page ( "builder_dihedral", "Dihedral" )
+        elif self.transform_selection_button.get_active ( ):
+            self.main.show_sidebar_page ( "builder_transform", "Transform selection" )
         else:
-            row.hide ( )
-            row.set_no_show_all ( True )
+            self.main.hide_sidebar ( )
 
     def _update_undo_redo_sensitivity ( self ):
-        if not self.visible or getattr ( self, "window", None ) is None:
+        if not self.visible:
             self._undo_redo_timer = None
             return False
+        if self.transform_selection_button.get_active ( ):
+            self._refresh_transform_header ( )
         target_object = getattr ( self.vm_session, "builder_target_object", None )
         can_undo = bool ( getattr ( target_object, "undo_stack", None ) )
         can_redo = bool ( getattr ( target_object, "redo_stack", None ) )
@@ -351,6 +842,12 @@ class BuilderSidebarWindow ( ):
         leaves behind -- so there is no real caller left to preserve the
         old "leave it set" behaviour for. """
         target_object = getattr ( self.vm_session, "builder_target_object", None )
+        # [EN] 2026-10-04 BUG FIX: the object may have been deleted while the
+        # Builder was open (treeview Delete -> main_window._on_vobjects_removed());
+        # then there is nothing to ask, keep, discard or fold back -- answering
+        # "Yes" used to resurrect it as an orphan pDynamo system.
+        if target_object is not None and target_object not in self.vm_session.vm_objects_dic.values ( ):
+            target_object = None
 
         # [EN] 2026-10-04, user's request: when the session leaves a system
         # behind, ask whether to incorporate it with DYFF and the Builder's
@@ -405,6 +902,11 @@ class BuilderSidebarWindow ( ):
         solvate_window = getattr ( self.main, "solvate_window", None )
         if solvate_window is not None and solvate_window.visible:
             solvate_window.close_window ( )
+        # the DYFF Parameters window (and its torsion fit window) is a Builder
+        # tool on this session's object: it used to stay open on it
+        dyff_window = getattr ( self.main, "dyff_parameters_window", None )
+        if dyff_window is not None and dyff_window.visible:
+            dyff_window.close_window ( )
         # [EN] The Atom Types window's own 3D-view index-label overlay
         # (see atom_types_window.py's _refresh_rows()) points at atoms
         # belonging to the object THIS Builder session was editing --
@@ -416,9 +918,11 @@ class BuilderSidebarWindow ( ):
             from gi.repository import GLib
             GLib.source_remove ( timer )
             self._undo_redo_timer = None
-        if getattr ( self, "window", None ) is not None:
-            self.window.destroy ( )
+        self.toolbar_edit.hide ( )
+        self.toolbar_edit.set_no_show_all ( True )
+        self.main.hide_sidebar ( )
         self.visible = False
+        self.sync_main_toggle ( )
         if incorporate and final_vobject is not None:
             self._incorporate_with_dyff ( final_vobject, rebuild = final_vobject is target_object )
         return True
@@ -433,21 +937,49 @@ class BuilderSidebarWindow ( ):
         return not getattr ( target_object, "is_builder_only", False ) and getattr ( target_object, "e_id", None ) is not None
 
     def _ask_incorporate_with_dyff ( self, target_object, allow_cancel ):
-        """ True (incorporate), False (plain system, as before) or None (cancel). """
+        """ True (incorporate), False (plain system, as before) or None (cancel).
+        [EN] 2026-10-17: follows the Force Field Settings -- "None" never
+        asks, "Apply automatically" doesn't ask, the question names the
+        chosen force field. """
         from gi.repository import Gtk
         from gui.windows.builder.dyff_parameters import builder_customizations, customizations_text
-        lines = customizations_text ( builder_customizations ( target_object ) )
+        library = getattr ( target_object, "dyff_library_options", None )
+        settings = self.ff_settings ( )
+        force_field = settings["force_field"]
+        if not library and force_field == "none":
+            return False
+        if settings["on_close"] == "apply":
+            return True
         dialog = Gtk.MessageDialog ( transient_for = getattr ( self, "window", None ) or self.main.window, modal = True,
                                      message_type = Gtk.MessageType.QUESTION, buttons = Gtk.ButtonsType.NONE,
-                                     text = "Incorporate '{}' with the DYFF force field?".format ( target_object.name ) )
-        dialog.format_secondary_text (
-            "Yes: the system gets the DYFF MM model with the customizations made in the Builder:\n"
-            + "".join ( "    \u2022 {}\n".format ( line ) for line in lines )
-            + "\nNo: the system is kept without a force field (as before)." )
+                                     text = "Incorporate '{}' with the {} force field?".format (
+                                         target_object.name, "DYFF" if library else FF_NAMES[force_field] ) )
+        if library:
+            # . [EN] 2026-10-08: a system prepared with DYFF + residue library (Prepare DYFF
+            #   System): the same parametrization is applied again to the edited structure
+            dialog.format_secondary_text (
+                "This system was parametrized with DYFF + residue library. Yes: the library is applied again to the "
+                "edited structure -- residues that still match it get the same parameters; the edited region (e.g. a "
+                "metal site with a bonded hydroxide) is outside the library and is refined with {} (CM5 charges, "
+                "Hessian bonds/angles, torsion library); metal types and charges are read from the structure.\n\n"
+                "No: the system is kept without a force field.".format (
+                    { "gxtb": "g-xTB" }.get ( library.get ( "method" ), "GFN2-xTB" ) ) )
+        elif force_field == "dyff":
+            lines = customizations_text ( builder_customizations ( target_object ) )
+            dialog.format_secondary_text (
+                "Yes: the system gets the DYFF MM model with the customizations made in the Builder:\n"
+                + "".join ( "    \u2022 {}\n".format ( line ) for line in lines )
+                + "\nNo: the system is kept without a force field (as before)."
+                + "\n\n(Builder > Force Field Settings chooses the force field.)" )
+        else:
+            dialog.format_secondary_text (
+                "Yes: {}\n\nNo: the system is kept without a force field.\n\n"
+                "(Builder > Force Field Settings chooses the force field.)".format ( self._ff_settings_text ( settings ) ) )
         if allow_cancel:
             dialog.add_button ( "Cancel", Gtk.ResponseType.CANCEL )
         dialog.add_button ( "No, plain system", Gtk.ResponseType.NO )
-        dialog.add_button ( "Yes, incorporate with DYFF", Gtk.ResponseType.YES )
+        dialog.add_button ( "Yes, re-apply DYFF + residue library" if library else
+                            "Yes, incorporate with {}".format ( FF_NAMES[force_field] ), Gtk.ResponseType.YES )
         dialog.set_default_response ( Gtk.ResponseType.YES )
         response = dialog.run ( )
         dialog.destroy ( )
@@ -463,13 +995,93 @@ class BuilderSidebarWindow ( ):
         from gui.windows.builder.empty_object import sync_pdynamo_system
         if rebuild:
             sync_pdynamo_system ( vismol_object )
+        if getattr ( vismol_object, "dyff_library_options", None ):
+            self.main.reapply_dyff_library ( vismol_object, extra_message = " (re-applied after editing in the Builder)" )
+            return
         system = self.main.p_session.psystem.get ( getattr ( vismol_object, "e_id", None ) )
+        # [EN] 2026-10-17: the force field chosen in Force Field Settings
+        settings = self.ff_settings ( )
+        force_field = settings["force_field"]
+        if force_field == "none":
+            return
+        if force_field == "dyff_xtb":
+            self._incorporate_with_dyff_xtb ( vismol_object, system, settings )
+            return
+        if force_field == "opls":
+            self._incorporate_with_opls ( vismol_object, system, settings )
+            return
         ok, message = incorporate_with_dyff ( self.main, vismol_object )
+        if ok:
+            message += self._apply_ff_nb_model ( system, settings )
         self.main.refresh_main_statusbar ( )
         if ok:
             self.main.bottom_notebook.status_teeview_add_new_item ( message = message, system = system )
         else:
             self.main.simple_dialog.error ( msg = message + "\nThe system was kept without a force field." )
+
+    def _incorporate_with_dyff_xtb ( self, vismol_object, system, settings ):
+        """ DYFF + xTB refinement: the residue library pipeline of Prepare
+            DYFF System (main_window._run_dyff_library) -- for a drawn
+            molecule no residue matches, so every atom gets CM5 charges,
+            Hessian bonds/angles and torsions. Runs in a worker thread; the
+            options stay on the object (dyff_library_options), so a later
+            Edit in Builder re-applies them. """
+        from pdynamo import residue_library as RL
+        if system is None:
+            self.main.simple_dialog.error ( msg = "No pDynamo system for '{}'.".format ( vismol_object.name ) )
+            return
+        if getattr ( system, "qcModel", None ) is not None:
+            self.main.simple_dialog.error ( msg = "'{}' has a QC model: DYFF was not assigned.".format ( system.label ) )
+            return
+        try:
+            plan = RL.plan ( system )
+        except Exception as error:
+            self.main.simple_dialog.error ( msg = "Residue library: {}\nThe system was kept without a force field.".format ( error ) )
+            return
+        self.main._run_dyff_library ( system, vismol_object, plan, use_water = settings["water"] and settings["method"] == "gfn2",
+                                      use_bonded = settings["bonded"], method = settings["method"],
+                                      cm5_scale = float ( settings["cm5_scale"] ),
+                                      extra_message = " (Builder Force Field Settings)",
+                                      on_success = lambda: self._apply_ff_nb_model ( system, settings ) )
+
+    def _incorporate_with_opls ( self, vismol_object, system, settings ):
+        """ [EN] 2026-10-17, user's request: the OPLS-AA set as it is; only when
+        parameters are missing, a dialog offers the Prepare OPLS System procedure to
+        create them (no solvation -- a separate, later step). See
+        gui/windows/setup/opls_assign.py. A Builder molecule keeps its atoms
+        through that procedure, so the object stays the same. """
+        from gui.windows.setup.opls_assign import assign_opls
+        if system is None:
+            self.main.simple_dialog.error ( msg = "No pDynamo system for '{}'.".format ( vismol_object.name ) )
+            return
+        assign_opls ( self.main, system, cm5_scale = float ( settings["opls_cm5_scale"] ),
+                      after = lambda final_system: self._apply_ff_nb_model ( final_system, settings ) )
+
+    def _apply_ff_nb_model ( self, system, settings ):
+        """ define_MMModel() already gives a cut-off NB model when there is
+            none; "Full" replaces it. Returns a note for the message. """
+        if system is None or settings["nb_model"] != "full":
+            return ""
+        if self.main.p_session.define_NBModel ( _type = 0, system = system ):
+            return " Nonbonded model: full (no cut-off)."
+        return " (The full nonbonded model could not be defined; cut-off kept.)"
+
+    def _ff_settings_text ( self, settings ):
+        force_field = settings["force_field"]
+        if force_field == "dyff_xtb":
+            text = ( "DYFF with CM5 charges (scale {:.2f}){} computed with {}{}; runs in the background.".format (
+                     float ( settings["cm5_scale"] ),
+                     ", Hessian bonds/angles and torsions" if settings["bonded"] else "",
+                     { "gxtb": "g-xTB" }.get ( settings["method"], "GFN2-xTB" ),
+                     " in implicit water" if settings["water"] and settings["method"] == "gfn2" else "" ) )
+        elif force_field == "opls":
+            text = ( "OPLS-AA. If parameters are missing, you will be asked whether to create them with the "
+                     "Prepare OPLS System procedure (CM5 scale {:.2f}).".format ( float ( settings["opls_cm5_scale"] ) ) )
+        else:
+            text = "DYFF ({}).".format ( FF_DESCRIPTIONS["dyff"] )
+        if settings["nb_model"] == "full":
+            text += " Nonbonded model: full (no cut-off)."
+        return text
 
     # ------------------------------------------------------------------
     #  Signal handlers (referenced by name in builder_sidebar.glade)
@@ -481,7 +1093,12 @@ class BuilderSidebarWindow ( ):
         window. """
         is_active = button.get_active ( )
         self.vm_session.builder_atom_mode = is_active
+        if is_active:
+            self._transform_paused_editing = False   # turned back on by hand
         button.set_label ( "Editing: ON" if is_active else "Editing: OFF" )
+        if self.visible and getattr ( self.main, "statusbar_main", None ) is not None:
+            self.main.statusbar_main.push ( 1, "Builder editing ON." if is_active else
+                                            "Builder editing paused (OFF): clicks only rotate/inspect the view." )
 
     def on_tool_changed ( self, button ):
         """ [EN] GtkRadioButton fires "toggled" for BOTH the button that
@@ -504,18 +1121,20 @@ class BuilderSidebarWindow ( ):
         if not button.get_active ( ):
             return
         if button is self.tool_add_radio:
-            self.vm_session.builder_tool = "add"
+            self.vm_session.builder_tool = "add_structure" if self._structures_tab_active ( ) else "add"
         elif button is self.tool_delete_radio:
             self.vm_session.builder_tool = "delete"
         elif button is self.tool_move_radio:
             self.vm_session.builder_tool = "move"
         elif button is self.tool_bond_order_radio:
             self.vm_session.builder_tool = "bond_order"
-        elif button is self.tool_add_structure_radio:
-            self.vm_session.builder_tool = "add_structure"
-            self.main.structure_library_window.open_window ( )
         elif button is self.tool_rotate_dihedral_radio:
             self.vm_session.builder_tool = "rotate_dihedral"
+        elif button is self.transform_selection_button:
+            self.vm_session.builder_tool = "transform"
+            self._enter_transform_mode ( )
+        if self.vm_session.builder_tool != "transform":
+            self._leave_transform_mode ( )
 
         # [EN] Leaving the "Rotate Dihedral" tool (or never having been on
         # it) drops any in-progress 4-atom pick and disarms the slider --
@@ -538,7 +1157,10 @@ class BuilderSidebarWindow ( ):
         # SURVIVING one the user simply doesn't remember picking).
         if self.vm_session.builder_tool != "bond_order":
             self.vm_session.builder_bond_pick_first_atom = None
-        self._sync_bond_order_row ( )
+        if self.ff_settings_toggle.get_active ( ):
+            self.ff_settings_toggle.set_active ( False )   # its handler syncs the panel
+        else:
+            self._sync_side_panel ( )
 
     def on_element_changed ( self, button ):
         """ Same "only act on the newly-active one" reasoning as
@@ -745,27 +1367,6 @@ class BuilderSidebarWindow ( ):
             return
         self.main.dyff_parameters_window.open_window ( target_object, atom_ids )
 
-    def on_transform_selection_button_clicked ( self, button ):
-        """ Opens the Transform Selection window (transform_selection_
-        window.TransformSelectionWindow, instantiated once on main_window)
-        on whichever atoms are currently in the app's own VIEWING
-        selection -- same filtering-to-the-Builder's-own-target-object
-        reasoning as on_atom_types_button_clicked() just above. """
-        target_object = getattr ( self.vm_session, "builder_target_object", None )
-        if target_object is None:
-            return
-
-        selection = self.vm_session.selections.get ( self.vm_session.current_selection )
-        selected_atoms = getattr ( selection, "selected_atoms", None ) or set ( )
-        atom_ids = { atom.atom_id for atom in selected_atoms if atom.vm_object is target_object }
-
-        if not atom_ids:
-            if getattr ( self.main, "statusbar_main", None ) is not None:
-                self.main.statusbar_main.push ( 1, "Transform Selection: select some atoms first (shift+click or shift+drag)." )
-            return
-
-        self.main.transform_selection_window.open_window ( target_object, atom_ids )
-
     def arm_dihedral_slider ( self, angle_deg ):
         """ [EN] 2026-09-24: the inline slider this method used to drive
         directly was extracted into its own window (dihedral_angle_
@@ -776,17 +1377,28 @@ class BuilderSidebarWindow ( ):
         click_mode.handle_click_to_pick_dihedral_atom() (via vm_session.
         main.builder_sidebar_window, the same cross-window-sync pattern
         fragment_library_window.py already uses for THIS sidebar's Tool
-        radio), so no change needed at that call site. """
-        self.main.dihedral_angle_window.open_window ( angle_deg )
+        radio), so no change needed at that call site.
+        [EN] 2026-10-17: drives the Dihedral page of the side panel instead
+        (user's request: no auxiliary window). """
+        self._suppress_dihedral_signal = True
+        self.dihedral_adjustment.set_value ( angle_deg )
+        self._suppress_dihedral_signal = False
+        self._set_dihedral_controls_sensitive ( True )
+        self._set_dihedral_status ( angle_deg )
+
+    def _set_dihedral_status ( self, angle_deg ):
+        picked = getattr ( self.vm_session, "builder_dihedral_pick_atoms", None ) or [ ]
+        names = "-".join ( a.name for a in picked[:4] )
+        self.dihedral_status_label.set_text ( "{}: {:.1f}\u00b0".format ( names or "Dihedral", angle_deg ) )
 
     def disarm_dihedral_slider ( self ):
-        """ Counterpart to arm_dihedral_slider() above -- closes the
-        Dihedral Angle window (tool switched away, pick cancelled, or
-        this sidebar itself closing). A no-op if it's already closed
-        (e.g. the user closed it by hand mid-edit). """
-        dihedral_window = getattr ( self.main, "dihedral_angle_window", None )
-        if dihedral_window is not None and dihedral_window.visible:
-            dihedral_window.close_window ( )
+        """ Counterpart to arm_dihedral_slider() above (tool switched away,
+        pick cancelled, or the Builder closing): controls disabled until
+        the next 4-atom pick. """
+        if not self._widgets_bound:
+            return
+        self._set_dihedral_controls_sensitive ( False )
+        self.dihedral_status_label.set_text ( "No dihedral picked." )
 
     def on_undo_button_clicked ( self, button ):
         """ Calls atom_ops.undo() on the CURRENT target object -- see

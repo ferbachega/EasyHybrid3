@@ -331,7 +331,8 @@ class ExportDataWindow:
                 4: 'xyz - cartesian coordinates',
                 5: 'mol',
                 6: 'mol2',
-                7: 'crd'
+                7: 'crd',
+                8: 'NAMD - psf/prm/pdb + config (DYFF, OPLS)'
             }
             for _, _format in self.formats.items():
                 self.format_store.append([_format])
@@ -476,7 +477,7 @@ class ExportDataWindow:
         
         if len(self.main.vm_session.vm_objects_dic[vobject_id].frames) > 1:
             self.is_single_frame = True
-            if self.combobox_fileformat.get_active() in [0, 1]:
+            if self.combobox_fileformat.get_active() in [0, 1, 8]:
                 self.builder.get_object('radiobutton_singlefile').set_active(True)
                 self.builder.get_object('radiobutton_multiplefile').set_sensitive(False)
             else:
@@ -599,7 +600,7 @@ class ExportDataWindow:
         parameters['system'] = self.main.p_session.psystem[parameters['system_id']]
         
         # ----------------- File extension handling ----------------- #
-        format_dict = {0:'pkl', 1:'yaml', 2:'pkl', 3:'pdb', 4:'xyz', 5:'mol', 6:'mol2', 7:'crd'}
+        format_dict = {0:'pkl', 1:'yaml', 2:'pkl', 3:'pdb', 4:'xyz', 5:'mol', 6:'mol2', 7:'crd', 8:'psf'}
         if parameters['is_single_file']:
             _format = '.' + format_dict[parameters['format']]
         else:
@@ -620,7 +621,8 @@ class ExportDataWindow:
             dprint("Error:", error_str)
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'Error: Could not export data.', system = None)
             simpledialog = SimpleDialog(self.main)
-            simpledialog.error("Error: Could not export data.")
+            # . 2026-10-21: the reason (e.g. NAMD export of an AMBER system) is shown
+            simpledialog.error("Error: Could not export data.\n\n{}".format(error_str))
             
         #'''
         

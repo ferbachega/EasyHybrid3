@@ -502,8 +502,8 @@ class ProcessManagerWindow(Gtk.Window):
         
         return treeiter
 
-    def set_status (self, treeiter = None, status = 'Queued' ):
-        """ Function doc """
+    def set_status (self, treeiter = None, status = 'Queued', warning = None ):
+        """ Function doc (warning: extra text for the "Finished!" dialog) """
         self.main.job_history_liststore[treeiter][5] = status
         if status == 'Finished':
             system_name = self.main.job_history_liststore[treeiter][0]
@@ -523,7 +523,8 @@ class ProcessManagerWindow(Gtk.Window):
                 #f"Start time: {start_time}\n"
                 #f"End time: {end_time}\n"
                 #f"Status: {status}"
-                )            
+                )
+            if warning: msg += f"\nWARNING: {warning}\n"
             dialog = SimpleDialog(self )
             dialog.finished_with_import(
                 msg = msg, modal = False, title = 'Finished!',

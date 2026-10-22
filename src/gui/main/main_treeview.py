@@ -565,6 +565,8 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         # Update the trajectory player window with the new range
         self.main.trajectory_player_window.change_range(upper=higher)
         self.main.trajectory_player_window.upper = higher
+        if getattr(self.main, 'mini_player', None) is not None:
+            self.main.mini_player.refresh()
 
     def refresh(self):
         """Rebuild the TreeView with the current systems and vobjects."""

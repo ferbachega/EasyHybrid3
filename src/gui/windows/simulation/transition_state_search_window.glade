@@ -58,6 +58,7 @@
                     <child>
                       <object class="GtkBox" id="box_coordinates">
                         <property name="visible">True</property>
+                        <property name="tooltip-text" translatable="yes">Starting structure for the search. It must already be close to the transition state, for example the energy maximum of a PES scan, an NEB/CPR highest point or a hand-built guess. Baker's method refines a nearby saddle point; it does not find a reaction path.</property>
                         <property name="can_focus">False</property>
                         <property name="orientation">vertical</property>
                         <child>
@@ -72,6 +73,7 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="label" translatable="yes">Coordinates</property>
+                    <property name="tooltip-text" translatable="yes">Starting structure for the search. It must already be close to the transition state, for example the energy maximum of a PES scan, an NEB/CPR highest point or a hand-built guess. Baker's method refines a nearby saddle point; it does not find a reaction path.</property>
                   </object>
                 </child>
               </object>
@@ -85,7 +87,7 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Method: Baker eigenvector-following (J. Comput. Chem. 4, 385-95, 1986). Searches for a first-order saddle point (one negative Hessian eigenvalue) by following the chosen normal mode uphill while minimising along every other direction.</property>
+                <property name="label" translatable="yes">Method: Baker eigenvector-following (J. Comput. Chem. 7, 385-395, 1986). Refines a structure close to a transition state into a first-order saddle point (exactly one negative Hessian eigenvalue). Check the result with Normal Modes (one imaginary frequency) and follow it downhill with Reaction Path (IRC).</property>
                 <property name="wrap">True</property>
                 <property name="max-width-chars">56</property>
                 <property name="xalign">0</property>
@@ -128,8 +130,9 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Log Frequency</property>
+                                <property name="label" translatable="yes">Log frequency:</property>
                                 <property name="xalign">1</property>
+                                <property name="tooltip-text" translatable="yes">Write one line to the log every N iterations (energy, RMS gradient, number of negative Hessian eigenvalues). 1 = every iteration.</property>
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>
@@ -141,6 +144,7 @@
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="text" translatable="yes">1</property>
+                                <property name="tooltip-text" translatable="yes">Write one line to the log every N iterations (energy, RMS gradient, number of negative Hessian eigenvalues). 1 = every iteration.</property>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
@@ -153,6 +157,7 @@
                                 <property name="can_focus">False</property>
                                 <property name="label" translatable="yes">Maximum iterations:</property>
                                 <property name="xalign">1</property>
+                                <property name="tooltip-text" translatable="yes">Maximum number of steps. The cyclohexane example (pDynamo book, Example 11) converges in about 120 steps; 250 is a safe default for small systems. If the limit is reached, the Process Manager reports "Finished (not converged)" and the structure is NOT a transition state.</property>
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>
@@ -163,7 +168,8 @@
                               <object class="GtkEntry" id="entry_max_int">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="text" translatable="yes">50</property>
+                                <property name="text" translatable="yes">250</property>
+                                <property name="tooltip-text" translatable="yes">Maximum number of steps. The cyclohexane example (pDynamo book, Example 11) converges in about 120 steps; 250 is a safe default for small systems. If the limit is reached, the Process Manager reports "Finished (not converged)" and the structure is NOT a transition state.</property>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
@@ -176,6 +182,7 @@
                                 <property name="can_focus">False</property>
                                 <property name="label" translatable="yes">RMS Grad. Tolerance:</property>
                                 <property name="xalign">1</property>
+                                <property name="tooltip-text" translatable="yes">Convergence criterion: the search stops when the RMS of the gradient falls below this value (kJ/mol/Å). 0.001 is the value used in the pDynamo example; 0.1 is too loose to locate a saddle point.</property>
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>
@@ -186,7 +193,8 @@
                               <object class="GtkEntry" id="entry_rmsd_tol">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="text" translatable="yes">0.1</property>
+                                <property name="text" translatable="yes">0.001</property>
+                                <property name="tooltip-text" translatable="yes">Convergence criterion: the search stops when the RMS of the gradient falls below this value (kJ/mol/Å). 0.001 is the value used in the pDynamo example; 0.1 is too loose to locate a saddle point.</property>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
@@ -199,7 +207,7 @@
                                 <property name="can_focus">False</property>
                                 <property name="label" translatable="yes">Follow mode:</property>
                                 <property name="xalign">1</property>
-                                <property name="tooltip-text" translatable="yes">Index (0-based) of the Hessian eigenvector to follow uphill -- 0 is usually the lowest-frequency mode. Pick the mode that best matches the bond(s) breaking/forming in your reaction.</property>
+                                <property name="tooltip-text" translatable="yes">Which Hessian mode the search climbs, counted from the lowest eigenvalue (0 = lowest). 0 is right when the starting structure is close to the transition state: there the lowest mode is the reaction coordinate. Use 1, 2, ... when the reaction coordinate is a higher mode, for example when starting from a minimum; after the first step the search keeps following that mode by its overlap with the previous step. Run Normal Modes on the starting structure to see which mode moves the atoms of the reaction.</property>
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>
@@ -211,6 +219,7 @@
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="adjustment">adjustment_follow_mode</property>
+                                <property name="tooltip-text" translatable="yes">Which Hessian mode the search climbs, counted from the lowest eigenvalue (0 = lowest). 0 is right when the starting structure is close to the transition state: there the lowest mode is the reaction coordinate. Use 1, 2, ... when the reaction coordinate is a higher mode, for example when starting from a minimum; after the first step the search keeps following that mode by its overlap with the previous step. Run Normal Modes on the starting structure to see which mode moves the atoms of the reaction.</property>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
@@ -223,7 +232,10 @@
                                 <property name="can_focus">False</property>
                                 <property name="label" translatable="yes">Hessian updating:</property>
                                 <property name="xalign">1</property>
-                                <property name="tooltip-text" translatable="yes">How the approximate Hessian is updated between steps. BOFILL is the standard choice for saddle-point searches.</property>
+                                <property name="tooltip-text" translatable="yes">How the approximate Hessian is updated after each step, without recomputing it.
+BOFILL (recommended): designed for saddle points, keeps the negative eigenvalue.
+POWELL: also suitable for saddle points, usually a little slower.
+BFGS and Murtagh-Sargent are not offered: in tests they either fail to converge or fall back to a minimum.</property>
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>
@@ -233,11 +245,13 @@
                             <child>
                               <object class="GtkComboBoxText" id="combobox_hessian_updating">
                                 <property name="visible">True</property>
+                                <property name="tooltip-text" translatable="yes">How the approximate Hessian is updated after each step, without recomputing it.
+BOFILL (recommended): designed for saddle points, keeps the negative eigenvalue.
+POWELL: also suitable for saddle points, usually a little slower.
+BFGS and Murtagh-Sargent are not offered: in tests they either fail to converge or fall back to a minimum.</property>
                                 <property name="can_focus">False</property>
                                 <items>
-                                  <item translatable="yes" id="BOFILL">BOFILL</item>
-                                  <item translatable="yes" id="BFGS">BFGS</item>
-                                  <item translatable="yes" id="MS">MS (Murtagh-Sargent)</item>
+                                  <item translatable="yes" id="BOFILL">BOFILL (recommended)</item>
                                   <item translatable="yes" id="POWELL">POWELL</item>
                                 </items>
                                 <property name="active">0</property>
@@ -251,9 +265,9 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Analytic Hessian every:</property>
+                                <property name="label" translatable="yes">Recompute Hessian every:</property>
                                 <property name="xalign">1</property>
-                                <property name="tooltip-text" translatable="yes">Recomputes an exact Hessian every N iterations instead of only updating the approximate one (0 = never, only at the very first step). With 0, the tracked Hessian can drift from the true curvature over many iterations, so the "converged, 1 negative eigenvalue" result may not match a fresh Hessian computed afterwards (e.g. by the IRC / Reaction Path tool) at the same structure. Set to 1 (or a small number) whenever an exact Hessian is affordable for your system -- it removes this risk entirely.</property>
+                                <property name="tooltip-text" translatable="yes">Recompute the exact Hessian every N steps instead of only updating it (0 = never; the Hessian is always computed once at the start). The Hessian is computed by finite differences, which costs 6 gradient evaluations per free atom: cheap with MM or semi-empirical methods, expensive with ab initio or DFT. Fewer steps are needed (cyclohexane: 27 steps with N = 1, 123 with N = 0), so use 1 to 10 when the system is small or the search does not converge.</property>
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>
@@ -265,6 +279,7 @@
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="adjustment">adjustment_analytic_frequency</property>
+                                <property name="tooltip-text" translatable="yes">Recompute the exact Hessian every N steps instead of only updating it (0 = never; the Hessian is always computed once at the start). The Hessian is computed by finite differences, which costs 6 gradient evaluations per free atom: cheap with MM or semi-empirical methods, expensive with ab initio or DFT. Fewer steps are needed (cyclohexane: 27 steps with N = 1, 123 with N = 0), so use 1 to 10 when the system is small or the search does not converge.</property>
                               </object>
                               <packing>
                                 <property name="left_attach">1</property>
@@ -339,6 +354,7 @@
                 <child>
                   <object class="GtkButton">
                     <property name="label" translatable="yes">Run</property>
+                    <property name="tooltip-text" translatable="yes">Start the search as a job in the Process Manager. The result is added as a new coordinate set of the active system.</property>
                     <property name="width_request">150</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>

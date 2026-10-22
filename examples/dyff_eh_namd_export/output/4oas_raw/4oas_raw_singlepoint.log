@@ -1,0 +1,171 @@
+Charm++: standalone mode (not using charmrun)
+Charm++> Running in Multicore mode: 1 threads (PEs)
+Charm++> Using recursive bisection (scheme 3) for topology aware partitions
+Converse/Charm++ Commit ID: 
+CharmLB> Load balancer assumes all CPUs are same.
+Charm++> Running on 1 hosts (1 sockets x 16 cores x 2 PUs = 32-way SMP)
+Charm++> cpu topology info is gathered in 0.000 seconds.
+Info: Built with CUDA version 11080
+Did not find +devices i,j,k,... argument, using all
+Pe 0 physical rank 0 binding to CUDA device 0 on bahamuth: 'NVIDIA GeForce RTX 3060'  Mem: 12041MB  Rev: 8.6  PCI: 0:6:0
+CharmLB> Load balancing instrumentation for communication is off.
+Info: NAMD 3.0.1 for Linux-x86_64-multicore-CUDA
+Info: 
+Info: Please visit http://www.ks.uiuc.edu/Research/namd/
+Info: for updates, documentation, and support information.
+Info: 
+Info: Please cite Phillips et al., J. Chem. Phys. 153:044130 (2020) doi:10.1063/5.0014475
+Info: in all publications reporting results obtained with NAMD.
+Info: 
+Info: Based on Charm++/Converse 80000 for multicore-linux-x86_64-gcc
+Info: Built Mon Oct 14 10:33:44 CDT 2024 by dhardy on athine.ks.uiuc.edu
+Info: 1 NAMD  3.0.1  Linux-x86_64-multicore-CUDA  1    bahamuth  fernando
+Info: Running on 1 processors, 1 nodes, 1 physical nodes.
+Info: CPU topology information available.
+Info: Charm++/Converse parallel runtime startup completed at 0.067322 s
+CkLoopLib is used in SMP with simple dynamic scheduling (converse-level notification)
+Info: 0 MB of memory in use based on /proc/self/stat
+Info: Configuration file is 4oas_raw_singlepoint.namd
+Info: Working in the current directory /home/fernando/programs/EasyHybrid3_dev/examples/dyff_eh_namd_export/output/4oas_raw
+TCL: Suspending until startup complete.
+Warning: Option "1-4scaling" has been deprecated. Instead use "oneFourScaling".
+Warning: Always using force tables for GPU nonbonded kernel due to unsupported config parameters.
+Info: SIMULATION PARAMETERS:
+Info: TIMESTEP               1
+Info: NUMBER OF STEPS        0
+Info: STEPS PER CYCLE        20
+Info: LOAD BALANCER  Centralized
+Info: LOAD BALANCING STRATEGY  New Load Balancers -- DEFAULT
+Info: LDB PERIOD             4000 steps
+Info: FIRST LDB TIMESTEP     100
+Info: LAST LDB TIMESTEP     -1
+Info: LDB BACKGROUND SCALING 1
+Info: HOM BACKGROUND SCALING 1
+Info: MIN ATOMS PER PATCH    40
+Info: EMPTY PATCH LOAD       40 ATOMS
+Info: INITIAL TEMPERATURE    0
+Info: CENTER OF MASS MOVING INITIALLY? NO
+Info: DIELECTRIC             1
+Info: EXCLUDE                SCALED ONE-FOUR
+Info: 1-4 ELECTROSTATICS SCALED BY 0.5
+Info: MODIFIED 1-4 VDW PARAMETERS WILL BE USED
+Info: NO DCD TRAJECTORY OUTPUT
+Info: NO EXTENDED SYSTEM TRAJECTORY OUTPUT
+Info: NO VELOCITY DCD OUTPUT
+Info: NO FORCE DCD OUTPUT
+Info: OUTPUT FILENAME        4oas_raw_singlepoint
+Info: NO RESTART FILE
+Info: CUTOFF                 999
+Info: PAIRLIST DISTANCE      1001
+Info: PAIRLIST SHRINK RATE   0.01
+Info: PAIRLIST GROW RATE     0.01
+Info: PAIRLIST TRIGGER       0.3
+Info: PAIRLISTS PER CYCLE    2
+Info: PAIRLISTS ENABLED
+Info: MARGIN                 0
+Info: HYDROGEN GROUP CUTOFF  2.5
+Info: PATCH DIMENSION        1003.5
+Info: OUTPUT ENERGY PRECISION 4
+Info: CROSSTERM ENERGY INCLUDED IN DIHEDRAL
+Info: TIMING OUTPUT STEPS    100
+Info: USING VERLET I (r-RESPA) MTS SCHEME.
+Info: C1 SPLITTING OF LONG RANGE ELECTROSTATICS
+Info: PLACING ATOMS IN PATCHES BY HYDROGEN GROUPS
+Info: RANDOM NUMBER SEED     1792051318
+Info: USE HYDROGEN BONDS?    NO
+Info: COORDINATE PDB         4oas_raw.pdb
+Info: STRUCTURE FILE         4oas_raw.psf
+Info: PARAMETER file: CHARMM format! 
+Info: PARAMETERS             4oas_raw.prm
+Info: USING GEOMETRIC MEAN TO COMBINE L-J SIGMA PARAMETERS
+Info: SUMMARY OF PARAMETERS:
+Info: 878 BONDS
+Info: 1790 ANGLES
+Info: 10119 DIHEDRAL
+Info: 672 IMPROPER
+Info: 0 CROSSTERM
+Info: 713 VDW
+Info: 0 VDW_PAIRS
+Info: 0 NBTHOLE_PAIRS
+Info: TIME FOR READING PSF FILE: 0.151089
+Info: Reading pdb file 4oas_raw.pdb
+Info: TIME FOR READING PDB FILE: 0.00222735
+Info: 
+Info: ****************************
+Info: STRUCTURE SUMMARY:
+Info: 1639 ATOMS
+Info: 1656 BONDS
+Info: 3014 ANGLES
+Info: 4419 DIHEDRALS
+Info: 927 IMPROPERS
+Info: 0 CROSSTERMS
+Info: 0 EXCLUSIONS
+Info: 4914 DEGREES OF FREEDOM
+Info: 803 HYDROGEN GROUPS
+Info: 4 ATOMS IN LARGEST HYDROGEN GROUP
+Info: 803 MIGRATION GROUPS
+Info: 4 ATOMS IN LARGEST MIGRATION GROUP
+Info: TOTAL MASS = 11454.4 amu
+Info: TOTAL CHARGE = 2.99978 e
+Info: *****************************
+Info: 
+Info: Entering startup at 0.318385 s, 0 MB of memory in use
+Info: Startup phase 0 took 6.2927e-05 s, 0 MB of memory in use
+Info: ADDED 9020 IMPLICIT EXCLUSIONS
+Info: Startup phase 1 took 0.00250085 s, 0 MB of memory in use
+Info: NONBONDED TABLE R-SQUARED SPACING: 0.0625
+Info: NONBONDED TABLE SIZE: 1537 POINTS
+Info: INCONSISTENCY IN FAST TABLE ENERGY VS FORCE: 0.000290475 AT 0.251946
+Info: ABSOLUTE IMPRECISION IN VDWA TABLE FORCE: 2.54895e-57 AT 995.606
+Info: INCONSISTENCY IN VDWA TABLE ENERGY VS FORCE: 0.0040507 AT 0.251946
+Info: ABSOLUTE IMPRECISION IN VDWB TABLE ENERGY: 1.92593e-34 AT 995.606
+Info: ABSOLUTE IMPRECISION IN VDWB TABLE FORCE: 5.39993e-38 AT 995.606
+Info: INCONSISTENCY IN VDWB TABLE ENERGY VS FORCE: 0.00150189 AT 0.251946
+Info: Startup phase 2 took 0.0115029 s, 0 MB of memory in use
+Info: Startup phase 3 took 3.0266e-05 s, 0 MB of memory in use
+Info: Startup phase 4 took 1.7543e-05 s, 0 MB of memory in use
+Info: Startup phase 5 took 1.5659e-05 s, 0 MB of memory in use
+Info: ORIGINAL ATOMS MINMAX IS -29.865 -11.63 -36.711  4.653 24.367 -2.923
+Info: ADJUSTED ATOMS MINMAX IS -26.4017 -4.6725 -31.7751  0.19575 20.1125 -8.88387
+Info: PATCH GRID IS 2 BY 2 BY 2
+Info: PATCH GRID IS 1-AWAY BY 1-AWAY BY 1-AWAY
+Info: REMOVING COM VELOCITY 0 0 0
+Info: LARGEST PATCH (2) HAS 312 ATOMS
+Info: TORUS A SIZE 1 USING 0
+Info: TORUS B SIZE 1 USING 0
+Info: TORUS C SIZE 1 USING 0
+Info: TORUS MINIMAL MESH SIZE IS 1 BY 1 BY 1
+Info: Placed 100% of base nodes on same physical node as patch
+Info: Startup phase 6 took 0.000771688 s, 0 MB of memory in use
+Info: Startup phase 7 took 2.1029e-05 s, 0 MB of memory in use
+Info: Updated CUDA force table with 4096 elements.
+Info: Updated CUDA LJ table with 713 x 713 elements.
+Info: Startup phase 8 took 0.00699983 s, 0 MB of memory in use
+Info: Startup phase 9 took 4.4252e-05 s, 0 MB of memory in use
+Info: Startup phase 10 took 1.6331e-05 s, 0 MB of memory in use
+Info: Startup phase 11 took 1.4777e-05 s, 0 MB of memory in use
+LDB: Central LB being created...
+Info: Startup phase 12 took 2.5468e-05 s, 0 MB of memory in use
+Info: CREATING 92 COMPUTE OBJECTS
+Info: Found 491 unique exclusion lists needing 2244 bytes
+Info: Startup phase 13 took 0.0057694 s, 0 MB of memory in use
+Info: Startup phase 14 took 3.4314e-05 s, 0 MB of memory in use
+Info: Startup phase 15 took 3.8181e-05 s, 0 MB of memory in use
+Info: Finished startup at 0.34625 s, 0 MB of memory in use
+
+TCL: Running for 0 steps
+Warning: Energy evaluation is expensive, increase computeEnergies to improve performance.
+Warning: If computeEnergies is not defined, its value defaults to the same as outputEnergies, and increasing outputEnergies would be helpful to improve the performance.
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL         TOTAL3        TEMPAVG
+
+ENERGY:       0        75.7716       256.8356      7737.5193        58.5920          -7810.1137      -141.9320         0.0000         0.0000         0.0000            176.6729         0.0000       176.6729       176.6913         0.0000
+
+WRITING EXTENDED SYSTEM TO OUTPUT FILE AT STEP 0
+WRITING COORDINATES TO OUTPUT FILE AT STEP 0
+The last position output (seq=-2) takes 0.003 seconds, 0.000 MB of memory in use
+WRITING VELOCITIES TO OUTPUT FILE AT STEP 0
+The last velocity output (seq=-2) takes 0.002 seconds, 0.000 MB of memory in use
+====================================================
+
+WallClock: 0.355799  CPUTime: 0.354183  Memory: 0.000000 MB
+[Partition 0][Node 0] End of program

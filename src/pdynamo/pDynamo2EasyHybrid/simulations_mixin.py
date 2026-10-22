@@ -211,6 +211,7 @@ def _simulation_target_process(parameters):
             'simulation_type': sim_type,
             'logfile': parameters['logfile'],
             'error': None,
+            'warning': parameters.get('warning'),
             'step_counter': parameters['system'].e_step_counter
         }
         queue.put((_MSG_RESULT, results))
@@ -509,8 +510,12 @@ class pSimulations:
         Updates GUI, process pool status, and increments the step counter.
         """
         step_counter = self.psystem[e_id].e_step_counter
+        # . e.g. a transition state search that ran out of iterations.
+        warning = self.psystem[e_id].e_job_history[step_counter].get('warning')
         # Update GUI process manager window
-        self.main.process_manager_window.set_status(treeiter, "Finished")
+        self.main.process_manager_window.set_status(treeiter, "Finished", warning = warning)
+        if warning:
+            self.main.job_history_liststore[treeiter][5] = "Finished (not converged)"
         self.main.process_manager_window.set_time(treeiter, False, True)
         self.main.process_manager_window.set_step_counter(treeiter, self.psystem[e_id].e_step_counter)
         self.psystem[e_id].e_job_history[step_counter]['status'] = "Finished"

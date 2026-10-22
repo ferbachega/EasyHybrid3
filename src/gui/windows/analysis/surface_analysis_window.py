@@ -2115,7 +2115,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
         coeffs = orbitals_matrix[:, orbital_index]
 
         print ( )
-        print ( "=== LCAO do orbital {} ({}, frame {}, energia = {:.6f} Hartree) ===".format (
+        print ( "=== LCAO of orbital {} ({}, frame {}, energy = {:.6f} Hartree) ===".format (
                  orbital_index, orbital_label, frame, orbital_energy ) )
         for atom_idx, symbol in enumerate ( atom_symbols ):
             start = int ( center_function_pointers[atom_idx] )

@@ -33,7 +33,7 @@
             <property name="orientation">vertical</property>
             <property name="spacing">6</property>
             <child>
-              <object class="GtkFrame">
+              <object class="GtkFrame" id="frame_trajectory">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="hexpand">True</property>
@@ -127,7 +127,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkFrame">
+              <object class="GtkFrame" id="frame_selection">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label-xalign">0.5</property>
@@ -408,7 +408,7 @@
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="halign">start</property>
-                <property name="label" translatable="yes">Escolha um Objeto e clique em "Run". Passe o mouse sobre um ponto do gráfico para identificar o resíduo.</property>
+                <property name="label" translatable="yes">Choose an Object and click "Run". Hover over a point of the plot to identify the residue.</property>
                 <property name="wrap">True</property>
               </object>
               <packing>
@@ -486,6 +486,22 @@
                     <property name="expand">True</property>
                     <property name="fill">True</property>
                     <property name="position">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToggleButton" id="btn_hide_settings">
+                    <property name="label" translatable="yes">Hide settings</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes">Hide the trajectory, selection, frame range and output settings to give the plot the whole window.</property>
+                    <signal name="toggled" handler="on_btn_hide_settings_toggled" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">3</property>
+                    <property name="secondary">True</property>
                   </packing>
                 </child>
               </object>

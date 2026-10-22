@@ -989,7 +989,7 @@ class TreeViewMenu:
             try:
                 cell_size = float ( text )
                 if cell_size <= 0.0:
-                    raise ValueError ( "cell_size deve ser positivo" )
+                    raise ValueError ( "cell_size must be positive" )
             except ValueError:
                 label_decimate_status.set_text ( "Invalid cell size." )
                 return
@@ -1051,7 +1051,7 @@ class TreeViewMenu:
             try:
                 n_iterations = int ( float ( text ) )
                 if n_iterations <= 0:
-                    raise ValueError ( "iterations deve ser positivo" )
+                    raise ValueError ( "iterations must be positive" )
             except ValueError:
                 label_smooth_status.set_text ( "Invalid iteration count." )
                 return
