@@ -1720,6 +1720,10 @@ class MainWindow:
             builder.add_from_file(os.path.join(self.home,'src/gui/windows/setup/about_dialog.glade'))
 
             dialog = builder.get_object('about_dialog')
+            # . the version comes from _version.py (EASYHYBRID_VERSION), not from the .glade
+            if self.EASYHYBRID_VERSION:
+                dialog.set_version(str(self.EASYHYBRID_VERSION))
+            dialog.set_transient_for(self.window)
             dialog.run()
             dialog.destroy()
 

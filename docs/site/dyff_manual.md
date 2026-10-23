@@ -1,7 +1,5 @@
 # DYFF in EasyHybrid: user manual
 
-> Hidden page (draft, 2026-10-16; updated 2026-10-21). It describes the current development
-> version of EasyHybrid, not 3.1.3.
 
 ## 1. What DYFF is
 
@@ -37,7 +35,7 @@ sampling and QC/MM all work with it.
 
 | You have | Follow |
 |---|---|
-| A small molecule or an isolated ligand | **Path A**: Builder and DYFF Parameters |
+| A small molecule or an isolated ligand | **Path A**: Builder, with DYFF + xTB refinement |
 | A protein, with or without ligands, cofactors, solvent or metal ions | **Path B**: *System › Force Field › Define Force Field › Prepare DYFF System…* |
 | An isolated metal complex | Path A |
 | A metalloprotein | Path B |
@@ -49,7 +47,7 @@ required.
 
 ## 3. Path A: small molecule
 
-**A1. Open the molecule in the Builder.** Toolbar button *Builder*, then:
+**A1. Open the molecule in the Builder.** Toolbar button *Edit and Build*, then:
 - **New** to draw, or to build from the fragment and structure libraries;
 - **Edit existing** to work on a copy of a system already loaded (mol2, sdf, pdb…). Bond orders
   are perceived automatically. The original system is only replaced when you accept at the
@@ -61,60 +59,40 @@ library matches all depend on it.
 - **Formal charges.** Use *Protonate* / *Deprotonate*.
 - **Hydrogens.** Use *Add Hydrogens…*, or the *Adjust hydrogen count* switch.
 
-**[CONFIRM]** The *DYFF Parameters* button was removed from the Builder toolbar on 2026-10-21.
-Steps A3–A6 need a new entry point (or a rewrite) before this page is published.
+**A3. Choose the force field.** Click **Force Field Settings** on the Builder toolbar and choose
+**DYFF + xTB refinement**. The options are:
+- **Method:** GFN2-xTB (with implicit water) or g-xTB (gas phase only).
+- **Implicit water (ALPB)** for the xTB calculations. Use it whenever the molecule has a formal
+  charge.
+- **Hessian bonds/angles and torsions:** bonds and angles from the xTB Hessian (modified
+  Seminario, calibrated to DFT) and torsions from the DFT library, with relaxed xTB scans for
+  rotatable bonds the library does not have.
+- **CM5 charge scale** and the **non-bonded model** (cutoff or full).
+- **On close:** ask (default) or apply automatically.
 
-**A3. Open *DYFF Parameters…*** from the Builder sidebar. The window lists:
-- the DYFF type of each atom;
-- every bond, angle, dihedral and out-of-plane term, colored by its strain in the current
-  geometry (green, yellow, red).
+Plain **DYFF** gives the DYFF rules only, with no charges; **OPLS-AA** types the molecule with
+OPLS instead.
 
-Clicking a row highlights the atoms.
-
-**A4. Charges.** Click *CM5 charges…* (GFN1-xTB) to give the model electrostatics. Polar
-hydrogens get their small LJ type automatically. *Clear charges* removes them.
-
-- **Use charges** for solvent, intermolecular interactions and complexes.
-- **Skip them** for isolated conformations in the gas phase: charges make gas-phase torsion
-  profiles slightly worse.
-- **Do A4 before A5.** The torsion table used by the refinement depends on whether the model
-  has charges.
-
-**A5. *Refine with xTB (Hessian + torsions)…*** The dialog offers:
-- **Hessian** (recommended): GFN2-xTB Hessian at the xTB minimum; bond and angle constants
-  calibrated to DFT.
-- **Torsions from the DFT library** (default on): library profiles where the chemical
-  environment is known, relaxed xTB scans (24 points, run in parallel) for the rest.
-- **Charge** and **multiplicity**.
-- **ALPB implicit water**: switched on automatically when the molecule has a formal charge.
-- **Whole molecule** or **Selected atoms only**:
-  - the selection is refined as a capped sub-system with a neighborhood of 3 bonds by default;
-  - only terms whose atoms are all selected change.
-
-The whole refinement is one *Undo* step. The status bar reports:
+**A4. Close the Builder** (click *Edit and Build* again) and answer **Yes** to
+*Incorporate '<molecule>' with the DYFF + xTB refinement force field?*. The pDynamo system is
+created, or replaced in *Edit existing*. The xTB refinement runs in the background; the status
+bar and the Logs panel report:
 - how many terms were calibrated;
 - how many torsions came from the library and how many from scans;
 - any warning.
 
-**A6. Optional fine tuning.**
-- Use the strain colors and the *attention* filter to find problem terms.
-- On a single dihedral, *Fit with xTB scan…* plots the xTB and DYFF profiles and fits that
-  dihedral.
-- *Clear xTB refinement* goes back to the DYFF rules.
+The system then carries the DYFF model, the term edits, the CM5 charges with the polar-H LJ, and
+a non-bonded model. Answering **No** keeps the system without a force field.
 
-**A7. Close the Builder** and answer **Yes** to *Incorporate with DYFF and customizations?*.
-The pDynamo system is created, or replaced in *Edit existing*. It carries:
-- the DYFF model and the term edits;
-- the charges and the polar-H LJ;
-- a non-bonded model.
-
-Answering **No** gives plain DYFF.
+**A5. Check the parameters** with *System › Force Field › Force Field Parameters…*: every
+charge, bond, angle, dihedral, improper and Lennard-Jones type, the value measured in the
+structure, and the atoms of each term in the 3D view.
 
 ---
 
 ## 4. Path B: protein or metalloprotein
 
-**B1. Open the structure** with *File › Import Data…*, or open the PDB directly.
+**B1. Open the structure** with *File › Open* (or the *New System* button).
 - A PDB without CONECT records is read without bonds; the preparation creates the chemistry.
 - For NMR ensembles, only the first model is used.
 
@@ -192,7 +170,7 @@ bonds their own torsion:
    Hessian. The scans run in parallel.
 3. **The fit.** The torsion around that bond is fitted, self-consistently, to the xTB profile,
    on top of the Seminario bonds and angles and the CM5 charges just computed (the same method
-   as the Builder's *Refine with xTB*).
+   as the Builder's DYFF + xTB refinement).
 4. **Acceptance.** A fit is kept only if it lowers the error against the xTB profile by at
    least 10 %; otherwise the bond keeps the DYFF rule and the message says so. Fits that are kept
    but still have an error above 2 kcal/mol are reported with a warning.
@@ -255,8 +233,7 @@ standard residues (nothing to scan) and when speed matters more.
 
 | Question | Recommendation |
 |---|---|
-| Charges or not? | Charges for solvent, intermolecular interactions, proteins and complexes. None for isolated gas-phase conformations. |
-| Whole molecule or selection? | Whole molecule up to ~60 atoms. Above that, or when only one region matters (a ligand site, a modified residue), use the selection: with a 3-bond neighborhood it gave the same result as the whole molecule. |
+| Charges or not? | Charges (DYFF + xTB refinement) for solvent, intermolecular interactions, proteins and complexes. Plain DYFF, without charges, only for isolated gas-phase conformations. |
 | DFT library or xTB scans? | Keep the library on. It carries DFT data and costs nothing. In the Builder (Path A), scans fill the gaps automatically. In Path B the gaps keep the DYFF rule unless you tick the automatic scans (section 4.1). |
 | Automatic xTB torsion scans (Path B)? | On for ligands or modified residues whose flexible bonds matter and are not in the library (see the coverage in the final message). Off for standard proteins and when speed matters. Check fits reported above 2 kcal/mol. |
 | ALPB implicit water? | Whenever there is a formal charge. Isolated ions are poorly described by xTB in the gas phase. |
@@ -271,13 +248,13 @@ standard residues (nothing to scan) and when speed matters more.
 |---|---|
 | "no bonds or no bond orders" | The system was read from a PDB without CONECT records. Prepare it first (Path B). |
 | Few residues recognized | Non-standard residue names, missing heavy atoms, or unusual protonation. Unrecognized residues are treated as out-of-library groups. That works, but it is slower. |
-| "N imaginary frequencies" | The geometry was not at an xTB minimum. Use *Use the xTB optimized geometry*, or optimize first. |
+| "N imaginary frequencies" | The geometry was not at an xTB minimum. Optimize the molecule first (Builder *Optimize*, or *Simulate › Geometry optimization*). |
 | "scan changed the bonding" | Proton transfer or bond breaking during a torsion scan. Use ALPB and check the protonation. That bond keeps the DYFF torsion. |
 | "the fit does not improve on the DYFF rule …, rule kept" | Automatic scans (section 4.1): the fitted torsion was not at least 10 % better than the rule, so the rule was kept. |
 | "fitted torsion(s) still above 2 kcal/mol RMSE" | Automatic scans (section 4.1): the xTB profile is not a pure torsion (internal hydrogen bonds?). The fit was kept because it is better than the rule; check those bonds. |
 | "dihedral cut by the subsystem" | The four atoms of the scanned dihedral are not all inside the capped sub-system. That bond keeps the DYFF torsion. |
 | "term(s) kept the DYFF value" | A non-physical constant came out of the Hessian, which is common for gas-phase anions. This is normal; ALPB usually removes it. |
-| "Per-atom … edits were NOT applied" | The molecule changed after the refinement (an atom or bond was added). Run A5 again. |
+| "Per-atom … edits were NOT applied" | The molecule changed after the refinement (an atom or bond was added). Open it in the Builder and close it again with DYFF + xTB refinement (A3–A4). |
 | Missing table with charges | `dyff_bond_library_cm5.json` is missing; the table without charges is used instead. |
 
 ---
