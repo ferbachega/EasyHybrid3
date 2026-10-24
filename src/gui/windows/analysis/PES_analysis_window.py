@@ -120,7 +120,9 @@ class PotentialEnergyAnalysisWindow:
                           #'_separator'              : ''                              ,
 
                           
+                          'Lowest-Barrier Path'     : lambda w: self._safe(self.find_lowest_barrier_path),
                           'Optimize Pathway'        : self._menu_opt_pathway           ,
+                          'Save Path Table (CSV)...': lambda w: self._safe(self.save_path_table),
                           'Export Incomplete Matrix': self._menu_call_incomplete_matrix_window,
                           #'Reduce Resolution'       : self._menu_change_data_resolution,
 
@@ -300,6 +302,7 @@ class PotentialEnergyAnalysisWindow:
             #------------------------------------------------------------------------------------
             #self.scale_trajectory_energy_label = self.builder.get_object('scale_trajectory_energy_label')
             self.menu, x = self.build_tree_view_menu(self.menu_items)
+            self._build_path_tools()
             
 
 
@@ -458,6 +461,8 @@ class PotentialEnergyAnalysisWindow:
         de volta. """
         hidden = widget.get_active()
         self.builder.get_object('sidebar_box').set_visible(not hidden)
+        if getattr(self, 'sidebar_scroller', None) is not None:
+            self.sidebar_scroller.set_visible(not hidden)
         self.builder.get_object('sidebar_separator').set_visible(not hidden)
         widget.set_label('\u25b6 Show tools' if hidden else '\u25c0 Hide tools')
 
@@ -686,17 +691,10 @@ class PotentialEnergyAnalysisWindow:
             
             for index, value in enumerate(self.data['Z']):
                 self.data['Z'][index] = value-_min
-            
-            
-            self.plot2.add( X = range(0, len(self.data['Z'])), 
-                            Y = self.data['Z'], 
-                            symbol = 'dot', 
-                            sym_fill = False, 
-                            #sym_color = [1,1,1], 
-                            line = 'solid', 
-                            line_color = self.plot2.line_color )
             self.plot.hide()
-            self.scale_traj_new_definitions(set_range = len(self.data['Z']))
+            self.plot.points = []
+            self.plot.markers = []
+            self._update_profile()
         
         elif self.data['type'] == 'plot2D':
             self.builder.get_object('checkbox_2d_tools_enable').set_active(True)
@@ -711,14 +709,13 @@ class PotentialEnergyAnalysisWindow:
                     self.data['Z'][i][j] = self.data['Z'][i][j]-_min 
             #print('\n\n\n', self.data,'\n\n\n')
             self.plot.show()
-            self.plot.data = self.data['Z']
+            self.plot.points = []
+            self.plot.selected_dot = None
             self.plot.dataRC1 = self.data['RC1']
             self.plot.dataRC2 = self.data['RC2']
-            
-            
-            data_min, data_max, delta , norm_data = self.plot.define_datanorm()
-            
-            self.builder.get_object('threshold_entry').set_text(str(data_max))
+            self._apply_units_to_plot()
+            self._update_stationary_markers()
+            self._update_profile()
         
         self.plot.queue_draw()
 
@@ -759,40 +756,9 @@ class PotentialEnergyAnalysisWindow:
                     widget.points.append(xy)
                 
                 
-                self.plot2.data = []
-    
-                self.plot2.Xmin_list = []
-                self.plot2.Ymin_list = []
-                self.plot2.Xmax_list = []
-                self.plot2.Ymax_list = []
-    
-    
-                
-                
-                
-            
-                x = []
-                y = []
-                for i, point in enumerate(widget.points):
-                    x.append(i)
-                    y.append(widget.data[point[0]][point[1]])
-                
-                self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [0,0,1], line = 'solid', line_color = self.plot2.line_color )
-                
-                self._set_plot2_x_ticks (len(x))
-                # [EN] BUG FIX: havia um "self.plot2.Xmax = 10" fixo aqui,
-                # logo depois de add() ja ter calculado o Xmax CERTO a
-                # partir dos pontos reais (define_xy_limits(), chamado
-                # internally by add()). This fixed value overwrote the
-                # calculo correto toda vez -- sempre que o numero de
-                # pontos selecionados na matriz 2D fosse diferente de 10,
-                # the grid/labels of the 1D chart's X axis were
-                # based on a 0-10 range that did not correspond to the
-                # real data (grid "not updating" when selecting
-                # pontos, exatamente o sintoma relatado).
-                dprint("Mouse clicker at:",  x, y, 
-                                            int(i_on_plot), int(j_on_plot), 
-                                            widget.data[int(i_on_plot)][int(j_on_plot)] )
+                self._update_profile()
+            else:
+                self._update_profile()
             
             self.scale_traj_new_definitions()
             self.plot2.queue_draw()
@@ -831,10 +797,11 @@ class PotentialEnergyAnalysisWindow:
 
     def scale_traj_new_definitions(self, set_range = None ):
         #self.scale_traj
+        # . 2026-10-24: the last value is the last point (len - 1): len(points) indexed past the end
         if set_range:
             self.scale_traj.set_range(0, set_range)
         else:    
-            self.scale_traj.set_range(0, len(self.plot.points))
+            self.scale_traj.set_range(0, max(0, len(self.plot.points) - 1))
         #self.scale_traj.set_value(self.vm_session.get_frame())
     
     def on_scaler_frame_value_changed (self, hscale, text= None,  data=None):
@@ -854,10 +821,9 @@ class PotentialEnergyAnalysisWindow:
                 self.plot.selected_dot = [xy[0],xy[1]]
 
                 #print(xy, self.plot.data[xy[0]][xy[1]])
-                x = [value]
+                x = [self._profile_x[int(value)]] if int(value) < len(self._profile_x) else [value]
                 y = [  self.plot.data[xy[0]][xy[1]]   ]
-
-                text = 'E = {:<15.6f}'.format(y[0])
+                text = 'E = {:.2f} {}'.format(y[0], self._unit()[1])
                 self.builder.get_object('label_energy').set_text(text)
 
                 #frame = self.vobject.idx_2D_xy[( xy[0],xy[1])]
@@ -870,14 +836,13 @@ class PotentialEnergyAnalysisWindow:
             else:
                 pass
         else:
-            x = [int(value)]
-            y = [self.data['Z'][int(value)]]
+            n = min(int(value), len(self.data['Z']) - 1)
+            x = [self._profile_x[n]] if n < len(self._profile_x) else [n]
+            y = [self.data['Z'][n] * self._unit()[0]]
             dprint(x,y)
-            text = 'E = {:<15.6f}'.format(y[0])
-            #self.builder.get_object('label_energy').set_text(str(y[0]))
+            text = 'E = {:.2f} {}'.format(y[0], self._unit()[1])
             self.builder.get_object('label_energy').set_text(text)
-            
-            frame = int(value)
+            frame = n
         
         
         
@@ -980,6 +945,312 @@ class PotentialEnergyAnalysisWindow:
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
+    # =====================================================================
+    #  Path tools (2026-10-24): units, profile x axis, lowest-barrier path,
+    #  stationary points, barrier readout and path table
+    # =====================================================================
+    KCAL = 4.184
+
+    def _safe (self, callback):
+        try:
+            callback()
+        except Exception as error:
+            import traceback
+            traceback.print_exc()
+            self._readout(str(error))
+
+    def _unit (self):
+        """ ( factor from kJ/mol, label ). """
+        if getattr(self, 'combo_units', None) is not None and self.combo_units.get_active_id() == 'kcal':
+            return 1.0 / self.KCAL, 'kcal/mol'
+        return 1.0, 'kJ/mol'
+
+    def _build_path_tools (self):
+        """ A "Path and energy" frame in the sidebar (between the 2D and 1D tools), the
+            readout line under the plots, and a scroller around the sidebar so it never
+            forces the window taller. """
+        self._profile_x = []
+        frame = Gtk.Frame(label = ' Path and energy ')
+        box = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 4)
+        box.set_margin_start(4); box.set_margin_end(4); box.set_margin_top(4); box.set_margin_bottom(4)
+        frame.add(box)
+
+        def row (label, widget, tip):
+            h = Gtk.Box(spacing = 8)
+            l = Gtk.Label(label = label, xalign = 0)
+            l.get_style_context().add_class('dim-label')
+            h.pack_start(l, False, False, 0)
+            h.pack_start(widget, True, True, 0)
+            widget.set_tooltip_text(tip)
+            box.pack_start(h, False, False, 0)
+
+        self.combo_units = Gtk.ComboBoxText()
+        self.combo_units.append('kJ', 'kJ/mol'); self.combo_units.append('kcal', 'kcal/mol')
+        self.combo_units.set_active(0)
+        self.combo_units.connect('changed', lambda *_: self._safe(self._on_units_changed))
+        row('Energy:', self.combo_units, 'Unit of every energy shown (map, profile, readout and path table)')
+
+        self.combo_profile_x = Gtk.ComboBoxText()
+        self.combo_profile_x.append('index', 'Point index'); self.combo_profile_x.append('rc', 'Reaction coordinate')
+        self.combo_profile_x.set_active(0)
+        self.combo_profile_x.connect('changed', lambda *_: self._safe(self._update_profile))
+        row('Profile x:', self.combo_profile_x,
+            'x axis of the 1D profile: the point number, or the reaction coordinate '
+            '(1D scans: the RC value; 2D paths: the length of the path in RC units)')
+
+        b = Gtk.Button(label = 'Lowest-barrier path')
+        b.set_tooltip_text('2D: the path whose highest point is as low as possible (the route through the lowest '
+                           'saddle point), between the first and the last picked points, or between the two lowest '
+                           'minima when fewer than two points are picked')
+        b.connect('clicked', lambda *_: self._safe(self.find_lowest_barrier_path))
+        box.pack_start(b, False, False, 0)
+
+        self.check_stationary = Gtk.CheckButton(label = 'Mark minima and saddle points')
+        self.check_stationary.set_tooltip_text('2D: circles on the local minima of the grid, diamonds on its saddle points')
+        self.check_stationary.connect('toggled', lambda *_: self._safe(self._update_stationary_markers))
+        box.pack_start(self.check_stationary, False, False, 0)
+
+        h = Gtk.Box(spacing = 4, homogeneous = True)
+        b = Gtk.Button(label = 'Clear path')
+        b.set_tooltip_text('Remove the picked points and the path')
+        b.connect('clicked', lambda *_: self._safe(self.clear_path))
+        h.pack_start(b, True, True, 0)
+        b = Gtk.Button(label = 'Save table...')
+        b.set_tooltip_text('The points of the profile (i, j, RC1, RC2, energy, frame) as CSV')
+        b.connect('clicked', lambda *_: self._safe(self.save_path_table))
+        h.pack_start(b, True, True, 0)
+        box.pack_start(h, False, False, 0)
+
+        sidebar = self.builder.get_object('sidebar_box')
+        sidebar.pack_start(frame, False, False, 0)
+        sidebar.reorder_child(frame, sidebar.get_children().index(self.builder.get_object('frame_1d_tools')))
+
+        # . the sidebar in a scroller (it is now taller than small screens)
+        parent = sidebar.get_parent()
+        position = parent.get_children().index(sidebar)
+        parent.remove(sidebar)
+        self.sidebar_scroller = Gtk.ScrolledWindow()
+        self.sidebar_scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.sidebar_scroller.set_propagate_natural_width(True)
+        self.sidebar_scroller.add(sidebar)
+        parent.pack_start(self.sidebar_scroller, False, False, 0)
+        parent.reorder_child(self.sidebar_scroller, position)
+
+        # . readout line under the plots: visible with the tools hidden too
+        slider_row = self.scale_traj.get_parent()
+        self.label_readout = Gtk.Label(xalign = 0)
+        self.label_readout.set_ellipsize(Pango.EllipsizeMode.END)
+        self.label_readout.set_selectable(True)
+        self.label_readout.set_margin_start(6)
+        column = slider_row.get_parent()
+        column.pack_start(self.label_readout, False, False, 0)
+        column.reorder_child(self.label_readout, column.get_children().index(slider_row) + 1)
+
+    def _readout (self, text):
+        if getattr(self, 'label_readout', None) is not None:
+            self.label_readout.set_text(text)
+            self.label_readout.set_tooltip_text(text)
+
+    def _is_2d (self):
+        return getattr(self, 'data', None) is not None and self.data.get('type') == 'plot2D'
+
+    def _apply_units_to_plot (self):
+        """ plot.data: the kJ/mol matrix of the dataset in the chosen unit (the matrix the
+            map, the hover readout, the contours and the picked path all use). """
+        f = self._unit()[0]
+        self.plot.data = [[v * f for v in row] for row in self.data['Z']]
+        self.plot.data_max = None
+        data_min, data_max, delta, norm_data = self.plot.define_datanorm()
+        self.builder.get_object('threshold_entry').set_text('{:.2f}'.format(data_max))
+        self.on_threshold_entry_activate(None)
+
+    def _on_units_changed (self):
+        unit = self._unit()[1]
+        def relabel (widget):
+            if isinstance(widget, Gtk.Label) and widget.get_text().startswith('Threshold'):
+                widget.set_text('Threshold ({})'.format(unit))
+            elif isinstance(widget, Gtk.Container):
+                for child in widget.get_children():
+                    relabel(child)
+        relabel(self.builder.get_object('box_2d_tools_content'))
+        if getattr(self, 'data', None) is None:
+            return
+        if self._is_2d():
+            self._apply_units_to_plot()
+            self._update_stationary_markers()
+        self._update_profile()
+        if not self._is_2d() or len(self.plot.points) > 1:
+            self.on_scaler_frame_value_changed(self.scale_traj)
+        self.plot.queue_draw()
+
+    def _profile_points (self):
+        """ [ ( energy in the chosen unit, RC1, RC2 or None, frame or None, (i, j) or None ) ]. """
+        if getattr(self, 'data', None) is None:
+            return []
+        f = self._unit()[0]
+        out = []
+        if self._is_2d():
+            Z = self.data['Z']
+            idx = getattr(self.vobject, 'idx_2D_xy', None) or {}
+            for x, y in self.plot.points:
+                out.append((Z[x][y] * f, self.data['RC1'][x][y], self.data['RC2'][x][y], idx.get((y, x)), (x, y)))
+        else:
+            rc = self.data.get('RC1') or []
+            for n, z in enumerate(self.data['Z']):
+                out.append((z * f, rc[n] if n < len(rc) else None, None, n, None))
+        return out
+
+    def _update_profile (self):
+        """ Rebuilds the 1D profile (plot2) from the picked path (2D) or the whole scan (1D),
+            the slider range and the barrier readout. """
+        pts = self._profile_points()
+        use_rc = getattr(self, 'combo_profile_x', None) is not None and self.combo_profile_x.get_active_id() == 'rc'
+        if use_rc and pts and self._is_2d():
+            x = [0.0]
+            for a, b in zip(pts, pts[1:]):
+                x.append(x[-1] + float(np.hypot(b[1] - a[1], b[2] - a[2])))
+        elif use_rc and pts and all(p[1] is not None for p in pts):
+            x = [float(p[1]) for p in pts]
+        else:
+            x = list(range(len(pts)))
+        self._profile_x = x
+        self.plot2.data = []
+        self.plot2.Xmin_list = []; self.plot2.Ymin_list = []
+        self.plot2.Xmax_list = []; self.plot2.Ymax_list = []
+        finite = [(xx, p[0]) for xx, p in zip(x, pts) if np.isfinite(p[0])]
+        if finite:
+            self.plot2.decimal = 2 if use_rc else 0
+            self.plot2.add(X = [a for a, _ in finite], Y = [b for _, b in finite], symbol = 'dot', sym_fill = False,
+                           sym_color = [0,0,1], line = 'solid', line_color = self.plot2.line_color)
+            self._set_plot2_x_ticks(len(finite))
+            if use_rc:
+                self.plot2.x_major_ticks = min(self.plot2.x_major_ticks, 6)
+        self.plot2.queue_draw()
+        self.scale_traj_new_definitions(set_range = max(0, len(pts) - 1))
+        self._update_barrier_readout(pts)
+
+    def _update_barrier_readout (self, pts):
+        unit = self._unit()[1]
+        E = [p[0] for p in pts]
+        if len(E) < 2 or not np.all(np.isfinite(E)):
+            if self._is_2d():
+                self._readout('Pick points on the map (left click), or press "Lowest-barrier path".' if len(E) < 2 else
+                              'The path crosses points without energy (not converged).')
+            else:
+                self._readout('')
+            return
+        top = int(np.argmax(E))
+        p = pts[top]
+        where = ('RC1 {:.3f}, RC2 {:.3f}'.format(p[1], p[2]) if p[2] is not None else
+                 ('RC {:.3f}'.format(p[1]) if p[1] is not None else 'point {}'.format(top)))
+        self._readout('Barrier {:.2f} {u} (top at point {}: {})  ·  reaction energy {:+.2f} {u}  ·  {} points'.format(
+            E[top] - E[0], top, where, E[-1] - E[0], len(E), u = unit))
+
+    def clear_path (self):
+        self.plot.points = []
+        self.plot.selected_dot = None
+        self._update_profile()
+        self.plot.queue_draw()
+
+    def find_lowest_barrier_path (self):
+        if not self._is_2d():
+            raise ValueError('The lowest-barrier path needs a 2D scan.')
+        from pdynamo.us_data import lowest_barrier_path, default_endpoints
+        F = np.array(self.data['Z'], dtype = float)
+        F[~np.isfinite(F)] = np.nan
+        if len(self.plot.points) >= 2:
+            start = tuple(int(v) for v in self.plot.points[0]); end = tuple(int(v) for v in self.plot.points[-1])
+        else:
+            start, end = default_endpoints(F)
+        path = lowest_barrier_path(F, start, end)
+        if not path:
+            raise ValueError('No path between the two points (they are separated by points without energy).')
+        self.plot.points = [[int(a), int(b)] for a, b in path]
+        self.plot.selected_dot = None
+        self._update_profile()
+        self.plot.queue_draw()
+
+    @staticmethod
+    def stationary_points (Z, tolerance = 0.001):
+        """ Local minima (lower than every finite neighbour of the 8) and saddle points of a grid.
+            A saddle: going round its 8 neighbours, the energy goes above and below the centre
+            at least twice each; differences smaller than tolerance x (energy range) count as
+            flat (no noise saddles on plateaus), and of neighbouring saddle cells only the lowest
+            is kept. ( minima, saddles ) as lists of ( i, j ). """
+        F = np.array(Z, dtype = float)
+        F[~np.isfinite(F)] = np.nan
+        nx, ny = F.shape
+        fin_all = F[np.isfinite(F)]
+        tol = tolerance * (fin_all.max() - fin_all.min()) if fin_all.size else 0.0
+        ring = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]
+        minima, saddles = [], []
+        for i in range(nx):
+            for j in range(ny):
+                c = F[i, j]
+                if not np.isfinite(c):
+                    continue
+                nb = [F[i + a, j + b] if 0 <= i + a < nx and 0 <= j + b < ny else np.nan for a, b in ring]
+                fin = [v for v in nb if np.isfinite(v)]
+                if len(fin) >= 3 and all(c < v for v in fin):
+                    minima.append((i, j))
+                elif len(fin) == 8:
+                    signs = [1 if v > c + tol else -1 for v in nb if abs(v - c) > tol]
+                    changes = sum(1 for k in range(len(signs)) if signs[k] != signs[k - 1])
+                    if len(signs) >= 4 and changes >= 4:
+                        saddles.append((i, j))
+        # . one saddle per group of touching saddle cells: the lowest
+        kept = []
+        for cell in sorted(saddles, key = lambda c: F[c]):
+            if all(max(abs(cell[0] - k[0]), abs(cell[1] - k[1])) > 1 for k in kept):
+                kept.append(cell)
+        return minima, kept
+
+    def _update_stationary_markers (self):
+        self.plot.markers = []
+        if self._is_2d() and getattr(self, 'check_stationary', None) is not None and self.check_stationary.get_active():
+            minima, saddles = self.stationary_points(self.data['Z'])
+            self.plot.markers = [{'points': minima, 'shape': 'circle', 'color': [0.1, 0.55, 0.15]},
+                                 {'points': saddles, 'shape': 'diamond', 'color': [0.85, 0.1, 0.1]}]
+            f, unit = self._unit()
+            Z = self.data['Z']
+            text = '{} minima (circles), {} saddle points (diamonds)'.format(len(minima), len(saddles))
+            if saddles:
+                lows = sorted(saddles, key = lambda c: Z[c[0]][c[1]])[:3]
+                text += '  ·  lowest saddles: ' + '; '.join('RC1 {:.2f}, RC2 {:.2f}: {:.1f} {}'.format(
+                    self.data['RC1'][a][b], self.data['RC2'][a][b], Z[a][b] * f, unit) for a, b in lows)
+            self._readout(text)
+        self.plot.queue_draw()
+
+    def save_path_table (self):
+        pts = self._profile_points()
+        if not pts or (self._is_2d() and not self.plot.points):
+            raise ValueError('No path: pick points on the map or press "Lowest-barrier path".')
+        dialog = Gtk.FileChooserDialog(title = 'Save Path Table', parent = self.window, action = Gtk.FileChooserAction.SAVE)
+        dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
+        dialog.set_do_overwrite_confirmation(True)
+        dialog.set_current_name('pes_path.csv')
+        response, path = dialog.run(), dialog.get_filename()
+        dialog.destroy()
+        if response != Gtk.ResponseType.OK or not path:
+            return
+        self.write_path_table(path)
+
+    def write_path_table (self, path):
+        pts = self._profile_points()
+        if not path.lower().endswith('.csv'):
+            path += '.csv'
+        unit = self._unit()[1]
+        x = self._profile_x if len(self._profile_x) == len(pts) else list(range(len(pts)))
+        with open(path, 'w') as handle:
+            handle.write('point,i,j,RC1,RC2,profile_x,energy ({}),frame\n'.format(unit))
+            for n, (e, rc1, rc2, frame, ij) in enumerate(pts):
+                handle.write('{},{},{},{},{},{},{},{}\n'.format(
+                    n, '' if ij is None else ij[0], '' if ij is None else ij[1],
+                    '' if rc1 is None else '{:.5f}'.format(rc1), '' if rc2 is None else '{:.5f}'.format(rc2),
+                    '{:.5f}'.format(x[n]), '{:.4f}'.format(e), '' if frame is None else frame))
+        self._readout('{} points written to {}'.format(len(pts), path))
+        return path
+
     def  update (self):
         """ Function doc """
         pass
@@ -1041,28 +1312,7 @@ class PotentialEnergyAnalysisWindow:
         
         
         
-        self.plot2.data = []
-
-        self.plot2.Xmin_list = []
-        self.plot2.Ymin_list = []
-        self.plot2.Xmax_list = []
-        self.plot2.Ymax_list = []
-
-        x = []
-        y = []
-        for i, point in enumerate(self.plot.points):
-            x.append(i)
-            y.append(self.plot.data[point[0]][point[1]])
-        
-        self.plot2.add( X = x, Y = y, symbol = 'dot', sym_fill = False, sym_color = [1,1,1], line = 'solid', line_color = self.plot2.line_color )
-
-        self._set_plot2_x_ticks (len(x))
-        # [EN] BUG FIX: mesmo problema de on_mouse_button_press() (ver o
-        # comentario la') -- "self.plot2.Xmax = 10" fixo sobrescrevia o
-        # valor real calculado por add(), quebrando a grade do eixo X
-        # sempre que o caminho otimizado (NEB) tivesse um numero de
-        # pontos diferente de 10.
-
+        self._update_profile()
         self.scale_traj_new_definitions()
         self.plot.queue_draw()
         self.plot2.queue_draw()

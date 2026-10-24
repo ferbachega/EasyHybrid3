@@ -70,7 +70,7 @@ def read_xtb_hessian ( path, n_atoms ):
     return 0.5 * ( hessian + hessian.T ) * HARTREE_PER_BOHR2_TO_KJ_PER_A2
 
 
-def xtb_hessian ( symbols, coordinates, charge = 0, multiplicity = 1, gfn = 2, xtb = None, threads = 2, solvent = None ):
+def xtb_hessian ( symbols, coordinates, charge = 0, multiplicity = 1, gfn = 2, xtb = None, threads = 2, solvent = None, log_dir = None ):
     """ xtb --ohess: ( optimized coordinates A, Hessian kJ/mol/A^2, frequencies cm-1 from xtb ).
         gfn = 0/1/2 (GFN-xTB) or "gxtb" (g-xTB through tblite, xtb >= 6.7.1; gas phase
         only: tblite has no implicit solvent, so `solvent` is ignored with g-xTB). """
@@ -92,6 +92,9 @@ def xtb_hessian ( symbols, coordinates, charge = 0, multiplicity = 1, gfn = 2, x
         if solvent and method[0] != "--gxtb": command += [ "--alpb", solvent ]
         result = subprocess.run ( command, cwd = tmp, capture_output = True, text = True, timeout = 7200,
                                   env = dict ( os.environ, OMP_NUM_THREADS = str ( threads ), OMP_STACKSIZE = "1G" ) )
+        from pdynamo import param_logs
+        param_logs.keep ( tmp, log_dir, [ "m.xyz", "xtbopt.xyz", "vibspectrum" ],
+                          { "xtb_ohess.out": "$ " + " ".join ( command[1:] ) + "\n" + result.stdout + result.stderr } )
         if "normal termination of xtb" not in result.stdout + result.stderr:
             raise RuntimeError ( "xtb --ohess failed: " + ( result.stdout + result.stderr )[-800:] )
         lines = open ( os.path.join ( tmp, "xtbopt.xyz" ) ).read ( ).splitlines ( )

@@ -210,6 +210,16 @@ class NormalModesAnalysisWindow(Gtk.Window):
             '''--------------------------------------------------------------------------------------------'''
 
 
+            # . Thermochemistry (RRHO) from the imported frequencies
+            ir_button = self.builder.get_object('button_plot_ir_spectrum')
+            self.button_thermochemistry = Gtk.Button(label='Thermochemistry (RRHO)...')
+            self.button_thermochemistry.set_tooltip_text('Zero-point energy, enthalpy, entropy and free energy '
+                                                         '(ideal gas, rigid rotor, harmonic oscillator) from the '
+                                                         'imported frequencies, at any temperature and pressure.')
+            self.button_thermochemistry.connect('clicked', self.on_button_thermochemistry)
+            ir_button.get_parent().pack_start(self.button_thermochemistry, False, True, 0)
+            ir_button.get_parent().reorder_child(self.button_thermochemistry, 2)
+
             #self.refresh_system_liststore()
             self.treeview_menu         = TreeViewMenu(self)
             self.window.show_all()                                               
@@ -360,6 +370,27 @@ class NormalModesAnalysisWindow(Gtk.Window):
         window.set_title('IR Spectrum')
         window.add(plot)
         window.show_all()
+
+    def on_button_thermochemistry (self, button):
+        """ RRHO thermochemistry of the imported modes (see thermochemistry_window.py). """
+        frequencies = []
+        for row in self.liststore:
+            try:
+                frequencies.append(float(row[2]))
+            except (TypeError, ValueError):
+                pass
+        if not frequencies:
+            self.main.simple_dialog.info(msg="Import the normal modes of a system first.")
+            return
+        system_id = self.system_names_combo.get_system_id() if hasattr(self.system_names_combo, 'get_system_id') else None
+        if system_id is None:
+            system_id = self.p_session.active_id
+        system = self.p_session.psystem.get(system_id)
+        if system is None:
+            self.main.simple_dialog.info(msg="Choose the system of these normal modes.")
+            return
+        from gui.windows.analysis.thermochemistry_window import ThermochemistryWindow
+        self.thermochemistry_window = ThermochemistryWindow(self.main, system, frequencies, system.label)
 
     def _coordinates_model_update (self, e_id):
         """ Function doc """

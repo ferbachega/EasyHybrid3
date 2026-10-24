@@ -93,6 +93,8 @@
 #     dyff version=eh new=false    DYFF rules only, on this system
 #     opls rebuild=true ph=7.4     Prepare OPLS System (new system)
 #     ffinfo                       force field summary (parameters, terms)
+#     esp sele=true apply=resp2    ESP/RESP charges (HF/6-31G*, gas phase)
+#     dyffload folder=dyff_param_X saved DYFF modified parametrization (no recalculation)
 #     solvate padding=12 conc=0.15 water box + ions (new system)
 #     namd prefix=/path/name       export DYFF/OPLS to NAMD (PSF/PRM/PDB/CRD)
 #     play fps=10  /  pause        trajectory playback (mini player)
@@ -1475,7 +1477,7 @@ class Command:
         return "\n".join(lines)
 
     def cmd_dyff(self, sys=None, version="modified", new=True, name=None, ph=7.4, water=True, method="gfn2",
-                 scale=1.0, scan=False, complete=True, caps="remove", charge=None, mult=None, **_):
+                 scale=1.0, scan=False, complete=True, caps="remove", charge=None, mult=None, ligcharges="cm5", **_):
         """ Prepare DYFF System without dialogs (System > Force Field >
         Define Force Field > Prepare DYFF System).
 
@@ -1496,6 +1498,8 @@ class Command:
                   the formal charges)
         mult    : multiplicity (default: the metal sites' own; with one
                   metal, its spin state)
+        ligcharges: cm5 (default) | resp-xtb | resp-hf  charges of the
+                  ligands (whole molecules outside the residue library)
         Runs in the background; the result appears in the Logs panel.
 
         Examples:
@@ -1503,12 +1507,14 @@ class Command:
           dyff sys=0 name=1ZNF_DYFF
           dyff version=eh new=false
           dyff charge=-1 mult=5 scan=true
+          dyff ligcharges=resp-hf
         """
         from gui.windows.setup.prepare_dyff_dialog import prepare_dyff_headless
         e_id, system = self._system(sys)
         return prepare_dyff_headless(self._main(), system, version=str(version), new=bool(new), name=name, ph=float(ph),
                                      water=bool(water), method=str(method), scale=float(scale), scan=bool(scan),
-                                     complete=bool(complete), remove_caps=(str(caps) != "keep"), charge=charge, mult=mult)
+                                     complete=bool(complete), remove_caps=(str(caps) != "keep"), charge=charge, mult=mult,
+                                     ligand_charges=str(ligcharges).lower())
 
     def cmd_opls(self, sys=None, name=None, rebuild=True, ph=7.4, ligands=True, folder=None, contacts="stop", **_):
         """ Prepare OPLS System without the window: a new, typed system
@@ -1623,6 +1629,79 @@ class Command:
         lines = ["[{}] {}: {}".format(e_id, system.label, title), text]
         for _, issue, _, _ in report["issues"]:
             lines.append("WARNING: " + issue)
+        return "\n".join(lines)
+
+    def cmd_dyffload(self, sys=None, folder=None, **_):
+        """ Applies a saved DYFF modified parametrization (the dyff_param_...
+        folder written by Prepare DYFF System / dyff: parametrization.json,
+        report.html, xTB/ORCA logs) to a system with the same atoms and bonds,
+        without computing it again. Runs in the background; result in Logs.
+
+        folder : the dyff_param_... folder or its parametrization.json
+
+        Example:
+          dyffload folder=/home/me/work/dyff_param_lig_20261023-141932
+        """
+        if not folder:
+            return "Give folder=<dyff_param_... folder>."
+        e_id, system = self._system(sys)
+        data = self._main().load_dyff_parametrization(os.path.expanduser(folder), system)
+        return "[{}] {}: applying the parametrization of {} ({} atoms outside the library); report: {}".format(
+            e_id, system.label, data["created"], len(data["rest_atoms"]), os.path.join(data["_folder"], "report.html"))
+
+    def cmd_esp(self, sys=None, sele=False, level="HF/6-31G*", charge=None, mult=None, apply=None, **_):
+        """ ESP / RESP charges from a pDynamo HF/DFT calculation in the gas
+        phase, as System > Charges > ESP / RESP Charges (AMBER two-stage
+        RESP, the same charges as AmberTools resp). Waits for the SCF.
+
+        sele   : true = the selected molecule(s); false = the whole system
+        level  : HF/6-31G* (default) | B3LYP/6-31G* | HF/def2-SVP |
+                 B3LYP/def2-SVP | PBE/def2-SVP | GFN2-xTB |
+                 GFN2-xTB/ALPB(water)  (xTB: fast, approximate)
+        charge : net charge (default: from the MM charges, else 0)
+        mult   : spin multiplicity (default 1, or 2 for odd electrons)
+        apply  : esp | resp1 | resp2 - write that set into the MM model
+
+        Examples:
+          esp
+          esp sele=true charge=-1
+          esp sele=true apply=resp2
+          esp level=GFN2-xTB
+        """
+        from pdynamo import esp_charges as EC
+        e_id, system = self._system(sys)
+        vobject = self._vobject_of(system)
+        if str(sele).lower() in ("true", "1", "yes"):
+            selection = self.vm_session.selections[self.vm_session.current_selection]
+            indices = sorted({a.index - 1 for a in selection.selected_atoms if a.vm_object.e_id == e_id})
+            if not indices:
+                return "Nothing of system {} is selected.".format(e_id)
+        else:
+            indices = list(range(len(system.atoms)))
+        Z, _xyz, bonds = EC.molecule_from_system(system, indices)
+        frame = min(int(self.vm_session.get_frame() or 0), len(vobject.frames) - 1)
+        xyz = [[float(c) for c in vobject.frames[frame][i]] for i in indices]
+        charge = EC.suggested_charge(system, indices) if charge is None else int(charge)
+        if mult is None:
+            mult = 2 if (sum(Z) - charge) % 2 else 1
+        if level not in EC.LEVELS:
+            return "Unknown level '{}'. Use one of: {}.".format(level, ", ".join(EC.LEVELS))
+        r = EC.compute_esp_charges(Z, xyz, bonds, charge, int(mult), level)
+        lines = ["[{}] {}: {} atoms, {}, charge {}, mult {}, {} points, {:.1f} s".format(
+                     e_id, system.label, len(indices), level, charge, mult, r["points"], r["seconds"]),
+                 "  RRMS  ESP {:.4f}  RESP-1 {:.4f}  RESP-2 {:.4f}   dipole QC {:.2f} D, RESP-2 {:.2f} D".format(
+                     r["esp"]["rrms"], r["resp1"]["rrms"], r["resp2"]["rrms"], r["qc_dipole"] or 0.0, r["resp2"]["dipole"]),
+                 "  {:>6} {:<6} {:>9} {:>9} {:>9}".format("index", "atom", "ESP", "RESP-1", "RESP-2")]
+        for k, i in enumerate(indices):
+            lines.append("  {:>6} {:<6} {:>+9.4f} {:>+9.4f} {:>+9.4f}".format(
+                i + 1, system.atoms[i].label, r["esp"]["charges"][k], r["resp1"]["charges"][k], r["resp2"]["charges"][k]))
+        if apply:
+            if apply not in ("esp", "resp1", "resp2"):
+                return "\n".join(lines + ["apply= must be esp, resp1 or resp2."])
+            if getattr(system, "mmState", None) is None:
+                return "\n".join(lines + ["Not applied: the system has no MM model."])
+            old, new = EC.apply_to_mm_model(system, indices, r[apply]["charges"])
+            lines.append("{} charges applied to the MM model ({:+.4f} -> {:+.4f}).".format(apply.upper(), old, new))
         return "\n".join(lines)
 
     def cmd_solvate(self, sys=None, shape="cube", padding=10.0, conc=0.15, neutralize=True, cation=None, anion=None,

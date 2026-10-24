@@ -192,8 +192,9 @@ def system_graph ( system ):
 #=============================================================================
 #  Charges for the atoms the library does not cover
 #=============================================================================
-def xtb_cm5 ( symbols, xyz, charge, solvent = "water", threads = 4, multiplicity = 1 ):
-    """ GFN1-xTB CM5 charges (implicit solvent by default; multiplicity > 1: --uhf). """
+def xtb_cm5 ( symbols, xyz, charge, solvent = "water", threads = 4, multiplicity = 1, log_dir = None ):
+    """ GFN1-xTB CM5 charges (implicit solvent by default; multiplicity > 1: --uhf).
+        log_dir: the input geometry and the xtb output are kept there (param_logs). """
     import shutil, subprocess, tempfile
     import numpy as np
     from pdynamo.opls.ligand import find_xtb
@@ -205,6 +206,8 @@ def xtb_cm5 ( symbols, xyz, charge, solvent = "water", threads = 4, multiplicity
         command = [ find_xtb ( ), "m.xyz", "--gfn", "1", "--chrg", str ( int ( charge ) ) ] + ( [ "--alpb", solvent ] if solvent else [ ] )
         if multiplicity > 1: command += [ "--uhf", str ( int ( multiplicity ) - 1 ) ]
         r = subprocess.run ( command, cwd = tmp, capture_output = True, text = True, env = dict ( os.environ, OMP_NUM_THREADS = str ( threads ) ) )
+        from pdynamo import param_logs
+        param_logs.keep ( tmp, log_dir, [ "m.xyz" ], { "xtb_cm5.out": "$ " + " ".join ( command[1:] ) + "\n" + r.stdout + r.stderr } )
         start = r.stdout.find ( "Mulliken/CM5 charges" )
         if start < 0: raise RuntimeError ( "xtb gave no CM5 charges: " + ( r.stdout + r.stderr )[-400:] )
         return np.array ( [ float ( l.split ( )[2] ) for l in r.stdout[start:].splitlines ( )[1:len ( symbols ) + 1] ] )
@@ -212,7 +215,8 @@ def xtb_cm5 ( symbols, xyz, charge, solvent = "water", threads = 4, multiplicity
         shutil.rmtree ( tmp, ignore_errors = True )
 
 
-def rest_charges ( atomic_numbers, coordinates, bonds, formal, atoms, shell = 2, solvent = "water", threads = 4, multiplicity = 1 ):
+def rest_charges ( atomic_numbers, coordinates, bonds, formal, atoms, shell = 2, solvent = "water", threads = 4, multiplicity = 1,
+                   log_dir = None ):
     """ CM5 charges for `atoms` (the ones the library did not cover), computed on a
         capped subsystem around them (pdynamo/subsystem.py); every connected group of
         those atoms gets an integer total (the nearest integer of its CM5 sum).
@@ -224,7 +228,8 @@ def rest_charges ( atomic_numbers, coordinates, bonds, formal, atoms, shell = 2,
     if not atoms: return { }
     sub = SS.build_subsystem ( atomic_numbers, coordinates, bonds, atoms, shell = shell, formal_charges = formal )
     symbols = [ PeriodicTable.Symbol ( z ) for z in sub["atomic_numbers"] ]
-    q = xtb_cm5 ( symbols, sub["coordinates"], sub["charge"], solvent = solvent, threads = threads, multiplicity = multiplicity )
+    q = xtb_cm5 ( symbols, sub["coordinates"], sub["charge"], solvent = solvent, threads = threads, multiplicity = multiplicity,
+                  log_dir = log_dir )
     local = { p: k for k, p in enumerate ( sub["parent_index"] ) if p >= 0 }
     charges = { a: float ( q[local[a]] ) for a in atoms }
     # . connected groups of the rest atoms -> integer totals
@@ -316,9 +321,72 @@ def compute_rest ( system, rest_atoms, solvent = "water", threads = 4 ):
                           solvent = solvent, threads = threads )
 
 
+# . ligand charge models of the DYFF dialogs (ligand_charges) -> pdynamo/esp_charges.py level
+RESP_LEVELS = { "resp-xtb": "GFN2-xTB", "resp-hf": "HF/6-31G*" }
+LIGAND_CHARGE_MODELS = ( ( "cm5", "CM5 (GFN1-xTB), default" ), ( "resp-xtb", "RESP on the GFN2-xTB potential (fast)" ),
+                         ( "resp-hf", "RESP on the HF/6-31G* potential (AMBER level; ORCA when installed, else pDynamo up to ~22 atoms)" ) )
+
+
+def resp_group_charges ( z, xyz, bonds, formal, atoms, level, multiplicity_of = None, log_dir = None, nprocs = None ):
+    """ Two-stage RESP charges (pdynamo/esp_charges.py, gas phase) for every connected group
+        of `atoms` that is a whole molecule: no covalent bond to atoms outside the group and
+        no metal. Groups bonded to the rest of the system (termini, modified residues,
+        covalent ligands) and metal sites keep their CM5 charges.
+        log_dir: a folder resp_<first atom> per molecule with the original xtb/ORCA outputs;
+        nprocs: ORCA cores.
+        Returns ( { atom: charge }, [ { "atoms", "status", ... } ] ). """
+    import numpy as np
+    from pdynamo import esp_charges as EC
+    from pdynamo.subsystem import _METALS
+    multiplicity_of = multiplicity_of or ( lambda group: 1 )
+    members = set ( atoms )
+    nb = defaultdict ( set )
+    for a, b, *_ in bonds: nb[a].add ( b ); nb[b].add ( a )
+    groups, seen = [ ], set ( )
+    for a in sorted ( members ):
+        if a in seen: continue
+        group, stack = [ ], [ a ]; seen.add ( a )
+        while stack:
+            u = stack.pop ( ); group.append ( u )
+            for v in nb[u]:
+                if v in members and v not in seen: seen.add ( v ); stack.append ( v )
+        groups.append ( sorted ( group ) )
+    out, info = { }, [ ]
+    for group in groups:
+        gset = set ( group )
+        entry = { "atoms": len ( group ), "members": [ int ( u ) for u in group ] }
+        if any ( v not in gset for u in group for v in nb[u] ):
+            entry["status"] = "CM5 kept: bonded to the rest of the system"
+        elif any ( z[u] in _METALS for u in group ):
+            entry["status"] = "CM5 kept: metal"
+        elif len ( group ) == 1:
+            out[group[0]] = float ( formal[group[0]] ); entry["status"] = "ion: formal charge"
+        else:
+            local = { a: k for k, a in enumerate ( group ) }
+            q = int ( sum ( formal[u] for u in group ) )
+            try:
+                r = EC.compute_esp_charges ( [ z[u] for u in group ], [ list ( xyz[u] ) for u in group ],
+                                             [ ( local[a], local[b] ) for a, b, *_ in bonds if a in gset and b in gset ],
+                                             q, multiplicity_of ( gset ), level,
+                                             log_dir = os.path.join ( log_dir, "resp_{}".format ( group[0] + 1 ) ) if log_dir else None,
+                                             nprocs = nprocs )
+                for u, c in zip ( group, r["resp2"]["charges"] ): out[u] = float ( c )
+                entry.update ( status = "RESP-2 ({})".format ( level ), charge = q, rrms = r["resp2"]["rrms"],
+                               seconds = round ( r["seconds"], 1 ), engine = r.get ( "engine" ), level = level,
+                               multiplicity = int ( multiplicity_of ( gset ) ), points = r.get ( "points" ),
+                               dipole_qm = r.get ( "qc_dipole" ), dipole_resp = r["resp2"].get ( "dipole" ),
+                               esp_charges = [ float ( c ) for c in r["esp"]["charges"] ],
+                               log_dir = "resp_{}".format ( group[0] + 1 ) if log_dir else None )
+            except Exception as error:
+                entry["status"] = "CM5 kept: RESP failed ({})".format ( str ( error ).split ( "\n" )[0][:120] )
+        info.append ( entry )
+    return out, info
+
+
 def rest_parameters ( system, rest_atoms, solvent = "water", threads = 4, hessian = True, torsions = True, shell = 2, say = None,
                       method = "gfn2", site_states = None, scan_torsions = False, known_charges = None, known_edits = None,
-                      total_charge = None, multiplicity = None ):
+                      total_charge = None, multiplicity = None, scan_fragments = True, scan_gas = True,
+                      ligand_charges = "cm5", log_dir = None ):
     """ Parameters for the atoms outside the library (ligands, cofactors, termini,
         modified residues), on ONE capped subsystem around them (pdynamo/subsystem.py):
           charges   GFN1-xTB CM5, integer total per connected group (as rest_charges);
@@ -338,14 +406,23 @@ def rest_parameters ( system, rest_atoms, solvent = "water", threads = 4, hessia
         CH3/NH2/NH3+ rotors) get a relaxed xTB scan and a fitted per-bond torsion
         (scan_flexible_torsions); known_charges / known_edits: the library's charges
         and terms of the other residues, used in those fits.
+        log_dir (2026-10-23): the original xtb/ORCA inputs and outputs of every step are kept
+        there (charges/, hessian/, torsions/), for the parametrization report
+        (pdynamo/param_report.py); report["timings"] has the wall time of each step.
         Returns { "charges", "edits": { bond_terms, angle_terms, dihedral_bonds }, "report" }. """
     import numpy as np
     from pScientific import PeriodicTable
     from pdynamo import subsystem as SS
+    import time
     say = say or ( lambda text: None )
     rest = sorted ( set ( rest_atoms ) )
     edits = { "bond_terms": { }, "angle_terms": { }, "dihedral_bonds": { } }
-    report = { "rest_atoms": len ( rest ), "bonds": 0, "angles": 0, "torsions": 0, "rotatable": 0, "levels": { }, "skipped": 0 }
+    report = { "rest_atoms": len ( rest ), "bonds": 0, "angles": 0, "torsions": 0, "rotatable": 0, "levels": { }, "skipped": 0,
+               "timings": { } }
+    sub_log = lambda name: os.path.join ( log_dir, name ) if log_dir else None
+    clock = [ time.time ( ) ]
+    def lap ( name ):
+        now = time.time ( ); report["timings"][name] = round ( now - clock[0], 2 ); clock[0] = now
     if not rest: return { "charges": { }, "edits": edits, "report": report }
     n = len ( system.atoms )
     z = [ a.atomicNumber for a in system.atoms ]
@@ -371,7 +448,20 @@ def rest_parameters ( system, rest_atoms, solvent = "water", threads = 4, hessia
         return 1 + unpaired
     say ( "CM5 charges of the {} atoms outside the library...".format ( len ( rest ) ) )
     charges = rest_charges ( z, xyz, bonds, formal, rest, shell = shell, solvent = solvent, threads = threads,
-                             multiplicity = multiplicity_of ( set ( rest ) ) )
+                             multiplicity = multiplicity_of ( set ( rest ) ), log_dir = sub_log ( os.path.join ( "charges", "cm5" ) ) )
+    report["cm5_charges"] = { int ( a ): float ( q ) for a, q in charges.items ( ) }
+    report["charge_settings"] = { "cm5": "GFN1-xTB CM5" + ( ", ALPB({})".format ( solvent ) if solvent else ", gas phase" ),
+                                  "ligand_charges": ligand_charges or "cm5" }
+    lap ( "cm5" )
+    # . 2026-10-23 (user decision): RESP charges for the ligands instead of CM5
+    if ligand_charges and ligand_charges != "cm5":
+        level = RESP_LEVELS[ligand_charges]
+        say ( "RESP charges ({}) of the ligands...".format ( level ) )
+        resp, info = resp_group_charges ( z, xyz, bonds, formal, rest, level, multiplicity_of,
+                                          log_dir = sub_log ( "charges" ), nprocs = max ( 1, threads ) )
+        charges.update ( resp )
+        report["ligand_charges"] = info
+        lap ( "resp" )
     report["method"] = method
     if hessian:
         import concurrent.futures
@@ -402,8 +492,14 @@ def rest_parameters ( system, rest_atoms, solvent = "water", threads = 4, hessia
         def one ( group ):
             sub = SS.build_subsystem ( z, xyz, bonds, group, shell = shell, formal_charges = formal )
             symbols = [ PeriodicTable.Symbol ( x ) for x in sub["atomic_numbers"] ]
+            hdir = sub_log ( os.path.join ( "hessian", "group_{}".format ( group[0] + 1 ) ) )
             x_opt, h, _ = SM.xtb_hessian ( symbols, sub["coordinates"], charge = sub["charge"], threads = 1, solvent = solvent,
-                                           multiplicity = multiplicity_of ( set ( group ) ), gfn = "gxtb" if method == "gxtb" else 2 )
+                                           multiplicity = multiplicity_of ( set ( group ) ), gfn = "gxtb" if method == "gxtb" else 2,
+                                           log_dir = hdir )
+            if hdir:
+                from pdynamo import param_logs
+                param_logs.keep ( None, hdir, texts = { "parent_atoms.txt": "subsystem atom -> system atom (1-based, 0 = cap)\n" +
+                                  "\n".join ( "{} {}".format ( k + 1, p + 1 ) for k, p in enumerate ( sub["parent_index"] ) ) + "\n" } )
             skipped = [ ]
             mapped_cal = BL.HessianCalibration.mapped ( calibration, sub["parent_index"] ) if calibration is not None else None
             sem = SM.dyff_edits_from_hessian ( h, x_opt, [ ( a, b ) for a, b, o, ar in sub["bonds"] ], skipped, calibration = mapped_cal )
@@ -415,6 +511,8 @@ def rest_parameters ( system, rest_atoms, solvent = "water", threads = 4, hessia
                 edits["bond_terms"].update ( mapped["bond_terms"] ); edits["angle_terms"].update ( mapped["angle_terms"] )
                 report["skipped"] += n_skipped; sizes.append ( n_sub )
                 say ( "xTB Hessians {}/{}".format ( k, len ( groups ) ) )
+        lap ( "hessian" )
+        report["group_atoms"] = [ [ int ( a ) for a in g ] for g in groups ]
         report.update ( bonds = len ( edits["bond_terms"] ), angles = len ( edits["angle_terms"] ), groups = len ( groups ),
                         largest_subsystem = max ( sizes ) if sizes else 0,
                         calibrated = dict ( calibration.used ) if calibration is not None else { } )
@@ -423,6 +521,7 @@ def rest_parameters ( system, rest_atoms, solvent = "water", threads = 4, hessia
             found, info = library_dihedrals ( z, bonds, formal, xyz, rest, charged = True )      # this model has charges
             edits["dihedral_bonds"].update ( found )
             report.update ( info )
+            report["library_torsions"] = sorted ( found )
             if scan_torsions:
                 # . 2026-10-21: the flexible bonds the library does not have -> xTB scan + fit
                 targets = flexible_scan_targets ( z, bonds, formal, rest, set ( found ) )
@@ -431,11 +530,17 @@ def rest_parameters ( system, rest_atoms, solvent = "water", threads = 4, hessia
                     fitted, failed, details = scan_flexible_torsions ( z, xyz, bonds, formal, groups, targets, charges, edits,
                                                               known_charges = known_charges, known_edits = known_edits,
                                                               shell = shell, solvent = solvent, multiplicity_of = multiplicity_of,
-                                                              workers = max ( 1, threads ), say = say )
+                                                              workers = max ( 1, threads ), say = say,
+                                                              fragments = scan_fragments, fragment_gas = scan_gas,
+                                                              log_dir = sub_log ( "torsions" ) )
                     edits["dihedral_bonds"].update ( fitted )
                     report["scanned"] = len ( fitted )
                     report["scan_failed"] = failed
                     report["scan_details"] = details
+                    report["scan_settings"] = { "fragments": bool ( scan_fragments ), "fragment_shell": FRAGMENT_SHELL,
+                                                "gas_phase": bool ( scan_fragments and scan_gas ), "step": 15.0,
+                                                "min_improvement": SCAN_MIN_IMPROVEMENT, "poor_rmse": SCAN_POOR_RMSE }
+                lap ( "torsions" )
     return { "charges": charges, "edits": edits, "report": report }
 
 
@@ -494,14 +599,39 @@ def flexible_scan_targets ( z, bonds, formal, atoms, exclude = ( ) ):
     return sorted ( out )
 
 
+# . 2026-10-23: each rotatable bond is scanned on its own fragment: the two atoms of the
+#   bond plus FRAGMENT_SHELL bonds around them, never cutting aromatic, multiple or small-
+#   ring bonds nor metal bonds (subsystem.build_subsystem), capped with H. Smaller than the
+#   capped subsystem of the whole ligand, so faster, and the far parts of the molecule can
+#   no longer fold onto the scanned bond (internal hydrogen bonds that form and break along
+#   a relaxed scan of the whole ligand).
+FRAGMENT_SHELL = 2
+# . 2026-10-23 (user decision): with fragments, the xTB scan runs in the GAS PHASE and the
+#   MM side of the fit uses the fragment's own gas-phase CM5 charges (GFN1-xTB, caps
+#   included, integer total). The fit's MM side is gas phase (NBModelFull, no screening),
+#   so an ALPB scan put solvent-screened electrostatics on one side only: ATP mean fit
+#   RMSE 4.5 (ALPB scans) -> 2.6 kcal/mol (gas scans + gas charges). The torsion is the
+#   intrinsic one of the bond (as in GAFF / OpenFF fits); the medium enters through the
+#   charges used in the simulation.
+
+
+def torsion_fragment ( z, xyz, bonds, formal, bond, shell = FRAGMENT_SHELL ):
+    """ The capped fragment for the torsion scan of `bond` (subsystem.build_subsystem dict). """
+    from pdynamo import subsystem as SS
+    return SS.build_subsystem ( z, xyz, bonds, list ( bond ), shell = shell, formal_charges = formal )
+
+
 def scan_flexible_torsions ( z, xyz, bonds, formal, groups, targets, charges, edits, known_charges = None, known_edits = None,
-                             shell = 2, solvent = "water", multiplicity_of = None, workers = 4, step = 15.0, say = None ):
+                             shell = 2, solvent = "water", multiplicity_of = None, workers = 4, step = 15.0, say = None,
+                             fragments = True, fragment_shell = FRAGMENT_SHELL, fragment_gas = True, log_dir = None ):
     """ Relaxed GFN2-xTB scans of the targets ( flexible_scan_targets ) on the capped
         subsystem of their group of rest atoms, and the self-consistent per-bond fit
         (pdynamo/dyff_bond_fit.py, as the Builder's DYFF Parameters "refine torsions")
         on top of the Seminario bonds/angles and the CM5 charges just computed.
+        log_dir: per bond a folder torsion_<j+1>-<k+1> with the fragment and the original xtb outputs.
         Returns ( { "j-k": pairs } in system indices, [ "j-k: reason" ] for failures,
-        [ { "bond", "before_rmse", "fit_rmse", "barrier_xtb" } ] in kcal/mol ). """
+        [ { "bond", "before_rmse", "fit_rmse", "barrier_xtb", "accepted", ... } ] in kcal/mol;
+        the rejected fits are in the details too, with accepted False ). """
     import contextlib
     import io
     from pScientific import PeriodicTable
@@ -519,10 +649,18 @@ def scan_flexible_torsions ( z, xyz, bonds, formal, groups, targets, charges, ed
     by_group = defaultdict ( list )
     for bond, quad in targets:
         if bond[0] in group_of: by_group[group_of[bond[0]]].append ( ( bond, quad ) )
-    done = 0
+    from pdynamo.dyff_bond_fit import STDOUT_LOCK as make_lock
+    # . fragments=True: one scan system per bond (torsion_fragment), the fragments in parallel
+    jobs = [ ]
     for g, items in sorted ( by_group.items ( ) ):
         group = groups[g]
-        sub = SS.build_subsystem ( z, xyz, bonds, group, shell = shell, formal_charges = formal )
+        if fragments:
+            for item in items:
+                jobs.append ( ( group, [ item ], torsion_fragment ( z, xyz, bonds, formal, item[0], shell = fragment_shell ) ) )
+        else:
+            jobs.append ( ( group, items, SS.build_subsystem ( z, xyz, bonds, group, shell = shell, formal_charges = formal ) ) )
+    def run_job ( job, inner_workers ):
+        group, items, sub = job
         parent = sub["parent_index"]
         local = { p: k for k, p in enumerate ( parent ) if p >= 0 }
         local_targets = [ ]
@@ -532,38 +670,149 @@ def scan_flexible_torsions ( z, xyz, bonds, formal, groups, targets, charges, ed
                 local_targets.append ( ( ( min ( q[1], q[2] ), max ( q[1], q[2] ) ), q ) )
             else:
                 failed.append ( "{}-{}: dihedral cut by the subsystem".format ( *bond ) )
-        if not local_targets: continue
+        if not local_targets: return
         symbols = [ PeriodicTable.Symbol ( x ) for x in sub["atomic_numbers"] ]
         pairs = [ ( a, b ) for a, b, o, ar in sub["bonds"] ]
         base = SS.map_term_edits_to_subsystem ( parent_edits, parent )
+        def bond_dir ( b ):
+            if not log_dir: return None
+            j, k = sorted ( ( parent[b[0]], parent[b[1]] ) )
+            return os.path.join ( log_dir, "torsion_{}-{}".format ( j + 1, k + 1 ) )
+        job_dir = bond_dir ( local_targets[0][0] ) if fragments else ( os.path.join ( log_dir, "torsions_group_{}".format ( min ( group ) + 1 ) ) if log_dir else None )
+        if job_dir:
+            from pdynamo import param_logs
+            param_logs.write_xyz ( os.path.join ( job_dir, "fragment.xyz" ), symbols, sub["coordinates"],
+                                   "scan system: charge {} parent atoms (1-based, 0 = cap) {}".format (
+                                       sub["charge"], " ".join ( str ( p + 1 ) for p in parent ) ) )
         sub_formal = [ formal[p] if p >= 0 else 0 for p in parent ]
-        sub_charges = [ float ( all_charges.get ( p, 0.0 ) ) if p >= 0 else 0.0 for p in parent ]
+        scan_solvent = solvent
+        if fragments and fragment_gas:
+            scan_solvent = None
+            sub_charges = [ float ( q ) for q in xtb_cm5 ( symbols, sub["coordinates"], sub["charge"], solvent = None, threads = 1,
+                                                           multiplicity = multiplicity_of ( set ( group ) ), log_dir = job_dir ) ]
+        else:
+            sub_charges = [ float ( all_charges.get ( p, 0.0 ) ) if p >= 0 else 0.0 for p in parent ]
         def make ( e, sub = sub, sub_formal = sub_formal, sub_charges = sub_charges ):
-            with contextlib.redirect_stdout ( io.StringIO ( ) ):
+            # . the lock: redirect_stdout swaps the global sys.stdout, unsafe across threads
+            with make_lock, contextlib.redirect_stdout ( io.StringIO ( ) ):
                 system = SS.pdynamo_system ( sub["atomic_numbers"], sub["bonds"], sub["coordinates"], sub_formal )
                 system.DefineMMModel ( dyff_model ( "dyff-1.0", e ), log = None )
                 for k, q in enumerate ( sub_charges ): system.mmState.charges[k] = q
                 soften_polar_hydrogens ( system )
                 system.DefineNBModel ( NBModelFull.WithDefaults ( ) )
             return system
-        def progress ( text, offset = done, total = len ( targets ) ):
-            say ( "torsion scans ({} of {} bonds): {}".format ( offset, total, text ) )
+        def progress ( text, total = len ( targets ) ):
+            say ( "torsion scans ({} bonds): {}".format ( total, text ) )
         results = _scan_and_fit ( symbols, sub["coordinates"], pairs, local_targets, make, base, sub["charge"],
-                                  multiplicity_of ( set ( group ) ), solvent, step, 1, workers, progress,
-                                  report_bond = lambda b, parent = parent: ( min ( parent[b[0]], parent[b[1]] ), max ( parent[b[0]], parent[b[1]] ) ) )
+                                  multiplicity_of ( set ( group ) ), scan_solvent, step, 1, inner_workers, progress,
+                                  report_bond = lambda b, parent = parent: ( min ( parent[b[0]], parent[b[1]] ), max ( parent[b[0]], parent[b[1]] ) ),
+                                  log_dir_of = ( bond_dir if fragments else ( lambda b: job_dir ) ) if log_dir else None )
         for r in results:
             key = "{}-{}".format ( *r["bond"] )
             if "pairs" in r:
-                before, after = r.get ( "before_rmse" ), r.get ( "fit_rmse" )
-                if before is not None and after is not None and after > SCAN_MIN_IMPROVEMENT * before:
+                # . 2026-10-23: "after" = the re-relaxed DYFF profile with the fitted torsion, measured
+                #   exactly like "before" (all points, unweighted); the fit's own weighted, best-offset
+                #   RMSE made worse profiles look better (ATP P2-O8 6.11 -> 6.22 accepted as 4.06)
+                before = r.get ( "before_rmse" )
+                after = ( r.get ( "profiles" ) or { } ).get ( "after_rmse", r.get ( "fit_rmse" ) )
+                accepted = not ( before is not None and after is not None and after > SCAN_MIN_IMPROVEMENT * before )
+                entry = { "bond": key, "before_rmse": before, "fit_rmse": after, "barrier_xtb": r.get ( "barrier_xtb" ),
+                          "poor": after is not None and after > SCAN_POOR_RMSE, "pairs": [ list ( p ) for p in r["pairs"] ],
+                          "quad": [ parent[a] for a in r["quad"] ], "fragment_atoms": len ( sub["atomic_numbers"] ),
+                          "fragment_charge": int ( sub["charge"] ), "scan_solvent": scan_solvent,
+                          "dropped_periods": [ int ( x ) for x in ( r.get ( "dropped" ) or [ ] ) ],
+                          "profiles": r.get ( "profiles" ), "accepted": accepted,
+                          "log_dir": os.path.basename ( bond_dir ( r["quad"][1:3] ) ) if log_dir else None }
+                details.append ( entry )
+                if not accepted:
                     failed.append ( "{}: the fit does not improve on the DYFF rule ({:.2f} -> {:.2f} kcal/mol), rule kept".format ( key, before, after ) )
                     continue
-                fitted[key] = [ list ( p ) for p in r["pairs"] ]
-                details.append ( { "bond": key, "before_rmse": before, "fit_rmse": after, "barrier_xtb": r.get ( "barrier_xtb" ),
-                                   "poor": after is not None and after > SCAN_POOR_RMSE } )
-            else: failed.append ( "{}: {}".format ( key, r.get ( "error", "no fit" ) ) )
-        done += len ( items )
+                fitted[key] = entry["pairs"]
+            else:
+                failed.append ( "{}: {}".format ( key, r.get ( "error", "no fit" ) ) )
+                details.append ( { "bond": key, "quad": [ parent[a] for a in r["quad"] ], "accepted": False, "error": r.get ( "error", "no fit" ),
+                                   "fragment_atoms": len ( sub["atomic_numbers"] ),
+                                   "log_dir": os.path.basename ( bond_dir ( r["quad"][1:3] ) ) if log_dir else None } )
+    if fragments and len ( jobs ) > 1:
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor ( max_workers = max ( 1, workers ) ) as pool:
+            list ( pool.map ( lambda job: run_job ( job, 1 ), jobs ) )
+    else:
+        for job in jobs: run_job ( job, workers )
     return fitted, failed, details
+
+
+def check_torsion ( z, xyz, bonds, formal, bond, edits, multiplicity = 1, step = 15.0, threads = 1, log_dir = None,
+                    fragment_shell = FRAGMENT_SHELL ):
+    """ 2026-10-23: how well a torsion ALREADY in `edits` (e.g. from the DFT torsion library)
+        reproduces a relaxed GFN2-xTB scan, measured exactly as the automatic scans
+        (scan_flexible_torsions): capped gas-phase fragment of the bond, its own gas-phase
+        CM5 charges, DYFF relaxed at every point with the same restraint. Profiles of the
+        DYFF rule (the bond's torsion edit removed) and of the given torsion.
+        bond: ( j, k ) system indices; edits: dyff_parameter_edits-like dict (system indices).
+        Returns { "bond", "quad", "fragment_atoms", "fragment_charge", "barrier_xtb", "rule_rmse",
+        "torsion_rmse", "pairs", "profiles": { phi, xtb, dyff_rule, dyff_torsion } } in kcal/mol. """
+    import contextlib
+    import copy
+    import io
+    import numpy as np
+    from pScientific import PeriodicTable
+    from pMolecule.NBModel import NBModelFull
+    from pdynamo import subsystem as SS
+    from pdynamo import torsion_fit as TF
+    from pdynamo import dyff_bond_fit as BF
+    from pdynamo.dyff_edits import dyff_model, soften_polar_hydrogens
+    j, k = min ( bond ), max ( bond )
+    key = "{}-{}".format ( j, k )
+    nb = defaultdict ( set )
+    for a, b, *_ in bonds: nb[a].add ( b ); nb[b].add ( a )
+    outer_j = [ v for v in nb[j] if v != k ]; outer_k = [ v for v in nb[k] if v != j ]
+    if not outer_j or not outer_k: raise ValueError ( "bond {}-{} has no dihedral".format ( j + 1, k + 1 ) )
+    quad = ( max ( outer_j, key = lambda v: ( z[v], -v ) ), j, k, max ( outer_k, key = lambda v: ( z[v], -v ) ) )
+    sub = torsion_fragment ( z, xyz, bonds, formal, ( j, k ), shell = fragment_shell )
+    parent = sub["parent_index"]
+    local = { p: n for n, p in enumerate ( parent ) if p >= 0 }
+    if not all ( a in local for a in quad ): raise ValueError ( "the dihedral is cut by the fragment" )
+    q = tuple ( local[a] for a in quad )
+    symbols = [ PeriodicTable.Symbol ( x ) for x in sub["atomic_numbers"] ]
+    pairs_sub = [ ( a, b ) for a, b, o, ar in sub["bonds"] ]
+    sub_formal = [ formal[p] if p >= 0 else 0 for p in parent ]
+    if log_dir:
+        from pdynamo import param_logs
+        param_logs.write_xyz ( os.path.join ( log_dir, "fragment.xyz" ), symbols, sub["coordinates"],
+                               "scan system: charge {} parent atoms (1-based, 0 = cap) {}".format (
+                                   sub["charge"], " ".join ( str ( p + 1 ) for p in parent ) ) )
+    sub_charges = [ float ( x ) for x in xtb_cm5 ( symbols, sub["coordinates"], sub["charge"], solvent = None, threads = threads,
+                                                   multiplicity = multiplicity, log_dir = log_dir ) ]
+    from pdynamo.dyff_bond_fit import STDOUT_LOCK
+    def make ( e ):
+        with STDOUT_LOCK, contextlib.redirect_stdout ( io.StringIO ( ) ):
+            system = SS.pdynamo_system ( sub["atomic_numbers"], sub["bonds"], sub["coordinates"], sub_formal )
+            system.DefineMMModel ( dyff_model ( "dyff-1.0", e ), log = None )
+            for n, c in enumerate ( sub_charges ): system.mmState.charges[n] = c
+            soften_polar_hydrogens ( system )
+            system.DefineNBModel ( NBModelFull.WithDefaults ( ) )
+        return system
+    base = SS.map_term_edits_to_subsystem ( { kind: dict ( edits.get ( kind ) or { } ) for kind in ( "bond_terms", "angle_terms", "dihedral_bonds" ) }, parent )
+    local_key = BF.bond_label ( q[1], q[2] )
+    pairs = [ list ( x ) for x in ( edits.get ( "dihedral_bonds" ) or { } ).get ( key, [ ] ) ]
+    with_torsion = copy.deepcopy ( base ); with_torsion.setdefault ( "dihedral_bonds", { } )[local_key] = pairs
+    rule = copy.deepcopy ( base ); rule.setdefault ( "dihedral_bonds", { } ).pop ( local_key, None )
+    runner = TF.XTBRunner ( gfn = 2, charge = sub["charge"], multiplicity = multiplicity, solvent = None, threads = threads, log_dir = log_dir )
+    scan = TF.run_scan ( symbols, sub["coordinates"], pairs_sub, q, step = step, relaxed = True, runner = runner )
+    e_qm = np.array ( scan["e_qm"], dtype = float )
+    broken = TF.broken_bonds ( symbols, pairs_sub, scan["geometries"] )
+    if broken:
+        p, ( a, b ), d = broken[0]
+        raise ValueError ( "the xTB scan changed the bonding (fragment atoms {}-{} at {:.2f} A)".format ( a + 1, b + 1, d ) )
+    before = BF.profile_error ( make, rule, q, scan["geometries"], scan["phi"], e_qm )
+    after = BF.profile_error ( make, with_torsion, q, scan["geometries"], scan["phi"], e_qm )
+    return { "bond": key, "quad": [ int ( a ) for a in quad ], "fragment_atoms": len ( symbols ), "fragment_charge": int ( sub["charge"] ),
+             "barrier_xtb": float ( ( e_qm.max ( ) - e_qm.min ( ) ) / 4.184 ), "pairs": pairs,
+             "rule_rmse": before["rmse"] / 4.184, "torsion_rmse": after["rmse"] / 4.184,
+             "log_dir": os.path.basename ( log_dir ) if log_dir else None,
+             "profiles": { "phi": [ float ( x ) for x in scan["phi"] ], "xtb": [ float ( x ) for x in ( e_qm - e_qm.min ( ) ) / 4.184 ],
+                           "dyff_rule": [ x / 4.184 for x in before["mm"] ], "dyff_torsion": [ x / 4.184 for x in after["mm"] ] } }
 
 
 def library_dihedrals ( z, bonds, formal, xyz, atoms, charged = True ):

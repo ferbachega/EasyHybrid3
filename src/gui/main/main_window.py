@@ -1216,6 +1216,14 @@ class MainWindow:
 
         elif menuitem == self.builder.get_object('menuitem_edit_cell'):
             self.edit_cell_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_center_in_cell'):
+            from gui.windows.setup.crystal_tools import center_in_cell
+            center_in_cell(self)
+
+        elif menuitem == self.builder.get_object('menuitem_expand_p1'):
+            from gui.windows.setup.crystal_tools import expand_to_p1
+            expand_to_p1(self)
             
             
             
@@ -1285,7 +1293,13 @@ class MainWindow:
             
             win = XtbFragmentChargesWindow(main=self, system=system)
             win.open_window()
-            
+
+        elif menuitem == self.builder.get_object('menuitem_esp_charges'):
+            from gui.windows.setup.esp_charges_window import ESPChargesWindow
+            if not hasattr(self, 'esp_charges_window'):
+                self.esp_charges_window = ESPChargesWindow(main=self)
+            self.esp_charges_window.open_window()
+
             
         elif menuitem == self.builder.get_object('menuitem_charge_inspection'): 
             TrueFalse, msg = self.p_session.check_for_fragmented_charges()
@@ -1321,6 +1335,13 @@ class MainWindow:
             # . 2026-10-21: System > Force Field > Define Force Field; asks the DYFF version first
             from gui.windows.setup.prepare_dyff_dialog import prepare_dyff_system
             prepare_dyff_system(self)
+
+        elif menuitem == self.builder.get_object('menuitem_parametrization_report'):
+            self.open_parametrization_window()
+
+        elif menuitem == self.builder.get_object('menuitem_load_dyff_parametrization'):
+            # . 2026-10-23: a saved DYFF modified parametrization (pdynamo/param_report.py) applied again
+            self._load_dyff_parametrization_dialog()
 
         elif menuitem == self.builder.get_object('menuitem_remove_force_field'):
             system = self.p_session.psystem.get(self.p_session.active_id)
@@ -1528,6 +1549,24 @@ class MainWindow:
         elif menuitem == self.builder.get_object('menuitem_rmsf_analysis'):
             self.rmsf_analysis_window.open_window()
 
+        elif menuitem == self.builder.get_object('menuitem_excited_states'):
+            from gui.windows.simulation.excited_states_window import ExcitedStatesWindow
+            if not hasattr(self, 'excited_states_window'):
+                self.excited_states_window = ExcitedStatesWindow(main=self)
+            self.excited_states_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_molecular_properties'):
+            from gui.windows.analysis.molecular_properties_window import MolecularPropertiesWindow
+            if not hasattr(self, 'molecular_properties_window'):
+                self.molecular_properties_window = MolecularPropertiesWindow(main=self)
+            self.molecular_properties_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_trajectory_analysis'):
+            from gui.windows.analysis.trajectory_analysis_window import TrajectoryAnalysisWindow
+            if not hasattr(self, 'trajectory_analysis_window'):
+                self.trajectory_analysis_window = TrajectoryAnalysisWindow(main=self)
+            self.trajectory_analysis_window.open_window()
+
         elif menuitem == self.builder.get_object('menuitem_rdf_analysis'):
             self.rdf_analysis_window.open_window()
 
@@ -1712,6 +1751,9 @@ class MainWindow:
         
         elif menuitem == self.builder.get_object('menuitem_WHAM'):
             self.WHAM_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_umbrella_browser'):
+            self.open_umbrella_browser()
         
         
         
@@ -2247,6 +2289,10 @@ class MainWindow:
         grid.attach(scan, 0, 5, 2, 1)
         # . 2026-10-21, user's request: charge and multiplicity of the xTB calculations
         charge_spin, mult_spin, electrons = self._dyff_charge_multiplicity_widgets(grid, 6, system, vobject)
+        grid.attach(Gtk.Label(label="Ligand charges:", xalign=0), 0, 8, 1, 1)
+        ligand_combo = self._dyff_ligand_charges_widget()
+        ligand_combo.set_sensitive(bool(s["rest_atoms"]))
+        grid.attach(ligand_combo, 1, 8, 1, 1)
         charge_spin.set_sensitive(bool(s["rest_atoms"])); mult_spin.set_sensitive(bool(s["rest_atoms"]))
         dialog.get_content_area().add(grid); dialog.show_all()
         while True:
@@ -2261,6 +2307,7 @@ class MainWindow:
         scan_torsions = scan.get_active() and use_bonded
         total_charge, multiplicity = int(charge_spin.get_value()), int(mult_spin.get_value())
         method, cm5_scale = method_combo.get_active_id(), scale_spin.get_value()
+        ligand_charges = ligand_combo.get_active_id() or "cm5"
         dialog.destroy()
         if response != Gtk.ResponseType.OK: return
         if as_new:
@@ -2269,7 +2316,83 @@ class MainWindow:
                 self.simple_dialog.error(msg="The copy of the system has no object."); return
             p = RL.plan(system)
         self._run_dyff_library(system, vobject, p, use_water=use_water, use_bonded=use_bonded, method=method, cm5_scale=cm5_scale,
-                               scan_torsions=scan_torsions, total_charge=total_charge, multiplicity=multiplicity)
+                               scan_torsions=scan_torsions, total_charge=total_charge, multiplicity=multiplicity,
+                               ligand_charges=ligand_charges, open_report=True)
+
+    def _load_dyff_parametrization_dialog(self):
+        """ [EN] 2026-10-23: System > Force Field > Define Force Field > Load DYFF Parametrization. """
+        system = self.p_session.psystem.get(self.p_session.active_id)
+        if system is None:
+            self.simple_dialog.error(msg="No active system."); return
+        if getattr(system, "qcModel", None) is not None:
+            self.simple_dialog.error(msg="'{}' has a QC model: DYFF cannot be assigned.".format(system.label)); return
+        chooser = Gtk.FileChooserDialog(title="Load DYFF Parametrization (parametrization.json)", parent=self.window,
+                                        action=Gtk.FileChooserAction.OPEN)
+        chooser.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OPEN, Gtk.ResponseType.OK)
+        flt = Gtk.FileFilter(); flt.set_name("DYFF parametrization (parametrization.json)"); flt.add_pattern("parametrization.json")
+        chooser.add_filter(flt)
+        folder = getattr(system, "e_working_folder", None)
+        if folder and os.path.isdir(folder):
+            chooser.set_current_folder(folder)
+        response, path = chooser.run(), chooser.get_filename()
+        chooser.destroy()
+        if response != Gtk.ResponseType.OK or not path:
+            return
+        try:
+            data = self.load_dyff_parametrization(path, system)
+        except Exception as error:
+            self.simple_dialog.error(msg="Load DYFF Parametrization: {}".format(error)); return
+        report = os.path.join(data["_folder"], "report.html")
+        if os.path.exists(report) and self.simple_dialog.question(
+                "The parameters of '{}' are being applied.\n\nOpen the parametrization report?".format(system.label)):
+            self._open_in_browser(report)
+
+    def open_umbrella_browser(self, folder=None):
+        """ [EN] 2026-10-23: Analysis > Umbrella Sampling Browser. """
+        from gui.windows.analysis.umbrella_browser_window import UmbrellaBrowserWindow
+        if getattr(self, "umbrella_browser_window", None) is None:
+            self.umbrella_browser_window = UmbrellaBrowserWindow(main=self)
+        self.umbrella_browser_window.open_window(folder=folder)
+
+    def open_parametrization_window(self, folder=None, system=None):
+        """ [EN] 2026-10-23: System > Force Field > Parametrization Report (DYFF modified ligands). """
+        from gui.windows.analysis.parametrization_window import ParametrizationWindow
+        if getattr(self, "parametrization_window", None) is None:
+            self.parametrization_window = ParametrizationWindow(main=self)
+        self.parametrization_window.open_window(folder=folder, system=system)
+
+    def _open_in_browser(self, path):
+        """ [EN] 2026-10-23: a local HTML file in the default browser, without blocking. """
+        import threading
+        import webbrowser
+        threading.Thread(target=lambda: webbrowser.open("file://" + os.path.abspath(path)), daemon=True).start()
+
+    def load_dyff_parametrization(self, folder, system=None, vobject=None):
+        """ [EN] 2026-10-23: applies a saved DYFF parametrization (pdynamo/param_report.py
+        output folder) to the active system -- the same atoms, elements and bonds -- with the
+        residue library and the stored parameters of the atoms outside it, no xTB/ORCA. """
+        from pdynamo import residue_library as RL
+        from pdynamo import param_report as PR
+        data = PR.load(folder)
+        if system is None:
+            system = self.p_session.psystem[self.p_session.active_id]
+        if vobject is None:
+            vobject = self.get_active_vobject(getattr(system, "e_id", None))
+        if vobject is None:
+            raise ValueError("no object of the system '{}'".format(system.label))
+        reason = PR.check_system(data, system)
+        if reason:
+            raise ValueError("this parametrization does not fit '{}': {}".format(system.label, reason))
+        p = RL.plan(system)
+        if sorted(p["rest_atoms"]) != sorted(data["rest_atoms"]):
+            raise ValueError("the residue library now covers different atoms than when the parametrization was made")
+        o = data.get("settings") or {}
+        self._run_dyff_library(system, vobject, p, use_water=o.get("water", True), use_bonded=o.get("bonded", True),
+                               method=o.get("method", "gfn2"), cm5_scale=o.get("cm5_scale", 1.0),
+                               scan_torsions=o.get("scan_torsions", False), ligand_charges=o.get("ligand_charges", "cm5"),
+                               total_charge=o.get("total_charge"), multiplicity=o.get("multiplicity_override"),
+                               precomputed=data)
+        return data
 
     def reapply_dyff_library(self, vobject, extra_message=""):
         """ [EN] 2026-10-08: DYFF + residue library again on the system of `vobject`, with
@@ -2292,6 +2415,7 @@ class MainWindow:
             self.simple_dialog.error(msg="Residue library: {}".format(error)); return False
         self._run_dyff_library(system, vobject, p, use_water=options.get("water", True), use_bonded=options.get("bonded", True),
                                scan_torsions=options.get("scan_torsions", False),
+                               ligand_charges=options.get("ligand_charges", "cm5"),
                                total_charge=options.get("total_charge"), multiplicity=options.get("multiplicity_override"),
                                method=options.get("method", "gfn2"), cm5_scale=options.get("cm5_scale", 1.0),
                                extra_message=extra_message)
@@ -2452,6 +2576,23 @@ class MainWindow:
             bonded.connect("toggled", lambda b: (check.set_sensitive(b.get_active()), b.get_active() or check.set_active(False)))
         return check
 
+    def _dyff_ligand_charges_widget(self):
+        """ [EN] 2026-10-23, user's decision: the charge model of the ligands (the whole
+        molecules among the atoms outside the residue library): CM5 (default) or RESP-2
+        on the GFN2-xTB or HF/6-31G* potential (residue_library.resp_group_charges).
+        Groups bonded to the rest of the system and metal sites keep CM5. """
+        from pdynamo.residue_library import LIGAND_CHARGE_MODELS
+        combo = Gtk.ComboBoxText()
+        for key, text in LIGAND_CHARGE_MODELS:
+            combo.append(key, text)
+        combo.set_active_id("cm5")
+        combo.set_tooltip_text("Charges of the ligands (whole molecules outside the residue library). RESP-2 is fitted to the "
+                               "gas-phase electrostatic potential (System > Charges > ESP / RESP Charges, identical to AmberTools "
+                               "resp). On the NCI Atlas RESP-HF was slightly better than CM5 and RESP-xTB slightly worse; on "
+                               "protein-ligand interaction energies RESP-xTB was better. Termini, modified residues, covalent "
+                               "ligands and metal sites keep CM5.")
+        return combo
+
     def _dyff_method_and_scale_widgets(self, grid, row):
         """ [EN] 2026-10-08: the Hessian method (GFN2-xTB / g-xTB / DFT, the latter not yet
         available) and the CM5 charge scale, shared by the DYFF + residue library dialog
@@ -2480,12 +2621,19 @@ class MainWindow:
 
     def _run_dyff_library(self, system, vobject, p, use_water=True, use_bonded=True, method="gfn2", site_states=None,
                           cm5_scale=1.0, extra_message="", on_success=None, scan_torsions=False,
-                          total_charge=None, multiplicity=None):
+                          total_charge=None, multiplicity=None, ligand_charges="cm5", open_report=False, precomputed=None):
         """ [EN] 2026-10-08: applies DYFF + residue library to `system` (plan p from
         residue_library.plan): the atoms outside the library refined on capped subsystems
         in a worker thread (method gfn2/gxtb; site_states = spin of metal sites), the
-        charges optionally scaled, then the MM model defined. """
+        charges optionally scaled, then the MM model defined.
+        2026-10-23: every run with atoms outside the library writes an output folder
+        (pdynamo/param_report.py: parametrization.json, report.html, the original xTB/ORCA
+        logs) in the system's working folder; open_report: show report.html when done.
+        precomputed: a loaded parametrization.json (param_report.load) whose parameters are
+        applied instead of computing them again. """
         import threading
+        import time
+        from pdynamo import param_report as PR
         from pdynamo import residue_library as RL
         from pdynamo import dyff_prep as DP
         s = p["summary"]
@@ -2507,18 +2655,29 @@ class MainWindow:
         #   re-apply the library with the same choices (reapply_dyff_library)
         vobject.dyff_library_options = {"water": use_water, "bonded": use_bonded, "method": method, "cm5_scale": cm5_scale,
                                         "scan_torsions": bool(scan_torsions and use_bonded),
+                                        "ligand_charges": ligand_charges,
                                         "total_charge": total_charge, "multiplicity_override": multiplicity,
                                         "multiplicities": {system.atoms[i].path: st["multiplicity"] for i, st in (site_states or {}).items()}}
         self.statusbar_main.push(1, "DYFF + residue library: {} atoms outside the library...".format(s["rest_atoms"]))
         def say(text):
             GLib.idle_add(lambda: self.statusbar_main.push(1, "DYFF + residue library: " + text) and False)
-        def work():
+        folder = None
+        if p["rest_atoms"] and precomputed is None:
             try:
-                rest = RL.rest_parameters(system, p["rest_atoms"], solvent="water" if use_water else None,
+                folder = PR.new_folder(getattr(system, "e_working_folder", None) or os.getcwd(), system.label)
+            except Exception as error:
+                print("DYFF parametrization report: no output folder ({})".format(error))
+        started = time.time()
+        def work():
+            if precomputed is not None:
+                GLib.idle_add(done, PR.rest_result(precomputed) if p["rest_atoms"] else None, None); return
+            try:
+                rest = RL.rest_parameters(system, p["rest_atoms"], solvent="water" if use_water else None, log_dir=os.path.join(folder, "logs") if folder else None,
                                           hessian=use_bonded, torsions=use_bonded, say=say, method=method,
                                           site_states=site_states, scan_torsions=bool(scan_torsions and use_bonded),
                                           known_charges=p["charges"], known_edits=p["edits"],
-                                          total_charge=total_charge, multiplicity=multiplicity) if p["rest_atoms"] else None
+                                          total_charge=total_charge, multiplicity=multiplicity,
+                                          ligand_charges=ligand_charges) if p["rest_atoms"] else None
                 GLib.idle_add(done, rest, None)
             except Exception as error:
                 traceback.print_exc()
@@ -2549,7 +2708,8 @@ class MainWindow:
                     if "scan_targets" in r:
                         # . 2026-10-21: automatic xTB scans of the flexible bonds the library does not have
                         msg += " xTB torsion scans: {} of {} flexible bond(s) fitted".format(r.get("scanned", 0), r["scan_targets"])
-                        details = [d for d in (r.get("scan_details") or []) if d.get("fit_rmse") is not None and d.get("before_rmse") is not None]
+                        details = [d for d in (r.get("scan_details") or []) if d.get("accepted", True)
+                                   and d.get("fit_rmse") is not None and d.get("before_rmse") is not None]
                         if details:
                             msg += " (RMSE vs xTB, mean: {:.2f} -> {:.2f} kcal/mol)".format(
                                 sum(d["before_rmse"] for d in details) / len(details), sum(d["fit_rmse"] for d in details) / len(details))
@@ -2559,9 +2719,33 @@ class MainWindow:
                                     len(poor), ", ".join(d["bond"] for d in poor[:5]))
                         failed = r.get("scan_failed") or []
                         msg += (" ({} failed: {}).".format(len(failed), "; ".join(failed[:3])) if failed else ".")
+                if rest and rest["report"].get("ligand_charges"):
+                    # . 2026-10-23: RESP charges of the ligands
+                    groups = rest["report"]["ligand_charges"]
+                    resp = [g for g in groups if g["status"].startswith("RESP")]
+                    kept = [g for g in groups if g["status"].startswith("CM5")]
+                    msg += " Ligand charges: {} molecule(s) with {}".format(len(resp), resp[0]["status"] if resp else "RESP")
+                    msg += ("; {} group(s) kept CM5 ({}).".format(len(kept), "; ".join(sorted({g["status"][10:] for g in kept})))
+                            if kept else ".")
                 if abs(cm5_scale - 1.0) > 1e-9:
                     msg += " CM5 charges scaled by {:.2f}.".format(cm5_scale)
                 msg += extra_message
+                if precomputed is not None:
+                    vobject.dyff_param_folder = precomputed.get("_folder")
+                    msg += " Parameters read from {} (no new calculation).".format(precomputed.get("_folder", "parametrization.json"))
+                elif folder:
+                    try:
+                        data = PR.collect(system, p, rest, dict(vobject.dyff_library_options), charges, edits,
+                                          messages=[msg], total_seconds=time.time() - started)
+                        path = PR.write(folder, data)
+                        vobject.dyff_param_folder = folder
+                        msg += " Report and logs: {}".format(path)
+                        if open_report:
+                            # . 2026-10-23: the DYFF Parametrization window (report.html is written as well)
+                            GLib.idle_add(lambda: self.open_parametrization_window(folder, system) and False)
+                    except Exception as error:
+                        traceback.print_exc()
+                        msg += " (the parametrization report could not be written: {})".format(error)
                 self.bottom_notebook.status_teeview_add_new_item(message=msg, system=system)
                 self.statusbar_main.push(1, msg)
             else:

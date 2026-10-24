@@ -143,13 +143,14 @@ class XTBRunner:
     """ Runs xtb in a scratch folder; cancel() kills the running process
         (callable from another thread). """
 
-    def __init__ ( self, xtb = None, gfn = 2, charge = 0, multiplicity = 1, solvent = None, threads = 4 ):
+    def __init__ ( self, xtb = None, gfn = 2, charge = 0, multiplicity = 1, solvent = None, threads = 4, log_dir = None ):
         from pdynamo.opls.ligand import find_xtb
         self.xtb = xtb or find_xtb ( )
         if self.xtb is None:
             raise RuntimeError ( "xtb was not found (set XTBHOME or put xtb in the PATH)." )
         self.gfn, self.charge, self.multiplicity, self.solvent = int ( gfn ), int ( charge ), int ( multiplicity ), solvent
         self.threads   = int ( threads )
+        self.log_dir   = log_dir          # param_logs: original outputs kept there (None: not kept)
         self.process   = None
         self.cancelled = False
 
@@ -172,6 +173,10 @@ class XTBRunner:
         output, _ = self.process.communicate ( )
         code = self.process.returncode
         self.process = None
+        if self.log_dir:
+            from pdynamo import param_logs
+            name = "xtb_scan.out" if "--input" in arguments else ( "xtb_singlepoints.out" if "--sp" in arguments else "xtb.out" )
+            param_logs.append ( self.log_dir, name, "xtb " + " ".join ( arguments + self.options ( ) ), output )
         if self.cancelled: raise ScanCancelled ( )
         if code != 0 or "normal termination of xtb" not in output:
             raise RuntimeError ( "xtb failed:\n" + output[-1500:] )
@@ -201,6 +206,8 @@ class XTBRunner:
         for name in ( "xtbscan.log", "xtbrestart" ):
             if os.path.exists ( os.path.join ( scratch, name ) ): os.remove ( os.path.join ( scratch, name ) )
         self.run ( [ "start.xyz", "--opt", "--input", "scan.inp" ], scratch )
+        from pdynamo import param_logs
+        param_logs.keep ( scratch, self.log_dir, [ "start.xyz", "scan.inp", "xtbscan.log" ] )
         frames = read_xyz_frames ( os.path.join ( scratch, "xtbscan.log" ) )
         if len ( frames ) != n_points:
             raise RuntimeError ( "xtb scan returned {} of {} points.".format ( len ( frames ), n_points ) )

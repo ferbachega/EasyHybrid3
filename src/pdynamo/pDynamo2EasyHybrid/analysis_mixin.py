@@ -294,6 +294,21 @@ class pAnalysis:
                     self.plot2.add ( X = X, Y = Y,
                                     symbol = 'dot', sym_color = [0,0,0], sym_fill = False, 
                                     line = 'solid', line_color = [0,0,0], energy_label = None)
+
+                    # . 2026-10-23: 95% confidence interval from bootstrapping (pmf_errors file:
+                    #   x, PMF, standard error, lower, upper)
+                    if results.get ( 'pmf_errors' ):
+                        lower, upper = ( [], [] ), ( [], [] )
+                        for line in open ( results['pmf_errors'] ):
+                            cols = line.split ( )
+                            if len ( cols ) < 5 or 'inf' in cols or 'nan' in cols:
+                                continue
+                            lower[0].append ( float ( cols[0] ) ); lower[1].append ( float ( cols[3] ) )
+                            upper[0].append ( float ( cols[0] ) ); upper[1].append ( float ( cols[4] ) )
+                        for xs, ys in ( lower, upper ):
+                            self.plot2.add ( X = xs, Y = ys, symbol = None, sym_color = [1,1,1], sym_fill = False,
+                                             line = 'solid', line_color = [0.65, 0.65, 0.85], energy_label = None,
+                                             label = '95% confidence limit' )
                     
                     window2 =  Gtk.Window()
                     window2.set_default_size(800, 300)

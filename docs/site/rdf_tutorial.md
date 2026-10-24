@@ -1,3 +1,10 @@
+---
+title: Radial distribution functions
+section: Tutorials
+order: 2
+kind: Tutorial
+summary: g(r) of water and of a carboxylate in solvated chignolin.
+---
 # Radial distribution functions g(r) in EasyHybrid: solvated chignolin (1UAO)
 
 > Draft, 2026-10-21. The figures were made with the current development version of EasyHybrid

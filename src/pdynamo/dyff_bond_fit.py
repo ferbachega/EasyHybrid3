@@ -41,6 +41,7 @@
 import contextlib
 import io
 import math
+import threading
 
 import numpy as np
 
@@ -48,6 +49,10 @@ HARTREE_TO_KJ = 2625.499639
 RESTRAINT_FORCE = 1000.0          # kJ/mol/rad^2
 MINIMIZATION_STEPS = 2000
 FIT_ITERATIONS = 3
+
+# . redirect_stdout swaps the global sys.stdout: fits running in several threads
+#   (residue_library.scan_flexible_torsions, one fragment per bond) take this lock
+STDOUT_LOCK = threading.RLock ( )
 
 
 def bond_label ( j, k ):
@@ -77,7 +82,7 @@ def relaxed_scan ( system, geometries, quad, targets ):
     from pSimulation import LBFGSMinimize_SystemGeometry
     n = len ( system.atoms )
     energies, relaxed = [ ], [ ]
-    with contextlib.redirect_stdout ( io.StringIO ( ) ):
+    with STDOUT_LOCK, contextlib.redirect_stdout ( io.StringIO ( ) ):
         for xyz, target in zip ( geometries, targets ):
             c3 = Coordinates3.WithExtent ( n )
             for a in range ( n ):

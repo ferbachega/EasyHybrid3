@@ -34,7 +34,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
 import multiprocessing
 
-import glob, math, os, os.path, sys, shutil
+import glob, math, os, os.path, re, sys, shutil
 import pickle
 import threading
 from util.file_parser import read_MOL2  
@@ -261,6 +261,11 @@ class EasyHybridImportTrajectory:
 
     def _import_coordinates_from_pklfolder (self, parameters):
         files = os.listdir( parameters['data_path'])
+        # . 2026-10-24: a 2D scan folder (frame{i}_{j}.pkl) chosen as a 1D folder made
+        #   ImportTrajectory fail after the new object was created (an empty object was left)
+        if parameters['new_vobj_name'] and any(re.match(r'frame\d+_\d+\.pkl$', f) for f in files):
+            parameters['data_type'] = 'pklfolder2D'
+            return self._import_coordinates_from_pklfolder2D (parameters)
         pkl_files = []
         for _file in files:
             # Check if the file is a text file

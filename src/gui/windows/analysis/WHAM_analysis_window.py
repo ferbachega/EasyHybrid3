@@ -158,6 +158,20 @@ class WHAMWindow(Gtk.Window):
             
             
             self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
+            # . 2026-10-23: the windows of the chosen run in the Umbrella Sampling Browser
+            browse = Gtk.Button(label="Browse Windows...")
+            browse.set_tooltip_text("Open the windows of this umbrella sampling run (overlap, drift, coverage, loading frames) "
+                                    "in the Umbrella Sampling Browser")
+            def _browse(_b):
+                folder = self.folder_chooser_button.get_folder()
+                if folder:
+                    folder = folder.rstrip(os.sep)
+                    if os.path.basename(folder) in ("data_collection", "data_collection_traj", "wham"):
+                        folder = os.path.dirname(folder)
+                self.main.open_umbrella_browser(folder=folder or None)
+            browse.connect("clicked", _browse)
+            self.builder.get_object('folder_chooser_box').pack_start(browse, False, False, 0)
+            browse.show()
             
             #self.folder_chooser_button
             
@@ -169,6 +183,19 @@ class WHAMWindow(Gtk.Window):
             self.button_cancel = self.builder.get_object('button_cancel')
             self.button_cancel.connect("clicked", self.clear_treeview)
             self.window.connect("destroy", self.close_window)
+            # . error estimate by bootstrapping (pDynamo WHAM_Bootstrapping)
+            grid = self.builder.get_object('entry_temp').get_parent()
+            self.check_bootstrap = Gtk.CheckButton(label='Bootstrap errors')
+            self.check_bootstrap.set_tooltip_text('Standard error and 95% confidence interval of the PMF by '
+                                                  'bootstrap resampling of the umbrella data (pDynamo '
+                                                  'WHAM_Bootstrapping). Each resample repeats the WHAM solution.')
+            self.spin_resamples = Gtk.SpinButton.new_with_range(2, 10000, 10)
+            self.spin_resamples.set_value(100)
+            self.spin_resamples.set_tooltip_text('Number of bootstrap resamples')
+            self.spin_resamples.set_sensitive(False)
+            self.check_bootstrap.connect('toggled', lambda w: self.spin_resamples.set_sensitive(w.get_active()))
+            grid.attach(self.check_bootstrap, 0, 8, 1, 1)
+            grid.attach(self.spin_resamples, 1, 8, 1, 1)
             self.window.show_all()
             
             self.builder.get_object('entry_bins_RC2').hide()
@@ -235,6 +262,7 @@ class WHAMWindow(Gtk.Window):
         else:
             parameters['bins'] = [int(bins)] 
         
+        parameters['resamples'] = int(self.spin_resamples.get_value()) if self.check_bootstrap.get_active() else 0
         parameters["folder"]  = self.folder_chooser_button.get_folder()
         
         

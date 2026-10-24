@@ -1,3 +1,11 @@
+---
+slug: ts_search
+title: Transition state search (Baker)
+section: User guide
+order: 6
+kind: Manual
+summary: The Baker saddle-point search, with a worked cyclohexane example.
+---
 # Transition state search (Baker) in EasyHybrid: user manual
 
 > Draft, 2026-10-19. It describes the current development version of EasyHybrid, not 3.1.3.

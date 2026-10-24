@@ -760,10 +760,11 @@ def refine_torsions ( vismol_object, total_charge = None, multiplicity = 1, solv
 
 
 def _scan_and_fit ( symbols, coordinates, bonds, targets, make, base_edits, charge, multiplicity, solvent, step, threads,
-                    workers, say, cancel = None, report_bond = None ):
+                    workers, say, cancel = None, report_bond = None, log_dir_of = None ):
     """ Relaxed xTB scans of the targets ( ( bond, quad ) ) in parallel, then the
         self-consistent per-bond fit on the MM system given by make ( edits ).
-        report_bond ( bond ) -> the bond as reported (e.g. mapped to parent indices). """
+        report_bond ( bond ) -> the bond as reported (e.g. mapped to parent indices).
+        log_dir_of ( bond ) -> folder for the original xtb outputs of that scan (or None). """
     import concurrent.futures
     from pdynamo import torsion_fit as TF
     from pdynamo import dyff_bond_fit as BF
@@ -772,7 +773,8 @@ def _scan_and_fit ( symbols, coordinates, bonds, targets, make, base_edits, char
     def scan ( item ):
         bond, quad = item
         if cancel is not None and cancel ( ): return bond, quad, None
-        runner = TF.XTBRunner ( gfn = 2, charge = charge, multiplicity = multiplicity, solvent = solvent, threads = threads )
+        runner = TF.XTBRunner ( gfn = 2, charge = charge, multiplicity = multiplicity, solvent = solvent, threads = threads,
+                                log_dir = log_dir_of ( bond ) if log_dir_of else None )
         return bond, quad, TF.run_scan ( symbols, coordinates, bonds, quad, step = step, relaxed = True, runner = runner )
     scans = [ ]
     with concurrent.futures.ThreadPoolExecutor ( max_workers = max ( 1, workers ) ) as pool:
@@ -795,8 +797,16 @@ def _scan_and_fit ( symbols, coordinates, bonds, targets, make, base_edits, char
         try:
             pairs, wrmse, dropped = BF.fit_bond ( make, base_edits, bonds, quad, scan_result["geometries"], scan_result["phi"], e_qm )
             before = BF.profile_error ( make, base_edits, quad, scan_result["geometries"], scan_result["phi"], e_qm )
+            # . 2026-10-23: the profiles too (kcal/mol, relative to each minimum), for plots and reports
+            after = BF.profile_error ( make, BF._with_bond ( base_edits, quad[1], quad[2], pairs ), quad,
+                                       scan_result["geometries"], scan_result["phi"], e_qm )
             results.append ( { "bond": reported, "quad": quad, "pairs": pairs, "fit_rmse": wrmse / 4.184, "before_rmse": before["rmse"] / 4.184,
-                               "barrier_xtb": float ( ( e_qm.max ( ) - e_qm.min ( ) ) / 4.184 ), "dropped": dropped } )
+                               "barrier_xtb": float ( ( e_qm.max ( ) - e_qm.min ( ) ) / 4.184 ), "dropped": dropped,
+                               "profiles": { "phi": [ float ( x ) for x in scan_result["phi"] ],
+                                             "xtb": [ float ( x ) for x in ( e_qm - e_qm.min ( ) ) / 4.184 ],
+                                             "dyff_before": [ x / 4.184 for x in before["mm"] ],
+                                             "dyff_after": [ x / 4.184 for x in after["mm"] ],
+                                             "after_rmse": after["rmse"] / 4.184 } } )
         except Exception as error:
             results.append ( { "bond": reported, "quad": quad, "error": str ( error ).split ( "\n" )[0][:160] } )
     return results

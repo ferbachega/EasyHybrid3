@@ -131,8 +131,9 @@ def _headless_charge_multiplicity ( system, options ):
 
 def prepare_dyff_headless ( main, system, version = "modified", new = True, name = None, ph = 7.4, water = True,
                             method = "gfn2", scale = 1.0, scan = False, complete = True, remove_caps = True,
-                            charge = None, mult = None ):
+                            charge = None, mult = None, ligand_charges = "cm5" ):
     """ 2026-10-22: Prepare DYFF System without dialogs (terminal command 'dyff').
+        ligand_charges (2026-10-23): cm5 | resp-xtb | resp-hf (residue_library.LIGAND_CHARGE_MODELS).
         Same paths as the menu entry: "eh"/"pdynamo" define DYFF from the bond orders;
         "modified" = residue library + xTB for the rest -- a raw structure (no bond
         orders) is built first by dyff_prep (hydrogens, protonation, metal sites with
@@ -169,6 +170,7 @@ def prepare_dyff_headless ( main, system, version = "modified", new = True, name
         return "version must be modified, eh or pdynamo."
     options = { "complete": bool ( complete ), "ph": float ( ph ), "water": bool ( water ), "method": method,
                 "scale": float ( scale ), "scan_torsions": bool ( scan ), "headless": True, "charge": charge, "mult": mult,
+                "ligand_charges": ligand_charges,
                 "name": name or "{}_DYFF".format ( system.label or "system" ) }
     if main._dyff_needs_preparation ( system ):
         from pdynamo import dyff_prep as DP
@@ -198,7 +200,8 @@ def prepare_dyff_headless ( main, system, version = "modified", new = True, name
             return answer
         q, m = answer
     main._run_dyff_library ( system, vobject, p, use_water = options["water"], use_bonded = True, method = method,
-                             cm5_scale = options["scale"], scan_torsions = options["scan_torsions"], total_charge = q, multiplicity = m )
+                             cm5_scale = options["scale"], scan_torsions = options["scan_torsions"], total_charge = q, multiplicity = m,
+                             ligand_charges = ligand_charges )
     s = p["summary"]
     return ( "DYFF modified started on '{}': {}/{} residues from the library, {} atoms with xTB in the background; "
              "the result appears in the Logs panel.".format ( system.label, s["matched"], s["residues"], s["rest_atoms"] ) )
@@ -305,6 +308,8 @@ class PrepareDYFFDialog:
         method_combo, scale_spin = self.main._dyff_method_and_scale_widgets ( grid, 2 )
         scan = self.main._dyff_scan_torsions_widget ( )
         grid.attach ( scan, 0, 5, 2, 1 )
+        grid.attach ( Gtk.Label ( label = "Ligand charges:", xalign = 0 ), 0, 6, 1, 1 )
+        ligand_combo = self.main._dyff_ligand_charges_widget ( ); grid.attach ( ligand_combo, 1, 6, 1, 1 )
         grid.attach ( Gtk.Label ( label = "New system name:", xalign = 0 ), 0, 4, 1, 1 )
         name_entry = Gtk.Entry ( ); name_entry.set_text ( "{}_DYFF".format ( system.label or "system" ) ); grid.attach ( name_entry, 1, 4, 1, 1 )
         box.pack_start ( grid, False, False, 0 )
@@ -315,6 +320,7 @@ class PrepareDYFFDialog:
         options = { "complete": complete.get_active ( ) if complete is not None else True, "ph": ph.get_value ( ),
                     "water": water.get_active ( ), "method": method_combo.get_active_id ( ), "scale": scale_spin.get_value ( ),
                     "scan_torsions": scan.get_active ( ),
+                    "ligand_charges": ligand_combo.get_active_id ( ) or "cm5",
                     "name": name_entry.get_text ( ).strip ( ) or "{}_DYFF".format ( system.label ) }
         if store is not None:
             for k, row in enumerate ( store ):
@@ -399,5 +405,6 @@ class PrepareDYFFDialog:
         self.main._run_dyff_library ( system, vobject, p, use_water = options["water"], use_bonded = True, method = options["method"],
                                       site_states = site_states, cm5_scale = options["scale"], extra_message = extra,
                                       scan_torsions = options.get ( "scan_torsions", False ),
-                                      total_charge = total_charge, multiplicity = multiplicity )
+                                      ligand_charges = options.get ( "ligand_charges", "cm5" ),
+                                      total_charge = total_charge, multiplicity = multiplicity, open_report = True )
         return False

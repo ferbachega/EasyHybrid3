@@ -715,6 +715,8 @@ _ATOM_LINE_RE = re.compile(r'ATOM\d*\*?\s*=\s*(\S+)\s+ATOM NAME\d*\s*=\s*(\S+)')
 # only ever appears for the FIXED-SHAPE 'multiple_distance' RC, which must
 # NOT be misdetected as advanced.
 _WEIGHT_LINE_RE = re.compile(r'(?:Sigma|WEIGHT)\s*=\s*(\S+)')
+_DMIN_LINE_RE   = re.compile(r'DMINIMUM\s*=\s*(\S+)')
+_SIGMA_LINE_RE  = re.compile(r'Sigma atom1 - atom3\s*=\s*(\S+)\s+Sigma atom3 - atom1\s*=\s*(\S+)')
 
 
 def detect_reaction_coordinates_from_log(log_path):
@@ -792,7 +794,18 @@ def detect_reaction_coordinates_from_log(log_path):
 
         atoms      = [int(idx) for idx, _name in atom_pairs]
         atom_names = [name for _idx, name in atom_pairs]
-        return {'rc_type': rc_type, 'ATOMS': atoms, 'ATOM_NAMES': atom_names}
+        rc = {'rc_type': rc_type, 'ATOMS': atoms, 'ATOM_NAMES': atom_names}
+        # Optional extras: the scan's starting value and, for the
+        # mass-weighted multiple distance, the two sigma weights -- the
+        # Umbrella Sampling RC box needs both to build the same restraint.
+        m = _DMIN_LINE_RE.search(section_text)
+        if m:
+            rc['dminimum'] = float(m.group(1))
+        m = _SIGMA_LINE_RE.search(section_text)
+        if m:
+            rc['sigma_pk1pk3'] = float(m.group(1))
+            rc['sigma_pk3pk1'] = float(m.group(2))
+        return rc
 
     idx_c1 = text.index('Coordinate 1')
     if 'Coordinate 2' in text:

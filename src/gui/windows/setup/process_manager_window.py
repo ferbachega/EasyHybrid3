@@ -36,7 +36,8 @@ from gi.repository import GdkPixbuf
 from gui.widgets.custom_widgets  import get_colorful_square_pixel_buffer
 from gui.windows.setup.windows_and_dialogs import TextWindow, TabbedLogWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
-import os, sys, time, signal
+import os
+import re, sys, time, signal
 import psutil
 from pprint import pprint
 
@@ -568,6 +569,12 @@ class ProcessManagerWindow(Gtk.Window):
             folder = os.path.dirname(logfile)
             data_path = folder
             data_type_index = 1 if folder.endswith('.ptGeo') else 0
+            # . a 2D scan writes frame{i}_{j}.pkl: 'pklfolder2D' (index 2), not the 1D 'pklfolder'
+            try:
+                if data_type_index == 1 and any(re.match(r'frame\d+_\d+\.pkl$', f) for f in os.listdir(folder)):
+                    data_type_index = 2
+            except OSError:
+                pass
 
         simulation_type = job.get('simulation_type', 'result')
         new_vobj_name = '{}_{}_{}'.format(system.label.strip(), simulation_type, step_counter)

@@ -126,3 +126,7 @@ src/gui/windows/builder/solvents/.cache/
 # Research data, not needed at runtime (src/pdynamo/data holds what the program uses)
 DYFF_validation/
 fraglib/
+
+# documentation site output (docs/site/build_site.py)
+docs/site/_build/
+_site/

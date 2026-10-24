@@ -836,6 +836,32 @@
                                 <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                               </object>
                             </child>
+                            <child>
+                              <object class="GtkSeparatorMenuItem">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkMenuItem" id="menuitem_center_in_cell">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="tooltip-text" translatable="yes">Move every molecule into the primary cell, optionally with the selection at the centre (pDynamo CrystalCenterCoordinates)</property>
+                                <property name="label" translatable="yes">Center in Cell...</property>
+                                <property name="use-underline">True</property>
+                                <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkMenuItem" id="menuitem_expand_p1">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="tooltip-text" translatable="yes">New system with P1 symmetry, optionally a supercell of several unit cells (pDynamo CrystalExpandToP1)</property>
+                                <property name="label" translatable="yes">Expand to P1 / Supercell...</property>
+                                <property name="use-underline">True</property>
+                                <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                              </object>
+                            </child>
                           </object>
                         </child>
                       </object>
@@ -887,6 +913,15 @@
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="label" translatable="yes">Fragment-Based Charge Assignment</property>
+                                <property name="use-underline">True</property>
+                                <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkMenuItem" id="menuitem_esp_charges">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="label" translatable="yes">ESP / RESP Charges...</property>
                                 <property name="use-underline">True</property>
                                 <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                               </object>
@@ -984,6 +1019,16 @@
                               </object>
                             </child>
                             <child>
+                              <object class="GtkMenuItem" id="menuitem_parametrization_report">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="tooltip-text" translatable="yes">Data and plots of a DYFF modified parametrization of ligands: charges (CM5, RESP), Hessian bonds and angles, library and fitted torsions with the xTB scan profiles, and the original xTB / ORCA logs.</property>
+                                <property name="label" translatable="yes">Parametrization Report...</property>
+                                <property name="use-underline">True</property>
+                                <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                              </object>
+                            </child>
+                            <child>
                               <object class="GtkMenuItem" id="menuitem_define_force_field">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
@@ -1009,6 +1054,16 @@
                                         <property name="can-focus">False</property>
                                         <property name="tooltip-text" translatable="yes">Assigns DYFF to the active system. Choose the version: DYFF modified (residue library, Seminario bonds/angles from xTB Hessians, CM5 charges), DYFF 1.0-EH (generic rules, EasyHybrid atom types) or pDynamo's original DYFF 1.0. A raw structure is prepared first (hydrogens, protonation, metal sites).</property>
                                         <property name="label" translatable="yes">Prepare DYFF System...</property>
+                                        <property name="use-underline">True</property>
+                                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkMenuItem" id="menuitem_load_dyff_parametrization">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="tooltip-text" translatable="yes">Applies a saved DYFF modified parametrization (the dyff_param_... folder written by Prepare DYFF System: parametrization.json, report.html and the xTB/ORCA logs) to the active system, without computing it again. The system must have the same atoms and bonds.</property>
+                                        <property name="label" translatable="yes">Load DYFF Parametrization...</property>
                                         <property name="use-underline">True</property>
                                         <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                                       </object>
@@ -1193,6 +1248,16 @@
                       </object>
                     </child>
                     <child>
+                      <object class="GtkMenuItem" id="menuitem_excited_states">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">Vertical excited states of a molecule: semiempirical CI, or MOM excited determinants with oscillator strengths</property>
+                        <property name="label" translatable="yes">Excited States (MNDO-CI / MOM)...</property>
+                        <property name="use-underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkSeparatorMenuItem">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
@@ -1335,6 +1400,26 @@
                       </object>
                     </child>
                     <child>
+                      <object class="GtkMenuItem" id="menuitem_molecular_properties">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">Point group, R/S and E/Z labels, and ion-mobility collision cross sections of the structure shown</property>
+                        <property name="label" translatable="yes">Molecular Properties...</property>
+                        <property name="use-underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menuitem_trajectory_analysis">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">Rg, DSSP, SASA, hydrogen bonds, contacts, interaction energy, PCA, DCCM, clustering, B-factors, quasi-harmonic entropy, rotamers, diffusion and statistics</property>
+                        <property name="label" translatable="yes">Trajectory Analysis...</property>
+                        <property name="use-underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkMenuItem" id="menuitem_rmsf_analysis">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
@@ -1396,6 +1481,16 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">WHAM</property>
+                        <property name="use-underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menuitem_umbrella_browser">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">The windows of an umbrella sampling run (1D strip or 2D matrix): load windows, ranges, rows or paths as objects, check the overlap, drift and coverage of the windows, the convergence of the PMF and the lowest-barrier path on a 2D PMF.</property>
+                        <property name="label" translatable="yes">Umbrella Sampling Browser...</property>
                         <property name="use-underline">True</property>
                         <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                       </object>

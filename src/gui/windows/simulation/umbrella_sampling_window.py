@@ -679,6 +679,17 @@ class UmbrellaSamplingWindow(Gtk.Window):
             if entry_name:
                 entry_name.set_text(str(atom_name))
 
+        # Mass-weighted multiple distance: reuse the scan's own sigmas, and
+        # fill dminimum so get_rc_data() doesn't fail on an empty entry.
+        sig1, sig3 = data.get('sigma_pk1pk3'), data.get('sigma_pk3pk1')
+        mass = rc_box.builder.get_object('mass_restraints1')
+        if data['rc_type'] == 'multiple_distance' and sig1 is not None and mass:
+            weighted = abs(sig1 - 1.0) > 1e-6 or abs(sig3 + 1.0) > 1e-6
+            mass.set_active(weighted)
+            rc_box.sigma_pk1_pk3, rc_box.sigma_pk3_pk1 = sig1, sig3
+        if data.get('dminimum') is not None:
+            rc_box.builder.get_object('entry_dmin_coord1').set_text(str(data['dminimum']))
+
     def _apply_detected_advanced_rc (self, liststore, data):
         """ Fills ONLY an AdvancedReactionCoordinateBox's weighted-distance
         treeview (via its backing liststore) from a

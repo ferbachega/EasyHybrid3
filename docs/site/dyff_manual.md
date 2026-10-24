@@ -1,3 +1,10 @@
+---
+title: DYFF in EasyHybrid
+section: User guide
+order: 4
+kind: Manual
+summary: What modified DYFF is, which path to follow, metals, decision guide and troubleshooting.
+---
 # DYFF in EasyHybrid: user manual
 
 
