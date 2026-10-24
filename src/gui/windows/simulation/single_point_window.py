@@ -58,7 +58,7 @@ class SinglePointWindow:
             
             
             self.window = self.builder.get_object('window')
-            self.window.set_title('Single Point Window')
+            self.window.set_title('Single Point Energy')
             self.window.set_keep_above(True)
             self.window.set_default_size(400, 200)
             '''--------------------------------------------------------------------------------------------'''

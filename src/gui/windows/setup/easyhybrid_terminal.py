@@ -22,7 +22,7 @@
 #     help                         list all commands
 #     list                         list loaded objects (with indices)
 #
-#  Representations  (rep = lines|sticks|spheres|dash|...)
+#  Representations  (rep = lines|sticks|spheres|vdw_spheres|dash|ribbons|cartoon|nonbonded|dynamic|labels)
 #     show rep=sticks              applies to the ACTIVE SELECTION
 #     show rep=sticks obj=1        targets only object 1 (selection unchanged)
 #     show rep=spheres obj=0 chain=A
@@ -53,6 +53,7 @@
 #     center obj=0 chain=A resn=HIS
 #     zoom dir=in                  zoom in (in) or out (out)
 #     zoom dir=out steps=10        several steps at once
+#     slab dir=wider               slab (drawn slice) wider or thinner, as the mouse wheel
 #
 #  Builder -- bonds (pick 2 atoms as pk1/pk2 with the measurement
 #  picking tool -- same pk1..pk4 used for distances/angles/dihedrals --
@@ -82,7 +83,7 @@
 #
 #  Systems and force fields  (sys= is the id shown by 'systems'; without it,
 #  the ACTIVE system. dyff/opls/solvate run in the background -- the result
-#  appears in the Logs panel)
+#  appears in the Status panel)
 #     systems                      list pDynamo systems (* = active)
 #     activate sys=2               make system 2 the active one
 #     rename sys=2 name=1ZNF_DYFF
@@ -416,15 +417,18 @@ class Command:
     #  REAL COMMANDS  (each is also directly callable via the Python API)
     #  Anchored on vm_session's public API, not on stubs.
     # ========================================================================
-    def cmd_help(self, cmd=None, **_):
-        """ Lists available commands. With cmd=<nome>, shows the full
-        description and usage examples for that specific command.
+    def cmd_help(self, cmd=None, _args=None, **_):
+        """ Lists available commands. With a command name (help show, or
+        help cmd=show), shows the full description and usage examples for
+        that specific command.
 
         Examples:
           help
-          help cmd=show
+          help show
           help cmd=bond
         """
+        if cmd is None and _args:
+            cmd = str(_args[0])
         if cmd is not None:
             method = getattr(self, "cmd_" + cmd, None)
             if method is None:
@@ -433,7 +437,7 @@ class Command:
             doc = inspect.getdoc(method) or "(no description)"
             return "{}\n{}\n{}".format(cmd, "-" * len(cmd), doc)
 
-        lines = ["Available commands (use 'help cmd=<name>' for details and examples):"]
+        lines = ["Available commands (use 'help <command>' for details and examples):"]
         for name in self.command_names():
             method = getattr(self, "cmd_" + name)
             doc = (method.__doc__ or "").strip().split("\n")[0]
@@ -514,6 +518,14 @@ class Command:
               - no filter              -> active selection (selection=None);
               - obj= [+ fine filters]  -> temporary selection with target only.
         """
+        # . 2026-10-24: 'surface' is not a show/hide representation (surfaces are their own
+        #   objects: object menu -> Representation -> New Surface...). Asking for it used to leave
+        #   a broken surface representation that raised on every redraw of the 3D view.
+        if str(rep).lower() == "dots":
+            return "The 'dots' representation is not available; use spheres or vdw_spheres."
+        if str(rep).lower() in ("surface", "surfaces"):
+            return ("'surface' cannot be shown or hidden here: create surfaces with the object's menu "
+                    "(Representation -> New Surface...) and show or hide them with their own row in the Objects tree.")
         if self.vm_session is None:
             return "Session unavailable."
         verb = "Showing" if show else "Hiding"
@@ -917,10 +929,10 @@ class Command:
         "Available color names: " + ", ".join(sorted(NAMED_COLORS.keys())))
 
     def cmd_zoom(self, dir="in", steps=5, **_):
-        """ Zooms the camera in or out (equivalent to turning the mouse wheel).
+        """ Zooms the camera in or out (the same as a right drag in the 3D view).
 
             dir  : in | out          (in zooms in, out zooms out)
-            steps: how many scroll 'clicks' to apply (default 5)
+            steps: how many zoom steps to apply (default 5)
 
             Examples:
               zoom dir=in
@@ -934,9 +946,36 @@ class Command:
             n = max(1, int(steps))
         except (ValueError, TypeError):
             n = 5
+        # . 2026-10-24: moves the camera (as a right drag). It used to call mouse_scroll(),
+        #   which is the wheel: it changed the slab, so "zoom out" thinned the slab instead.
+        for _i in range(n):
+            glcore._zoom_view(40.0 * direction)
+        glcore.queue_draw()
+        return "Zoom {} x{}.".format("in" if direction == 1 else "out", n)
+
+    def cmd_slab(self, dir="wider", steps=5, **_):
+        """ Makes the slab (the slice of the scene that is drawn) wider or thinner,
+            the same as the mouse wheel in the 3D view.
+
+            dir  : wider | thinner
+            steps: how many wheel steps to apply (default 5)
+
+            Examples:
+              slab dir=wider
+              slab dir=thinner steps=10
+        """
+        if self.vm_session is None:
+            return "Session unavailable."
+        glcore = self.vm_session.vm_glcore
+        direction = 1 if str(dir).lower() in ("wider", "wide", "in", "+", "1", "up") else -1
+        try:
+            n = max(1, int(steps))
+        except (ValueError, TypeError):
+            n = 5
         for _i in range(n):
             glcore.mouse_scroll(direction)
-        return "Zoom {} x{}.".format("in" if direction == 1 else "out", n)
+        glcore.queue_draw()
+        return "Slab {} x{}.".format("wider" if direction == 1 else "thinner", n)
 
     def cmd_new(self, name="new_molecule", **_):
         """ Creates an empty, editable molecule object -- the starting
@@ -1344,7 +1383,7 @@ class Command:
     #  the ACTIVE system), DYFF / OPLS preparation, solvation, NAMD export.
     #  The long jobs (xTB, OPLS ligands, solvation) run in the background, as
     #  from the menus: the command returns at once and the result appears in
-    #  the Logs panel.
+    #  the Status panel.
     # ========================================================================
     def _main(self):
         main = getattr(self.vm_session, "main_session", None)
@@ -1500,7 +1539,7 @@ class Command:
                   metal, its spin state)
         ligcharges: cm5 (default) | resp-xtb | resp-hf  charges of the
                   ligands (whole molecules outside the residue library)
-        Runs in the background; the result appears in the Logs panel.
+        Runs in the background; the result appears in the Status panel.
 
         Examples:
           dyff
@@ -1531,7 +1570,7 @@ class Command:
         contacts: stop (default) | ignore -- two atoms of different
                   residues closer than a bond (e.g. a peptide cap): stop
                   and report, or ignore it (only the drawn bonds are bonds)
-        Runs in the background; the result appears in the Logs panel.
+        Runs in the background; the result appears in the Status panel.
 
         Examples:
           opls
@@ -1607,7 +1646,7 @@ class Command:
                 GLib.idle_add(done, None, None, exc)
         threading.Thread(target=work, daemon=True).start()
         return ("Prepare OPLS System started: new system '{}' ({} residues, {} unsupported, {} truncated -> {}). "
-                "The result appears in the Logs panel.".format(name, len(analysis.residues), len(analysis.unsupported),
+                "The result appears in the Status panel.".format(name, len(analysis.residues), len(analysis.unsupported),
                                                                len(incomplete), "rebuilt" if rebuild else "truncated"))
 
     def cmd_ffinfo(self, sys=None, **_):
@@ -1635,7 +1674,7 @@ class Command:
         """ Applies a saved DYFF modified parametrization (the dyff_param_...
         folder written by Prepare DYFF System / dyff: parametrization.json,
         report.html, xTB/ORCA logs) to a system with the same atoms and bonds,
-        without computing it again. Runs in the background; result in Logs.
+        without computing it again. Runs in the background; result in the Status panel.
 
         folder : the dyff_param_... folder or its parametrization.json
 
@@ -1715,7 +1754,7 @@ class Command:
         neutralize: add counter-ions to a zero total charge (true)
         cation / anion : Na+ / Cl- by default (DYFF also K+ Li+ / Br-)
         name      : name of the new system (default <name>_solvated)
-        Runs in the background; the result appears in the Logs panel.
+        Runs in the background; the result appears in the Status panel.
 
         Examples:
           solvate
@@ -1765,7 +1804,7 @@ class Command:
                 traceback.print_exc()
                 GLib.idle_add(done, None, None, "{}: {}".format(type(exc).__name__, exc))
         threading.Thread(target=work, daemon=True).start()
-        return "Solvate System started: '{}' -> new system '{}'. The result appears in the Logs panel.".format(system.label, name)
+        return "Solvate System started: '{}' -> new system '{}'. The result appears in the Status panel.".format(system.label, name)
 
     def cmd_namd(self, sys=None, prefix=None, **_):
         """ Exports a DYFF or OPLS system to NAMD (CHARMM-format PSF, PRM,
@@ -1847,6 +1886,7 @@ class Command:
     def center(self, obj=None, chain=None, resi=None, resn=None, name=None):
         return self.cmd_center(obj=obj, chain=chain, resi=resi, resn=resn, name=name)
     def zoom(self, dir="in", steps=5):      return self.cmd_zoom(dir=dir, steps=steps)
+    def slab(self, dir="wider", steps=5):   return self.cmd_slab(dir=dir, steps=steps)
     def frame(self, n=None):                return self.cmd_frame(n=n)
     def bond(self, obj=None, atom1=None, atom2=None, order=1, frame=None):
         return self.cmd_bond(obj=obj, atom1=atom1, atom2=atom2, order=order, frame=frame)

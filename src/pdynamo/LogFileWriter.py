@@ -234,7 +234,11 @@ class LogFileReader:
 
         # Extract base name (file name only) and directory path of the logfile
         self.logfile  = logfile
+        # . 2026-10-24: "<folder>/output.log" -- every job writes output.log, so the folder
+        #   is what tells the datasets of one object apart in the PES Analysis
         self.basename = os.path.basename(logfile)
+        if self.basename == 'output.log' and os.path.dirname(logfile):
+            self.basename = os.path.join(os.path.basename(os.path.dirname(os.path.abspath(logfile))), self.basename)
         self.dirname  = os.path.dirname(logfile)
 
         # Open file and read all lines
@@ -478,7 +482,11 @@ class LogFileReader_old:
         
         self.type = None
         
+        # . 2026-10-24: "<folder>/output.log" -- every job writes output.log, so the folder
+        #   is what tells the datasets of one object apart in the PES Analysis
         self.basename = os.path.basename(logfile)
+        if self.basename == 'output.log' and os.path.dirname(logfile):
+            self.basename = os.path.join(os.path.basename(os.path.dirname(os.path.abspath(logfile))), self.basename)
         self.dirname  = os.path.dirname(logfile)
         
         data = open(logfile, "r")

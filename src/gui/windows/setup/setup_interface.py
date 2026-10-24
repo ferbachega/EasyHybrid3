@@ -100,6 +100,18 @@ class EasyHybridPreferencesWindow():
             self.window = self.builder.get_object('window')
             self.window.set_default_size(600, 600)  
             self.window.set_title('Preferences')  
+            # . 2026-10-24: the Representations > Surfaces tab has no settings yet: hidden
+            def _hide_empty_tabs(widget):
+                if isinstance(widget, Gtk.Notebook):
+                    for k in range(widget.get_n_pages()):
+                        page = widget.get_nth_page(k)
+                        if widget.get_tab_label_text(page) == 'Surfaces':
+                            page.set_no_show_all(True)
+                            page.hide()
+                if isinstance(widget, Gtk.Container):
+                    for child in widget.get_children():
+                        _hide_empty_tabs(child)
+            _hide_empty_tabs(self.window)
             self.window.set_keep_above(True)
             self.window.connect('destroy-event', self.close_window)
 

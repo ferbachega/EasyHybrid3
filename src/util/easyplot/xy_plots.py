@@ -88,11 +88,13 @@ class XYPlot(Gtk.DrawingArea):
 
         rng = _nice_num(hi - lo, False)
         step = _nice_num(rng / max(n - 1, 1), True)
+        if step <= 1e-12 * max(1.0, abs(lo), abs(hi)):
+            return [lo, hi]
         start = math.ceil(lo / step) * step
         ticks = []
         v = start
         # +0.5*step de folga p/ incluir o ultimo tick por seguranca numerica
-        while v <= hi + 0.5 * step:
+        while v <= hi + 0.5 * step and len(ticks) < 1000:
             if lo - 1e-9 <= v <= hi + 1e-9:
                 ticks.append(round(v, 10))
             v += step

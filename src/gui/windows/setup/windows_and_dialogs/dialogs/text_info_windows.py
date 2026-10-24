@@ -175,7 +175,7 @@ class TextWindow:
     
     def __init__ (self, text = 'No text', title = None):
         """ Class initialiser """
-        self.window = Gtk.Window(title=title)
+        self.window = Gtk.Window(title=title or 'EasyHybrid')
         self.window.set_default_size(1100, 600)
         
         #if title:
@@ -349,4 +349,5 @@ class InfoWindow:
             header = '' 
         
         text = header+text
-        textwindow = TextWindow(text)
+        title = 'System Info - {}'.format(system.label) if system is not None else 'System Info'
+        textwindow = TextWindow(text, title = title)

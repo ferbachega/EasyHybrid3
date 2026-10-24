@@ -140,7 +140,7 @@ def prepare_dyff_headless ( main, system, version = "modified", new = True, name
         their default charge/multiplicity, caps removed, truncated residues completed)
         and always gives a new system. charge/mult: of the xTB calculations (default:
         sum of the formal charges; the metal sites' multiplicity). Runs in the background;
-        the result is reported in the Logs panel. Returns a text for the terminal. """
+        the result is reported in the Status panel. Returns a text for the terminal. """
     if system is None:
         return "No system."
     if getattr ( system, "qcModel", None ) is not None:
@@ -181,7 +181,7 @@ def prepare_dyff_headless ( main, system, version = "modified", new = True, name
         sites = ", ".join ( "{} {}{:+d} {} (mult {})".format ( s["label"], s["element"], s["charge"], s["model"], s["multiplicity"] )
                             for s in info["metals"] ) or "none"
         return ( "Prepare DYFF System started: new system '{}' (raw structure: hydrogens, protonation at pH {:.1f}, metal sites: {}). "
-                 "xTB runs in the background; the result appears in the Logs panel.".format ( options["name"], options["ph"], sites ) )
+                 "xTB runs in the background; the result appears in the Status panel.".format ( options["name"], options["ph"], sites ) )
     # . bond orders already known: residue library directly
     from pdynamo import residue_library as RL
     if vobject is None or len ( vobject.atoms ) != len ( system.atoms ):
@@ -204,7 +204,7 @@ def prepare_dyff_headless ( main, system, version = "modified", new = True, name
                              ligand_charges = ligand_charges )
     s = p["summary"]
     return ( "DYFF modified started on '{}': {}/{} residues from the library, {} atoms with xTB in the background; "
-             "the result appears in the Logs panel.".format ( system.label, s["matched"], s["residues"], s["rest_atoms"] ) )
+             "the result appears in the Status panel.".format ( system.label, s["matched"], s["residues"], s["rest_atoms"] ) )
 
 
 class PrepareDYFFDialog:

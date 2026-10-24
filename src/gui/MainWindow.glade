@@ -989,7 +989,7 @@
                               <object class="GtkMenuItem" id="menuitem_PES_data">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">PES data</property>
+                                <property name="label" translatable="yes">PES Data</property>
                                 <property name="use-underline">True</property>
                                 <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                               </object>
@@ -1197,7 +1197,7 @@
                       <object class="GtkMenuItem" id="menuitem_geometry_optimization">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">Geometry optimization</property>
+                        <property name="label" translatable="yes">Geometry Optimization</property>
                         <property name="use-underline">True</property>
                         <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                       </object>
@@ -1276,7 +1276,7 @@
                       <object class="GtkMenuItem" id="menuitem_advanced_rc_scans">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">Advanced RC scans</property>
+                        <property name="label" translatable="yes">Advanced RC Scans</property>
                         <property name="use-underline">True</property>
                         <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                       </object>
@@ -1332,7 +1332,7 @@
                       <object class="GtkMenuItem" id="menuitem_energy_analysis">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="tooltip-text" translatable="yes">Pontial Enegy Surface Analysis</property>
+                        <property name="tooltip-text" translatable="yes">Potential Energy Surface Analysis</property>
                         <property name="label" translatable="yes">PES Analysis</property>
                         <property name="use-underline">True</property>
                         <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
@@ -1385,9 +1385,9 @@
                       <object class="GtkMenuItem" id="test_item">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">IR spectrum</property>
+                        <property name="label" translatable="yes">IR Spectrum</property>
                         <property name="use-underline">True</property>
-                        <signal name="activate" handler="run_menu_item_test" swapped="no"/>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                       </object>
                     </child>
                     <child>
@@ -1852,7 +1852,7 @@
                       <object class="GtkToolButton" id="toolbutton_energy">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="tooltip-text" translatable="yes">Energy / Energy Refinement</property>
+                        <property name="tooltip-text" translatable="yes">Single Point Energy</property>
                         <property name="label" translatable="yes">Energy</property>
                         <property name="use-underline">True</property>
                         <property name="icon-widget">image14</property>
@@ -1868,7 +1868,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="tooltip-text" translatable="yes">Geometry Optimization</property>
-                        <property name="label" translatable="yes">Geometry Optmization</property>
+                        <property name="label" translatable="yes">Geometry Optimization</property>
                         <property name="use-underline">True</property>
                         <property name="icon-widget">image15</property>
                         <signal name="clicked" handler="on_main_toolbar_clicked" swapped="no"/>
@@ -2629,7 +2629,7 @@
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="receives-default">False</property>
-                                        <property name="tooltip-text" translatable="yes">Carboxilate, -COOH</property>
+                                        <property name="tooltip-text" translatable="yes">Carboxylate, -COO⁻</property>
                                         <property name="hexpand">True</property>
                                         <property name="draw-indicator">False</property>
                                         <property name="group">element_C_radio</property>
@@ -2786,7 +2786,7 @@
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="receives-default">False</property>
-                                        <property name="tooltip-text" translatable="yes">Phophite, -PO3</property>
+                                        <property name="tooltip-text" translatable="yes">Phosphono, -PO3H2</property>
                                         <property name="hexpand">True</property>
                                         <property name="draw-indicator">False</property>
                                         <property name="group">element_C_radio</property>
@@ -2823,7 +2823,7 @@
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="receives-default">False</property>
-                                        <property name="tooltip-text" translatable="yes">Cyclopropane</property>
+                                        <property name="tooltip-text" translatable="yes">Cyclopentyl</property>
                                         <property name="hexpand">True</property>
                                         <property name="draw-indicator">False</property>
                                         <property name="group">element_C_radio</property>
@@ -2845,7 +2845,7 @@
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="receives-default">False</property>
-                                        <property name="tooltip-text" translatable="yes">Cyclopentadieno</property>
+                                        <property name="tooltip-text" translatable="yes">Cyclopentadienyl</property>
                                         <property name="hexpand">True</property>
                                         <property name="draw-indicator">False</property>
                                         <property name="group">element_C_radio</property>
@@ -4164,6 +4164,20 @@
                           </packing>
                         </child>
                         <child>
+                          <object class="GtkButton" id="atom_types_button">
+                            <property name="label" translatable="yes">DYFF Parameters and Protonation...</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">False</property>
+                            <property name="tooltip-text" translatable="yes">DYFF atom types (editable), formal and partial charges, protonation (Protonate / Deprotonate) and the force field terms of the molecule being edited: the selected atoms, or the whole molecule when nothing is selected</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">7</property>
+                          </packing>
+                        </child>
+                        <child>
                           <object class="GtkButton" id="ff_done_button">
                             <property name="label" translatable="yes">Done</property>
                             <property name="visible">True</property>
@@ -4174,7 +4188,7 @@
                           <packing>
                             <property name="expand">False</property>
                             <property name="fill">True</property>
-                            <property name="position">7</property>
+                            <property name="position">8</property>
                           </packing>
                         </child>
                       </object>

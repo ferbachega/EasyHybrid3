@@ -290,7 +290,10 @@ class MainWindow:
         # (vm_widget is a single object, not the class) instead of editing
         # the graphics engine itself, so ESC now goes through the exact
         # same close path as clicking the window's [x] button.
-        self.vm_session.vm_widget._pressed_Escape = lambda: self.on_delete_event(self.window, None)
+        # . 2026-10-24 (user request): ESC does nothing in the main window -- closing is
+        #   done only from the window's [x] or File > Quit (ESC is the key people press to
+        #   cancel things, and closed the program when there were no unsaved changes).
+        self.vm_session.vm_widget._pressed_Escape = lambda: None
 
 
         # -------------------- SELECTION BOX --------------------
@@ -1302,12 +1305,12 @@ class MainWindow:
 
             
         elif menuitem == self.builder.get_object('menuitem_charge_inspection'): 
-            TrueFalse, msg = self.p_session.check_for_fragmented_charges()
-            #if true_or_false:
-            if TrueFalse:
-                self.simple_dialog.info(msg = msg )
-            else:
-                self.simple_dialog.error(msg = msg )
+            # . 2026-10-24: a window with the diagnosis, the correction and a report (the direct
+            #   correction is still p_session.check_for_fragmented_charges())
+            from gui.windows.setup.charge_block_inspector_window import ChargeBlockInspectorWindow
+            if getattr(self, 'charge_block_inspector_window', None) is None:
+                self.charge_block_inspector_window = ChargeBlockInspectorWindow(main = self)
+            self.charge_block_inspector_window.open_window()
         
         
         elif menuitem == self.builder.get_object('menuitem_nb_model'): 
@@ -1517,9 +1520,18 @@ class MainWindow:
 
         elif menuitem == self.builder.get_object('menuitem_mormal_modes_analysis'):
             self.normal_modes_analysis_window.open_window()
+
+        elif menuitem == self.builder.get_object('test_item'):
+            # . the IR spectrum is plotted from the imported normal modes ('Plot IR Spectrum')
+            self.normal_modes_analysis_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_surface_analysis'):
-            self.surface_analysis_window.open_window()
+            # . 2026-10-24: new Orbitals and Surfaces window (energy levels, LCAO); the previous
+            #   SurfaceAnalysisWindow is kept in the code for comparison
+            from gui.windows.analysis.orbitals_surfaces_window import OrbitalsSurfacesWindow
+            if not hasattr(self, 'orbitals_surfaces_window'):
+                self.orbitals_surfaces_window = OrbitalsSurfacesWindow(main=self)
+            self.orbitals_surfaces_window.open_window()
             #self.surface_list_window.open_window()
 
         

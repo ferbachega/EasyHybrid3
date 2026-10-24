@@ -319,7 +319,7 @@ class ExportDataWindow:
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('export_data_window')
-            self.window.set_title('Export Data Window')
+            self.window.set_title('Export Data')
             
             # ------------------ File formats combobox ------------------ #
             self.format_store = Gtk.ListStore(str)

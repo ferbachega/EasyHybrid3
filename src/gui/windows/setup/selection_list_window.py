@@ -547,18 +547,22 @@ class TreeViewMenu:
             pass
         else:
             #
-            self.e_id     = self.sele_window.combobox_systems.get_active()
+            # . 2026-10-24: the system id (the combo position differs from it once a system
+            #   was deleted), a title and the current name in the entry
+            self.e_id     = self.sele_window.combobox_systems.get_system_id()
             selection     = self.treeview.get_selection()
             (model, iter) = selection.get_selected()
+            if iter is None:
+                return
             self.key      = model.get_value(iter, 0)
-            sys           = model.get_value(iter, 1)
-            
             dprint(self.key, self.e_id)
-            self.window = Gtk.Window()
+            self.window = Gtk.Window(title = 'Rename Selection')
             self.window.connect('destroy', self.destroy)
             self.window.set_keep_above(True)
+            self.window.set_border_width(8)
             self.entry  = Gtk.Entry()
-            
+            self.entry.set_text(str(self.key))
+            self.entry.set_tooltip_text('New name; press Enter to apply')
             self.entry.connect('activate', self.rename)
             self.window.add(self.entry)
             self.rename_window_visible = True
@@ -568,8 +572,14 @@ class TreeViewMenu:
     def rename (self, menu_item):
         """ Function doc """
         dprint(self.entry.get_text())
-        new_name = self.entry.get_text()
-        pass
+        new_name = self.entry.get_text().strip()
+        selections = self.p_session.psystem[self.e_id].e_selections
+        if not new_name or new_name == self.key:
+            self.window.destroy()
+            return
+        if new_name in selections:
+            self.entry.set_tooltip_text('A selection named "{}" already exists'.format(new_name))
+            return
         
         
         self.p_session.psystem[self.e_id].e_selections[new_name] = self.p_session.psystem[self.e_id].e_selections[self.key]

@@ -99,8 +99,14 @@ class ReimagingTrajectoryWindow:
             self.combobox_systems = SystemComboBox(self.main, self.coordinates_combobox)
             self.box_system.pack_start  (self.combobox_systems, False, False, 0)
 
-            self.combobox_systems.set_active(0)
-            self.coordinates_combobox.set_active(0)
+            # . 2026-10-24: the active system and its last object (was the first system/object)
+            for k, row in enumerate(self.main.system_liststore):
+                if row[1] == self.p_session.active_id:
+                    self.combobox_systems.set_active(k)
+                    break
+            else:
+                self.combobox_systems.set_active(0)
+            self.coordinates_combobox.set_active_vobject(-1)
             
             self.method_store = Gtk.ListStore(str)
             methods = [

@@ -78,33 +78,11 @@
                   <object class="GtkEntry" id="entry_delete_frames">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
-                    <property name="tooltip-text" translatable="yes">Enter the indices of the frames to be deleted, separated by commas. E.g., 1,2,5,6. Use a colon to delete a range of frames, e.g., 30:100.</property>
+                    <property name="tooltip-text" translatable="yes">Frames to delete, separated by commas (e.g. 1,2,5,6). A colon gives a range: 30:100 deletes frames 30 to 99.</property>
                   </object>
                   <packing>
                     <property name="left-attach">1</property>
                     <property name="top-attach">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Interpolate Frames:</property>
-                  </object>
-                  <packing>
-                    <property name="left-attach">0</property>
-                    <property name="top-attach">1</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkEntry" id="entry_interpol_frames">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="tooltip-text" translatable="yes">Enter the indices of the frames to be deleted, separated by commas. E.g., 1,2,5,6. Use a colon to delete a range of frames, e.g., 30:100.</property>
-                  </object>
-                  <packing>
-                    <property name="left-attach">1</property>
-                    <property name="top-attach">1</property>
                   </packing>
                 </child>
               </object>
@@ -139,11 +117,11 @@
             <property name="right-padding">10</property>
             <child>
               <object class="GtkCheckButton" id="check_button_reverse">
-                <property name="label" translatable="yes">Invert Order.</property>
+                <property name="label" translatable="yes">Reverse order</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">False</property>
-                <property name="tooltip-text" translatable="yes">Invert the order of the frames.</property>
+                <property name="tooltip-text" translatable="yes">Reverse the order of the frames.</property>
                 <property name="draw-indicator">True</property>
               </object>
             </child>

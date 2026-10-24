@@ -33,7 +33,7 @@ import os, sys, time
 import gi 
 import signal
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk, Pango
+from gi.repository import Gtk, Gdk, Pango, GLib
 from gi.repository import GdkPixbuf
 
 
@@ -156,6 +156,9 @@ class TreeViewMenu:
                             'Rename'                : self._menu_rename ,
                             '_separator'            : ''      ,
                             'Setup'                 : self._surf_setup ,
+                            '_separator'            : ''      ,
+                            # . 2026-10-24: surfaces could not be removed
+                            'Delete'                : self._menu_delete_vm_object ,
                             }
         
         vobject_menu_items = {
@@ -187,7 +190,6 @@ class TreeViewMenu:
                                                   'Lines'      : lambda mi, rep='lines'     : self._menu_toggle_representation(mi, rep),
                                                   'Sticks'     : lambda mi, rep='sticks'    : self._menu_toggle_representation(mi, rep),
                                                   'Nonbonded'  : lambda mi, rep='nonbonded' : self._menu_toggle_representation(mi, rep),
-                                                  'Dots'       : lambda mi, rep='dots'      : self._menu_toggle_representation(mi, rep),
                                                   '_separator' : None,
                                                   'Cartoon'    : lambda mi, rep='cartoon'   : self._menu_toggle_representation(mi, rep),
                                                   'Cartoon Setup...' : lambda mi: self._open_cartoon_setup_dialog ( [ self.treeview.main.vm_session.vm_objects_dic[self.vobject_index] ] ),
@@ -212,8 +214,8 @@ class TreeViewMenu:
                                 '_separator'            : ''      ,
                                 'Frames': {
                                         'Edit': {
-                                             "Size": self.call_editframe_window,
-                                             "Interolate": self.call_interpolate,
+                                             "Delete / Reverse Frames...": self.call_editframe_window,
+                                             "Interpolate": self.call_interpolate,
                                              },
                                         "_separator": None,
                                         'Current': {
@@ -299,7 +301,6 @@ class TreeViewMenu:
                                                   'Lines'      : lambda mi, rep='lines'     : self._menu_toggle_representation_for_system(mi, rep),
                                                   'Sticks'     : lambda mi, rep='sticks'    : self._menu_toggle_representation_for_system(mi, rep),
                                                   'Nonbonded'  : lambda mi, rep='nonbonded' : self._menu_toggle_representation_for_system(mi, rep),
-                                                  'Dots'       : lambda mi, rep='dots'      : self._menu_toggle_representation_for_system(mi, rep),
                                                   '_separator' : None,
                                                   'Cartoon'    : lambda mi, rep='cartoon'   : self._menu_toggle_representation_for_system(mi, rep),
                                                   'Cartoon Setup...' : self._menu_cartoon_setup_for_system,
@@ -734,6 +735,10 @@ class TreeViewMenu:
         tag          = dialog.tag  
         color        = dialog.color 
         vobject_id   = dialog.vobject_id
+        if vobject_id is None:
+            # . 2026-10-24: Cancel (or closing the dialog) used to fall through to
+            #   vm_objects_dic[None] -> KeyError
+            return
         #--------------------------------------------------------------                                                            
 
         
@@ -1269,7 +1274,7 @@ class TreeViewMenu:
         gl_parameters = self.treeview.main.vm_session.vm_config.gl_parameters
         vm_glcore     = self.treeview.main.vm_session.vm_glcore
 
-        window = Gtk.Window ( title = "Surface Setup" )
+        window = Gtk.Window ( title = "New Molecular Surface" )
         window.set_border_width ( 10 )
         window.set_default_size ( 300, -1 )
         window.set_keep_above ( True )
@@ -1470,14 +1475,22 @@ class TreeViewMenu:
         main.add_vobject_to_vobject_liststore_dict ( child_object )
 
         if len ( areas ) == 1:
-            print ( "Surface '{}' ({}): total area = {:.2f} Å²".format (
-                child_object.name, surface_type.upper ( ), areas[0]
-            ) )
+            text = "Surface '{}' ({}): total area = {:.2f} Å²".format (
+                child_object.name, surface_type.upper ( ), areas[0] )
         else:
-            print ( "Surface '{}' ({}): total area per frame (Å²) = {}".format (
+            text = "Surface '{}' ({}): total area per frame (Å²) = {}".format (
                 child_object.name, surface_type.upper ( ),
-                ", ".join ( "{:.2f}".format ( a ) for a in areas )
-            ) )
+                ", ".join ( "{:.2f}".format ( a ) for a in areas ) )
+        print ( text )
+        # . 2026-10-24: the area was printed to the console only
+        try:
+            if len ( areas ) > 1:
+                text = "Surface '{}' ({}): area {:.2f} to {:.2f} Å² over {} frames (values in the console)".format (
+                    child_object.name, surface_type.upper ( ), min ( areas ), max ( areas ), len ( areas ) )
+            # . after refresh_widgets(), which rewrites the status bar
+            GLib.idle_add ( lambda: main.statusbar_main.push ( 1, text ) and False )
+        except Exception:
+            pass
 
         return child_object
 
@@ -1593,7 +1606,7 @@ class TreeViewMenu:
             rainbow_area.set_visible ( mode == 'rainbow' )
         combo_color.connect ( "changed", update_sensitivity )
 
-        label_note = Gtk.Label ( label = "Helix/strand/coil colors: Preferences > Cartoon." )
+        label_note = Gtk.Label ( label = "Helix/strand/coil colors: Preferences > Viewer > Representations > Cartoon." )
         label_note.set_xalign ( 0 )
         label_note.get_style_context ( ).add_class ( "dim-label" )
         vbox.pack_start ( label_note, False, False, 0 )

@@ -165,7 +165,7 @@
                 <property name="spacing">4</property>
                 <child>
                   <object class="GtkButton">
-                    <property name="label" translatable="yes">#</property>
+                    <property name="label" translatable="yes">Stop</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>
@@ -180,7 +180,7 @@
                 </child>
                 <child>
                   <object class="GtkButton">
-                    <property name="label" translatable="yes">&gt;</property>
+                    <property name="label" translatable="yes">Play</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>

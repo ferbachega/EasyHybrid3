@@ -326,7 +326,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             self.window.set_default_size(600, 600)  
             self.window.add(self.box_vertical)
             self.window.connect("destroy", self.close_window)
-            self.window.set_title('Go to Atom Window') 
+            self.window.set_title('Go To Atom') 
             self.window.show_all() 
                                                           
             #                                                                

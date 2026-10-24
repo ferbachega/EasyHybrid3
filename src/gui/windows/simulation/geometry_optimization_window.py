@@ -76,16 +76,16 @@ class GeometryOptimization(Gtk.Window):
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('geometry_optimization_window')
-            self.window.set_title('Geometry Optmization Window')
+            self.window.set_title('Geometry Optimization')
             self.window.set_keep_above(True)
             
             
             '''--------------------------------------------------------------------------------------------'''
             self.method_store = Gtk.ListStore(str)
             methods = [
-                        'Conjugated-Gradient',
-                        'Steepest-Descent'   ,
-                        'L-FBGS'             ,
+                        'Conjugate Gradient' ,
+                        'Steepest Descent'   ,
+                        'L-BFGS'             ,
                         'Quasi-Newton'       ,
                         'FIRE'               ,
 

@@ -201,6 +201,14 @@ def _simulation_target_process(parameters):
     # Avoid passing queue object to child processes inside parameters
     parameters['queue'] = None
 
+    # . DFT/HF systems pickled into a spawned process lose qcState.fitBases (util/qc_state_repair.py)
+    try:
+        from util.qc_state_repair import repair_qc_state
+        if parameters.get('system') is not None:
+            repair_qc_state(parameters['system'])
+    except Exception as error:
+        print('Could not check the QC state of the system:', error)
+
     try:
         target_process.run(parameters)
         results = {

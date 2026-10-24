@@ -163,7 +163,7 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">File /Folder:</property>
+                                <property name="label" translatable="yes">File / Folder:</property>
                                 <property name="xalign">1</property>
                               </object>
                               <packing>
@@ -177,18 +177,18 @@
                                 <property name="can-focus">False</property>
                                 <property name="hexpand">True</property>
                                 <items>
-                                  <item translatable="yes">pkl  file - pDynamo coordinates</item>
-                                  <item translatable="yes">pkl folder -  pDynamo trajectory</item>
-                                  <item translatable="yes">pkl folder2d -  pDynamo 2D trajectory</item>
-                                  <item translatable="yes">pdb file - Protein Data Bank files  </item>
-                                  <item translatable="yes">pdb folder - multiple files trajactory</item>
-                                  <item translatable="yes">dcd - CHARMM  binary trajectory file</item>
+                                  <item translatable="yes">pkl file - pDynamo coordinates</item>
+                                  <item translatable="yes">pkl folder - pDynamo trajectory</item>
+                                  <item translatable="yes">pkl folder 2D - pDynamo 2D trajectory (2D scans)</item>
+                                  <item translatable="yes">pdb file - Protein Data Bank file</item>
+                                  <item translatable="yes">pdb folder - one frame per file</item>
+                                  <item translatable="yes">dcd - CHARMM/NAMD binary trajectory</item>
                                   <item translatable="yes">crd - AMBER coordinates</item>
-                                  <item translatable="yes">xyz -  simple coordinate file</item>
-                                  <item translatable="yes">mol2 - SYBIL coordinate file</item>
-                                  <item translatable="yes">netcdf -  AMBER dinary trajectory file</item>
-                                  <item translatable="yes">log - pDynamo/EasyHybrid logfile</item>
-                                  <item translatable="yes">charges - mol2, aux, txt and etc... </item>
+                                  <item translatable="yes">xyz - coordinate file</item>
+                                  <item translatable="yes">mol2 - SYBYL coordinate file</item>
+                                  <item translatable="yes">netcdf - AMBER binary trajectory</item>
+                                  <item translatable="yes">log - pDynamo/EasyHybrid log file</item>
+                                  <item translatable="yes">charges - mol2, aux, txt...</item>
                                 </items>
                                 <signal name="changed" handler="on_combobox_coordinate_type" swapped="no"/>
                               </object>
@@ -505,7 +505,7 @@
             </child>
             <child>
               <object class="GtkCheckButton" id="checbox_keep_it_open">
-                <property name="label" translatable="yes">Don't close this window.</property>
+                <property name="label" translatable="yes">Keep window open</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">False</property>
@@ -543,7 +543,7 @@
                 </child>
                 <child>
                   <object class="GtkButton">
-                    <property name="label" translatable="yes">import</property>
+                    <property name="label" translatable="yes">Import</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>

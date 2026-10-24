@@ -123,7 +123,17 @@ class RMSDAnalysisWindow:
 
             
             #self.build_treeview()
-            
+
+            # . 2026-10-24: superposition before the RMSD (it was the raw coordinate
+            #   difference: any translation or rotation of the molecule counted)
+            chk_plot = self.builder.get_object('chk_plot')
+            box = chk_plot.get_parent()
+            self.chk_superpose = Gtk.CheckButton(label = 'Superpose each frame on the reference (Kabsch)')
+            self.chk_superpose.set_active(True)
+            self.chk_superpose.set_tooltip_text('Fit the selected atoms of each frame onto the reference before computing the RMSD. Turn off only for a trajectory already aligned on these atoms.')
+            box.pack_start(self.chk_superpose, False, False, 0)
+            box.reorder_child(self.chk_superpose, [c for c in box.get_children()].index(chk_plot))
+
             self.window.show_all()
             #self.column_type.set_spacing(40)
             #self.column_1   .set_spacing(40)
@@ -526,44 +536,25 @@ class RMSDAnalysisWindow:
         RMSD_list = []
         text = ''
         n = 0
-        #a.size
-        
         if f_last == -1:
-            traj_size = vismol_object.frames.shape
-            dprint(traj_size)
-            traj_size = traj_size[0]
-            f_last = traj_size
-
-        
-        #for frame in vismol_object.frames:
-            #print('\n')        
+            f_last = vismol_object.frames.shape[0]
+        idx = np.array(sorted(selection_list), dtype = int)
+        ref = np.asarray(ref_frame, dtype = float)[idx]
+        ref_c = ref - ref.mean(axis = 0)
+        superpose = getattr(self, 'chk_superpose', None) is not None and self.chk_superpose.get_active()
         for f_index in range(f_init, f_last, step_size):
-            #print(f_index)
-            frame = vismol_object.frames[f_index]
-
-            
-            rmsd   = 0.0
-            d2_sum = 0.0 
-            
-            for index in selection_list:
-                #print(vismol_object.frames[0][index])
-                
-                ci = ref_frame[index] # reference
-                cj = frame[index]     # actual frame
-                
-                
-                #For each atom, the squared distance between the two positions is calculated:
-                d2 = (((cj[0]-ci[0])**2) +((cj[1]-ci[1])**2) + ((cj[2]-ci[2])**2))
-                
-                #Add up all distances squared:
-                d2_sum += d2
-            
-            #It is divided by N (number of atoms), and take the square root:
-            rmsd = ( d2_sum/ (len(selection_list)) )**0.5
-            #print(rmsd)
+            x = np.asarray(vismol_object.frames[f_index], dtype = float)[idx]
+            if superpose and len(idx) >= 3:
+                xc = x - x.mean(axis = 0)
+                u, _s, vt = np.linalg.svd(xc.T @ ref_c)
+                d = np.sign(np.linalg.det(u @ vt))
+                rot = u @ np.diag([1.0, 1.0, d]) @ vt
+                diff = xc @ rot - ref_c
+            else:
+                diff = x - ref
+            rmsd = float(np.sqrt((diff ** 2).sum(axis = 1).mean()))
             RMSD_list.append(rmsd)
             text += str(rmsd)+'\n'
-        
             n+=1
         
         average   = (sum(RMSD_list)) / n
@@ -577,22 +568,13 @@ class RMSDAnalysisWindow:
         textwindow = TextWindow(text)
         
         if self.builder.get_object('chk_plot').get_active():
-            from util.easyplot import ImagePlot, XYPlot
-            import random
-            self.plot = XYPlot()
-            X =  range(n)
-            Y =  RMSD_list
-            rgb = [0,0,0,]
-            self.plot.add ( X = X, Y = Y,
-                                symbol = None, sym_color = [1,1,1], sym_fill = False, 
-                                line = 'solid', line_color = rgb, energy_label = None)
-            
-            
-            window =  Gtk.Window()
-            window.add(self.plot)
-            self.plot.Ymin_list= [0]
-            window.set_default_size(600, 500)
-            window.show_all()
+            # . 2026-10-24: AnalysisPlot window (axis titles, y from 0, export) instead of XYPlot
+            from util.analysis_plot import show_plot_window
+            reference = "frame {}".format(self.builder.get_object('entry_ref_frame').get_text()) if self.is_frame_reference else "average structure"
+            series = [{"x": [float(i) for i in range(n)], "y": [float(v) for v in RMSD_list], "color": (0.12, 0.47, 0.71), "width": 1.6}]
+            show_plot_window("RMSD: {}".format(vismol_object.name), series, "frame", "RMSD (Å)",
+                             "RMSD of {} atoms against {}  ·  mean {:.3f} Å".format(len(selection_list), reference, average),
+                             ymin=0.0, default_name="rmsd.png", parent=self.window)
         else:
             dprint('chk_plot_off')
             

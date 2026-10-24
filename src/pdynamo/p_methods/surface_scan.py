@@ -53,6 +53,19 @@ import os, time, sys
 # --- imports entre modulos adicionados na refatoracao ---
 from pdynamo.p_methods._common import backup_qc_files, backup_orca_files, write_header, get_hamiltonian, plot_data
 
+
+def _minimize_scan_point (parameters, system, **options):
+    """ 2026-10-24: the optimization of each point with the method chosen in the window
+        (parameters['optimizer']); the scans always used conjugate gradient. """
+    optimizer = parameters.get('optimizer', 'ConjugatedGradient') if isinstance(parameters, dict) else 'ConjugatedGradient'
+    function  = { 'ConjugatedGradient' : ConjugateGradientMinimize_SystemGeometry ,
+                  'SteepestDescent'    : SteepestDescentMinimize_SystemGeometry   ,
+                  'LFBGS'              : LBFGSMinimize_SystemGeometry             ,
+                  'QuasiNewton'        : QuasiNewtonMinimize_SystemGeometry       ,
+                  'FIRE'               : FIREMinimize_SystemGeometry              }.get(optimizer, ConjugateGradientMinimize_SystemGeometry)
+    return function(system, **options)
+
+
 class AdvancedRelaxedSurfaceScan:
     """ Class doc """
     
@@ -196,7 +209,7 @@ class AdvancedRelaxedSurfaceScan:
             #--------------------------------------------------------------------
         
             #-------------------------------------------------------------------------------------------------------------
-            ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
+            _minimize_scan_point(parameters, parameters['system']                                ,                
                                                      logFrequency           = parameters['logFrequency'],
                                                      maximumIterations      = parameters['maximumIterations'],
                                                      rmsGradientTolerance   = parameters['rmsGradientTolerance'])
@@ -297,7 +310,7 @@ class AdvancedRelaxedSurfaceScan:
             #energy = parameters['system'].Energy(log=None)
             try:
                 #-------------------------------------------------------------------------------------------------------------
-                ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
+                _minimize_scan_point(parameters, parameters['system']                                ,                
                                                          logFrequency           = parameters['logFrequency'],
                                                          maximumIterations      = parameters['maximumIterations'],
                                                          rmsGradientTolerance   = parameters['rmsGradientTolerance']  ,
@@ -673,9 +686,21 @@ class RelaxedSurfaceScan:
         
         arq = self.write_header(parameters)
         data = []
+        # . 2026-10-24: TS-centered mode in 1D (it was ignored): from the starting structure (the
+        #   TS) the scan goes nsteps forward, then back to the TS and nsteps_back backward. The
+        #   frames are numbered along the coordinate (the backward ones first) and the DATA lines
+        #   are written in that order at the end. Each entry: (frame, step, restart from the TS).
+        nsteps = parameters['RC1']['nsteps']
+        nback  = int(parameters['RC1'].get('nsteps_back', 0) or 0) if parameters.get('_is_ts_centered') else 0
+        steps  = [ ( nback + j, j, False ) for j in range(nsteps) ] + \
+                 [ ( nback - j, -j, j == 1 ) for j in range(1, nback + 1) ]
+        start_coordinates = Clone ( parameters['system'].coordinates3 )
+        data_lines = []
         
-        for i in range(parameters['RC1']['nsteps']):       
-            distance = parameters['RC1']['dminimum'] + ( parameters['RC1']['dincre'] * float(i) )
+        for i, k, restart in steps:
+            if restart:
+                parameters['system'].coordinates3 = Clone ( start_coordinates )
+            distance = parameters['RC1']['dminimum'] + ( parameters['RC1']['dincre'] * float(k) )
             #print(parameters["rc_type_1"])
             
             
@@ -688,7 +713,7 @@ class RelaxedSurfaceScan:
                 #---------------------------------------------------------------------------------------------------------
             
                 #-------------------------------------------------------------------------------------------------------------
-                ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
+                _minimize_scan_point(parameters, parameters['system']                                ,                
                                                          logFrequency           = parameters['logFrequency'],
                                                          maximumIterations      = parameters['maximumIterations'],
                                                          rmsGradientTolerance   = parameters['rmsGradientTolerance'])
@@ -699,7 +724,7 @@ class RelaxedSurfaceScan:
                 data.append([i, distance, energy])             
                 
                 text = "\nDATA %9i       %13.12f        %13.12f"% (int(i), float(distance), float(energy))
-                arq.write(text)
+                data_lines.append ( ( i, text ) )
                 Pickle( os.path.join( parameters['folder'], 
                                       parameters['traj_folder_name']+".ptGeo", 
                                       "frame{}.pkl".format(i) ), 
@@ -724,7 +749,7 @@ class RelaxedSurfaceScan:
                 restraints["RC1"] = restraint            
                 
                 #-------------------------------------------------------------------------------------------------------------
-                ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
+                _minimize_scan_point(parameters, parameters['system']                                ,                
                                                          logFrequency           = parameters['logFrequency'],
                                                          maximumIterations      = parameters['maximumIterations'],
                                                          rmsGradientTolerance   = parameters['rmsGradientTolerance'])
@@ -735,7 +760,7 @@ class RelaxedSurfaceScan:
                 data.append([i, distance1, distance2, energy])             
                 
                 text = "\nDATA %9i       %13.12f        %13.12f        %13.12f"% (int(i), float(distance1), float(distance2), float(energy))
-                arq.write(text)
+                data_lines.append ( ( i, text ) )
                 
                 Pickle( os.path.join( parameters['folder'], 
                                       parameters['traj_folder_name']+".ptGeo", 
@@ -759,7 +784,7 @@ class RelaxedSurfaceScan:
                 #--------------------------------------------------------------------
             
                 #-------------------------------------------------------------------------------------------------------------
-                ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
+                _minimize_scan_point(parameters, parameters['system']                                ,                
                                                          logFrequency           = parameters['logFrequency'],
                                                          maximumIterations      = parameters['maximumIterations'],
                                                          rmsGradientTolerance   = parameters['rmsGradientTolerance'])
@@ -771,7 +796,7 @@ class RelaxedSurfaceScan:
                 data.append([i, distance1, distance2, energy])             
                 
                 text = "\nDATA %9i       %13.12f        %13.12f        %13.12f"% (int(i), float(distance1), float(distance2), float(energy))
-                arq.write(text)
+                data_lines.append ( ( i, text ) )
                 
                 
                 Pickle( os.path.join( parameters['folder'], 
@@ -790,7 +815,7 @@ class RelaxedSurfaceScan:
                 atom3   = parameters['RC1']['ATOMS'][2]
                 atom4   = parameters['RC1']['ATOMS'][3]
                 
-                angle = parameters['RC1']['dminimum'] + ( parameters['RC1']['dincre'] * float(i) )
+                angle = parameters['RC1']['dminimum'] + ( parameters['RC1']['dincre'] * float(k) )
                 #print('\n\n\n\n\n\n\n\n',distance, parameters['system'].coordinates3.Dihedral (atom1, atom2, atom3, atom4), '\n\n\n\n\n\n\n\n')
                 rmodel    = RestraintEnergyModel.Harmonic(angle, parameters['RC1']['force_constant'], period = 360.0 )
                 restraint = RestraintDihedral.WithOptions ( energyModel = rmodel     ,
@@ -802,7 +827,7 @@ class RelaxedSurfaceScan:
                 #--------------------------------------------------------------------
             
                 #-------------------------------------------------------------------------------------------------------------
-                ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
+                _minimize_scan_point(parameters, parameters['system']                                ,                
                                                          logFrequency           = parameters['logFrequency'],
                                                          maximumIterations      = parameters['maximumIterations'],
                                                          rmsGradientTolerance   = parameters['rmsGradientTolerance'])
@@ -814,7 +839,7 @@ class RelaxedSurfaceScan:
                 #data.append([i, distance1, distance2, energy])             
                 
                 text = "\nDATA %9i       %13.12f        %13.12f"% (int(i), float(angle0), float(energy))
-                arq.write(text)
+                data_lines.append ( ( i, text ) )
 
                 Pickle( os.path.join( parameters['folder'], 
                                       parameters['traj_folder_name']+".ptGeo", 
@@ -830,6 +855,9 @@ class RelaxedSurfaceScan:
             else:
                 pass
         #---------------------------------------
+        for _i, text in sorted ( data_lines ):
+            arq.write(text)
+        arq.close()
         parameters['system'].DefineRestraintModel(None)
         pprint(data)
         
@@ -994,7 +1022,7 @@ class RelaxedSurfaceScan:
 
             try:
                 #-------------------------------------------------------------------------------------------------------------
-                ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
+                _minimize_scan_point(parameters, parameters['system']                                ,                
                                                          logFrequency           = parameters['logFrequency'],
                                                          maximumIterations      = parameters['maximumIterations'],
                                                          rmsGradientTolerance   = parameters['rmsGradientTolerance']  ,
@@ -1372,7 +1400,7 @@ def _run_advanced_second_coordinate_in_parallel (job):
         #energy = system.Energy(log=None)
         try:
             #-------------------------------------------------------------------------------------------------------------
-            ConjugateGradientMinimize_SystemGeometry(system                                ,                
+            _minimize_scan_point(parameters, system                                ,                
                                                      logFrequency           = parameters['logFrequency'],
                                                      maximumIterations      = parameters['maximumIterations'],
                                                      rmsGradientTolerance   = parameters['rmsGradientTolerance'], 
@@ -1576,7 +1604,7 @@ def _run_second_coordinate_in_parallel (job):
         ##-------------------------------------------------------------------------------------------------------------
         try:
             #-------------------------------------------------------------------------------------------------------------
-            ConjugateGradientMinimize_SystemGeometry(system                                ,                
+            _minimize_scan_point(parameters, system                                ,                
                                                      logFrequency           = parameters['logFrequency'],
                                                      maximumIterations      = parameters['maximumIterations'],
                                                      rmsGradientTolerance   = parameters['rmsGradientTolerance'], 
@@ -1951,7 +1979,7 @@ def run_scan_energy (parameters):
 
     try:
         #-------------------------------------------------------------------------------------------------------------
-        ConjugateGradientMinimize_SystemGeometry(parameters['system']                                ,                
+        _minimize_scan_point(parameters, parameters['system']                                ,                
                                                  logFrequency           = parameters['logFrequency'],
                                                  maximumIterations      = parameters['maximumIterations'],
                                                  rmsGradientTolerance   = parameters['rmsGradientTolerance']  ,

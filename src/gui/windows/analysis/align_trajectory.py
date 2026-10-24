@@ -128,6 +128,11 @@ class AlignTrajectoryWindow:
 
             self.btn_align.connect("clicked", self.on_btn_align)
             self.combobox_systems.connect("changed", self.on_combobox_systems_changed)
+            # . 2026-10-24: start on the active system and its last object (the combos were empty)
+            for k, row in enumerate(self.main.system_liststore):
+                if row[1] == self.p_session.active_id:
+                    self.combobox_systems.set_active(k)
+                    break
             self.window.show_all()           
             self.Visible  = True
             

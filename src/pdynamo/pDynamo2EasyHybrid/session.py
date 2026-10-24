@@ -456,6 +456,27 @@ class PSystemDict ( dict ):
         return ( dict, ( dict ( super ( ).items ( ) ), ) )
 
 
+def _pdb_title(path):
+    """ The TITLE record of a PDB file (columns 11-80, continuation lines joined), title case
+        as pDynamo does; None when there is none. """
+    parts = []
+    try:
+        with open(path, errors='replace') as handle:
+            for line in handle:
+                if line.startswith('TITLE'):
+                    text = line[10:80].strip()
+                    if text:
+                        parts.append(text)
+                elif line.startswith(('ATOM', 'HETATM', 'MODEL')):
+                    break
+    except OSError:
+        return None
+    title = ''
+    for text in parts:
+        title += ('' if not title or title.endswith('-') else ' ') + text
+    return title.title() if title else None
+
+
 class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveData, EasyHybridImportTrajectory, Restraints):
     """ Class doc """
 
@@ -720,6 +741,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format(input_files['coordinates']), system = None)
         else:
             pass
+        # . 2026-10-24: pDynamo reads TITLE columns 11-70 only (the record goes to 80), so long
+        #   titles lost words ("... ZINC FINGER DNA-" + "BINDING DOMAIN" became "FingerBinding")
+        coordinates = ( input_files or {} ).get('coordinates') or ''
+        if isinstance(coordinates, str) and coordinates.lower().endswith(('.pdb', '.ent')):
+            title = _pdb_title(coordinates)
+            if title:
+                system.label = title
         system.Summary()
         
         
@@ -748,7 +776,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         if name is None:
             name = 'System'
         if len(name) > 70:
-            name = name[-70:]
+            # . the start of a title says what the system is: keep it (the end was kept before)
+            name = name[:67].rstrip() + '...'
         
         
         self.remove_PES_data (system = system )
@@ -771,7 +800,14 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system =system)
         
         # Add the system as a vismol object to the easyhybrid session
-        self._add_vismol_object_to_easyhybrid_session (system, True)
+        new_vobject = self._add_vismol_object_to_easyhybrid_session (system, True)
+
+        # . 2026-10-24: frame the new molecule (the view used to stay 10 A from its center
+        #   with a 6 A slab: a protein appeared as a few bonds on a black screen)
+        try:
+            self.vm_session.fit_view_to_vobject(new_vobject)
+        except Exception as error:
+            dprint('fit_view_to_vobject:', error)
 
         # A system loaded directly from a .pkl/.pdb/etc (as opposed to
         # inside a .easy project -- see load_easyhybrid_serialization_file
@@ -815,7 +851,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self._add_vismol_object_to_easyhybrid_session ( system, True )
         return system
 
-    def _add_vismol_object_to_easyhybrid_session (self, system, show_molecule=True, name = 'new_coords', key6 = None):
+    def _add_vismol_object_to_easyhybrid_session (self, system, show_molecule=True, name = 'coords', key6 = None):
         """ Function doc """
         # Create a VisMol object from the given pDynamo system
         vm_object = self._build_vobject_from_pdynamo_system ( system = system, name = name ) 
@@ -853,7 +889,14 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                           color          = None            ,
                                           changed        = False ):
         """ Function doc """  
-    
+        # . 2026-10-24: DFT/HF systems read from pickle (.pkl, .easy) lose qcState.fitBases
+        #   (see util/qc_state_repair.py); their QC model is defined again.
+        try:
+            from util.qc_state_repair import repair_qc_state
+            if repair_qc_state(system):
+                print('QC model of {} redefined (DFT state read from a file).'.format(system.label))
+        except Exception as error:
+            print('Could not check the QC state of the system:', error)
         
         # - - - - - - - Name and Tag - - - - - - - -
         if name:
@@ -3469,46 +3512,45 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
 
     def check_for_fragmented_charges (self, system_id = None):
-        """ Function doc """
+        """ Charge Block Inspector: makes the MM charge of every residue an integer, spreading
+            the difference evenly over its atoms. 2026-10-24: works on a copy and applies it at
+            the end (a failure used to leave the charges half changed); refused with a QC region
+            (its MM charges are already redistributed); the backup used when a QC region is
+            defined is taken from the MM charges (AtomicCharges() raised before any QC energy). """
         try:
-            system = self.psystem[self.active_id]
-            itotal  = sum(system.mmState.charges)
-            #print('total charge =', total)
-
+            system = self.psystem[self.active_id if system_id is None else system_id]
+            if system.mmModel is None or system.mmState is None:
+                return False, 'The system has no MM charges (no force field).'
+            if system.qcModel is not None:
+                return False, ('The system has a QC region. Remove it first (System > Remove > QC Atoms): '
+                               'the inspection works on the MM charges of whole residues.')
+            charges = list(system.mmState.charges)
+            itotal  = sum(charges)
             vobj_tmp = self._build_vobject_from_pdynamo_system (system = system)
-            n = 0
+            n_residues, n_changed = 0, 0
             for chain in vobj_tmp.chains:
                 for resi, residue in vobj_tmp.chains[chain].residues.items():
-            
-                #for res_index, residue in vobj_tmp.residues.items():
-                    n = 0.0
-                    res_charge = 0.0
-                    for atom_index, atom in residue.atoms.items():
-                        res_charge += system.mmState.charges[atom_index]
-                        n += 1
-                    
-                    
+                    indices = list(residue.atoms.keys())
+                    if not indices:
+                        continue
+                    n_residues += 1
+                    res_charge = sum(charges[i] for i in indices)
                     difference = res_charge - float(round(res_charge))
-                    fraction = difference/n
-
-                    res_charge2 = 0.0
-                    for atom_index, atom in residue.atoms.items():
-                        system.mmState.charges[atom_index] -= fraction
-                        res_charge2 += system.mmState.charges[atom_index]
-                    
-                    n += 1
-                
-                #print('Initial charge: {}, Differente{} {}'.format(res_charge, difference, res_charge2))
-
-            system.e_charges_backup = list(system.AtomicCharges()).copy()
-            ftotal = sum(system.mmState.charges)
-            
-            
-            
-            
-            return True, 'Inspection of partial charges performed successfully.\n\nNumber of resdues: {} \nInitial sum of charges: {} \nFinal sum of charges: {}'.format(n, itotal, ftotal)
-        except:
-            return False, 'Inspection of partial charges failed!'
+                    if abs(difference) > 1e-6:
+                        n_changed += 1
+                    for i in indices:
+                        charges[i] -= difference / len(indices)
+            for i, q in enumerate(charges):
+                system.mmState.charges[i] = q
+            system.e_charges_backup = list(charges)
+            ftotal = sum(charges)
+            return True, ('Inspection of partial charges performed successfully.\n\n'
+                          'Residues: {}  (changed: {})\nInitial sum of charges: {:.6f}\n'
+                          'Final sum of charges: {:.6f}').format(n_residues, n_changed, itotal, ftotal)
+        except Exception as error:
+            import traceback
+            traceback.print_exc()
+            return False, 'Inspection of partial charges failed: {}'.format(error)
         
         
     def generate_new_empty_vismol_object (self, system_id = None, name = 'new_coordinates' ):

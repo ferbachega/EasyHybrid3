@@ -318,9 +318,10 @@ class BuilderSidebarWindow ( ):
         from gui.windows.builder.structure_library import discover_structure_files
         self.structure_treestore.clear ( )
         for category_name, entries in discover_structure_files ( ):
-            category_iter = self.structure_treestore.append ( None, [ category_name, "" ] )
+            from gui.windows.builder.structure_library import pretty_library_name
+            category_iter = self.structure_treestore.append ( None, [ pretty_library_name ( category_name, category = True ), "" ] )
             for display_name, file_path in entries:
-                self.structure_treestore.append ( category_iter, [ display_name, file_path ] )
+                self.structure_treestore.append ( category_iter, [ pretty_library_name ( display_name ), file_path ] )
         self.structure_treeview.collapse_all ( )
 
     def _structures_tab_active ( self ):

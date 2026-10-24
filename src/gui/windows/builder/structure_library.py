@@ -82,6 +82,29 @@ class StructureError ( Exception ):
     pass
 
 
+# . 2026-10-24: readable names for the library trees ("01_aromatic_carbocyclic_rings" ->
+#   "Aromatic carbocyclic rings", "barbituric_acid" -> "barbituric acid"); the folders and
+#   files keep their names.
+_NAME_FIXES = { "sulfurvi": "sulfur(VI)", "3d": "3D", "4d": "4d", "5d": "5d", "n": "N", "o": "O", "s": "S" }
+
+def pretty_library_name ( name, category = False ):
+    import re as _re
+    text = _re.sub ( r"^\d+_", "", str ( name ) )
+    text = text.replace ( "_o_s_", "_O/S_" ).replace ( "6membered", "6-membered" )
+    words = [ ]
+    for w in text.split ( "_" ):
+        if not w:
+            continue
+        if w in ( "3d", "4d", "5d" ) and words and words[-1] == "metals":
+            words.append ( w )
+        else:
+            words.append ( _NAME_FIXES.get ( w, w ) )
+    text = " ".join ( words )
+    if category and text:
+        text = text[0].upper ( ) + text[1:]
+    return text
+
+
 def discover_structure_files ( base_dir = None ):
     """ [EN] Same shape/contract as fragment_library.discover_fragment_
     files() -- walks base_dir's IMMEDIATE subdirectories (each one a

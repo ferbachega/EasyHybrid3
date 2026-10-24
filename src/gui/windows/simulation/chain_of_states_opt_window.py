@@ -75,7 +75,7 @@ class ChainOfStatesOptWindow(Gtk.Window):
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('chain_of_states_opt_window')
-            self.window.set_title('Chain of State Optmization Window')
+            self.window.set_title('Nudged Elastic Band (NEB)')
             #self.window.set_default_size(500, 600)
             self.window.set_keep_above(True)
             #'''--------------------------------------------------------------------------------------------'''

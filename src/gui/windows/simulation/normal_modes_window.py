@@ -73,7 +73,7 @@ class NormalModesWindow(Gtk.Window):
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('normal_modes_window')
-            self.window.set_title('Normal Modes Window')
+            self.window.set_title('Normal Modes')
             self.window.set_keep_above(True)
             
             

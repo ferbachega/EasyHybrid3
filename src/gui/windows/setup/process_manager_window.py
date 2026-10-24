@@ -577,6 +577,17 @@ class ProcessManagerWindow(Gtk.Window):
                 pass
 
         simulation_type = job.get('simulation_type', 'result')
+        # . 2026-10-24: an energy refinement writes only its output.log (energies); the
+        #   structures are those of the trajectory it read -> import that trajectory with
+        #   the new log (was: the log folder as a pkl file -> Import Error)
+        if simulation_type == 'Energy_Refinement':
+            backup = job.get('backup_parameters') or {}
+            traj_type = backup.get('traj_type')
+            if traj_type in ('pklfolder', 'pklfolder2D') and backup.get('data_path'):
+                data_path = backup['data_path']
+                data_type_index = 1 if traj_type == 'pklfolder' else 2
+            elif traj_type == 'vobject':
+                data_type_index = 10      # log only, appended to the refined object
         new_vobj_name = '{}_{}_{}'.format(system.label.strip(), simulation_type, step_counter)
 
         self.main.import_trajectory_window.open_window(

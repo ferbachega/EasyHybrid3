@@ -44,10 +44,12 @@ def nice_step(span, target=6):
 
 def _ticks(lo, hi, target=6):
     step = nice_step(hi - lo, target)
+    if step <= 1e-12 * max(1.0, abs(lo), abs(hi)):
+        return [lo, hi]
     start = math.ceil(lo / step - 1e-9) * step
     out = []
     v = start
-    while v <= hi + 1e-9 * max(1.0, abs(hi)):
+    while v <= hi + 1e-9 * max(1.0, abs(hi)) and len(out) < 1000:
         out.append(round(v, 10))
         v += step
     return out
@@ -230,8 +232,13 @@ class AnalysisPlot(Gtk.DrawingArea):
             x0 -= 0.5; x1 += 0.5
         if self.data.get("ymin") is not None:
             y0 = min(self.data["ymin"], y0)
-        if x1 == x0:
+        if x1 - x0 <= 1e-9 * max(1.0, abs(x1)):
             x0, x1 = x0 - 1, x1 + 1
+        # . 2026-10-24: a (nearly) constant series -- e.g. the density of a box of fixed volume,
+        #   equal to ~1e-16 -- gave a tick step below the float resolution: endless tick loop
+        if y1 - y0 <= 1e-9 * max(1.0, abs(y1)):
+            pad = 0.06 * (abs(y1) or 1.0)
+            return x0, x1, y0 - pad, y1 + pad
         pad = 0.06 * (y1 - y0 or abs(y1) or 1.0)
         return x0, x1, y0 - (pad if self.data.get("ymin") is None else 0), y1 + pad
 
@@ -559,3 +566,38 @@ class AnalysisPlot(Gtk.DrawingArea):
             surface.finish()
         else:
             surface.write_to_png(path)
+
+
+def show_plot_window(window_title, series, xlabel="", ylabel="", title="", ymin=None, default_name="plot.png",
+                     parent=None, size=(760, 470)):
+    """ 2026-10-24: a window with one AnalysisPlot of line series (axis titles, hover readout)
+        and an "Export Image..." button (PNG or SVG). Used by the RMSD, RMSF and Box Density
+        windows (they drew with the old XYPlot: no axis titles, negative y axis, no export).
+        series: as AnalysisPlot.set_lines(). Returns ( window, plot ). """
+    window = Gtk.Window(title=window_title)
+    if parent is not None:
+        window.set_transient_for(parent)
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, margin=6)
+    plot = AnalysisPlot()
+    plot.set_lines(series, xlabel, ylabel, title, ymin=ymin)
+    box.pack_start(plot, True, True, 0)
+    button = Gtk.Button(label="Export Image...")
+    button.set_halign(Gtk.Align.END)
+
+    def on_export(_b):
+        dialog = Gtk.FileChooserDialog(title="Export Image", parent=window, action=Gtk.FileChooserAction.SAVE)
+        dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
+        dialog.set_do_overwrite_confirmation(True)
+        dialog.set_current_name(default_name)
+        response, path = dialog.run(), dialog.get_filename()
+        dialog.destroy()
+        if response == Gtk.ResponseType.OK and path:
+            if not path.lower().endswith((".png", ".svg")):
+                path += ".png"
+            plot.export(path)
+    button.connect("clicked", on_export)
+    box.pack_start(button, False, False, 0)
+    window.add(box)
+    window.set_default_size(*size)
+    window.show_all()
+    return window, plot

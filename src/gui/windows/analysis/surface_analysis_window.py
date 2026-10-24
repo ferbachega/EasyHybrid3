@@ -669,10 +669,18 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 "units, hartree/e) used for the MEP color scale.\n"
                 "Empty = automatic (98th percentile of the computed values).")
 
-            self.box_surface_type.pack_start(self.label_mep_vmin, False, False, 0)
-            self.box_surface_type.pack_start(self.entry_mep_vmin, False, False, 0)
-            self.box_surface_type.pack_start(self.label_mep_vmax, False, False, 0)
-            self.box_surface_type.pack_start(self.entry_mep_vmax, False, False, 0)
+            # . 2026-10-24: the MEP options in a grid (label | field) under the type combo;
+            #   they were stacked one per line in the combo's own box.
+            self.grid_mep = Gtk.Grid(column_spacing=6, row_spacing=4)
+            self.box_surface_type.pack_start(self.grid_mep, False, False, 0)
+            for _w in (self.label_mep_vmin, self.label_mep_vmax):
+                _w.set_xalign(0)
+            self.label_mep_vmin.set_text("MEP min (a.u.):")
+            self.label_mep_vmax.set_text("MEP max (a.u.):")
+            self.grid_mep.attach(self.label_mep_vmin, 0, 0, 1, 1)
+            self.grid_mep.attach(self.entry_mep_vmin, 1, 0, 1, 1)
+            self.grid_mep.attach(self.label_mep_vmax, 0, 1, 1, 1)
+            self.grid_mep.attach(self.entry_mep_vmax, 1, 1, 1, 1)
             # comecam escondidos -- so fazem sentido com "MEP" selecionado
             # (index == 4), ver surface_combobox_change().
             self.label_mep_vmin.hide()
@@ -697,13 +705,15 @@ class SurfaceAnalysisWindow(Gtk.Window):
             for i, name in enumerate ( self._mep_cmap_names ):
                 self.cbx_mep_cmap.insert ( i, str(i), name )
             try:
-                default_idx = self._mep_cmap_names.index ( 'jet' )
+                # . 2026-10-24: a diverging map (red = negative, blue = positive) by default
+                default_idx = self._mep_cmap_names.index ( 'coolwarm' if 'coolwarm' in self._mep_cmap_names else 'jet' )
             except ValueError:
                 default_idx = 0
             self.cbx_mep_cmap.set_active ( default_idx )
 
-            self.box_surface_type.pack_start(self.label_mep_cmap, False, False, 0)
-            self.box_surface_type.pack_start(self.cbx_mep_cmap, False, False, 0)
+            self.label_mep_cmap.set_xalign(0)
+            self.grid_mep.attach(self.label_mep_cmap, 0, 2, 1, 1)
+            self.grid_mep.attach(self.cbx_mep_cmap, 1, 2, 1, 1)
             self.label_mep_cmap.hide()
             self.cbx_mep_cmap.hide()
             #'''--------------------------------------------------------------------------------------------'''
@@ -743,8 +753,9 @@ class SurfaceAnalysisWindow(Gtk.Window):
                 "coarser grid just for the potential drastically "
                 "reduces this cost (2.5x coarser = grid with ~2.5^3 "
                 "= ~15x fewer points = ~15x faster).")
-            self.box_surface_type.pack_start(self.label_mep_pot_spacing, False, False, 0)
-            self.box_surface_type.pack_start(self.entry_mep_pot_spacing, False, False, 0)
+            self.label_mep_pot_spacing.set_xalign(0)
+            self.grid_mep.attach(self.label_mep_pot_spacing, 0, 3, 1, 1)
+            self.grid_mep.attach(self.entry_mep_pot_spacing, 1, 3, 1, 1)
             self.label_mep_pot_spacing.hide()
             self.entry_mep_pot_spacing.hide()
             #'''--------------------------------------------------------------------------------------------'''
@@ -1123,7 +1134,7 @@ class SurfaceAnalysisWindow(Gtk.Window):
         elif index == 3:
             self.builder.get_object('label_external_file').show()
             self.builder.get_object('btn_external_file').show()
-            self.label_external_potential.show()
+            self.label_external_potential.hide()   # its file button is disabled (2026-10-24)
             #self.btn_external_potential_file.show()
             
             #self.builder.get_object('btn_import_wavefunction').set_sensitive(False)
@@ -1821,6 +1832,11 @@ class SurfaceAnalysisWindow(Gtk.Window):
         elif index == 0:
             selection     = self.treeview.get_selection()
             (model, iter) = selection.get_selected()
+            if iter is None:
+                # . 2026-10-24: raised a TypeError when no orbital was selected
+                self.main.simple_dialog.info(msg="Choose an orbital in the list first (press Get Orbitals "
+                                                 "if the list is empty).", title="Surfaces")
+                return
         
             
             backup = []
@@ -3134,6 +3150,8 @@ def generate_grid_parallel (job):
     #system    = system.Energy()
     #energies  = orbitalsP.energies
     
+    from util.qc_state_repair import repair_qc_state
+    repair_qc_state(system)      # . pickled into the pool (DFT/HF lose qcState.fitBases)
     apply_coords_to_system(system, coords)
     system.Energy()
     
@@ -3328,6 +3346,8 @@ def generate_wavefunction_parallel(job):
     coords     = job[2]
     #parameters = job[3]
     
+    from util.qc_state_repair import repair_qc_state
+    repair_qc_state(system)      # . pickled into the pool (DFT/HF lose qcState.fitBases)
     apply_coords_to_system(system, coords)
     system.Energy()
 

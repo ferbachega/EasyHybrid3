@@ -279,7 +279,7 @@ class ParametrizationWindow:
             return
         try:
             self.main.load_dyff_parametrization(self.data["_folder"], self._system())
-            self._message("DYFF is being defined on '{}' with these parameters; the result appears in the Logs panel.".format(
+            self._message("DYFF is being defined on '{}' with these parameters; the result appears in the Status panel.".format(
                 self._system().label))
         except Exception as error:
             self._message("Apply to System: {}".format(error))
@@ -406,7 +406,7 @@ class ParametrizationWindow:
                 ymin=0, xlabels=[names.get(k, k) for k in keys])))
         return {"views": views, "table": (["item", "value"], rows),
                 "summary": "\n\n".join(d.get("messages") or []) or "No messages.",
-                "hint": "Everything recorded for this parametrization. The Details tab has the message shown in the Logs panel."}
+                "hint": "Everything recorded for this parametrization. The Details tab has the message shown in the Status panel."}
 
     # ------------------------------------------------------------- charges
     def _view_charges(self):

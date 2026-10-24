@@ -32,13 +32,14 @@ from util.debug import dprint
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gtk, GLib
 #from GTKGUI.gtkWidgets.filechooser import FileChooser
 #from easyhybrid.pDynamoMethods.pDynamo2Vismol import *
 import gc
 import os
 import threading
 import time
+import numpy as np
 
 from gui.widgets.custom_widgets import SystemComboBox
 from gui.widgets.custom_widgets import CoordinatesComboBox
@@ -59,6 +60,7 @@ class NormalModesAnalysisWindow(Gtk.Window):
         self.vm_session            = main.vm_session
         
         self.modes = None
+        self.ir_window = None
         self.running = False
         self.stop_thread = True
         
@@ -120,6 +122,10 @@ class NormalModesAnalysisWindow(Gtk.Window):
 
             
             self.coordinates_combobox.set_model(self.coordinates_liststore)
+            # . 2026-10-24: start on the active system and on 'New Visual Object' (both were empty)
+            if self.main.p_session.active_id in self.main.p_session.psystem:
+                self.system_names_combo.set_active_system(e_id = self.main.p_session.active_id)
+            self.coordinates_combobox.set_active(0)
             
 
 
@@ -188,6 +194,19 @@ class NormalModesAnalysisWindow(Gtk.Window):
 
 
             self.spin_button =self.builder.get_object('spin_button')
+            # . 2026-10-24: amplitude of the animation. The trajectories carry the thermal
+            #   amplitude of each mode (0.02-0.1 A for most modes: nothing visible; several A for
+            #   very soft modes); each mode is rescaled to this largest atomic displacement.
+            amp_box = self.spin_button.get_parent()
+            self.spin_amplitude = Gtk.SpinButton.new_with_range(0.05, 3.0, 0.05)
+            self.spin_amplitude.set_digits(2)
+            self.spin_amplitude.set_value(0.5)
+            self.spin_amplitude.set_tooltip_text('Largest atomic displacement of the animated mode (A). '
+                                                 'The modes are computed with their thermal amplitude, '
+                                                 'too small to see for most modes.')
+            self.spin_amplitude.connect('value-changed', lambda *_: self.apply_amplitude())
+            amp_box.pack_start(Gtk.Label(label='Amplitude (A)'), False, False, 4)
+            amp_box.pack_start(self.spin_amplitude, False, False, 0)
 
 
 
@@ -251,12 +270,14 @@ class NormalModesAnalysisWindow(Gtk.Window):
                 self.lower = int(self.modes[int(row[1])][1][0])
                 self.upper = int(self.modes[int(row[1])][1][1])
                 self.value = int(self.lower) 
+                if getattr(self, 'ir_window', None) is not None and widget is not None:
+                    self.ir_window.select_mode(int(row[1]))
             else:
                 pass    
     
     def on_button_import (self, button):
         """ Function doc """
-        dialog = Gtk.FileChooserDialog("Select Folders", None,
+        dialog = Gtk.FileChooserDialog("Normal Modes: choose the job folder (or its mode folders)", self.window,
                                        Gtk.FileChooserAction.SELECT_FOLDER,
                                        (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
                                         Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
@@ -299,7 +320,12 @@ class NormalModesAnalysisWindow(Gtk.Window):
 
             parameters['trajectories'] = folder_paths
             parameters['logfile'] = False
-            self.modes = self.p_session.import_data (parameters)
+            try:
+                self.modes = self.p_session.import_data (parameters)
+            except Exception as error:
+                dialog.destroy()
+                self.main.simple_dialog.info(msg=str(error), title='Normal Modes')
+                return
             
             
             self.liststore.clear()# = Gtk.ListStore(bool , #0 system_e_id           
@@ -314,62 +340,62 @@ class NormalModesAnalysisWindow(Gtk.Window):
                 try:    intensity = '{:.4f}'.format(float(intensity))
                 except (TypeError, ValueError): intensity = '?'
                 self.liststore.append([False, str(i), '{:.3f}'.format(float(data[0])), symmetry, intensity])
-            
-            
-            
-            
+            self.stop(None)
+            self.lower = self.upper = 0
+            self._refresh_coordinates_after_import(parameters['system_id'])
+            self.apply_amplitude()
         dialog.destroy()
 
+    def _refresh_coordinates_after_import (self, system_id):
+        """ 2026-10-24: lists the new object of the modes in Coordinates and selects it
+            (without reloading the list of modes). """
+        try:
+            self.coordinates_liststore.clear()
+            self.coordinates_liststore.append(['New Visual Object', -1, -1])
+            active = 0
+            for k, row in enumerate(self.main.vobject_liststore_dict[system_id]):
+                self.coordinates_liststore.append([row[0], row[1], row[2]])
+                v = self.vm_session.vm_objects_dic.get(row[1])
+                if v is not None and getattr(v, 'normal_modes_dict', None) is self.modes:
+                    active = k + 1
+            self.coordinates_combobox.handler_block_by_func(self.on_coordinates_combobox_changed)
+            self.coordinates_combobox.set_active(active)
+            self.coordinates_combobox.handler_unblock_by_func(self.on_coordinates_combobox_changed)
+        except Exception as error:
+            dprint('normal modes: could not refresh the coordinates list', error)
+
     def on_button_plot_ir_spectrum (self, button):
-        """ Plots the currently listed modes' frequencies against their
-            infrared intensity: a broadened curve (Lorentzian, matching
-            what a real IR instrument reports) plus the raw stick data
-            underneath it. Only modes imported from a Normal Modes job
-            run with "Compute IR intensities" enabled have a usable
-            intensity value -- others show "?" in the treeview and are
-            silently skipped here.
-        """
-        frequencies = []
-        intensities = []
+        """ IR spectrum of the listed modes with an intensity (ir_spectrum_window.py). Only
+            modes from a Normal Modes job run with "Compute IR intensities" have one ('?'
+            otherwise). """
+        modes = []
         for row in self.liststore:
             try:
-                freq      = float(row[2])
-                intensity = float(row[4])
+                modes.append((int(row[1]), float(row[2]), float(row[4])))
             except (TypeError, ValueError):
                 continue
-            frequencies.append(freq)
-            intensities.append(intensity)
-
-        if len(frequencies) == 0:
+        if not modes:
             self.main.simple_dialog.info(
                 msg="No modes with a computed IR intensity to plot.\n\n"
                     "Re-run Simulate -> Normal Modes with \"Compute IR "
-                    "intensities\" enabled, then import those modes here."
-            )
+                    "intensities\" enabled, then import those modes here.",
+                title="Normal Modes")
             return
+        from gui.windows.analysis.ir_spectrum_window import IRSpectrumWindow
+        system = self.p_session.psystem.get(self.system_names_combo.get_system_id()) \
+            if hasattr(self.system_names_combo, 'get_system_id') else None
+        self.ir_window = IRSpectrumWindow(self.main, modes, title=getattr(system, 'label', '') or '',
+                                          parent=self.window, on_mode_clicked=self.select_mode)
+        self.ir_window.window.connect('destroy', lambda *_: setattr(self, 'ir_window', None))
 
-        from util.ir_spectrum import broaden_spectrum, stick_data
-        from util.easyplot    import XYPlot
-
-        xMax = max(4000.0, max(frequencies) + 200.0)
-        x, y = broaden_spectrum(frequencies, intensities, x_min=0.0, x_max=xMax, num_points=2000, fwhm=20.0)
-        stickFrequencies, stickIntensities = stick_data(frequencies, intensities)
-
-        plot = XYPlot()
-        plot.add(X=list(x), Y=list(y),
-                 symbol=None, sym_color=[1, 1, 1], sym_fill=False,
-                 line='solid', line_color=[0.85, 0.30, 0.10], energy_label=None)
-        for freq, intensity in zip(stickFrequencies, stickIntensities):
-            plot.add(X=[freq, freq], Y=[0.0, intensity],
-                      symbol=None, sym_color=[1, 1, 1], sym_fill=False,
-                      line='solid', line_color=[0.55, 0.55, 0.55], energy_label=None)
-
-        window = Gtk.Window()
-        window.set_default_size(820, 380)
-        window.move(900, 300)
-        window.set_title('IR Spectrum')
-        window.add(plot)
-        window.show_all()
+    def select_mode (self, mode):
+        """ Picks a mode (as its radio button does); used by the IR spectrum window. """
+        for row in self.liststore:
+            if row[1] == str(mode):
+                path = row.path
+                self.on_cell_active_radio_toggled(None, str(path))
+                self.treeview.scroll_to_cell(path, None, True, 0.5, 0)
+                return
 
     def on_button_thermochemistry (self, button):
         """ RRHO thermochemistry of the imported modes (see thermochemistry_window.py). """
@@ -517,6 +543,11 @@ class NormalModesAnalysisWindow(Gtk.Window):
             try:
                 vobject = self.vm_session.vm_objects_dic[vobject_id]
                 self.liststore.clear()
+                # . 2026-10-24: the radio buttons read self.modes (was None for an object
+                #   chosen here instead of imported in this session)
+                self.modes = vobject.normal_modes_dict
+                self.lower = self.upper = 0
+                self.apply_amplitude(vobject)
                 for i, data in vobject.normal_modes_dict.items():
                     symmetry  = data[2] if len(data) >= 3 else '?'
                     intensity = data[3] if len(data) >= 4 else '?'
@@ -624,45 +655,78 @@ class NormalModesAnalysisWindow(Gtk.Window):
             dprint ('event.button == 1')
 
 
+    def _modes_object (self):
+        for v in self.vm_session.vm_objects_dic.values():
+            if self.modes is not None and getattr(v, 'normal_modes_dict', None) is self.modes:
+                return v
+        return None
+
+    def apply_amplitude (self, vobject = None):
+        """ Rescales the frames of every mode of the object (from a copy of the imported
+            frames) so that its largest atomic displacement is the Amplitude. The center of
+            each mode is the mean of its frames (a whole number of cycles). """
+        vobject = vobject or self._modes_object()
+        modes   = getattr(vobject, 'normal_modes_dict', None) if vobject is not None else None
+        if not modes or not hasattr(self, 'spin_amplitude'):
+            return
+        frames = np.asarray(vobject.frames)
+        original = getattr(vobject, 'normal_modes_original_frames', None)
+        if original is None or original.shape != frames.shape:
+            original = frames.copy()
+            vobject.normal_modes_original_frames = original
+        amplitude = float(self.spin_amplitude.get_value())
+        new = original.copy()
+        for data in modes.values():
+            lo, hi = data[1][0], data[1][1]
+            if lo is None or hi is None or hi - lo < 2:
+                continue
+            block  = original[lo:hi]
+            center = block.mean(axis = 0)
+            disp   = block - center
+            dmax   = float(np.linalg.norm(disp, axis = 2).max())
+            if dmax > 1.0e-6:
+                new[lo:hi] = center + disp * (amplitude / dmax)
+        vobject.frames = new.astype(frames.dtype)
+        frame = self.vm_session.get_frame()
+        self.vm_session.set_frame(int(frame or 0))
+        self.vm_session.vm_glcore.queue_draw()
+
+    # . 2026-10-24: the animation runs on a GLib timer in the GTK thread. It used a Python
+    #   thread that called set_frame() (OpenGL/GTK) from outside the main loop, and switching
+    #   modes while playing walked through the frames of the other modes.
     def play (self, button):
-        # Create and start a new thread when the button is clicked
         if self.running:
-            pass
-        
-        else:
-            thread = threading.Thread(target=self.long_task)
-            thread.start()
-            
-            self.running = True
-        
-        
-    def long_task(self):
-        # This flag is used to stop the thread
+            return
+        if self.upper <= self.lower:
+            self.main.simple_dialog.info(msg="Choose a mode first (the button in the first column).",
+                                         title="Normal Modes")
+            return
+        self.running = True
         self.stop_thread = False
-        i = 0
-        
-        self.lower
-        self.upper
-        
         self.value = self.lower
-        while self.stop_thread == False:
-            if self.stop_thread:
-                return
+        self._schedule_next_frame(0)
 
-            self.vm_session.set_frame(int(self.value))
-            self.value += 1
-            #print(self.value)
+    def _schedule_next_frame (self, delay_ms = None):
+        if delay_ms is None:
+            fps = max(1.0, float(self.spin_button.get_value()))
+            delay_ms = int(1000.0 / fps)
+        GLib.timeout_add(delay_ms, self._animation_tick)
 
-            if self.value >= self.upper:
-                self.value = self.lower
-                self.vm_session.set_frame(self.value)
-            #time.sleep(0.01)
-            time.sleep(1/self.spin_button.get_value())
-            
+    def _animation_tick (self):
+        if not self.running or not self.visible:
+            self.running = False
+            return False
+        if self.value < self.lower or self.value >= self.upper:
+            self.value = self.lower
+        self.vm_session.set_frame(int(self.value))
+        self.value += 1
+        self._schedule_next_frame()     # . the FPS can change while playing
+        return False
+
     def stop (self, button):
         """ Function doc """
         self.stop_thread = True
-        self.running = False    
+        self.running = False
 
     def forward (self, button):
         """ Function doc """

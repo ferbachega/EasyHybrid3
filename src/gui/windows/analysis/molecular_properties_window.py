@@ -246,8 +246,11 @@ class MolecularPropertiesWindow:
             a = mol.atoms[i]
             res = getattr(a.parent, "label", "")
             return "{} {} (atom {})".format(res, a.label, indices[i] + 1)
+        nodeIndices = mol.connectivity.nodeIndices
         def atoms_of(entry):
-            return list(entry) if isinstance(entry, (tuple, list)) else [entry]
+            # . pDynamo gives the E/Z centers as bond indices (2026-10-24: were read as atoms)
+            bond = mol.connectivity.bonds[entry]
+            return [nodeIndices[bond.node1], nodeIndices[bond.node2]]
         lines = ["Tetrahedral centers: {}   R: {}   S: {}   undefined: {}".format(len(tc), len(rc), len(sc), len(uc))]
         for i in rc:
             lines.append("  R  " + name(i)); labels[indices[i]] = "R"

@@ -128,7 +128,8 @@ class PotentialEnergyScanWindow:
 
         # Optimizer methods combobox
         self.method_store = Gtk.ListStore(str)
-        methods = ["Conjugate Gradient", "FIRE", "L-BFGS", "Steepest Descent"]
+        # . 2026-10-24: same order as self.opt_methods (the index picks the optimizer)
+        methods = ["Conjugate Gradient", "Steepest Descent", "L-BFGS", "Quasi-Newton", "FIRE"]
         for method in methods:
             self.method_store.append([method])
         self.methods_combo = self.builder.get_object("combobox_methods")

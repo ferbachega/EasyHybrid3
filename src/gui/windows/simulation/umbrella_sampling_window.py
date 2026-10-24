@@ -132,7 +132,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('umbrella_samppling_window')
-            self.window.set_title('Umbrella Samppling Window')
+            self.window.set_title('Umbrella Sampling')
             self.window.set_keep_above(True)
             self.window.connect("destroy", self.close_window)
             
@@ -226,8 +226,11 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.opt_methods_combo = self.builder.get_object('combobox_geo_opt')
             self.opt_method_store = Gtk.ListStore(str)
 
+            # . 2026-10-24: readable names; the keys of self.opt_methods are what the job reads
+            _names = {'ConjugatedGradient': 'Conjugate Gradient', 'SteepestDescent': 'Steepest Descent',
+                      'LFBGS': 'L-BFGS', 'QuasiNewton': 'Quasi-Newton', 'FIRE': 'FIRE'}
             for key, method in self.opt_methods.items():
-                self.opt_method_store.append([method])
+                self.opt_method_store.append([_names.get(method, method)])
             
             self.opt_methods_combo.set_model(self.opt_method_store)
             renderer_text = Gtk.CellRendererText()
@@ -1105,7 +1108,7 @@ class UmbrellaSamplingWindow_old(Gtk.Window):
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('umbrella_samppling_window')
-            self.window.set_title('Umbrella Samppling Window')
+            self.window.set_title('Umbrella Sampling')
             self.window.set_keep_above(True)
             self.window.connect("destroy", self.close_window)
             
@@ -1185,8 +1188,11 @@ class UmbrellaSamplingWindow_old(Gtk.Window):
             self.opt_methods_combo = self.builder.get_object('combobox_geo_opt')
             self.opt_method_store = Gtk.ListStore(str)
 
+            # . 2026-10-24: readable names; the keys of self.opt_methods are what the job reads
+            _names = {'ConjugatedGradient': 'Conjugate Gradient', 'SteepestDescent': 'Steepest Descent',
+                      'LFBGS': 'L-BFGS', 'QuasiNewton': 'Quasi-Newton', 'FIRE': 'FIRE'}
             for key, method in self.opt_methods.items():
-                self.opt_method_store.append([method])
+                self.opt_method_store.append([_names.get(method, method)])
             
             self.opt_methods_combo.set_model(self.opt_method_store)
             renderer_text = Gtk.CellRendererText()

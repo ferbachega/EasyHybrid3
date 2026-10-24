@@ -91,7 +91,7 @@ class EnergyRefinementWindow():
             self.builder.connect_signals(self)
             #self.vobject = vobject
             self.window = self.builder.get_object('window')
-            self.window.set_title('Energy Refinement Window')
+            self.window.set_title('Energy Refinement')
             self.window.connect('destroy', self.close_window)
             
             
@@ -198,6 +198,9 @@ class EnergyRefinementWindow():
 
             self.combobox_starting_coordinates.set_active(0)
             self.builder.get_object('button_cancel').connect('clicked', self.close_window)
+            # . 2026-10-24: show_all() sized the window with the hidden advanced boxes too
+            #   (a large empty area under the buttons); shrink it to what is shown
+            self.window.resize(1, 1)
             self.builder.get_object('button_run').connect('clicked', self.on_button_run_clicked)
 
             self.on_advanced_mode_toggled(None)
@@ -430,6 +433,22 @@ class EnergyRefinementWindow():
                 entry_index.set_text(str(atom_index))
             if entry_name:
                 entry_name.set_text(str(atom_name))
+
+        # . 2026-10-24: the mass-weighting sigmas of the scan (they define the RC values written
+        #   to the log), and a dminimum: the entry is hidden here but get_rc_data() reads it, and
+        #   an empty one made Run fail with ValueError.
+        sig1, sig3 = data.get('sigma_pk1pk3'), data.get('sigma_pk3pk1')
+        mass = rc_box.builder.get_object('mass_restraints1')
+        if data['rc_type'] == 'multiple_distance' and sig1 is not None and mass:
+            weighted = abs(sig1 - 1.0) > 1e-6 or abs(sig3 + 1.0) > 1e-6
+            mass.set_active(weighted)
+            rc_box.sigma_pk1_pk3, rc_box.sigma_pk3_pk1 = sig1, sig3
+        entry_dmin = rc_box.builder.get_object('entry_dmin_coord1')
+        if entry_dmin is not None:
+            if data.get('dminimum') is not None:
+                entry_dmin.set_text(str(data['dminimum']))
+            elif not entry_dmin.get_text().strip():
+                entry_dmin.set_text('0.0')
 
     def _apply_detected_advanced_rc (self, liststore, data):
         """ Fills ONLY an AdvancedReactionCoordinateBox's weighted-distance

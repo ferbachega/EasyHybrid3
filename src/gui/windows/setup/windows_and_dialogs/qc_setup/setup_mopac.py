@@ -139,6 +139,7 @@ class SetupMOPACWindow:
             self.builder.add_from_file(os.path.join(self.home, 'src/gui/windows/setup/setup_qc_model_window.glade'))
             
             self.window = self.builder.get_object('window_setup_mopac')
+            self.window.set_title('MOPAC Setup')
             self.window.set_keep_above(True)
             self.window.set_default_size(450, 200)
             

@@ -164,6 +164,7 @@ class SetupDFTBplusWindow:
             
             #.Interface Widgets
             self.window = self.builder.get_object('window_setup_dftb')
+            self.window.set_title('DFTB+ Setup')
             self.window.set_keep_above(True)
             self.window.set_default_size(450, 200)
             

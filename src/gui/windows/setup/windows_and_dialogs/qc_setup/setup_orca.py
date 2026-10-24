@@ -185,6 +185,7 @@ class SetupORCAWindow:
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('window_setup_orca')
+            self.window.set_title('ORCA Setup')
             self.window.set_keep_above(True)
 
             #-------------------------------------------------------------------------------

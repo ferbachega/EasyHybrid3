@@ -790,7 +790,7 @@
                 </child>
                 <child>
                   <object class="GtkCheckButton" id="checkbox_open_parameters">
-                    <property name="label" translatable="yes">Open the OPLS Parameters window when done (parameter quality per charge, bond, angle, dihedral, improper and Lennard-Jones type, with manual editing)</property>
+                    <property name="label" translatable="yes">Open the Force Field Parameters window when done (parameter quality per charge, bond, angle, dihedral, improper and Lennard-Jones type, with manual editing)</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">False</property>

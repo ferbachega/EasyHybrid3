@@ -120,7 +120,7 @@ class MolecularDynamicsWindow:
         )
 
         self.window = self.builder.get_object("setup_md_window")
-        self.window.set_title("Molecular Dynamics Setup")
+        self.window.set_title("Molecular Dynamics")
         self.window.set_keep_above(True)
         self.window.connect("destroy", self.close_window)
 
@@ -495,7 +495,7 @@ class MolecularDynamicsWindow_OLD():
             self.builder.add_from_file(os.path.join(self.home,'src/gui/windows/simulation/molecular_dynamics_window.glade'))
 
             self.window = self.builder.get_object('setup_md_window')
-            self.window.set_title('Molecular Dynamics Setup')
+            self.window.set_title('Molecular Dynamics')
             self.window.set_keep_above(True)
             self.window.connect("destroy", self.close_window)
         

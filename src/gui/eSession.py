@@ -383,14 +383,6 @@ class GLMenu:
                 """Hide van der Waals (vdW) sphere representations."""
                 self.show_or_hide( rep_type = 'vdw_spheres', show = False)
             
-            def menu_show_dots (_):
-                """Show dot surface representations."""
-                self.show_or_hide( rep_type = 'dots', show = True)
-
-            def menu_hide_dots(_):
-                """Hide dot surface representations."""
-                self.show_or_hide(rep_type='dots', show=False)
-            
             def menu_hide_hydrogens (_):
                 """
                 Hide all hydrogen atoms from the current selection in 
@@ -826,7 +818,6 @@ class GLMenu:
                         'Set as Free Atoms': ['MenuItem', set_as_free_atoms],
 
                         'separator5': ['separator', None],
-                        'Set as Free Atoms': ['MenuItem', set_as_free_atoms],
 
                         
                         'separator6': ['separator', None],
@@ -867,7 +858,7 @@ class GLMenu:
                 'separator0': ['separator', None],
 
                 # Show the list of all selections
-                'Show Selection list': ['MenuItem', open_structure_data],
+                'Show Selection List': ['MenuItem', open_structure_data],
 
                 # ---------------- Optional test functions (commented out) ----------------
                 'separator1': ['separator', None],
@@ -875,8 +866,8 @@ class GLMenu:
                 # ---------------- Selection Type Submenu ----------------
                 'Selection Type': [
                     'submenu', {
-                        'viewing': ['MenuItem', _selection_type_viewing],
-                        'picking': ['MenuItem', _selection_type_picking],
+                        'Viewing': ['MenuItem', _selection_type_viewing],
+                        'Picking': ['MenuItem', _selection_type_picking],
                         # 'separator2': ['separator', None],
                         # 'nonbonded': ['MenuItem', None],
                     }
@@ -885,10 +876,10 @@ class GLMenu:
                 # ---------------- Selecting Mode Submenu ----------------
                 'Selecting By:': [
                     'submenu', {
-                        'atoms': ['MenuItem', _viewing_selection_mode_atom],
-                        'residue': ['MenuItem', _viewing_selection_mode_residue],
-                        'chain': ['MenuItem', _viewing_selection_mode_chain],
-                        'molecule': ['MenuItem', _viewing_selection_mode_molecule],
+                        'Atom': ['MenuItem', _viewing_selection_mode_atom],
+                        'Residue': ['MenuItem', _viewing_selection_mode_residue],
+                        'Chain': ['MenuItem', _viewing_selection_mode_chain],
+                        'Molecule': ['MenuItem', _viewing_selection_mode_molecule],
                     }
                 ],
 
@@ -939,44 +930,28 @@ class GLMenu:
                         'separator2': ['separator', None],
 
                         # ---------------- Show submenu ----------------
-                        'show': [
+                        'Show': [
                             'submenu', {
                                 'lines': ['MenuItem', menu_show_lines],
                                 'sticks': ['MenuItem', menu_show_sticks],
                                 'spheres': ['MenuItem', menu_show_spheres],
                                 'separator2': ['separator', None],
-                                'nonbonded': ['MenuItem', None],  # Placeholder
+                                'nonbonded': ['MenuItem', menu_show_nonbonded],
                             }
                         ],
 
                         # ---------------- Hide submenu ----------------
-                        'hide': [
+                        'Hide': [
                             'submenu', {
                                 'lines': ['MenuItem', menu_hide_lines],
                                 'sticks': ['MenuItem', menu_hide_sticks],
                                 'spheres': ['MenuItem', menu_hide_spheres],
-                                'nonbonded': ['MenuItem', None],  # Placeholder
+                                'nonbonded': ['MenuItem', menu_hide_nonbonded],
                             }
                         ],
 
-                        'separator3': ['separator', None],
-
-                        # ---------------- Labels submenu ----------------
-                        'label': [
-                            'submenu', {
-                                'Atom': [
-                                    'submenu', {
-                                        'lines': ['MenuItem', None],       # Placeholder
-                                        'sticks': ['MenuItem', None],      # Placeholder
-                                        'spheres': ['MenuItem', None],     # Placeholder
-                                        'nonbonded': ['MenuItem', None],   # Placeholder
-                                    }
-                                ],
-                                'atomic index': ['MenuItem', None],       # Placeholder
-                                'residue name': ['MenuItem', None],       # Placeholder
-                                'residue_index': ['MenuItem', None],      # Placeholder
-                            }
-                        ]
+                        # . 2026-10-24: the 'label' submenu was removed -- none of its items was
+                        #   connected (labels are in the selection menu: Show -> labels)
                     }        
         
         if pick_menu is None:
@@ -1164,7 +1139,7 @@ class GLMenu:
                                             'spheres'       : ['MenuItem', menu_show_spheres],
                                             'dynamic bonds' : ['MenuItem', menu_show_dynamic_bonds],
                                             'separator2'    : ['separator', None],
-                                            'nonbonded'     : ['MenuItem', None],
+                                            'nonbonded'     : ['MenuItem', menu_show_nonbonded],
                     
                                            }
                                ],
@@ -1177,7 +1152,7 @@ class GLMenu:
                                             'spheres'  : ['MenuItem', menu_hide_spheres],
                                             'dynamic bonds' : ['MenuItem', menu_hide_dynamic_bonds],
 
-                                            'nonbonded': ['MenuItem', None],
+                                            'nonbonded': ['MenuItem', menu_hide_nonbonded],
                                             }
                                 ],
                     
@@ -1598,6 +1573,40 @@ class EasyHybridSession(VismolSession, GLMenu):
         self.selections[self.current_selection].selection_mode = sel_type
 
     
+    def fit_view_to_vobject(self, vismol_object, margin = 0.5):
+        """ Opens the slab to the whole object and moves the camera so it fits the view
+            (called when a system is opened). The center of rotation is already the
+            object's center (autocenter). """
+        if vismol_object is None or vismol_object.frames is None or len(vismol_object.frames) == 0:
+            return
+        gl  = self.vm_glcore
+        cam = gl.glcamera
+        X = np.asarray(vismol_object.frames[0], dtype = float)
+        if len(X) == 0:
+            return
+        R = max(float(np.linalg.norm(X - X.mean(axis = 0), axis = 1).max()), 2.0)
+        saved = (gl.ctrl, gl.shift)
+        gl.ctrl, gl.shift = False, False
+        try:
+            for _ in range(300):
+                if cam.z_far - max(cam.z_near, cam.min_znear) >= 2.4 * R:
+                    break
+                gl.mouse_scroll(1)
+            target = max(margin * R / np.tan(np.radians(cam.field_of_view) / 2.0), 6.0)
+            for _ in range(2000):
+                if gl.dist_cam_zrp >= target:
+                    break
+                if not gl._zoom_view(-2):
+                    break
+            for _ in range(2000):
+                if gl.dist_cam_zrp <= target * 1.05:
+                    break
+                if not gl._zoom_view(2):
+                    break
+        finally:
+            gl.ctrl, gl.shift = saved
+        gl.queue_draw()
+
     def _add_vismol_object(self, vismol_object, show_molecule=True, autocenter=True):
         """
         Add a VismolObject to the current session.
@@ -1659,9 +1668,12 @@ class EasyHybridSession(VismolSession, GLMenu):
         name_parts = vismol_object.name.split("_")
         prefix_tag = name_parts[0]
 
-        # If the name doesn't start with the object's e_id, prepend it
+        # If the name doesn't start with the object's e_id, prepend it. Only a NUMERIC prefix
+        # (another system's id, e.g. a cloned "3_coords") is replaced: 2026-10-24, the first
+        # word of any name used to be dropped ("scan_2D" -> "0_2D", "LinB_scan" -> "0_scan")
         if prefix_tag != str(vismol_object.e_id):
-            vismol_object.name = vismol_object.name.replace(prefix_tag+'_', '')
+            if prefix_tag.isdigit() and len(name_parts) > 1:
+                vismol_object.name = vismol_object.name[len(prefix_tag) + 1:]
             vismol_object.name = f"{vismol_object.e_id}_{vismol_object.name}"
 
         # If the name is already in use, append suffixes until unique
@@ -2146,6 +2158,11 @@ button position in the main treeview (active column).""".format(name,self.main.p
                 for index in selected_indexes:
                     new_selected_indexes.add(index)
             
+            elif _type == 'Complete':
+                # . no growth by distance: only completes the selection to whole residues,
+                #   molecules or chains (below)
+                new_selected_indexes = set(selected_indexes)
+
             elif _type == 'ByComplement':
                 keys = vobject.atoms.keys()
                 keys = set(keys)
@@ -2172,6 +2189,9 @@ button position in the main treeview (active column).""".format(name,self.main.p
             
             elif selecting_by == 'Molecule':
                 new_selected_indexes = self._complement_by_molecule( new_selected_indexes, vobject )
+
+            elif selecting_by == 'Chain':
+                new_selected_indexes = self._complement_by_chain( new_selected_indexes, vobject )
             
             else:
                 pass
@@ -2213,6 +2233,20 @@ button position in the main treeview (active column).""".format(name,self.main.p
                                                            clear=True)
         return new_selected_indexes
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -         
+
+    def _complement_by_chain (self, new_selected_indexes, vobject ):
+        """ Every atom of the chains touched by the selection. """
+        def chain_of (atom):
+            chain = getattr(atom, 'chain', None)
+            return getattr(chain, 'name', chain)
+        chains = { chain_of(atom) for atom in self.selections[self.current_selection].selected_atoms }
+        for key, atom in vobject.atoms.items():
+            if chain_of(atom) in chains:
+                new_selected_indexes.add(key)
+        self.selections[self.current_selection].selecting_by_indexes( vobject,
+                                                           new_selected_indexes,
+                                                           clear=True)
+        return new_selected_indexes
 
     def selection_around(self, selection = None, radius = 23, grid_size = 10): 
         """ Function doc """

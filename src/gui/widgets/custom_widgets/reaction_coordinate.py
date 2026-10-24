@@ -800,7 +800,7 @@ class ReactionCoordinateBox(Gtk.Box):
           <object class="GtkLabel" id="label_force">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Force Constante:</property>
+            <property name="label" translatable="yes">Force Constant:</property>
             <property name="xalign">1</property>
           </object>
           <packing>

@@ -154,8 +154,14 @@ class NormalModes:
                 intensities = None
 
         # . Exporting trajectories
+        # . 2026-10-24: NormalModesTrajectory_SystemGeometry leaves the system at the last
+        #   frame of the mode; every following mode started from there, so the displacements
+        #   added up (a soft torsion broke every later mode: C-H of 1.5 A). Each mode now
+        #   starts from the stationary point, which is restored at the end.
+        referenceCoordinates3 = Clone ( parameters['system'].coordinates3 )
         mode = 0
         for frequency in  list(parameters['system'].scratch.nmState.frequencies):
+            parameters['system'].coordinates3 = Clone ( referenceCoordinates3 )
             
 
             self.trajectory = ExportTrajectory(os.path.join(trajectoryPath              ,
@@ -184,6 +190,7 @@ class NormalModes:
 
         
             mode += 1
+        parameters['system'].coordinates3 = Clone ( referenceCoordinates3 )
         
         self.logFile2.Footer ( )
         self.logFile2.Close()

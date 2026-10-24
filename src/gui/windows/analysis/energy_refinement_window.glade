@@ -104,7 +104,7 @@
                               <object class="GtkLabel" id="label_coordinates">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">Coordintes:</property>
+                                <property name="label" translatable="yes">Coordinates:</property>
                               </object>
                               <packing>
                                 <property name="left-attach">0</property>
@@ -115,7 +115,7 @@
                               <object class="GtkLabel" id="label_file_folder">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">File/Folder</property>
+                                <property name="label" translatable="yes">File / Folder:</property>
                               </object>
                               <packing>
                                 <property name="left-attach">0</property>
@@ -328,7 +328,7 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">Logfile:</property>
+                                <property name="label" translatable="yes">Log file:</property>
                                 <property name="justify">right</property>
                               </object>
                               <packing>
@@ -403,7 +403,7 @@
                   <object class="GtkLabel" id="label3">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Coordinates  / Trajectory&lt;/b&gt;</property>
+                    <property name="label" translatable="yes">&lt;b&gt;Output&lt;/b&gt;</property>
                     <property name="use-markup">True</property>
                   </object>
                 </child>

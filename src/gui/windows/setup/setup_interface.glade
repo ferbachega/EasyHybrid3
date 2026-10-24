@@ -131,7 +131,7 @@
                             </child>
                             <child>
                               <object class="GtkCheckButton" id="checkbox_tmp_autosave">
-                                <property name="label" translatable="yes">Temporary autosave </property>
+                                <property name="label" translatable="yes">Temporary autosave</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">False</property>
@@ -244,7 +244,7 @@
                           <object class="GtkLabel">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Startup</property>
+                            <property name="label" translatable="yes">Session and display</property>
                           </object>
                         </child>
                       </object>
@@ -684,7 +684,7 @@
                                 <property name="can-focus">False</property>
                                 <property name="margin-left">10</property>
                                 <property name="margin-start">10</property>
-                                <property name="label" translatable="yes">Scroll Step:</property>
+                                <property name="label" translatable="yes">Ctrl+wheel step (Å):</property>
                                 <property name="xalign">0</property>
                               </object>
                               <packing>
@@ -708,7 +708,7 @@
                                 <property name="can-focus">False</property>
                                 <property name="margin-left">10</property>
                                 <property name="margin-start">10</property>
-                                <property name="label" translatable="yes">Sleep Time (CoC):</property>
+                                <property name="label" translatable="yes">Centering animation delay (s):</property>
                                 <property name="xalign">0</property>
                               </object>
                               <packing>
@@ -722,7 +722,7 @@
                                 <property name="can-focus">False</property>
                                 <property name="margin-left">10</property>
                                 <property name="margin-start">10</property>
-                                <property name="label" translatable="yes">Field Of View:</property>
+                                <property name="label" translatable="yes">Field of View:</property>
                                 <property name="xalign">0</property>
                               </object>
                               <packing>
@@ -756,7 +756,7 @@
                                 <property name="can-focus">False</property>
                                 <property name="margin-left">10</property>
                                 <property name="margin-start">10</property>
-                                <property name="label" translatable="yes">Mouse Rotation Sensibility:</property>
+                                <property name="label" translatable="yes">Mouse Rotation Sensitivity:</property>
                                 <property name="xalign">0</property>
                               </object>
                               <packing>
@@ -780,7 +780,7 @@
                                 <property name="can-focus">False</property>
                                 <property name="margin-left">10</property>
                                 <property name="margin-start">10</property>
-                                <property name="label" translatable="yes">Scroll Zoom Rate (fraction):</property>
+                                <property name="label" translatable="yes">Wheel slab rate (fraction):</property>
                                 <property name="tooltip-text" translatable="yes">Per-tick exponential rate for the plain mouse-scroll slab (z_near/z_far) zoom. Each tick multiplies the current slab width by e^(+rate) (zooming out) or e^(-rate) (zooming in), so increments get finer the narrower the slab already is, and coarser the wider it is. Lower = finer/slower steps; higher = coarser/faster steps.</property>
                                 <property name="xalign">0</property>
                               </object>
@@ -2171,6 +2171,7 @@
                                 </child>
                                 <child>
                                   <object class="GtkEntry" id="entry_lines_type">
+                    <property name="tooltip-text" translatable="yes">Shader variant used to draw lines (0 = default). A developer setting: keep 0.</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                   </object>
@@ -2334,6 +2335,7 @@
                                 </child>
                                 <child>
                                   <object class="GtkEntry" id="entry_stick_type">
+                    <property name="tooltip-text" translatable="yes">Shader variant used to draw sticks (0 = default). A developer setting: keep 0.</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                   </object>
@@ -2705,6 +2707,7 @@
                                 </child>
                                 <child>
                                   <object class="GtkEntry" id="entry_sphere_type">
+                    <property name="tooltip-text" translatable="yes">Shader variant used to draw spheres (0 = default). A developer setting: keep 0.</property>
                                     <property name="visible">True</property>
                                     <property name="sensitive">False</property>
                                     <property name="can-focus">True</property>
@@ -3532,7 +3535,7 @@
                                 <property name="can-focus">False</property>
                                 <property name="margin-left">10</property>
                                 <property name="margin-start">10</property>
-                                <property name="label" translatable="yes">Shiness:</property>
+                                <property name="label" translatable="yes">Shininess:</property>
                                 <property name="xalign">0</property>
                               </object>
                               <packing>

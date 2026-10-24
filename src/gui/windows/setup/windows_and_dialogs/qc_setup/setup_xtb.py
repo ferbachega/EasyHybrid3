@@ -129,6 +129,7 @@ class SetupXTBWindow:
             #self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('window_setup_xtb')
+            self.window.set_title('xTB Setup')
             self.window.set_keep_above(True)
             self.window.set_default_size(450, 360)
             

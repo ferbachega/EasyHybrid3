@@ -255,7 +255,7 @@ class SimpleDialog:
             dialog.connect("response", _on_response)
             dialog.show_all()
 
-    def info(self, msg = None, modal = True, title = 'Title' ):
+    def info(self, msg = None, modal = True, title = 'EasyHybrid' ):
         """ 
         Show an information dialog with an OK button. 
         The dialog is modal, meaning the user must dismiss it before interacting with the main window. 

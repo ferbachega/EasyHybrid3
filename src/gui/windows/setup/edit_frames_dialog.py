@@ -66,6 +66,7 @@ class EditFrameDialog():
             self.builder = Gtk.Builder()
             self.builder.add_from_file(os.path.join(self.home,'src/gui/windows/setup/edit_frames_dialog.glade'))
             self.window = self.builder.get_object('dialog')
+            self.window.set_title('Delete / Reverse Frames')
             self.window.connect('destroy', self.close_window) 
             
             self.entry_delete_frames = self.builder.get_object('entry_delete_frames')
