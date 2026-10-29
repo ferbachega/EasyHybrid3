@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Umbrella Sampling Browser
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -330,9 +330,18 @@ class UmbrellaBrowserWindow:
             p = run.params.get("RC{}".format(d + 1)) or {}
             atoms = " / ".join("{}({})–{}({}){}".format(a[0], a[1], a[2], a[3], "" if str(a[4]) == "1" else " (×{})".format(a[4]))
                                for a in p.get("RC", []))
-            rcinfo.append("RC{}: {} windows from {:.3f} by {} (k = {}){}".format(
-                d + 1, run.shape[d], float(p.get("dminimum", float("nan"))), p.get("dincre", "?"), p.get("force_constant", "?"),
-                ": " + atoms if atoms else ""))
+            try:
+                step = float(p.get("dincre"))
+            except (TypeError, ValueError):
+                step = None
+            # . 2026-10-26: a run started from a trajectory has no step (its targets are
+            #   the RC values of the frames): was "from 2.059 by 0.0"
+            if step:
+                span = "from {:.3f} by {}".format(float(p.get("dminimum", float("nan"))), p.get("dincre"))
+            else:
+                span = "targets taken from the starting trajectory"
+            rcinfo.append("RC{}: {} windows, {} (k = {}){}".format(
+                d + 1, run.shape[d], span, p.get("force_constant", "?"), ": " + atoms if atoms else ""))
         missing = int(np.prod(run.shape)) - len(run.keys)
         self.label_info.set_text("{}  ·  {}D, {} windows{}  ·  {:.0f} K  ·  {}–{} restraint samples and {}–{} frames per window\n{}".format(
             os.path.basename(run.folder), run.dims, len(run.keys), " ({} missing)".format(missing) if missing > 0 else "",
@@ -721,6 +730,13 @@ class UmbrellaBrowserWindow:
                                                                      col_labels=["{:.2f}".format(v) for v in ys], value_label="PMF ({})".format(unit),
                                                                      overlays=overlays))]
             text = "{}. Black dots: window targets; red: the selection (in order). Click near a window to select it.".format(P["source"])
+        # . 2026-10-28: without overlap the PMF between the windows is not determined by the data
+        pairs = self._overlaps()[0]
+        low = [o for _a, _b, o in pairs if o < LOW_OVERLAP]
+        if low:
+            text = ("WARNING: {} of {} pairs of neighbouring windows do not overlap (below {:.2f}, lowest {:.3f}): "
+                    "across those gaps the PMF is not determined by the data, and different WHAM programs or bin "
+                    "choices give different curves. ").format(len(low), len(pairs), LOW_OVERLAP, min(low)) + text
         rows = [[_fmt_key(k), self._target_str(k), "{:.2f}".format(self._pmf_at(k) * f), ("window", k)] for k in run.keys]
         return {"views": views, "table": (["window", "target", "PMF at target ({})".format(unit)], rows), "row_action": "window",
                 "summary": text, "pmf_click": True, "hint": "Click near a window on the PMF to select it."}

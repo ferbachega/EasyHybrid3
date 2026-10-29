@@ -107,16 +107,26 @@ def compute_wavefunction(system):
     else:
         populations = C ** 2
         population_kind = "c^2 (orthogonal NDDO basis)"
-    qc_atoms = [int(i) for i in system.qcState.qcAtoms]
+    # . 2026-10-26: the QC centers are the pure QC atoms, in order, and then the boundary
+    #   atoms, which carry a link hydrogen (pDynamo's QCModel: atomicNumbers = pure + 1 per
+    #   boundary atom). qcState.qcAtoms is the sorted union: with a QC/MM boundary every label
+    #   after the boundary atom was shifted by one atom.
+    state = system.qcState
+    pure = [int(i) for i in state.pureQCAtoms]
+    boundary = [int(i) for i in (getattr(state, "boundaryAtoms", None) or [])]
+    qc_atoms = pure + boundary
+    numbers = [int(system.atoms[i].atomicNumber) for i in pure] + [1] * len(boundary)
     if S is None:
         # . NDDO: a valence-only basis that pDynamo labels from 1 (carbon '1s', '2p'); use the
         #   principal number of the valence shell instead (C 2s 2p, S 3s 3p 3d, Fe 4s 4p 3d).
-        numbers = [int(system.atoms[i].atomicNumber) for i in qc_atoms]
         labels = [_valence_label(l, numbers[c]) for l, c in zip(labels, centers)]
     atom_labels = []
     for c, i in enumerate(qc_atoms):
-        atom = system.atoms[i]
-        atom_labels.append("{}{}".format(_symbol(atom.atomicNumber), i + 1))
+        if c < len(pure):
+            atom_labels.append("{}{}".format(_symbol(system.atoms[i].atomicNumber), i + 1))
+        else:
+            # . the link hydrogen that replaces the bond to boundary atom i
+            atom_labels.append("HL{}".format(i + 1))
     return {
         "energies": energies,                   # hartree
         "occupancies": occupancies,

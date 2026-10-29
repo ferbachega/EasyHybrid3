@@ -178,7 +178,7 @@ class QCModelXTB ( QCModel ):
         # plain list or None (confirmed: "'list' object has no
         # attribute 'Add'" / "'NoneType' object has no attribute
         # 'Add'"). This still does not make DipoleMoment() correct for
-        # a QM/MM system -- see System.DipoleMoment(), which only keeps
+        # a QC/MM system -- see System.DipoleMoment(), which only keeps
         # ONE model's result rather than summing mmModel + qcModel, so
         # the MM region's own point-charge dipole is never included
         # here regardless of this fix.

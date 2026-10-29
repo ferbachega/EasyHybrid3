@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 
 
@@ -127,7 +127,7 @@ class NormalModes:
             # present, rather than summing them (a source comment there
             # attributes this to a deliberate past fix: "breaks dipoles
             # from QCModelDFTB/ORCA... not required for QCModelMNDO").
-            # For a real QM/MM system (both models defined) this means
+            # For a real QC/MM system (both models defined) this means
             # only the QC region's own dipole survives -- the MM
             # region's point-charge contribution is silently dropped,
             # never summed in. Every IR intensity computed below is
@@ -139,7 +139,7 @@ class NormalModes:
             # DipoleMoment() itself, not of any one QC model.
             if ( parameters['system'].mmModel is not None ) and ( parameters['system'].qcModel is not None ):
                 self.logFile2.Paragraph (
-                    "WARNING: this is a QM/MM system (both an MM and a QC model are defined). "
+                    "WARNING: this is a QC/MM system (both an MM and a QC model are defined). "
                     "System.DipoleMoment() only returns the QC region's own dipole moment -- "
                     "the MM region's point-charge contribution is NOT included/summed. "
                     "The infrared intensities below are therefore incomplete for this hybrid "

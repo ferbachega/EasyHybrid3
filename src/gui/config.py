@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 
 from util.debug import dprint
@@ -122,6 +122,14 @@ class VismolConfig                       :
                                       "pk_label_color"             : [1.0, 1.0, 1.0, 1.0],
                                       "pk_dist_label_color"        : [1.0, 1.0, 1.0, 1.0],
                                       "dashed_dist_lines_color"    : [0.1, 0.1, 0.1, 1.0],
+
+                                      # Picking: angle (#1-#2-#3) / dihedral (#1-#2-#3-#4) arcs
+                                      # drawn over the picked atoms (Preferences > Selections >
+                                      # Picking Selections, 2026-10-29); colors were previously
+                                      # hard-coded in vismol_selections.ARC_COLORS.
+                                      "show_pk_angle_dihedral_arcs": True,
+                                      "pk_angle_arc_color"         : [1.0, 0.62, 0.15, 1.0],
+                                      "pk_dihedral_arc_color"      : [0.35, 0.80, 1.0, 1.0],
 
                                       # [NOVO] Dynamic bonds (regiao QC): opcao de
                                       # draw the dynamic bonds in a single

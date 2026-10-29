@@ -180,7 +180,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="hexpand">True</property>
-                    <property name="tooltip-text" translatable="yes">Cube and rectangular box are periodic (a cell is defined). The sphere is a non-periodic droplet around the solute (QM/MM water spheres, cluster models).</property>
+                    <property name="tooltip-text" translatable="yes">Cube and rectangular box are periodic (a cell is defined). The sphere is a non-periodic droplet around the solute (QC/MM water spheres, cluster models).</property>
                     <signal name="changed" handler="on_parameter_changed" swapped="no"/>
                   </object>
                   <packing>

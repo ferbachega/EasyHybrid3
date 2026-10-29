@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: DYFF / DYFF-1.0-eh system (.pkl or .yaml) -> CHARMM-format PSF + PRM +
 #          PDB (+ CRD) and a NAMD configuration, with an energy check against pDynamo.
 #

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: OPLS side of the xTB torsion fit (pdynamo/torsion_fit.py)
 #
 #  Copyright 2022-2026 Fernando Bachega

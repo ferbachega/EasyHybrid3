@@ -417,6 +417,42 @@
                       </object>
                     </child>
                     <child>
+                      <object class="GtkCheckMenuItem" id="menuitem_control_server">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">Lets scripts and AI assistants (ehctl, the MCP server) drive this window through a local socket that only your user can open. See docs/AI_CONTROL.md.</property>
+                        <property name="label" translatable="yes">AI Control Server</property>
+                        <property name="use-underline">True</property>
+                        <signal name="toggled" handler="on_menuitem_control_server_toggled" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menuitem_control_settings">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">Token use, the model that operates EasyHybrid in Claude Code, and dialogs.</property>
+                        <property name="label" translatable="yes">AI Control Settings...</property>
+                        <property name="use-underline">True</property>
+                        <signal name="activate" handler="on_menuitem_control_settings_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menuitem_ai_assistant">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">A chat with a model running on this computer (Ollama, LM Studio...) that operates EasyHybrid with the same commands as the AI control server.</property>
+                        <property name="label" translatable="yes">AI Assistant (Local Model)...</property>
+                        <property name="use-underline">True</property>
+                        <signal name="activate" handler="open_ai_assistant" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSeparatorMenuItem">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkMenuItem" id="menuitem_preferences">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
@@ -1297,6 +1333,37 @@
                         <property name="label" translatable="yes">Umbrella Sampling</property>
                         <property name="use-underline">True</property>
                         <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSeparatorMenuItem">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menuitem_run_on">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">Where the next simulations run: this computer, or a machine reached by ssh (Remote Machines...).</property>
+                        <property name="label" translatable="yes">Run Simulations On</property>
+                        <property name="use-underline">True</property>
+                        <child type="submenu">
+                          <object class="GtkMenu" id="menu_run_on">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menuitem_remote_machines">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">Machines reached by ssh (workstations, SLURM clusters) where simulations can run.</property>
+                        <property name="label" translatable="yes">Remote Machines...</property>
+                        <property name="use-underline">True</property>
+                        <signal name="activate" handler="open_remote_machines_window" swapped="no"/>
                       </object>
                     </child>
                   </object>

@@ -43,7 +43,7 @@
 #              axis + 2 x margin (optionally after aligning the solute's
 #              principal axes with x, y, z, which shrinks boxes around
 #              elongated molecules)
-#    "sphere"  non-periodic droplet (QM/MM water spheres, cluster models):
+#    "sphere"  non-periodic droplet (QC/MM water spheres, cluster models):
 #              radius = farthest solute atom from the centre + margin. No
 #              cell and no seams (the tiled template is cut by the sphere);
 #              ions are also kept away from the droplet surface.

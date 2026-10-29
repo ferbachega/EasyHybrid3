@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: "Add Missing Hydrogens" window
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -509,7 +509,7 @@ class PrepareAddHydrogensWindow:
             them forward verbatim is correct.
 
             EXCEPT the handful that store raw ATOM INDICES
-            (e_qc_table/e_qc_residue_table/e_fixed_table -- QM/MM region
+            (e_qc_table/e_qc_residue_table/e_fixed_table -- QC/MM region
             definitions; e_color_segments; e_bonds) -- adding OR
             removing atoms shifts the index space, so an old index
             copied verbatim can silently point at a DIFFERENT atom in

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -392,7 +392,7 @@ class EasyHybridPreferencesWindow():
             #self.vm_session.vm_glcore.vm_font_dist.vao = None
             pass
         #-----------------------------------------------------------------------
-        
+
 
         #-------------------------------------------------------------------------
         #                         pk Spheres
@@ -863,6 +863,24 @@ class EasyHybridPreferencesWindow():
         rgba = Gdk.RGBA(color[0], color[1], color[2])
         self.color_btn_pk_dist_lines     = self.builder.get_object('color_btn_pk_dist_lines')
         self.color_btn_pk_dist_lines.set_rgba(rgba)
+        #-------------------------------------------------------------------------------------
+
+        #-------------------------------------------------------------------------------------
+        #    Picking: angle/dihedral arcs (2026-10-29) -- on/off + a color each
+        #-------------------------------------------------------------------------------------
+        gp = self.vm_session.vm_config.gl_parameters
+        color = gp["pk_angle_arc_color"]
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.color_btn_pk_angle_arc = self.builder.get_object('color_btn_pk_angle_arc')
+        self.color_btn_pk_angle_arc.set_rgba(rgba)
+
+        color = gp["pk_dihedral_arc_color"]
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.color_btn_pk_dihedral_arc = self.builder.get_object('color_btn_pk_dihedral_arc')
+        self.color_btn_pk_dihedral_arc.set_rgba(rgba)
+
+        self.checkbtn_show_pk_angle_dihedral_arcs = self.builder.get_object('checkbtn_show_pk_angle_dihedral_arcs')
+        self.checkbtn_show_pk_angle_dihedral_arcs.set_active(bool(gp.get('show_pk_angle_dihedral_arcs', True)))
         #-------------------------------------------------------------------------------------
 
         #-------------------------------------------------------------------------------------
@@ -1467,8 +1485,36 @@ class EasyHybridPreferencesWindow():
         color = color[:-1]
         self.vm_session.vm_config.gl_parameters["dashed_dist_lines_color"] = color
         #self.vm_session.vm_glcore.vm_font_dist.vao = None
-        
-        
+
+
+        #-----------------------------------------------------------------------
+
+        #-----------------------------------------------------------------------
+        #    Picking: angle/dihedral arcs (2026-10-29)
+        #-----------------------------------------------------------------------
+        widget = self.builder.get_object('color_btn_pk_angle_arc')
+        if widget is not None:
+            color = list(widget.get_rgba())
+            self.vm_session.vm_config.gl_parameters["pk_angle_arc_color"] = color
+
+        widget = self.builder.get_object('color_btn_pk_dihedral_arc')
+        if widget is not None:
+            color = list(widget.get_rgba())
+            self.vm_session.vm_config.gl_parameters["pk_dihedral_arc_color"] = color
+
+        chk_arcs = self.builder.get_object('checkbtn_show_pk_angle_dihedral_arcs')
+        if chk_arcs is not None:
+            show_arcs = chk_arcs.get_active()
+            self.vm_session.vm_config.gl_parameters["show_pk_angle_dihedral_arcs"] = show_arcs
+            if not show_arcs:
+                # hide arcs already on screen right away, instead of waiting
+                # for the next atom pick to notice the setting changed
+                dic = self.vm_session.vm_geometric_object_dic
+                for label in ("pk_angle", "pk_dihedral"):
+                    obj = dic.get(label)
+                    if obj is not None:
+                        obj.representations["dash"].active = False
+                        obj.label_text = None
         #-----------------------------------------------------------------------
 
         #-----------------------------------------------------------------------

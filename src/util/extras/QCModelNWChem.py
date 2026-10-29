@@ -1,6 +1,6 @@
 """The NWChem QC model.
 
-Drives NWChem as an external QC engine for pDynamo/EasyHybrid, with QM/MM
+Drives NWChem as an external QC engine for pDynamo/EasyHybrid, with QC/MM
 support via NWChem's Bq module (external point charges loaded from a file).
 
 STATUS / WHAT IS VALIDATED
@@ -14,7 +14,7 @@ STATUS / WHAT IS VALIDATED
   output patterns ("Total DFT energy", "ENERGY GRADIENTS"). The exact header
   offsets MUST be confirmed against a REAL NWChem output file -- these are the
   lines most likely to need small adjustments. They are marked [VALIDATE] below.
-* QM/MM point-charge file: NWChem 'bq load <file> format 1 2 3 4 units bohr'
+* QC/MM point-charge file: NWChem 'bq load <file> format 1 2 3 4 units bohr'
   reads x y z q. The exact format of the point-charge file pDynamo produces
   must be confirmed and, if needed, rewritten in WriteInputFile. Marked
   [VALIDATE:QMMM].
@@ -499,7 +499,7 @@ class QCModelNWChem ( QCModel ):
               mult <multiplicity>
               [<extra keyword lines>]
             end
-            [bq load <pc file> format 1 2 3 4 units bohr]     # QM/MM
+            [bq load <pc file> format 1 2 3 4 units bohr]     # QC/MM
             task <method> <gradient|energy>
         """
         state = getattr ( target, self.__class__._stateName )
@@ -542,7 +542,7 @@ class QCModelNWChem ( QCModel ):
                     inFile.write ( "  {:s}\n".format ( line ) )
             inFile.write ( "end\n" )
 
-        # QM/MM external point charges via Bq
+        # QC/MM external point charges via Bq
         if doQCMM:
             # [VALIDATE:QMMM] The pc file must contain 'x y z q' rows in Bohr.
             # If pDynamo writes them in a different layout/units, convert here.

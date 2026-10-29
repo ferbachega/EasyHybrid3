@@ -169,7 +169,7 @@
                                 <property name="can_focus">False</property>
                                 <property name="label" translatable="yes">Compute IR intensities:</property>
                                 <property name="xalign">1</property>
-                                <property name="tooltip-text" translatable="yes">Computes real infrared intensities via finite-difference dipole derivatives (NormalModes_InfraredIntensities) -- roughly 6 extra energy+dipole evaluations per free atom, so this can noticeably slow down the job for larger QC regions. Off by default for that reason. For a QM/MM system (both an MM and a QC model defined), the intensities only reflect the QC region's own dipole -- the MM region's point-charge contribution is not included (see the job log for a full warning).</property>
+                                <property name="tooltip-text" translatable="yes">Computes real infrared intensities via finite-difference dipole derivatives (NormalModes_InfraredIntensities) -- roughly 6 extra energy+dipole evaluations per free atom, so this can noticeably slow down the job for larger QC regions. Off by default for that reason. For a QC/MM system (both an MM and a QC model defined), the intensities only reflect the QC region's own dipole -- the MM region's point-charge contribution is not included (see the job log for a full warning).</property>
                               </object>
                               <packing>
                                 <property name="left_attach">0</property>

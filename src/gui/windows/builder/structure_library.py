@@ -90,7 +90,7 @@ _NAME_FIXES = { "sulfurvi": "sulfur(VI)", "3d": "3D", "4d": "4d", "5d": "5d", "n
 def pretty_library_name ( name, category = False ):
     import re as _re
     text = _re.sub ( r"^\d+_", "", str ( name ) )
-    text = text.replace ( "_o_s_", "_O/S_" ).replace ( "6membered", "6-membered" )
+    text = _re.sub ( r"(^|_)o_s(_|$)", r"\1O/S\2", text ).replace ( "6membered", "6-membered" )
     words = [ ]
     for w in text.split ( "_" ):
         if not w:

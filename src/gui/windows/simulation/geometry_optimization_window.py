@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 import gi
 import threading
@@ -143,6 +143,16 @@ class GeometryOptimization(Gtk.Window):
         else:
             self.window.present()
     
+    def _default_folder (self):
+        """ 2026-10-26: the log of a run without a saved trajectory went to the
+            current directory of the process; use the folder of the window
+            (the system's working folder) instead. """
+        try:
+            folder = self.save_trajectory_box.folder_chooser_button.get_folder()
+        except Exception:
+            folder = None
+        return folder if folder and os.path.isdir(folder) else os.getcwd()
+
     def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()
@@ -159,7 +169,7 @@ class GeometryOptimization(Gtk.Window):
             "simulation_type"     : "Geometry_Optimization",
             "trajectory_name"     : None,
             "dialog"              : False,
-            "folder"              : os.getcwd(),
+            "folder"              : self._default_folder(),
             "optimizer"           : "ConjugatedGradient",
             "maximumIterations"   : 600,
             "logFrequency"        : 10,

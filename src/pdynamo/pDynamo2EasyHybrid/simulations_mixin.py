@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -482,6 +482,11 @@ class pSimulations:
         self.main.bottom_notebook.status_liststore.set_value(iter_, 1, value.replace('Running...', 'Error!'))
 
         system.e_job_history[system.e_step_counter].update(results)
+        from automation import events as automation_events
+        error = results.get('error')
+        automation_events.record('job_error', '{}: {}'.format(type(error).__name__, error) if error is not None else 'The job failed.', title = 'Error!',
+                                 system = system.e_id, job = step_counter,
+                                 job_type = system.e_job_history[step_counter].get('simulation_type'))
         
     def _handle_result(self, results):
         """Handle 'RESULT' messages from a worker process.
@@ -570,6 +575,15 @@ class pSimulations:
         self.MSG_DONE    = _MSG_DONE
         self.MSG_RUNNING = _MSG_RUNNING
         
+        # . 2026-10-28: remote machine (Simulate > Run Simulations On, or parameters["remote"])
+        from pdynamo.pDynamo2EasyHybrid.remote_mixin import REMOTE_TYPES
+        remote = parameters.pop('remote', None)
+        remote_cpus = parameters.pop('remote_cpus', None)
+        if remote is None and parameters.get('simulation_type') in REMOTE_TYPES:
+            remote = getattr(self, 'remote_target', None)
+        if remote:
+            return self.run_remote(parameters, remote, cpus=remote_cpus)
+
         # Validate active system
         if self.active_id not in self.psystem:
             self.main.simple_dialog.error(

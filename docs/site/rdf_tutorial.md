@@ -1,7 +1,7 @@
 ---
 title: Radial distribution functions
 section: Tutorials
-order: 2
+order: 10
 kind: Tutorial
 summary: g(r) of water and of a carboxylate in solvated chignolin.
 ---
@@ -34,7 +34,7 @@ use the minimum image.
 
 ## 1. Load the solvated system
 
-**File → Open** and choose `examples/pkl/1UAO_OPLS_folded_solvated.pkl` from the EasyHybrid
+**File → Open** and choose `examples/tutorials/04_md_basics/1UAO_OPLS_folded_solvated.pkl` from the EasyHybrid
 folder.
 
 | | |

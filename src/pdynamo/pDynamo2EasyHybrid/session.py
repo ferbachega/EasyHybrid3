@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 from util.pdb_tools import dedupe_pdb_atom_names
@@ -117,6 +117,7 @@ from gui.windows.setup.windows_and_dialogs import call_message_dialog
 
 # --- imports entre modulos adicionados na refatoracao ---
 from pdynamo.pDynamo2EasyHybrid.simulations_mixin import pSimulations
+from pdynamo.pDynamo2EasyHybrid.remote_mixin import pRemote
 from pdynamo.pDynamo2EasyHybrid.analysis_mixin import pAnalysis
 from pdynamo.pDynamo2EasyHybrid.representation import ModifyRepInVismol
 from pdynamo.pDynamo2EasyHybrid.io_data import LoadAndSaveData
@@ -477,7 +478,7 @@ def _pdb_title(path):
     return title.title() if title else None
 
 
-class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveData, EasyHybridImportTrajectory, Restraints):
+class pDynamoSession (pSimulations, pRemote, pAnalysis, ModifyRepInVismol, LoadAndSaveData, EasyHybridImportTrajectory, Restraints):
     """ Class doc """
 
     # . every assignment (session reset, pSimulations.__init__) becomes a PSystemDict
@@ -2173,7 +2174,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         # . Work around a pDynamo3 bug: AddCounterIons/SolvateSystemBySuperposition
         #   merge the solute with systems that normally have no RestraintModel
         #   (ion systems, solvent boxes). If the solute itself has restraints
-        #   defined (e.g. from a QM/MM reaction-coordinate setup) but the
+        #   defined (e.g. from a QC/MM reaction-coordinate setup) but the
         #   system it's being merged with does not, pDynamo3's
         #   RestraintModel.Merge() ends up trying to set an attribute on
         #   None and crashes with "AttributeError: 'NoneType' object has no

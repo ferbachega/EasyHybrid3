@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Molecule Builder -- atom-level editing operations
 #
 #  Description:
@@ -1594,7 +1594,7 @@ def unset_bond ( vismol_object, atom_id_a, atom_id_b ):
 #
 #   As funcoes abaixo, em vez disso, editam vismol_object.dynamic_bonds[f]
 #   -- a lista de pares POR FRAME usada pela representacao "Dynamic Bonds"
-#   (tipicamente a regiao QC de uma trajetoria QM/MM, recalculada
+#   (tipicamente a regiao QC de uma trajetoria QC/MM, recalculada
 #   automaticamente por distancia a cada frame -- ver VismolSession.
 #   define_dynamic_bonds() / VismolObject.find_bonded_and_nonbonded_atoms()).
 #
@@ -1718,7 +1718,7 @@ def set_dynamic_bond_order ( vismol_object, atom_id_a, atom_id_b, bond_order = 1
     *** Purely a REPRESENTATION edit -- see this section's own banner
     comment above. Does NOT touch vismol_object.bonds, the pDynamo
     system's topology, force-field parameters, or anything used for an
-    actual QM/MM calculation.
+    actual QC/MM calculation.
 
     frames: iterable of int frame indices (already resolved -- see
     resolve_frame_arg() above; None is NOT accepted here, the caller is

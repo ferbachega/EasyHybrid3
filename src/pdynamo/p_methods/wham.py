@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 
 
@@ -139,6 +139,19 @@ class WHAMAnalysis:
 
 
         msg = 'WHAM calculation performed successfully! \n\nPlease check:' + PMF_file
+        # . 2026-10-28: windows that do not overlap leave the PMF undetermined between them
+        try:
+            from pdynamo.us_data import neighbour_overlaps
+            overlaps = neighbour_overlaps ( files ) if parameters['type'] != 1 else []
+        except Exception:
+            overlaps = []
+        low = [ o for o in overlaps if o < 0.03 ]
+        results['overlaps'] = overlaps
+        if low:
+            msg += ('\n\nWARNING: {} of {} pairs of neighbouring windows do not overlap (overlap below 0.03, '
+                    'lowest {:.3f}). Across those gaps the PMF is not determined by the data, and different WHAM '
+                    'programs or bin choices give different curves. Use more windows or a smaller force constant '
+                    '(see Analysis > Umbrella Sampling Browser).'.format ( len ( low ), len ( overlaps ), min ( low ) ))
         if not state.get ( "Converged", True ):
             msg += ('\n\nWARNING: the WHAM equations did not converge in {} iterations - the PMF may be '
                     'wrong. Increase the maximum number of iterations.'.format(parameters['maximumIterations']))

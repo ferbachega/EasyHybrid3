@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -310,14 +310,27 @@ class PotentialEnergyAnalysisWindow:
 
             self.window.show_all()
             self.Visible  = True
-            self.coordinates_combobox.set_active(0)
+            if not self._select_vobject(vobject):
+                self.coordinates_combobox.set_active(0)
         else:
             # . Window already open -- just bring it to the front instead of
             #   silently doing nothing (which used to be confusing when the
             #   user picked "Energy Analysis" again from the menu).
             self.window.present()
             if vobject is not None:
-                self.vobject = vobject
+                self.refresh_vobject_liststore()
+                self._select_vobject(vobject)
+
+    def _select_vobject (self, vobject):
+        """ 2026-10-26: open_window(vobject=...) always showed the first object with energy
+            data (the scan instead of the NEB path just imported, for example). """
+        if vobject is None:
+            return False
+        for k, row in enumerate(self.vobject_liststore):
+            if row[1] == vobject.index:
+                self.coordinates_combobox.set_active(k)
+                return True
+        return False
 
 
     def close_window (self, button = None, data  = None):

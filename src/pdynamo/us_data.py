@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: umbrella sampling runs read back (Umbrella Sampling Browser, 2026-10-23)
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -298,6 +298,35 @@ class USRun:
         return x[r] if r < len ( x ) else None
 
 
+def read_ptres ( path ):
+    """ ( target, force constant, values ( n, dims ) ) of one .ptRes folder (header.pkl + block*.pkl). """
+    with open ( os.path.join ( path, "header.pkl" ), "rb" ) as handle: header = pickle.load ( handle )
+    models = header.get ( "restraintEnergyModels" ) or [ ]
+    values = [ ]
+    blocks = sorted ( glob.glob ( os.path.join ( path, "block*.pkl" ) ), key = lambda f: int ( re.sub ( r"\D", "", os.path.basename ( f ) ) or 0 ) )
+    for b in blocks:
+        with open ( b, "rb" ) as handle: values.extend ( list ( pickle.load ( handle ) ) )
+    nd = max ( 1, len ( header.get ( "labels" ) or models ) )
+    a = np.array ( values, dtype = float )
+    a = a[:len ( a ) // nd * nd].reshape ( -1, nd )
+    target = tuple ( float ( m.lowEquilibriumValue ) for m in models )
+    force = tuple ( float ( m.lowForceConstant ) for m in models )
+    return target, force, a
+
+
+def neighbour_overlaps ( paths, bins = 120 ):
+    """ 1D runs: overlap coefficients ( 0-1 ) of the windows next to each other
+        along the coordinate (same definition as USRun.overlap_1d); [ ] for 2D. """
+    data = [ read_ptres ( p ) for p in paths ]
+    data = [ d for d in data if len ( d[2] ) and len ( d[0] ) == 1 ]
+    if len ( data ) < 2: return [ ]
+    lo = min ( d[2][:, 0].min ( ) for d in data ); hi = max ( d[2][:, 0].max ( ) for d in data )
+    edges = np.linspace ( lo, hi, bins + 1 )
+    data.sort ( key = lambda d: d[0][0] )
+    hist = [ np.histogram ( d[2][:, 0], bins = edges )[0] / len ( d[2] ) for d in data ]
+    return [ float ( np.minimum ( a, b ).sum ( ) ) for a, b in zip ( hist, hist[1:] ) ]
+
+
 def read_pmf ( path ):
     """ pDynamo WHAM PMF file: 1D ( x, F ) or 2D ( ( xs, ys ), F[nx, ny] ) with inf -> nan. """
     rows = [ ]
@@ -350,14 +379,29 @@ def lowest_barrier_path ( F, start, end ):
 
 
 def default_endpoints ( F ):
-    """ The global minimum and the lowest cell at least 30 % of the grid diagonal away from it. """
+    """ The global minimum and, at least 30 % of the grid diagonal away from it, the lowest
+        local minimum (2026-10-26: was the lowest cell, which on a surface with one deep
+        minimum is a point on its slope, not the other minimum); the lowest far cell when
+        there is no other local minimum. """
     G = np.where ( np.isfinite ( F ), F, np.inf )
     a = np.unravel_index ( int ( np.argmin ( G ) ), G.shape )
     ii, jj = np.indices ( G.shape )
     far = np.hypot ( ii - a[0], jj - a[1] ) >= 0.3 * math.hypot ( *G.shape )
-    H = np.where ( far, G, np.inf )
+    nx, ny = G.shape
+    local = np.zeros ( G.shape, dtype = bool )
+    for i in range ( nx ):
+        for j in range ( ny ):
+            if not np.isfinite ( G[i, j] ): continue
+            nb = [ G[i + p, j + q] for p in ( -1, 0, 1 ) for q in ( -1, 0, 1 )
+                   if ( p or q ) and 0 <= i + p < nx and 0 <= j + q < ny and np.isfinite ( G[i + p, j + q] ) ]
+            local[i, j] = len ( nb ) >= 3 and all ( G[i, j] < v for v in nb )
+    H = np.where ( far & local, G, np.inf )
+    if not np.isfinite ( H ).any ( ):
+        H = np.where ( far, G, np.inf )
     b = np.unravel_index ( int ( np.argmin ( H ) ), G.shape )
-    return tuple ( int ( v ) for v in a ), tuple ( int ( v ) for v in b )
+    a, b = tuple ( int ( v ) for v in a ), tuple ( int ( v ) for v in b )
+    # . the end nearer the first point of the grid (where a scan starts) first
+    return ( a, b ) if a[0] + a[1] <= b[0] + b[1] else ( b, a )
 
 
 def export_frames ( path, system, frames ):

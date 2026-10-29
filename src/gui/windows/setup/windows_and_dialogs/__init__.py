@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 # ─────────────────────────────────────────────────────────────────────────────
 #  windows_and_dialogs/  —  refactored layout
@@ -87,7 +87,6 @@ from gui.windows.setup.windows_and_dialogs.system_windows.merge_system import Me
 from gui.windows.setup.windows_and_dialogs.system_windows.solvate_system import SolvateSystemWindow, MakeSolventBoxWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.prepare_amber_system import PrepareAmberSystemWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.prepare_opls_system import PrepareOPLSSystemWindow
-from gui.windows.setup.windows_and_dialogs.system_windows.opls_parameters import OPLSParametersWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.force_field_parameters import ForceFieldParametersWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.prepare_ligand_antechamber import PrepareLigandAntechamberWindow
 from gui.windows.setup.windows_and_dialogs.system_windows.prepare_namd_run import PrepareNamdRunWindow

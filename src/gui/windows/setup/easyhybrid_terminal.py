@@ -245,6 +245,17 @@ class Command:
         method = getattr(self, "cmd_" + name, None)
         if method is None or not callable(method):
             return "Command '{}' not recognized. Use 'help'.".format(name)
+        # . 2026-10-28: loose words fill the parameters in order ("show sticks" =
+        #   "show rep=sticks", "frame 3", "activate 1"); they used to be ignored
+        #   silently. Commands that read _args themselves keep them.
+        sig = inspect.signature(method)
+        if kwargs.get("_args") and "_args" not in sig.parameters:
+            free = [p for p in sig.parameters
+                    if p not in kwargs and sig.parameters[p].kind == inspect.Parameter.POSITIONAL_OR_KEYWORD]
+            words = kwargs.pop("_args")
+            if len(words) > len(free):
+                return "Usage: {} {}\n  (too many values: {})".format(name, self._sig_hint(sig), " ".join(map(str, words)))
+            kwargs.update(zip(free, words))
         try:
             return method(**kwargs)
         except TypeError as te:
@@ -1085,7 +1096,7 @@ class Command:
                 saved/exported.
                 GIVEN -> edits the DYNAMIC BONDS representation instead
                 (the per-frame connectivity used by the Dynamic Bonds
-                display, typically the QC region of a QM/MM trajectory),
+                display, typically the QC region of a QC/MM trajectory),
                 for the frame(s) selected by the value:
                   frame=true            current frame only
                   frame=12              frame 12 only
@@ -1097,7 +1108,7 @@ class Command:
                 frame(s) -- it does NOT create a real chemical bond, and
                 does NOT touch the linked pDynamo system's topology,
                 force field, bond force constants, charges, or anything
-                else used for an actual QM/MM calculation. It is meant
+                else used for an actual QC/MM calculation. It is meant
                 for visually inspecting/correcting the Dynamic Bonds
                 display (e.g. forcing a bond the automatic distance-based
                 detection missed on one particular frame) -- NOT for
@@ -1870,6 +1881,40 @@ class Command:
             return "Player unavailable."
         player.pause()
         return "Paused at frame {}.".format(int(self.vm_session.get_frame() or 0))
+
+    def cmd_control(self, state=None, dialogs=None, _args=None, **_):
+        """ Control server for scripts and AI assistants (docs/AI_CONTROL.md):
+        a Unix socket used by src/automation/ehctl.py and by the MCP server.
+        It uses the options of Edit > AI Control Settings (token use, model,
+        dialogs); dialogs=true/false overrides the dialog option.
+
+        Examples:
+          control              (status)
+          control on
+          control on dialogs=true
+          control off
+        """
+        if state is None and _args:
+            state = _args[0]
+        main = self._main()
+        server = getattr(main, "control_server", None)
+        if state in (None, "status"):
+            if server is not None and server.running:
+                return "Control server running: {}".format(server.path)
+            return "Control server off. Start it with: control on"
+        if state in (True, "on"):
+            if server is not None and server.running:
+                return "Control server already running: {}".format(server.path)
+            from automation.server import ControlServer
+            main.control_server = ControlServer(main, dialogs_off=None if dialogs is None else not dialogs)
+            path = main.control_server.start()
+            return "Control server listening on {}".format(path)
+        if state in (False, "off"):
+            if server is None or not server.running:
+                return "Control server is not running."
+            server.stop()
+            return "Control server stopped."
+        return "Usage: control [on|off]"
 
     # --- atalhos de API direta (mesma logica, nomes "pythonicos") -----------
     #  Permitem cmd.show(rep="sticks") em scripts externos sem o prefixo cmd_.

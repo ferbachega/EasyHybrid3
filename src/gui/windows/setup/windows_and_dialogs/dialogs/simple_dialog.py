@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,9 +26,10 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
+from automation import events as automation_events
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -92,6 +93,10 @@ PDYNAMO3_SCRATCH = os.environ.get('PDYNAMO3_SCRATCH')
 
 def call_message_dialog (text1 = '', text2 = '', transient_for = None):
     """ Function doc """
+    # . automation mode (control server): recorded, not shown
+    if automation_events.active():
+        automation_events.record('info', text2, title = text1)
+        return
     dialog = Gtk.MessageDialog(
                 transient_for = transient_for,
                 flags = 0,
@@ -167,6 +172,9 @@ class SimpleDialog:
         """ 
         Show an information dialog with an OK button and a green square.
         """
+        if automation_events.active():
+            automation_events.record('info', msg, title = 'Finished')
+            return
 
         if modal:
             flags = Gtk.DialogFlags.MODAL
@@ -226,6 +234,9 @@ class SimpleDialog:
             `on_import`, if given, is called with no arguments ONLY
             when the user actually clicks "Import..." (not on OK/close).
         """
+        # . automation mode: ProcessManagerWindow.set_status() already recorded the event
+        if automation_events.active():
+            return
         flags = Gtk.DialogFlags.MODAL if modal else 0
         dialog = Gtk.MessageDialog(
             title=title,
@@ -260,6 +271,9 @@ class SimpleDialog:
         Show an information dialog with an OK button. 
         The dialog is modal, meaning the user must dismiss it before interacting with the main window. 
         """
+        if automation_events.active():
+            automation_events.record('info', msg, title = title)
+            return None
         
         if modal:
             flags = Gtk.DialogFlags.MODAL
@@ -291,6 +305,9 @@ class SimpleDialog:
         Show an error dialog with an OK button. 
         Used to notify the user of an error condition. 
         """
+        if automation_events.active():
+            automation_events.record('error', msg, title = 'Error')
+            return None
         dialog = Gtk.MessageDialog(
                     parent=self.main.window,
                     flags=Gtk.DialogFlags.MODAL,
@@ -310,6 +327,9 @@ class SimpleDialog:
         when something goes wrong -- while still keeping the dialog itself
         short and readable by default.
         """
+        if automation_events.active():
+            automation_events.record('error', msg, title = title, details = details)
+            return None
         dialog = Gtk.MessageDialog(
             title               = title,
             transient_for       = parent if parent is not None else self.main.window,
@@ -374,6 +394,8 @@ class SimpleDialog:
         Show a question dialog with YES and NO buttons. 
         Returns True if the user clicks YES, False if the user clicks NO. 
         """
+        # . still shown in automation mode: the client answers it with "dialog_respond"
+        automation_events.record('question', msg, title = 'Question')
         dialog = Gtk.MessageDialog(
             parent=self.main.window,
             flags=Gtk.DialogFlags.MODAL,

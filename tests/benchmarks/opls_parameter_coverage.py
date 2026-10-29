@@ -23,8 +23,9 @@ from pBabel import ImportSystem                  # noqa: E402
 from pdynamo.opls import prep, mol2_import       # noqa: E402
 
 LIBRARY = os.path.join(REPO, "src", "gui", "windows", "builder", "structures")
-DEFAULT = ["08_classic_fused_medchem_systems", "10_carbonyl_scaffolds", "27_vitamins",
-           "28_neurotransmitters_hormones", "15_nucleosides", "05_saturated_n_heterocycles"]
+DEFAULT = ["13_medicinal_chemistry_scaffolds_and_drugs", "04_carbonyl_and_sulfonamide_scaffolds",
+           "12_cofactors_coenzymes_vitamins_porphyrins", "14_neurotransmitters_hormones",
+           "07_nucleobases_nucleosides_nucleotides", "03_saturated_and_bridged_heterocycles"]
 
 
 def main():

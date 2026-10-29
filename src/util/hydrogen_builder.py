@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: "Add Missing Hydrogens" -- residue-template-driven H detection/building
 #
 """ Finds and adds missing hydrogen atoms to standard amino-acid residues

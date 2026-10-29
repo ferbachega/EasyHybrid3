@@ -110,7 +110,8 @@ chair conformation, a minimum, and climbs to the saddle point of the ring flip. 
 few seconds.
 
 **Files used** (both ship with pDynamo3):
-- structure: `$PDYNAMO3_HOME/examples/book/data/mol/cyclohexane_chair.mol`
+- structure: `$PDYNAMO3_HOME/examples/book/data/mol/cyclohexane_chair.mol` (the same file is in
+  `examples/tutorials/05_neb_cyclohexane/` of the EasyHybrid folder)
 - OPLS parameters: `$PDYNAMO3_HOME/parameters/forceFields/opls/bookSmallExamples`
 
 ### Step 1. Load the system

@@ -1,0 +1,63 @@
+
+--------------------------------------------------------------------------------------------------
+                                    Summary of System "SN2_AM1"
+--------------------------------------------------------------------------------------------------
+---------------------------------------------- Atoms ---------------------------------------------
+Atoms                       =                  6  Heavy Atoms                 =                  3
+Hydrogens                   =                  3
+------------------------------------------ Connectivity ------------------------------------------
+Angles                      =                  0  Atoms                       =                  6
+Bonds                       =                  0  Dihedrals                   =                  0
+Isolates                    =                  6  Ring Sets                   =                  0
+---------------------------------------- Electronic State ----------------------------------------
+Electronic Charge           =                 -1  Is Spin Restricted          =               True
+Occupancy Type              =           Cardinal  Spin Multiplicity           =                  1
+------------------------------------------ MNDO QC Model -----------------------------------------
+Alpha Charge                =             11.000  Beta Charge                 =             11.000
+Energy Base Line            =             32.932  Exchange Scaling            =              1.000
+Hamiltonian                 =                am1  MNDO Parameter Entries      =                  4
+Number of Boundary Atoms    =                  0  Number of QC Atoms          =                  6
+Orbital Basis Functions     =                 15  Orthogonalization Method    =          Symmetric
+Relative Link Atom Distance =               True  SCF Converger               = DIIS SCF Converger
+--------------------------------------------------------------------------------------------------
+
+Start Time: Fri Oct 23 15:59:39 2026
+{'MD_parm': {'collisionFrequency': 25.0,
+             'integrator': 'Langevin',
+             'logFrequency': 1000,
+             'normal_deviate_generator': None,
+             'pressure': None,
+             'pressureControl': False,
+             'pressureCoupling': None,
+             'seed': 1234,
+             'simulation_type': 'Umbrella_Sampling',
+             'steps_dc': 10000,
+             'steps_eq': 2000,
+             'temperature': 300.0,
+             'temperatureControl': True,
+             'temperatureCoupling': None,
+             'temperatureScaleFrequency': 100,
+             'temperatureStart': 300.0,
+             'timeStep': 0.001,
+             'trajectory_frequency': 100,
+             'trajectory_frequency_dc_ptGeo': 100,
+             'trajectory_frequency_dc_ptRes': 1},
+ 'NmaxThreads': 12,
+ 'OPT_parm': None,
+ 'RC1': {'RC': [['Br', '4', 'C', '0', '1', '1.96'],
+                ['C', '0', 'Cl', '5', '-1', '3.2']],
+         'dincre': 0.1,
+         'dminimum': -1.4,
+         'force_constant': 4000.0,
+         'nsteps': 31},
+ 'RC2': None,
+ 'folder': '/home/fernando/programs/EasyHybrid3_dev/examples/umbrella_sampling_sn2',
+ 'input_type': 1,
+ 'logfile': '/home/fernando/programs/EasyHybrid3_dev/examples/umbrella_sampling_sn2/SN2_US_1D_stiff/output.log',
+ 'new_vobject': False,
+ 'queue': None,
+ 'simulation_type': 'Umbrella_Sampling',
+ 'source_folder': '/home/fernando/programs/EasyHybrid3_dev/examples/umbrella_sampling_sn2/SN2_scan_1D.ptGeo',
+ 'system': <pMolecule.System.System object at 0x7fae312b39d0>,
+ 'traj_folder_name': 'SN2_US_1D_stiff',
+ 'vobj': None}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 from logging import getLogger
@@ -212,6 +212,7 @@ class MainWindow:
         self.builder.add_from_file(os.path.join(self.home,'src/gui/MainWindow.glade'))
         self.builder.connect_signals(self)
         self.window = self.builder.get_object('window1')
+        self.refresh_run_on_menu()     # . Simulate > Run Simulations On (2026-10-28)
         # Restore the dimensions saved from the last session, but only if
         # gl_parameters['save_window_size'] is on (the "Save window size"
         # checkbox in Preferences). If off, always use the fixed 1200x600
@@ -1251,7 +1252,18 @@ class MainWindow:
             system = self.p_session.psystem[self.p_session.active_id]
             system.e_restraint_counter = 0
             system.e_restraints_dict   = {}
-        
+            # 2026-10-26: the dashed lines of the removed restraints stayed in
+            # the 3D view and the Selections and Restraints window
+            try:
+                self.p_session.update_restaint_representation(e_id=system.e_id)
+            except Exception:
+                dprint(traceback.format_exc())
+            try:
+                if getattr(self.selection_list_window, 'Visible', False):
+                    self.selection_list_window.update_window(selections=False, restraints=True)
+            except Exception:
+                dprint(traceback.format_exc())
+
         elif menuitem == self.builder.get_object('menuitem_custom_colors'): 
             system = self.p_session.psystem[self.p_session.active_id]
             name = system.label
@@ -2358,6 +2370,105 @@ class MainWindow:
         if os.path.exists(report) and self.simple_dialog.question(
                 "The parameters of '{}' are being applied.\n\nOpen the parametrization report?".format(system.label)):
             self._open_in_browser(report)
+
+    def open_ai_assistant(self, *_):
+        from gui.windows.setup.ai_assistant_window import AIAssistantWindow
+        if getattr(self, "ai_assistant_window", None) is None:
+            self.ai_assistant_window = AIAssistantWindow(main=self)
+        self.ai_assistant_window.open_window()
+
+    # ------------------------------------------------------------ remote machines
+    def refresh_run_on_menu(self):
+        """ Rebuilds the radio list of Simulate > Run Simulations On (menu_run_on,
+            in the glade file) from the profiles of Remote Machines. """
+        from remote import profiles as remote_profiles
+        submenu = self.builder.get_object('menu_run_on')
+        for child in submenu.get_children():
+            submenu.remove(child)
+        current = getattr(getattr(self, "p_session", None), "remote_target", None)
+        group = None
+        names = [None] + list(remote_profiles.load_all())
+        if current not in names:
+            current = None
+        for name in names:
+            label = "This Computer" if name is None else "{} (remote)".format(name)
+            item = Gtk.RadioMenuItem.new_with_label_from_widget(group, label)
+            group = item
+            item.set_active(name == current)
+            item.connect("toggled", self._on_run_on_toggled, name)
+            submenu.append(item)
+        submenu.show_all()
+
+    def _on_run_on_toggled(self, item, name):
+        if not item.get_active():
+            return
+        self.p_session.remote_target = name
+        if name is None:
+            self.statusbar_main.push(1, "Simulations run on this computer.")
+        else:
+            self.statusbar_main.push(1, "Simulations run on '{}': results come back to their output folder "
+                                        "(see the Process Manager).".format(name))
+
+    def open_remote_machines_window(self, *_):
+        from gui.windows.setup.remote_machines_window import RemoteMachinesWindow
+        if getattr(self, "remote_machines_window", None) is None:
+            self.remote_machines_window = RemoteMachinesWindow(main=self)
+        self.remote_machines_window.open_window()
+
+    def on_menuitem_control_server_toggled(self, menuitem):
+        """ [EN] 2026-10-28: Edit > AI Control Server -- starts (after the options
+            dialog) or stops the control server of src/automation (docs/AI_CONTROL.md). """
+        if getattr(self, "_syncing_control_menu", False):
+            return
+        server = getattr(self, "control_server", None)
+        if menuitem.get_active():
+            if server is not None and server.running:
+                return
+            from gui.windows.setup.ai_control_dialog import AIControlDialog, save_and_apply
+            settings = AIControlDialog(parent=self.window).run()
+            if settings is None:
+                self.sync_control_menu(False)
+                return
+            status = save_and_apply(settings)
+            try:
+                from automation.server import ControlServer
+                self.control_server = ControlServer(self, settings=settings)
+                path = self.control_server.start()
+            except Exception as error:
+                self.sync_control_menu(False)
+                self.simple_dialog.error(msg="Could not start the AI control server:\n{}".format(error))
+                return
+            self.statusbar_main.push(1, "AI control server on: {}. {}".format(path, status))
+        else:
+            if server is not None and server.running:
+                server.stop()
+            self.statusbar_main.push(1, "AI control server off.")
+
+    def on_menuitem_control_settings_activate(self, menuitem):
+        """ Edit > AI Control Settings...: the options, also while the server runs. """
+        from gui.windows.setup.ai_control_dialog import AIControlDialog, save_and_apply
+        server = getattr(self, "control_server", None)
+        running = server is not None and server.running
+        settings = AIControlDialog(parent=self.window, settings=server.settings if running else None,
+                                   starting=False).run()
+        if settings is None:
+            return
+        status = save_and_apply(settings)
+        if running:
+            server.apply_settings(settings)
+        self.statusbar_main.push(1, status)
+
+    def sync_control_menu(self, active):
+        """ Shows the state of the control server in Edit > AI Control Server
+            without starting or stopping anything (--control, terminal 'control'). """
+        item = self.builder.get_object("menuitem_control_server")
+        if item is None or item.get_active() == bool(active):
+            return
+        self._syncing_control_menu = True
+        try:
+            item.set_active(bool(active))
+        finally:
+            self._syncing_control_menu = False
 
     def open_umbrella_browser(self, folder=None):
         """ [EN] 2026-10-23: Analysis > Umbrella Sampling Browser. """
