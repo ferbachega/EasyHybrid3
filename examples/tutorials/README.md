@@ -1,7 +1,8 @@
 # Tutorial input files
 
 The input files of the tutorials and case studies of the EasyHybrid site (`docs/site/`), one folder
-per tutorial. Paths in the tutorials are relative to the EasyHybrid folder.
+per tutorial, each with the tutorial itself as a PDF. Paths in the tutorials are relative to the
+EasyHybrid folder. The PDFs are written by `docs/site/build_site.py` (front matter key `examples`).
 
 ## Tutorials
 
@@ -13,12 +14,12 @@ per tutorial. Paths in the tutorials are relative to the EasyHybrid folder.
 | 4 | Molecular dynamics basics (`md_basics_tutorial.md`) | `04_md_basics/1UAO_OPLS_folded_solvated.pkl` |
 | 5 | Conformational change with NEB: cyclohexane (`neb_cyclohexane_tutorial.md`) | `05_neb_cyclohexane/cyclohexane_chair.mol`, `cyclohexane_twistboat.xyz` |
 | 6 | A first QC/MM system (`qcmm_tutorial.md`) | `06_qcmm/1UAO_OPLS.pkl` |
-| 7 | Umbrella sampling of blocked alanine (`bala_umbrella_tutorial.md`) | the scan `bALA_scan_OH.ptGeo` made in tutorial 1 |
+| 7 | Umbrella sampling of blocked alanine (`bala_umbrella_tutorial.md`) | `07_bala_umbrella/` (PDF only): the scan `bALA_scan_OH.ptGeo` made in tutorial 1 |
 | 8 | QC/MM free energy of the SN2 step in LinB (`linb_sn2_tutorial.md`) | `08_linb_sn2/LinB.yaml` |
 | 9 | Metalloprotein with DYFF (`pages/metalloprotein_tutorial.html`) | `09_metalloprotein/1ZNF.pdb` |
-| 10 | Radial distribution functions (`rdf_tutorial.md`) | `04_md_basics/1UAO_OPLS_folded_solvated.pkl` |
+| 10 | Radial distribution functions (`rdf_tutorial.md`) | `10_rdf/` (PDF only); the system is `04_md_basics/1UAO_OPLS_folded_solvated.pkl` |
 | 11 | Checking and exploring umbrella sampling runs (`umbrella_browser_tutorial.md`) | `11_umbrella_browser_sn2/`: system, scans and finished US runs (1D, 1D stiff, 2D) |
-| 12 | EasyHybrid with Claude Code and a local model (`ai_assistants_tutorial.md`) | `01_bala/bALA_not_opt.mol` |
+| 12 | EasyHybrid with Claude Code and a local model (`ai_assistants_tutorial.md`) | `12_ai_assistants/` (PDF only); the system is `01_bala/bALA_not_opt.mol` |
 
 ## Case studies
 

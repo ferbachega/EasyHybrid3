@@ -299,7 +299,7 @@ class RemoteJobs:
         from pBabel import ImportSystem, ExportSystem
         from pMolecule.MMModel import MMModelOPLS
         from pMolecule.NBModel import NBModelFull
-        examples = os.path.join(os.path.dirname(SRC_DIR), "examples", "tutorials", "bALA_not_opt.mol")
+        examples = os.path.join(os.path.dirname(SRC_DIR), "examples", "tutorials", "01_bala", "bALA_not_opt.mol")
         system = ImportSystem(examples)
         system.DefineMMModel(MMModelOPLS.WithParameterSet("protein"))
         system.DefineNBModel(NBModelFull.WithDefaults())

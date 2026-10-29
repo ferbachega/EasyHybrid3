@@ -64,7 +64,7 @@ class RemoteMachinesWindow:
             grid.attach(widget, 1, row, 3, 1)
             self.fields[key] = widget
 
-        entry(0, "name", "Name", "A short name, shown in Simulate > Run Simulations On.", "bigblue")
+        entry(0, "name", "Name", "A short name, shown in Simulate > Run Simulations On.", "mycluster")
         grid.attach(Gtk.Label(label="SSH host", xalign=1), 0, 1, 1, 1)
         hbox = Gtk.Box(spacing=6)
         self.combo_host = Gtk.ComboBoxText.new_with_entry()
@@ -87,7 +87,7 @@ class RemoteMachinesWindow:
         hbox.pack_start(button_add_host, False, False, 0)
         grid.attach(hbox, 1, 1, 3, 1)
         self.fields["host"] = self.combo_host.get_child()
-        self.fields["host"].set_placeholder_text("bigblue")
+        self.fields["host"].set_placeholder_text("mycluster")
         entry(2, "workdir", "Remote folder", "Code and jobs go here (absolute, or relative to the remote home). "
               "On a cluster, use the scratch file system.", "/scratch/username/easyhybrid")
         entry(3, "python", "Python", "Interpreter that imports pDynamo (after the setup lines).", "python3")
@@ -364,8 +364,8 @@ class RemoteMachinesWindow:
         grid = Gtk.Grid(row_spacing=6, column_spacing=10)
         box.pack_start(grid, False, False, 0)
         fields = {}
-        for row, (key, label, placeholder) in enumerate((("alias", "Alias", "ueg"),
-                                                         ("hostname", "Address", "200.137.241.6 or cluster.example.org"),
+        for row, (key, label, placeholder) in enumerate((("alias", "Alias", "labserver"),
+                                                         ("hostname", "Address", "203.0.113.10 or cluster.example.org"),
                                                          ("user", "User", "your login there"),
                                                          ("port", "Port", "22"),
                                                          ("identity", "Key file", "~/.ssh/id_ed25519_<alias>"))):

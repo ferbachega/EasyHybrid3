@@ -4,6 +4,7 @@ section: Tutorials
 order: 10
 kind: Tutorial
 summary: g(r) of water and of a carboxylate in solvated chignolin.
+examples: 10_rdf
 ---
 # Radial distribution functions g(r) in EasyHybrid: solvated chignolin (1UAO)
 
