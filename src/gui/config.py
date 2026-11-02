@@ -119,16 +119,32 @@ class VismolConfig                       :
                                       
                                       "picking_dots_color"         : [0.0, 1.0, 1.0],
                                       "picking_dots_safe"          : True,
+                                      # 2026-11-01: a click selects the nearest atom within
+                                      # this many pixels (0 = only the pixel under the cursor)
+                                      "picking_radius"             : 6,
                                       "pk_label_color"             : [1.0, 1.0, 1.0, 1.0],
                                       "pk_dist_label_color"        : [1.0, 1.0, 1.0, 1.0],
-                                      "dashed_dist_lines_color"    : [0.1, 0.1, 0.1, 1.0],
+                                      # 2026-11-01: grey (was [0.1, 0.1, 0.1], invisible on black)
+                                      "dashed_dist_lines_color"    : [0.467, 0.463, 0.482, 1.0],
+
+                                      # Label fonts (Preferences > Labels), 2026-11-01 defaults:
+                                      # Amiko (src/graphics_engine/src/vismol/libgl/fonts).
+                                      # Before, missing keys fell back to vismol's DEFAULT_FONT_*.
+                                      "label_font_file"            : "Amiko-Bold.ttf",      # #1..#4
+                                      "label_font_size"            : 0.41,
+                                      "pk_dist_label_font_file"    : "Amiko-Bold.ttf",      # distances, angles
+                                      "pk_dist_label_font_size"    : 0.15,
+                                      "atom_label_font_file"       : "Amiko-SemiBold.ttf",  # Atom Labels
+                                      "atom_label_font_size"       : 0.35,
+                                      "labels_zoom_sensitivity"    : 1.0,
+                                      "label_content"              : "name",
 
                                       # Picking: angle (#1-#2-#3) / dihedral (#1-#2-#3-#4) arcs
                                       # drawn over the picked atoms (Preferences > Selections >
                                       # Picking Selections, 2026-10-29); colors were previously
                                       # hard-coded in vismol_selections.ARC_COLORS.
                                       "show_pk_angle_dihedral_arcs": True,
-                                      "pk_angle_arc_color"         : [1.0, 0.62, 0.15, 1.0],
+                                      "pk_angle_arc_color"         : [1.0, 0.745, 0.435, 1.0],
                                       "pk_dihedral_arc_color"      : [0.35, 0.80, 1.0, 1.0],
 
                                       # [NOVO] Dynamic bonds (regiao QC): opcao de
@@ -196,6 +212,9 @@ class VismolConfig                       :
                                       # 'default' = the original look (no extra CSS).
                                       # Preferences > Startup applies it live.
                                       'interface_theme'     : 'default',
+                                      # Main toolbar icons -- see src/gui/icon_set.py.
+                                      # 'modern' (3.2) or 'classic' (3.1 icons).
+                                      'toolbar_icons'       : 'modern',
                                       # Recently opened/saved projects (.easy) and
                                       # systems (single-file opens via File > Open --
                                       # .pkl/.pdb/.mol2/.xyz/.crd/etc). Each entry:
@@ -298,8 +317,10 @@ class VismolConfig                       :
                                       'surface_taubin_enabled'      : False,
                                       'surface_taubin_iterations'   : 15,
                                       'surface_color_mode'          : 'atom',
-                                      'cartoon_color_helix'        : [0.90, 0.20, 0.55],
-                                      'cartoon_color_strand'       : [0.95, 0.85, 0.15],
+                                      # 2026-11-01: light blue helix / light green strand
+                                      # (was magenta [0.90, 0.20, 0.55] / yellow [0.95, 0.85, 0.15])
+                                      'cartoon_color_helix'        : [0.600, 0.757, 0.945],
+                                      'cartoon_color_strand'       : [0.561, 0.941, 0.643],
                                       'cartoon_color_coil'         : [0.85, 0.85, 0.85],
                                       }
                               

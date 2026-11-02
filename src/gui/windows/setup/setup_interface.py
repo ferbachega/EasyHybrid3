@@ -559,7 +559,41 @@ class EasyHybridPreferencesWindow():
             if getattr(self, '_theme_handler_widget', None) is not self.combo_interface_theme:
                 self.combo_interface_theme.connect('changed', self._on_interface_theme_changed)
                 self._theme_handler_widget = self.combo_interface_theme
+
+        # Toolbar icons (src/gui/icon_set.py) -- live, like the theme;
+        # "Apply and Save" persists gl_parameters['toolbar_icons'].
+        self.combo_toolbar_icons = self.builder.get_object('combo_toolbar_icons')
+        if self.combo_toolbar_icons is not None:
+            from gui.icon_set import icon_set_choices, icon_set_from_config, current_icon_set
+            wanted = icon_set_from_config(self.vm_session.vm_config.gl_parameters)
+            self._icons_combo_updating = True
+            try:
+                self.combo_toolbar_icons.remove_all()
+                for name, label in icon_set_choices():
+                    self.combo_toolbar_icons.append(name, label)
+                self.combo_toolbar_icons.set_active_id(wanted)
+            finally:
+                self._icons_combo_updating = False
+            # "Reset parameters" lands here too: follow the reset value
+            if wanted != current_icon_set():
+                self._apply_toolbar_icons(wanted)
+            if getattr(self, '_icons_handler_widget', None) is not self.combo_toolbar_icons:
+                self.combo_toolbar_icons.connect('changed', self._on_toolbar_icons_changed)
+                self._icons_handler_widget = self.combo_toolbar_icons
         pass
+
+    def _apply_toolbar_icons (self, name):
+        from gui.icon_set import apply_icon_set
+        main = getattr(self.vm_session, 'main_session', None)
+        if main is None or getattr(main, 'builder', None) is None:
+            return name
+        return apply_icon_set(main.builder, main.home, name)
+
+    def _on_toolbar_icons_changed (self, combo):
+        if getattr(self, '_icons_combo_updating', False):
+            return
+        name = combo.get_active_id() or 'modern'
+        self.vm_session.vm_config.gl_parameters['toolbar_icons'] = self._apply_toolbar_icons(name)
 
     def _on_interface_theme_changed (self, combo):
         if getattr(self, '_theme_combo_updating', False):

@@ -1055,9 +1055,9 @@ class GLMenu:
                 except Exception as e:
                     dprint("bond (dynamic) failed:", e)
 
-                # clears pk1..pk4 for the next pair
+                # clears pk1..pk4 (and their spheres, distances, arcs) for the next pair
                 try:
-                    self.picking_selections.picking_selections_list = [None] * 4
+                    self.picking_selections.selection_function_picking(None)
                 except Exception:
                     pass
 
@@ -1108,9 +1108,9 @@ class GLMenu:
                 except Exception as e:
                     dprint("unbond (dynamic) failed:", e)
 
-                # clears pk1..pk4 for the next pair
+                # clears pk1..pk4 (and their spheres, distances, arcs) for the next pair
                 try:
-                    self.picking_selections.picking_selections_list = [None] * 4
+                    self.picking_selections.selection_function_picking(None)
                 except Exception:
                     pass
 

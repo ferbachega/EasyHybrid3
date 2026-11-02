@@ -238,6 +238,30 @@
                                 <property name="top-attach">5</property>
                               </packing>
                             </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="margin-start">10</property>
+                                <property name="label" translatable="yes">Toolbar icons:</property>
+                                <property name="xalign">0</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">6</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkComboBoxText" id="combo_toolbar_icons">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="tooltip-text" translatable="yes">Icons of the main window toolbars (applied immediately). Classic uses the icons of EasyHybrid 3.1; the Builder toolbar keeps its icons. Use "Apply and Save" to keep the choice for the next sessions.</property>
+                              </object>
+                              <packing>
+                                <property name="left-attach">1</property>
+                                <property name="top-attach">6</property>
+                              </packing>
+                            </child>
                           </object>
                         </child>
                         <child type="label">
