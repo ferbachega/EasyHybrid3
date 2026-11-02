@@ -1477,6 +1477,16 @@
                       </object>
                     </child>
                     <child>
+                      <object class="GtkMenuItem" id="menuitem_cavities">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">Cavities and pockets of a protein: volume, area, depth and lining residues, and the volume of a pocket along a trajectory</property>
+                        <property name="label" translatable="yes">Cavities and Pockets...</property>
+                        <property name="use-underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkMenuItem" id="menuitem_trajectory_analysis">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
@@ -1663,6 +1673,16 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">Run AutoDock-GPU...</property>
+                        <property name="use-underline">True</property>
+                        <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menuitem_run_dyffdock">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">Docking with pDynamo and the DYFF force field (receptor prepared with DYFF)</property>
+                        <property name="label" translatable="yes">Run DYFFDock...</property>
                         <property name="use-underline">True</property>
                         <signal name="activate" handler="on_main_menu_activate" swapped="no"/>
                       </object>

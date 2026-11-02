@@ -1585,6 +1585,13 @@ class MainWindow:
                 self.molecular_properties_window = MolecularPropertiesWindow(main=self)
             self.molecular_properties_window.open_window()
 
+        elif menuitem == self.builder.get_object('menuitem_cavities'):
+            from gui.windows.analysis.cavities_window import CavitiesWindow
+            if not hasattr(self, 'cavities_window'):
+                self.cavities_window = CavitiesWindow(main=self)
+                self.window_list.append(self.cavities_window)
+            self.cavities_window.open_window()
+
         elif menuitem == self.builder.get_object('menuitem_trajectory_analysis'):
             from gui.windows.analysis.trajectory_analysis_window import TrajectoryAnalysisWindow
             if not hasattr(self, 'trajectory_analysis_window'):
@@ -3150,24 +3157,41 @@ class MainWindow:
             
 
             
-            if response == -9:   # Don't Save and close
-                self._persist_window_and_config()
-                Gtk.main_quit()
-            
-            elif response == -6: # Cancel - don't close
-                return True 
-            
-            elif response == -8: # Save and close
+            if response == Gtk.ResponseType.NO:        # Don't Save and close
+                pass                                     # . falls through to the safety-net autosave below
+
+            elif response == Gtk.ResponseType.CANCEL:   # Cancel - don't close
+                return True
+
+            elif response == Gtk.ResponseType.YES:      # Save and close
                 if self.session_filename == None:
                     self.gtk_save_as_file(widget)
+                    # . [BUG FIX] the Save As... dialog can itself be cancelled (user
+                    #   picked "Save" here, then changed their mind in the file
+                    #   chooser) -- this used to fall straight through to
+                    #   Gtk.main_quit() regardless, closing with the work neither
+                    #   saved for real NOR even left in .tmp. self.p_session.changed
+                    #   only clears on an actual successful save (see
+                    #   save_easyhybrid_session), so the safety-net autosave below
+                    #   now still catches this case.
                 else:
                     self.p_session.save_easyhybrid_session( filename = self.session_filename)
-                #print('Saving' )
-                self._persist_window_and_config()
-                Gtk.main_quit() 
-            
+
             else:
-                return True 
-        else:
-            self._persist_window_and_config()
-            Gtk.main_quit()
+                return True
+
+        # . [BUG FIX] closing used to just quit here, whatever the user had
+        #   picked -- the periodic/event-count autosave
+        #   (register_change_and_maybe_autosave, called from the normal
+        #   course of using the session) only fires every N events/minutes,
+        #   so whatever changed right before closing could be missing from
+        #   the one recovery copy (.tmp/<...>.easy for a session never
+        #   given a name yet, "<name>.easy~" for one that already has one)
+        #   -- see gui/windows/setup/recover_sessions_window.py, built to
+        #   list exactly those files. p_session.changed is already False
+        #   here after a real Save/Save As above, so this only runs when
+        #   there is something it would actually miss otherwise.
+        if self.p_session.changed:
+            self.p_session._do_autosave()
+        self._persist_window_and_config()
+        Gtk.main_quit()
