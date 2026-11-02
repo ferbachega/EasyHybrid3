@@ -396,7 +396,7 @@ class UmbrellaSampling:
     def _run_umbrella_sampling (self, parameters, interface = False):
         """ Function doc """
         
-        if parameters['input_type'] == 1: # means = parallel
+        if parameters['input_type'] in (1, 2): # means = parallel (2: frames of an object, written to source_folder)
             #------------------------------------------------------------------
             files = os.listdir( parameters['source_folder'])
             pkl_files = []
@@ -495,7 +495,7 @@ class UmbrellaSampling:
         #----------------------------------------------------------------------------------------
         '''
         
-        if parameters['input_type'] == 1: # means = parallel
+        if parameters['input_type'] in (1, 2): # means = parallel (2: frames of an object, written to source_folder)
             #------------------------------------------------------------------
             files = os.listdir( parameters['source_folder'])
             pkl_files = []
@@ -759,7 +759,7 @@ class UmbrellaSampling:
         #----------------------------------------------------------------------------------------
         '''
         
-        if parameters['input_type'] == 1: # means = parallel
+        if parameters['input_type'] in (1, 2): # means = parallel (2: frames of an object, written to source_folder)
             #------------------------------------------------------------------
             files = os.listdir( parameters['source_folder'])
             pkl_files = []
