@@ -416,6 +416,13 @@ def main():
             adapt_icons_for_theme(main_window.window)
         except Exception:
             traceback.print_exc()
+        # optional 3.1 toolbar icons (src/gui/icon_set.py); try: EASYHYBRID_ICONS=classic
+        try:
+            from gui.icon_set import apply_icon_set, icon_set_from_config
+            if icon_set_from_config(vconfig.gl_parameters) != 'modern':
+                apply_icon_set(main_window.builder, EASYHYBRID_HOME, icon_set_from_config(vconfig.gl_parameters))
+        except Exception:
+            traceback.print_exc()
         #print(vm_session.vm_config.gl_parameters)
         #main_window.window.connect('destroy', Gtk.main_quit)
         
@@ -445,21 +452,25 @@ def main():
         #main_window.builder.get_object('menuitem_transition_state_search').hide() # Baker method
         #main_window.builder.get_object('menuitem_reaction_path')   .hide() # IRC / Reaction Path...
         #main_window.builder.get_object('menuitem_cpr')   .hide() # Conjugate Peak Refinement...
+        
+        
         main_window.builder.get_object('menuitem_extras') .hide() # Extras
         #main_window.builder.get_object('menuitem_rdf_analysis')   .hide() # RDF Analysis (g(r))
         
         main_window.builder.get_object('menuitem_advanced_rc_scans')   .hide() # RDF Analysis (g(r))
         
         
-        '''AI assistent'''
+        
+        
+        #'''AI assistent'''
         main_window.builder.get_object('menuitem_control_server')   .hide()  
         main_window.builder.get_object('menuitem_control_settings')   .hide()  
         main_window.builder.get_object('menuitem_ai_assistant')   .hide()  
-        
-        '''Remote jobs'''
+        #
+        #'''Remote jobs'''
         main_window.builder.get_object('menuitem_remote_machines')   .hide()  
         main_window.builder.get_object('menuitem_run_on')   .hide()  
-        #main_window.builder.get_object('menuitem_ai_assistant')   .hide()  
+        
         
         
         
@@ -498,6 +509,19 @@ def main():
                 main_window.window.connect('destroy', lambda *_: main_window.control_server.stop())
             except Exception:
                 traceback.print_exc()
+
+        # . 2026-11-01: lists whatever autosaved session files were left behind
+        #   in .tmp/ (a session that changed but was never given a file name,
+        #   from a run that was closed/crashed without Save) -- see
+        #   gui/windows/setup/recover_sessions_window.py. After the control
+        #   server check above, so automation_events.active() already
+        #   reflects "--control-dialogs" when it runs.
+        try:
+            from gui.windows.setup.recover_sessions_window import RecoverSessionsWindow
+            main_window.recover_sessions_window = RecoverSessionsWindow(main=main_window)
+            main_window.recover_sessions_window.maybe_open_at_startup()
+        except Exception:
+            traceback.print_exc()
 
         if len(sys.argv) > 1:
             filein = sys.argv[-1]
