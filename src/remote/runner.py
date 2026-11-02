@@ -67,11 +67,19 @@ def qc_engine(system):
     return _ENGINES.get(type(model).__name__) if model is not None else None
 
 
+def _qc_scratch(job_dir):
+    """ <job>/qc_scratch, or $EASYHYBRID_QC_SCRATCH/<job id>/qc_scratch: the job
+        id keeps simultaneous jobs apart even when the variable is a fixed path. """
+    base = os.environ.get("EASYHYBRID_QC_SCRATCH")
+    base = os.path.join(os.path.expandvars(os.path.expanduser(base)), os.path.basename(job_dir)) if base else job_dir
+    return os.path.join(base, "qc_scratch")
+
+
 def _prepare_qc(system, job_dir):
     """ External QC programs (ORCA, xTB, DFTB+) keep the scratch paths of the
         computer the system came from, in the model and in its state: they
         move to a folder of this job (EASYHYBRID_QC_SCRATCH, e.g. a node-local
-        disk, overrides it), which also keeps simultaneous jobs apart (the
+        disk, moves it there, in a subfolder named after the job), which also keeps simultaneous jobs apart (the
         parallel runners add process_<i> under it). DFTB+ parameters sent
         with the job (input/skf) replace the local skfPath. The program must
         be found here: a clear error otherwise. """
@@ -80,8 +88,7 @@ def _prepare_qc(system, job_dir):
         return None
     label, variable, key = engine
     model, state = system.qcModel, getattr(system, "qcState", None)
-    base = os.environ.get("EASYHYBRID_QC_SCRATCH") or job_dir
-    scratch = os.path.join(base, "qc_scratch")
+    scratch = _qc_scratch(job_dir)
     os.makedirs(scratch, exist_ok=True)
     model.scratch = scratch
     if state is not None and hasattr(state, "DeterminePaths"):
@@ -111,15 +118,49 @@ def _qc_error_hint(job_dir):
         the files to error_*): the real reason, rather than the Python error
         that follows it. """
     import glob
-    logs = sorted(glob.glob(os.path.join(job_dir, "qc_scratch", "**", "error_*.log"), recursive=True) +
-                  glob.glob(os.path.join(os.environ.get("EASYHYBRID_QC_SCRATCH") or job_dir, "qc_scratch", "**",
-                                         "error_*.out"), recursive=True))
+    scratch = _qc_scratch(job_dir)
+    logs = sorted(glob.glob(os.path.join(scratch, "**", "error_*.log"), recursive=True) +
+                  glob.glob(os.path.join(scratch, "**", "error_*.out"), recursive=True))
     if not logs:
         return ""
     keys = ("error", "not enough slots", "command not found", "cannot", "abort", "fail", "not found", "illegal")
     lines = [l.rstrip() for l in open(logs[0], errors="replace") if l.strip()]
     found = [l for l in lines if any(k in l.lower() for k in keys)]
     return "\n--- {} ---\n{}".format(os.path.relpath(logs[0], job_dir), "\n".join((found or lines)[-12:]))
+
+
+def _run_dyffdock(job_dir, job, parameters, output):
+    """ A DYFFDock run folder (sent as the job's input): dyffdock with the folder's
+        files, results/ and dyffdock.log in output/ (fetched back into the run folder). """
+    import contextlib
+    run_dir = os.path.join(job_dir, parameters["source_folder"])
+    args = list(parameters["dyffdock_args"])
+    for key, value in (("--out", os.path.join(output, "results")),
+                       ("--processes", str(int(job.get("cpus") or os.cpu_count() or 1)))):
+        if key in args:
+            args[args.index(key) + 1] = value
+        else:
+            args += [key, value]
+    from dyffdock.__main__ import main as dyffdock_main
+    cwd = os.getcwd()
+    os.chdir(run_dir)
+    try:
+        with open(os.path.join(output, "dyffdock.log"), "w") as log:
+            class Tee:
+                def write(self, text):
+                    log.write(text); log.flush(); sys.__stdout__.write(text)
+                def flush(self):
+                    log.flush(); sys.__stdout__.flush()
+            log.write("$ dyffdock " + " ".join(args) + "\n")
+            with contextlib.redirect_stdout(Tee()):
+                code = dyffdock_main(args)
+    finally:
+        os.chdir(cwd)
+    if not os.path.isfile(os.path.join(output, "results", "summary.csv")):
+        raise RuntimeError("dyffdock wrote no results (exit code {}): see dyffdock.log".format(code))
+    _write_status(job_dir, state="finished", started=job.get("started"), logfile="dyffdock.log",
+                  warning=None if code == 0 else "some ligands failed: see results/summary.csv")
+    return 0
 
 
 def run(job_dir):
@@ -134,6 +175,8 @@ def run(job_dir):
         from pCore import Pickle
         with open(os.path.join(job_dir, "parameters.pkl"), "rb") as f:
             parameters = pickle.load(f)
+        if parameters.get("simulation_type") == "DYFFDock":
+            return _run_dyffdock(job_dir, job, parameters, output)
         system = ImportSystem(os.path.join(job_dir, "system.pkl"))
         _prepare_qc(system, job_dir)
         try:

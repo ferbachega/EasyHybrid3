@@ -1245,14 +1245,23 @@ class ProcessManagerWindow(Gtk.Window):
                     return False
  
                 # Append job to the ListStore.
-                self.add_new_process ( 
-                             system    = system, 
-                             _type     = job_type, 
+                treeiter = self.add_new_process (
+                             system    = system,
+                             _type     = job_type,
                              potential = potential,
-                             start     = started, 
-                             end       = ended, 
+                             start     = started,
+                             end       = ended,
                              status    = status,
                              step      = job_num)
+
+                # Remote jobs submitted in an earlier (now closed) session
+                # are not tracked in memory any more after a restart --
+                # reconnect this reconstructed row to the job registry so
+                # status polling and "Check Remote Jobs Now"/result fetch
+                # work again for it (see pRemote.remote_reattach()).
+                remote_job_id = job.get("remote_job")
+                if remote_job_id:
+                    self.p_session.remote_reattach(e_id, job_num, remote_job_id, treeiter)
  
     def get_combobox_active_id (self, e_id = None, key6 = None):
         """ Function doc """

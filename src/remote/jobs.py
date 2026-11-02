@@ -71,6 +71,26 @@ def _new_id():
     return time.strftime("%Y%m%d-%H%M%S-") + "".join(random.choices(string.ascii_lowercase + string.digits, k=4))
 
 
+MIN_MB_PER_PROCESS = 512        # . below this per parallel process, a SLURM job is refused
+
+
+def _slurm_megabytes(value):
+    """ SLURM memory ("4G", "4000M", "4096", "1T") in MB; None when empty or unreadable. """
+    if value is None:
+        return None
+    text = str(value).strip().upper()
+    if not text:
+        return None
+    units = {"K": 1.0 / 1024, "M": 1.0, "G": 1024.0, "T": 1024.0 * 1024}
+    factor = 1.0
+    if text[-1] in units:
+        factor = units[text[-1]]; text = text[:-1]
+    try:
+        return float(text) * factor
+    except ValueError:
+        return None
+
+
 class RemoteJobs:
     def __init__(self, registry=None, profiles_file=None):
         self.registry = registry or REGISTRY_FILE
@@ -384,6 +404,8 @@ class RemoteJobs:
         transport = self.transport(profile)
         bundle = job["bundle"]
         try:
+            self._check_cpus(scheduler, transport, profile, job)
+            self._check_memory(profile, job)
             root = self._remote_root(profile, transport)
             code = self.sync_code(profile, transport, root)
             pdynamo_dir = self.sync_pdynamo(profile, transport, root)
@@ -409,6 +431,113 @@ class RemoteJobs:
             shutil.rmtree(bundle, ignore_errors=True)
         return self._update(job_id, remote_dir=remote_dir, scheduler_id=scheduler_id, bundle=None,
                             state="queued" if scheduler.name == "slurm" else "running")
+
+    @staticmethod
+    def _check_cpus(scheduler, transport, profile, job):
+        """ All processes of a job run on one node: a request larger than the
+            largest node would be refused by sbatch (or overload the machine)
+            with a message that does not say why. """
+        try:
+            limit, partition = scheduler.max_cpus(transport, profile, job)
+        except Exception:
+            return
+        cpus = int(job.get("cpus") or 1)
+        if not limit or cpus <= limit:
+            return
+        where = "the nodes of partition {}".format(partition) if partition else (
+            "a node of this cluster" if scheduler.name == "slurm" else "this machine")
+        detail = ""
+        if int(job.get("processes") or 1) > 1 or int(job.get("qc_threads") or 1) > 1:
+            detail = " ({} parallel processes x {} {} threads)".format(
+                job.get("processes") or 1, job.get("qc_threads") or 1, job.get("qc_engine") or "QC")
+        raise RemoteError("The job asks for {} CPUs{}, but {} have at most {}. All processes of a job run on "
+                          "one node: lower the number of processes (Number of CPUs) or the threads of the QC "
+                          "program so that their product is {} or less.".format(cpus, detail, where, limit, limit))
+
+    @staticmethod
+    def _check_memory(profile, job):
+        """ SLURM --mem is the memory of the whole job on its node, shared by all
+            its processes: a small fixed value (bigblue, 2026-10-30: --mem=4G for 50
+            xTB processes, 80 MB each) gets the processes killed by the cgroup
+            out-of-memory handler hours into the run. """
+        if job.get("scheduler") != "slurm" and profile.get("scheduler") != "slurm":
+            return
+        value = job.get("mem") or (profile.get("slurm") or {}).get("mem")
+        mb = _slurm_megabytes(value)
+        if mb is None:
+            return
+        processes = max(1, int(job.get("processes") or job.get("cpus") or 1))
+        per = mb / processes
+        if per >= MIN_MB_PER_PROCESS:
+            return
+        need = int(-(-processes * MIN_MB_PER_PROCESS // 1024))
+        raise RemoteError("The job asks for --mem={} for {} parallel processes: {:.0f} MB each. SLURM's --mem is the "
+                          "memory of the whole job, shared by all its processes, and they would be killed for lack of "
+                          "memory. Set the Memory of the '{}' machine (Remote Machines) to at least {}G, or leave it "
+                          "empty to use the partition default.".format(value, processes, per, profile.get("name"), need))
+
+    @staticmethod
+    def diagnose(folder):
+        """ A plain explanation of known scheduler failures found in the fetched logs
+            (None when nothing is recognized). """
+        path = os.path.join(folder, "scheduler.log")
+        try:
+            with open(path, errors="replace") as f:
+                text = f.read()
+        except OSError:
+            return None
+        if "oom-kill" in text or "OUT_OF_MEMORY" in text or "Exceeded job memory limit" in text:
+            return ("SLURM killed processes of this job for lack of memory (out-of-memory). The QC program "
+                    "died, and the error that follows is a consequence. Give the job more memory: Memory of the "
+                    "machine in Remote Machines (--mem is shared by all the processes of the job), or fewer "
+                    "parallel processes.")
+        if "DUE TO TIME LIMIT" in text:
+            return "SLURM stopped the job at its time limit (Time of the machine in Remote Machines)."
+        return None
+
+    def failure_report(self, job_id, message=None):
+        """ Writes <local folder>/.easyhybrid_remote/<id>/error.log: the error,
+            what was asked for, and the end of the logs of the job (fetched
+            ones, or read on the machine when the job never got that far).
+            Returns its path (the job's log in the Process Manager). """
+        job = self.get(job_id)
+        message = message or job.get("error") or "The remote job failed."
+        folder = os.path.join(job["local_folder"], ".easyhybrid_remote", job_id)
+        os.makedirs(folder, exist_ok=True)
+        lines = ["EasyHybrid remote job {}".format(job_id),
+                 "Simulation : {}".format(job.get("simulation_type")),
+                 "Machine    : {} ({}{})".format(job.get("remote"), job.get("scheduler"),
+                                                 " job {}".format(job["scheduler_id"]) if job.get("scheduler_id") else ""),
+                 "Submitted  : {}".format(job.get("submitted")),
+                 "CPUs       : {} = {} processes x {} threads of {}".format(
+                     job.get("cpus"), job.get("processes") or 1, job.get("qc_threads") or 1, job.get("qc_engine") or "-"),
+                 "Remote dir : {}".format(job.get("remote_dir") or "(not created)"),
+                 ""]
+        diagnosis = self.diagnose(folder)
+        if diagnosis:
+            lines += ["DIAGNOSIS", "-----", diagnosis, ""]
+        lines += ["ERROR", "-----", message, ""]
+        status = os.path.join(folder, "status.json")
+        if os.path.isfile(status):
+            try:
+                with open(status) as f:
+                    trace = json.load(f).get("traceback")
+                if trace:
+                    lines += ["TRACEBACK (runner on the remote machine)", "-----", trace.rstrip(), ""]
+            except (OSError, ValueError):
+                pass
+        for name in ("runner.log", "scheduler.log"):
+            path = os.path.join(folder, name)
+            if os.path.isfile(path):
+                with open(path, errors="replace") as f:
+                    tail = f.read().splitlines()[-60:]
+                if tail:
+                    lines += ["{} (last {} lines)".format(name.upper(), len(tail)), "-----"] + tail + [""]
+        path = os.path.join(folder, "error.log")
+        with open(path, "w") as f:
+            f.write("\n".join(lines) + "\n")
+        self._update(job_id, error_log=path, diagnosis=diagnosis)
+        return path
 
     @staticmethod
     def _write_system(system, path):
@@ -500,13 +629,7 @@ class RemoteJobs:
         os.makedirs(job["local_folder"], exist_ok=True)
         excludes = list(profile.get("fetch_exclude") or []) + list(exclude or [])
         transport.rsync([job["remote_dir"] + "/output/"], job["local_folder"] + "/", upload=False, excludes=excludes)
-        logs = os.path.join(job["local_folder"], ".easyhybrid_remote", job_id)
-        os.makedirs(logs, exist_ok=True)
-        for name in ("status.json", "runner.log", "scheduler.log"):
-            try:
-                transport.rsync([job["remote_dir"] + "/" + name], logs + "/", upload=False)
-            except remote_transport.TransportError:
-                pass
+        logs = self.fetch_logs(job_id, transport)
         status = {}
         try:
             with open(os.path.join(logs, "status.json")) as f:
@@ -523,6 +646,22 @@ class RemoteJobs:
         if status.get("error"):
             changes["error"] = status["error"]
         return self._update(job_id, **changes)
+
+    def fetch_logs(self, job_id, transport=None):
+        """ status.json, runner.log and scheduler.log of the job into
+            <local folder>/.easyhybrid_remote/<id>/ (those that exist). """
+        job = self.get(job_id)
+        logs = os.path.join(job["local_folder"], ".easyhybrid_remote", job_id)
+        os.makedirs(logs, exist_ok=True)
+        if not job.get("remote_dir"):
+            return logs
+        transport = transport or self.transport(self.profile(job["remote"]))
+        for name in ("status.json", "runner.log", "scheduler.log"):
+            try:
+                transport.rsync([job["remote_dir"] + "/" + name], logs + "/", upload=False)
+            except remote_transport.TransportError:
+                pass
+        return logs
 
     def cancel(self, job_id):
         job = self.get(job_id)

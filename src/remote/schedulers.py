@@ -56,6 +56,11 @@ class Direct:
     def script(self, profile, job, job_dir, code_dir):
         return "#!/bin/bash -l\n# EasyHybrid job {}\n".format(job["id"]) + _body(profile, job_dir, code_dir, job)
 
+    def max_cpus(self, transport, profile, job):
+        """ CPUs of the machine (nproc), or None when unknown. """
+        rc, out, _ = transport.run("nproc")
+        return (int(out.strip()), None) if rc == 0 and out.strip().isdigit() else (None, None)
+
     def submit(self, transport, job_dir):
         # . bash -l: the profile's 'setup' may use "module", defined by login shells
         cmd = "cd {0} && nohup setsid bash -l {1} > scheduler.log 2>&1 < /dev/null & echo $!".format(_q(job_dir), self.script_name)
@@ -103,6 +108,15 @@ class Slurm:
                 lines.append(extra.strip() if extra.strip().startswith("#SBATCH") else "#SBATCH " + extra.strip())
         lines.append("# EasyHybrid job {}".format(job["id"]))
         return "\n".join(lines) + "\n" + _body(profile, job_dir, code_dir, job)
+
+    def max_cpus(self, transport, profile, job):
+        """ CPUs of the largest node of the job's partition (all EasyHybrid
+            processes of a job run on one node), or None when unknown. """
+        partition = job.get("partition") or (profile.get("slurm") or {}).get("partition")
+        cmd = "sinfo -h {}-o '%c'".format("-p {} ".format(_q(partition)) if partition else "")
+        rc, out, _ = transport.run(cmd)
+        values = [int(v.strip().rstrip("+")) for v in out.split() if v.strip().rstrip("+").isdigit()]
+        return (max(values), partition) if rc == 0 and values else (None, partition)
 
     def submit(self, transport, job_dir):
         rc, out, err = transport.run("cd {} && sbatch --parsable {}".format(_q(job_dir), self.script_name))
