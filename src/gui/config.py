@@ -54,7 +54,7 @@ class VismolConfig                       :
                                       "dot_sel_size"               : 2.0,
                                       "line_width"                 : 3,
                                       "line_width_selection"       : 10,
-                                      "line_type"                  : 1,
+                                      "line_type"                  : 0,
                                       "line_color"                 : 0,
                                       
                                       "ribbon_width"               : 0.4, # Now being used (defined in the shader)
@@ -214,7 +214,7 @@ class VismolConfig                       :
                                       'interface_theme'     : 'default',
                                       # Main toolbar icons -- see src/gui/icon_set.py.
                                       # 'modern' (3.2) or 'classic' (3.1 icons).
-                                      'toolbar_icons'       : 'modern',
+                                      'toolbar_icons'       : 'classic',
                                       # Recently opened/saved projects (.easy) and
                                       # systems (single-file opens via File > Open --
                                       # .pkl/.pdb/.mol2/.xyz/.crd/etc). Each entry:

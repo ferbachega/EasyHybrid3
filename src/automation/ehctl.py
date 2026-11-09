@@ -105,6 +105,8 @@ def main(argv):
         if command == "wait":
             params.setdefault("timeout", 3600)
             timeout = float(params["timeout"]) + 30
+        if command == "dock" and str(params.get("wait", True)).lower() not in ("false", "0") and timeout == 60:
+            timeout = 4 * 3600                # . dyffdock: minutes per ligand
         reply = client.request(command, params, timeout)
     except EasyHybridError as error:
         print(json.dumps({"ok": False, "error": str(error)}), file=sys.stderr)

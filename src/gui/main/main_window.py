@@ -1433,6 +1433,13 @@ class MainWindow:
         elif menuitem == self.builder.get_object('menuitem_run_autodock_gpu'):
             self.prepare_autodock_gpu_window.open_window()
 
+        elif menuitem == self.builder.get_object('menuitem_run_dyffdock'):
+            from gui.windows.simulation.dyffdock_window import DYFFDockWindow
+            if not hasattr(self, 'dyffdock_window'):
+                self.dyffdock_window = DYFFDockWindow(main=self)
+                self.window_list.append(self.dyffdock_window)
+            self.dyffdock_window.open_window()
+
         elif menuitem == self.builder.get_object('menuitem_add_missing_hydrogens'):
             self.prepare_add_hydrogens_window.open_window()
 

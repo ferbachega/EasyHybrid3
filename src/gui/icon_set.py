@@ -27,7 +27,7 @@ import gi
 gi.require_version ( "Gtk", "3.0" )
 from gi.repository import Gtk, GdkPixbuf
 
-DEFAULT_ICON_SET = "modern"
+DEFAULT_ICON_SET = "classic"
 
 # GtkImage id em MainWindow.glade -> arquivo em src/gui/icons/classic
 CLASSIC_ICONS = {

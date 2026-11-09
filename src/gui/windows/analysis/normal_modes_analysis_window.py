@@ -164,7 +164,7 @@ class NormalModesAnalysisWindow(Gtk.Window):
 
             # column
             renderer_text = Gtk.CellRendererText()
-            column_text = Gtk.TreeViewColumn("Frequency", renderer_text, text=2)
+            column_text = Gtk.TreeViewColumn("Frequency (cm⁻¹)", renderer_text, text=2)
             column_text.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
             column_text.set_resizable(True)
             self.treeview.append_column(column_text)

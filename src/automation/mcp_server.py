@@ -142,6 +142,8 @@ class MCPServer:
             timeout = float(args["timeout"]) + 30
         if name in ("optimize", "scan", "md", "neb", "umbrella"):
             timeout = 3600                    # . auto-wait may keep the call open
+        if name == "dock" and args.get("wait", True):
+            timeout = 4 * 3600                # . dyffdock: minutes per ligand
         reply = self._forward(name, args, timeout)
         if reply.get("format") == "compact":
             reply.pop("format", None)

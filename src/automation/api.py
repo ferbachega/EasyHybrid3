@@ -1440,6 +1440,359 @@ class AutomationAPI:
         self.main.open_umbrella_browser(folder=folder)
         return {"opened": folder, "window": "Umbrella Sampling Browser"}
 
+    # ============================================================ docking (dyffdock)
+    def _on_main(self, fn, timeout=600):
+        """ fn() in the GTK main thread, from a command running in its own thread. """
+        import threading
+        from gi.repository import GLib
+        box, done = {}, threading.Event()
+
+        def run():
+            try:
+                box["value"] = fn()
+            except Exception as error:
+                box["error"] = error
+            finally:
+                done.set()
+            return False
+        GLib.idle_add(run)
+        if not done.wait(timeout):
+            raise APIError("The window did not answer in {} s.".format(timeout))
+        if "error" in box:
+            raise box["error"]
+        return box.get("value")
+
+    @off_main_thread
+    def dock(self, ligands=None, ligand_atoms=None, sys=None, obj=None, frame=None, frames=None, center=None,
+             size=None, padding=6.0, charges="system", search="anchor_grow", runs=None, poses=9, processes=None,
+             seed=None, dielectric="distance", options=None, leave_out="water", pocket=None, pocket_margin=None,
+             folder=None, name="dyffdock", show_poses=True, wait=True):
+        """ Docks ligands into a receptor system with dyffdock (pDynamo + DYFF; Extras > Run DYFFDock).
+
+        The receptor system needs the DYFF model (System > Force Field > DYFF + residue library
+        gives the CM5 charges). Energies in kJ/mol. With wait=false the run goes on in the
+        background: read it later with dock_results(folder).
+
+        Args:
+          ligands: .mol2 file path(s), list or comma-separated (docked with the charges of the file)
+          ligand_atoms: atoms of the receptor system that are a ligand ("6133-6173"); left out of the receptor
+          sys: receptor system (default: the active system)
+          obj: object with the receptor coordinates (default: the last object of the system)
+          frame: frame of obj (default: the last)
+          frames: ensemble docking: "first-last:stride" frames of obj, each a rigid receptor
+          center: box center [x, y, z] (A); default: around the ligands, or around pocket
+          size: box size [x, y, z] (A); default: ligands + padding, at least 16 A
+          padding: A added around the ligands for the default box
+          pocket: box around pocket(s) of the receptor, numbers as listed by pockets (1 = largest): 2, [1, 3] or "1,3"
+          pocket_margin: A added around the pocket points (default 6)
+          charges: charges of ligand_atoms: "system" (MM model) or "cm5" (xTB)
+          search: anchor_grow (default) or monte_carlo
+          runs: runs per anchor (anchor_grow) or runs (monte_carlo)
+          poses: distinct poses kept per ligand
+          processes: processes (default: every CPU)
+          seed: random seed
+          dielectric: distance (4r), sigmoid or constant
+          options: other options of the search algorithm, e.g. {"beam": 50}
+          leave_out: residues left out of the receptor, comma-separated: water, ions, other
+          folder: where the run folder <name>_<n> goes (default: the system's working folder)
+          name: run folder name
+          show_poses: when finished, load each ligand with its poses as frames of a new system
+          wait: wait for the end
+        """
+        import numpy as np
+        import dyffdock as dd
+        from util import dyffdock_session as DS
+        e_id, system = self._system(sys)
+        vobject = self._vobject(obj, e_id)
+        all_frames = np.asarray(vobject.frames)
+        if frames:
+            span, _, stride = str(frames).partition(":")
+            lo, _, hi = span.partition("-")
+            labels = list(range(int(lo), int(hi or lo) + 1, int(stride or 1)))
+            if not labels or labels[-1] >= len(all_frames):
+                raise APIError("Object {} has frames 0-{}.".format(vobject.index, len(all_frames) - 1))
+        else:
+            labels = [self._frame_index(vobject, frame)]
+        coords = [np.asarray(all_frames[f], dtype=float).reshape(-1, 3) for f in labels]
+        entries = []
+        if isinstance(ligands, str):
+            ligands = [p.strip() for p in ligands.split(",") if p.strip()]
+        for path in ligands or []:
+            entries += DS.ligands_from_mol2(os.path.expanduser(path))
+        atoms = parse_indices(ligand_atoms)
+        if atoms:
+            entries.append(DS.ligand_from_atoms(system, atoms, coords[0], charges=charges))
+        if not entries:
+            raise APIError("Give ligands (.mol2 files) or ligand_atoms.")
+        keep = self._dock_receptor(vobject, system, leave_out, atoms)
+        found = None
+        if pocket is not None and center is None:
+            ids = parse_indices(pocket)
+            found = DS.find_pockets(system, coords[0], keep, ligands=entries)
+            chosen = [p for p in found if p["id"] in set(ids)]
+            if len(chosen) != len(set(ids)):
+                raise APIError("The receptor has pockets 1-{}.".format(len(found)))
+            margin = DS.POCKET_MARGIN if pocket_margin is None else float(pocket_margin)
+            box = DS.pocket_box(chosen, margin=margin, ligands=entries)
+        elif center is not None:
+            box = dd.Box(center, size or [22.0, 22.0, 22.0])
+        else:
+            box = dd.Box.around(np.vstack([np.asarray(l["coordinates"]) for l in entries]), padding=float(padding))
+            if size is not None:
+                box = dd.Box(box.center, size)
+        settings = DS.default_settings()
+        settings.update(search=search, dielectric=dielectric, poses=int(poses), seed=seed,
+                        processes=int(processes or os.cpu_count() or 1))
+        search_options = dict(options or {})
+        if runs:
+            defaults = type(dd.get_search_algorithm(search)).defaults
+            search_options["runs_per_anchor" if "runs_per_anchor" in defaults else "runs"] = int(runs)
+        settings["search_options"] = search_options
+        base = os.path.expanduser(folder) if folder else (getattr(system, "e_working_folder", None) or os.getcwd())
+        run_folder = DS.new_run_folder(base, name)
+        DS.prepare_run(run_folder, system, coords, labels, keep, entries, box, settings,
+                       info={"vobject_index": vobject.index, "vobject_name": vobject.name})
+        run = DS.DockingRun(run_folder, settings).start()
+        if not hasattr(self, "_dock_runs"):
+            self._dock_runs = {}
+        self._dock_runs[run_folder] = run
+        out = {"folder": run_folder, "ligands": [l["name"] for l in entries], "receptor_atoms": len(keep),
+               "frames": labels, "box": box.to_dict(), "settings": settings}
+        if found is not None:
+            out["pockets"] = [self._pocket_row(p, entries) for p in found if p["id"] in set(ids)]
+        if not wait:
+            out["note"] = "running: call dock_results(folder) later"
+            return out
+        code = run.wait()
+        out.update(self.dock_results(run_folder, show_poses=show_poses))
+        out["exit_code"] = code
+        return out
+
+    def _dock_receptor(self, vobject, system, leave_out, exclude):
+        from util import dyffdock_session as DS
+        leave = {w.strip() for w in str(leave_out or "").split(",") if w.strip()}
+        return DS.receptor_atoms(vobject, len(system.atoms), water="water" in leave, ions="ions" in leave,
+                                 other="other" in leave, exclude=exclude or ())
+
+    @staticmethod
+    def _pocket_row(p, ligands):
+        row = {"pocket": p["id"], "volume": round(p["volume"], 1), "depth_max": round(p["depth_max"], 1),
+               "buried": p["buried"], "centre": [round(v, 2) for v in p["centre"]],
+               "residues": [r.split(":", 1)[-1] for r in p["residues"]]}
+        if ligands:
+            row["ligand_overlap"] = [round(v, 2) for v in p["ligand_overlap"]]
+        return row
+
+    @off_main_thread
+    def pockets(self, sys=None, obj=None, frame=None, leave_out="water", ligand_atoms=None, ligands=None,
+                pocket_margin=None, detail=None):
+        """ Pockets of a receptor system, largest first (the cavities of Analysis > Cavities and
+        Pockets, of the atoms docked into), with the docking box of each: dock(pocket=n) uses it.
+
+        Args:
+          sys: receptor system (default: the active system)
+          obj: object with the receptor coordinates (default: the last object of the system)
+          frame: frame of obj (default: the last)
+          leave_out: residues left out of the receptor, comma-separated: water, ions, other
+          ligand_atoms: atoms of a ligand in the system: left out, and its overlap with each pocket is given
+          ligands: .mol2 file(s): overlap of each with the pockets, and the box fits the largest
+          pocket_margin: A added around the pocket points for the box (default 6)
+          detail: "full" for every pocket (default: the largest ten)
+        """
+        import numpy as np
+        from util import dyffdock_session as DS
+        e_id, system = self._system(sys)
+        vobject = self._vobject(obj, e_id)
+        f = self._frame_index(vobject, frame)
+        coords = np.asarray(vobject.frames[f], dtype=float).reshape(-1, 3)
+        entries = []
+        if isinstance(ligands, str):
+            ligands = [p.strip() for p in ligands.split(",") if p.strip()]
+        for path in ligands or []:
+            entries += DS.ligands_from_mol2(os.path.expanduser(path))
+        atoms = parse_indices(ligand_atoms)
+        if atoms:
+            entries.append(DS.ligand_from_atoms(system, atoms, coords))
+        keep = self._dock_receptor(vobject, system, leave_out, atoms)
+        found = DS.find_pockets(system, coords, keep, ligands=entries)
+        margin = DS.POCKET_MARGIN if pocket_margin is None else float(pocket_margin)
+        rows = []
+        for p in found[:None if not self._summary(detail) else 10]:
+            row = self._pocket_row(p, entries)
+            row["box"] = {k: [round(v, 2) for v in vals] for k, vals in
+                          DS.pocket_box(p, margin=margin, ligands=entries).to_dict().items()}
+            if self._summary(detail):
+                row["residues"] = row["residues"][:12]
+            rows.append(row)
+        return {"sys": e_id, "obj": vobject.index, "frame": f, "receptor_atoms": len(keep), "n_pockets": len(found),
+                "margin": margin, "pockets": rows}
+
+    @off_main_thread
+    def dock_results(self, folder, show_poses=False, detail=None):
+        """ Results of a dyffdock run folder: per ligand the best poses (score, interaction,
+        LJ, electrostatics, strain in kJ/mol; receptor frame; contacts).
+
+        Args:
+          folder: the run folder (from dock, the DYFFDock window or the command line)
+          show_poses: load each ligand with its poses as frames of a new system
+          detail: "full" for every pose (default: the best three per ligand)
+        """
+        import numpy as np
+        from dyffdock import prepare as P
+        from util import dyffdock_session as DS
+        run = getattr(self, "_dock_runs", {}).get(folder)
+        if run is not None and run.running:
+            return {"folder": folder, "status": "running", "log": run.lines[-3:]}
+        results, job = P.read_results(folder)
+        if not results:
+            raise APIError("No results in {}.".format(folder))
+        labels = (job or {}).get("frame_labels") or []
+        keep = None if not self._summary(detail) else 3
+        out = {"folder": folder, "status": "finished", "ligands": []}
+        for r in results:
+            item = {"name": r["ligand"]["name"], "status": r.get("status"), "rotatable": r["ligand"].get("rotatable_bonds"),
+                    "charge": r["ligand"].get("total_charge"), "seconds": round(r.get("seconds", 0.0), 1)}
+            if r.get("status") != "ok":
+                item["error"] = r.get("error")
+            else:
+                item["poses"] = [{"rank": p["rank"], "score": round(p["score"], 2), "inter": round(p["inter"], 2),
+                                  "lj": round(p["lj"], 2), "elec": round(p["elec"], 2),
+                                  "strain": None if p.get("strain") is None else round(p["strain"], 2),
+                                  "frame": labels[p["frame"]] if p["frame"] < len(labels) else p["frame"],
+                                  "rmsd_input": round(p.get("rmsd_input", float("nan")), 2),
+                                  "contacts": [c[0] for c in p.get("contacts", [])[:8]]} for p in r["poses"][:keep]]
+            out["ligands"].append(item)
+        if show_poses:
+            def load():
+                made = []
+                for r in results:
+                    if r.get("status") != "ok" or not r["poses"]:
+                        continue
+                    system, frames = DS.pose_system(r)
+                    system = self.p_session.add_prepared_pdynamo_system(system, name=system.label, tag="DYFFDock",
+                                                                        working_folder=DS.run_folder_of(folder) or folder)
+                    vobject = self.main.get_active_vobject(system.e_id)
+                    vobject.frames = np.asarray(frames, dtype=np.float32)
+                    self.p_session._apply_QC_representation_to_vobject(vismol_object=vobject)
+                    made.append({"sys": system.e_id, "obj": vobject.index, "name": system.label, "frames": len(frames)})
+                return made
+            out["pose_systems"] = self._on_main(load)
+        return out
+
+    @off_main_thread
+    def grow(self, seed_mol2=None, seed_atoms=None, sys=None, obj=None, frame=None, center=None, size=None,
+             padding=6.0, charges="system", leave_out="water", pocket=None, pocket_margin=None,
+             max_steps=4, beam=6, max_sites=3, max_heavy_atoms=40, keep=6, options=None, seed=None,
+             show_best=1, name="denovo"):
+        """ De novo growth: builds ligands by attaching fragments of the built-in library
+        (fragments/ and linkers/ of src/dyffdock/library) onto a seed, scored the same way
+        as dock() (Extras > Run DYFFDock > De Novo Growth). The seed is placed in the box and
+        relaxed, then grown one fragment at a time, beam-search style; see
+        dyffdock.search.denovo_grow's own module docstring for the algorithm and its current
+        limitations (candidate fragments filtered only by the remaining atom budget, no
+        pocket-complementarity or synthesizability filtering yet).
+
+        Args:
+          seed_mol2: .mol2 file of the seed fragment to grow from (its own charges)
+          seed_atoms: atoms of the receptor system used as the seed instead ("6133-6150");
+            left out of the receptor. Give seed_mol2 or seed_atoms, not both.
+          sys: receptor system (default: the active system)
+          obj: object with the receptor coordinates (default: the last object of the system)
+          frame: frame of obj (default: the last)
+          center: box center [x, y, z] (A); default: around the seed, or around pocket
+          size: box size [x, y, z] (A); default: around the seed + padding, at least 16 A
+          padding: A added around the seed for the default box
+          charges: charges of seed_atoms: "system" (MM model) or "cm5" (xTB)
+          leave_out: residues left out of the receptor, comma-separated: water, ions, other
+          pocket: box around pocket(s) of the receptor, as in dock()
+          pocket_margin: A added around the pocket points (default 6)
+          max_steps: fragments added per branch at most
+          beam: candidates kept between steps
+          max_sites: open valences tried per candidate per step (at most)
+          max_heavy_atoms: heavy-atom budget of a grown ligand (seed included)
+          keep: distinct final candidates returned, best first
+          options: other options of dyffdock.search.denovo_grow.grow, e.g. {"polish": 5}
+          seed: random seed
+          show_best: load the best `show_best` candidates as new systems (0: none)
+          name: label prefix of the systems grown
+        """
+        import numpy as np
+        import dyffdock as dd
+        from dyffdock import prepare as P
+        from util import dyffdock_session as DS
+        e_id, system = self._system(sys)
+        vobject = self._vobject(obj, e_id)
+        f = self._frame_index(vobject, frame)
+        coords = np.asarray(vobject.frames[f], dtype=float).reshape(-1, 3)
+
+        if bool(seed_mol2) == bool(seed_atoms):
+            raise APIError("Give exactly one of seed_mol2, seed_atoms.")
+        atoms = parse_indices(seed_atoms) if seed_atoms else []
+        if seed_mol2:
+            seed_ligand = dd.Ligand.from_mol2(os.path.expanduser(seed_mol2))
+        else:
+            entry = DS.ligand_from_atoms(system, atoms, coords, charges=charges)
+            seed_ligand = dd.Ligand.from_mol2_text(entry["mol2"], default_name=entry["name"])
+        if seed_ligand.warnings:
+            raise APIError("The seed: " + "; ".join(seed_ligand.warnings))
+
+        rkeep = self._dock_receptor(vobject, system, leave_out, atoms)
+        found, chosen_ids = None, None
+        if pocket is not None and center is None:
+            chosen_ids = parse_indices(pocket)
+            found = DS.find_pockets(system, coords, rkeep)
+            chosen = [p for p in found if p["id"] in set(chosen_ids)]
+            if len(chosen) != len(set(chosen_ids)):
+                raise APIError("The receptor has pockets 1-{}.".format(len(found)))
+            margin = DS.POCKET_MARGIN if pocket_margin is None else float(pocket_margin)
+            box = DS.pocket_box(chosen, margin=margin)
+        elif center is not None:
+            box = dd.Box(center, size or [22.0, 22.0, 22.0])
+        else:
+            box = dd.Box.around(seed_ligand.coordinates, padding=float(padding))
+            if size is not None:
+                box = dd.Box(box.center, size)
+
+        receptor_system = P.receptor_system(system, rkeep, coords, label="{} receptor".format(system.label))
+        receptor = dd.Receptor(receptor_system, label=system.label)
+        library = dd.FragmentLibrary()
+        scoring = dd.get_scoring_function("dyff")
+        rng = np.random.default_rng(seed)
+        log_lines = []
+        results = dd.grow(receptor, seed_ligand, box, library, scoring, rng, frame=0,
+                          max_steps=int(max_steps), beam=int(beam), max_sites=int(max_sites),
+                          max_heavy_atoms=int(max_heavy_atoms), keep=int(keep),
+                          log=log_lines.append, **dict(options or {}))
+        rows, ligands_coords = [], []
+        for rank, (e, ligand, x) in enumerate(results, start=1):
+            label = "{}_{}".format(ligand.name, rank)                # . ligand.name repeats within a growth step
+            rows.append({"name": label, "score": round(float(e), 2), "atoms": ligand.n_atoms,
+                        "heavy_atoms": len(ligand.heavy_atoms), "charge": round(ligand.total_charge, 3),
+                        "rotatable_bonds": len(ligand.rotatable_bonds)})
+            ligands_coords.append((ligand, x))
+        out = {"sys": e_id, "obj": vobject.index, "seed": seed_ligand.summary(), "box": box.to_dict(),
+               "receptor_atoms": len(rkeep), "candidates": rows, "log": log_lines[-10:]}
+        if found is not None:
+            out["pockets"] = [self._pocket_row(p, []) for p in found if p["id"] in set(chosen_ids)]
+        if show_best:
+            def load():
+                made = []
+                for r, (ligand, x) in list(zip(rows, ligands_coords))[:int(show_best)]:
+                    ligand_system = ligand.system
+                    c = ligand_system.coordinates3
+                    for i in range(len(x)):
+                        c[i, 0], c[i, 1], c[i, 2] = float(x[i, 0]), float(x[i, 1]), float(x[i, 2])
+                    ligand_system.label = "{}_{}".format(name, r["name"])
+                    new_system = self.p_session.add_prepared_pdynamo_system(
+                        ligand_system, name=ligand_system.label, tag="DYFFDock de novo",
+                        working_folder=getattr(system, "e_working_folder", None))
+                    new_vobject = self.main.get_active_vobject(new_system.e_id)
+                    self.p_session._apply_QC_representation_to_vobject(vismol_object=new_vobject)
+                    made.append({"sys": new_system.e_id, "obj": new_vobject.index, "name": new_system.label, "score": r["score"]})
+                return made
+            out["systems"] = self._on_main(load)
+        return out
+
     # ============================================================ remote machines
     def remotes(self):
         """ Remote machines (Simulate > Remote Machines) and where simulations run now. """
@@ -1893,6 +2246,13 @@ _KNOWN_ARGS = {
     "bins_rc2":  ({"type": "integer"}, None), "temperature": ({"type": "number"}, None),
     "path_from": ({"type": "array", "items": {"type": "integer"}}, "2D only: start cell [i, j]"),
     "path_to":   ({"type": "array", "items": {"type": "integer"}}, "2D only: end cell [i, j]"),
+    "ligands":   ({"type": ["array", "string"]}, None), "ligand_atoms": ({"type": ["array", "string"]}, None),
+    "center":    ({"type": "array", "items": {"type": "number"}}, None),
+    "size":      ({"type": "array", "items": {"type": "number"}}, None),
+    "runs":      ({"type": "integer"}, None), "processes": ({"type": "integer"}, None),
+    "options":   ({"type": "object"}, None),
+    "pocket":    ({"type": ["array", "integer", "string"]}, None), "pocket_margin": ({"type": "number"}, None),
+    "seed_mol2": ({"type": "string"}, None), "seed_atoms": ({"type": ["array", "string"]}, None),
 }
 
 

@@ -454,7 +454,7 @@ def main():
         #main_window.builder.get_object('menuitem_cpr')   .hide() # Conjugate Peak Refinement...
         
         
-        main_window.builder.get_object('menuitem_extras') .hide() # Extras
+        
         #main_window.builder.get_object('menuitem_rdf_analysis')   .hide() # RDF Analysis (g(r))
         
         main_window.builder.get_object('menuitem_advanced_rc_scans')   .hide() # RDF Analysis (g(r))
@@ -466,12 +466,14 @@ def main():
         main_window.builder.get_object('menuitem_control_server')   .hide()  
         main_window.builder.get_object('menuitem_control_settings')   .hide()  
         main_window.builder.get_object('menuitem_ai_assistant')   .hide()  
+        
         #
         #'''Remote jobs'''
         main_window.builder.get_object('menuitem_remote_machines')   .hide()  
         main_window.builder.get_object('menuitem_run_on')   .hide()  
         
-        
+        #'''extras'''
+        main_window.builder.get_object('menuitem_extras') .hide() # Extras
         
         
         

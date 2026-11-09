@@ -134,13 +134,35 @@ def match_residues ( residues, symbols, neighbours, library ):
     return matches, unmatched
 
 
+def chi1_bond_refs ( t ):
+    """ { "r:i", "r:j" } of the template's chi1 bond (CA -> the first side-chain heavy
+        atom), or None (Gly, a template without a CA). 2026-11-08: that bond's
+        force-matched dihedral series is excluded in library_edits -- the generic 4-term
+        fit (periods 1-4) is badly conditioned for plain sp3-sp3 single bonds (unlike the
+        backbone phi/psi/omega and the amide/guanidinium planar bonds, fix_planar_torsions
+        .py): most residues came out with spurious minima (0 deg, or +-49/+-130 instead of
+        the physical +-60/180 deg), confirmed on real proteins to flip chi1 into the wrong
+        rotamer (DYFF_validation/LAB_NOTEBOOK.md 2026-11-08). Falling back to DYFF's own
+        generic rule for this one bond (letting the override simply not exist) measured
+        better than every attempted repair, including a barrier-preserving pure 3-fold
+        projection and a ridge-regularised refit of the whole library. """
+    ca = next ( ( k for k, a in enumerate ( t["atoms"] ) if a.get ( "role" ) == "CA" ), None )
+    if ca is None: return None
+    cb = next ( ( n for n in t["atoms"][ca]["neighbors"]
+                  if t["atoms"][n]["element"] != "H" and t["atoms"][n].get ( "role" ) not in ( "N", "C" ) ), None )
+    if cb is None: return None
+    return frozenset ( ( "r:{}".format ( ca ), "r:{}".format ( cb ) ) )
+
+
 def library_edits ( matches, library ):
     """ ( per-term DYFF edits in system indices, { atom: charge } ). Terms whose
         neighbour references are missing (chain ends) are left out; a term given
-        by two residues is averaged. """
+        by two residues is averaged. The chi1 (CA-CB) dihedral term of every template is
+        skipped (chi1_bond_refs). """
     bonds, angles, torsions, charges = defaultdict ( list ), defaultdict ( list ), defaultdict ( list ), { }
     for m in matches:
         t = library["templates"][m["template"]]
+        chi1 = chi1_bond_refs ( t )
         def atom ( ref ):
             kind, key = ref.split ( ":" )
             return m["map"].get ( int ( key ) ) if kind == "r" else m["junction"].get ( ref )
@@ -155,6 +177,7 @@ def library_edits ( matches, library ):
             if None in ( a, b, c ): continue
             angles["{}-{}-{}".format ( min ( a, c ), b, max ( a, c ) )].append ( pairs )
         for ra, rb, pairs in t["dihedral_bonds"]:
+            if chi1 is not None and frozenset ( ( ra, rb ) ) == chi1: continue
             a, b = atom ( ra ), atom ( rb )
             if a is None or b is None: continue
             torsions["{}-{}".format ( min ( a, b ), max ( a, b ) )].append ( pairs )
