@@ -52,7 +52,7 @@ class VismolConfig                       :
                                       "dots_size"                  : 2,
                                       "dot_type"                   : 1,
                                       "dot_sel_size"               : 2.0,
-                                      "line_width"                 : 3,
+                                      "line_width"                 : 7,
                                       "line_width_selection"       : 10,
                                       "line_type"                  : 0,
                                       "line_color"                 : 0,
@@ -72,7 +72,7 @@ class VismolConfig                       :
                                       
                                       "sticks_radius"              : 0.16, # not being used (defined in the shader)
                                       "multiple_bonds"             : True,
-                                      "lines_bond_spacing"         : 1.0, # factor on the default spacing of double/triple bonds in lines
+                                      "lines_bond_spacing"         : 0.7, # factor on the default spacing of double/triple bonds in lines
                                       "sticks_radius_double"       : 0.064, # A, each cylinder of a double bond (sticks and dynamic bonds)
                                       "sticks_radius_triple"       : 0.064, # A, each cylinder of a triple bond
                                       "sticks_spacing_double"      : 0.16,  # A, between the two cylinder axes of a double bond
