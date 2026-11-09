@@ -295,7 +295,7 @@ class PotentialEnergyAnalysisWindow:
                                                  upper         = 100,
                                                  step_increment= 1,
                                                  page_increment= 1,
-                                                 page_size     = 1)
+                                                 page_size     = 0)
 
             self.scale_traj.set_adjustment ( self.adjustment)
             self.scale_traj.set_digits(0)
