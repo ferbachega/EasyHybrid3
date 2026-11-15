@@ -34,6 +34,7 @@ import math
 import os
 import threading
 import traceback
+from datetime import datetime
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -195,8 +196,15 @@ class UmbrellaBrowserWindow:
         self.btn_export.connect("clicked", self.on_export_image)
         self.btn_save = Gtk.Button(label="Save Table...")
         self.btn_save.connect("clicked", self.on_save_table)
+        self.btn_report = Gtk.Button(label="Export Report...")
+        self.btn_report.set_tooltip_text("Markdown report of this run: protocol, the window map, overlap, drift, "
+                                         "coverage/distributions, PMF and convergence (whichever are already computed "
+                                         "or selected above) as figures, plus the same written summaries the window "
+                                         "shows under each view -- a first draft for a paper's Methods and Results.")
+        self.btn_report.connect("clicked", lambda _b: self._safe(self._export_report_dialog))
         bar.pack_end(self.btn_save, False, False, 0)
         bar.pack_end(self.btn_export, False, False, 0)
+        bar.pack_end(self.btn_report, False, False, 0)
         # . colour map of the maps (2026-10-24): the palettes of the PES Analysis window
         self.check_reverse = Gtk.CheckButton(label="Reverse")
         self.check_reverse.set_tooltip_text("Reverse the colour map")
@@ -1165,6 +1173,94 @@ class UmbrellaBrowserWindow:
             w = csv.writer(handle)
             w.writerow(cols)
             w.writerows(self._table_rows())
+
+    # ------------------------------------------------------------- report
+    def _export_report_dialog(self):
+        """ 2026-11-08, user request: a Markdown report with the figures and the written summaries
+            already used by the views, as a draft of a paper's Methods and Results. """
+        if self.run is None:
+            raise ValueError("Open an umbrella sampling run first.")
+        default = os.path.basename(self.run.folder.rstrip(os.sep)) + "_report.md"
+        path = self._ask_save("Export Report (Markdown)", ["md"], default)
+        if path:
+            self._write_report(path)
+            self._message("Report written to " + path)
+
+    def _render_png(self, setter, path, width=1000, height=620):
+        """ Off-screen render of one view's (title, setter) pair -- the same AnalysisPlot.set_*
+            call the window itself uses -- on a throw-away AnalysisPlot, so the window's own plot
+            is left showing whatever the user had open. """
+        plot = AnalysisPlot()
+        plot.set_palette(self.combo_palette.get_active_id(), self.check_reverse.get_active())
+        setter(plot)
+        plot.export(path, width=width, height=height)
+
+    def _write_report(self, path):
+        run = self.run
+        base = os.path.splitext(os.path.basename(path))[0]
+        fig_dir = os.path.join(os.path.dirname(os.path.abspath(path)), base + "_figures")
+        os.makedirs(fig_dir, exist_ok=True)
+
+        sections = []  # [(heading, [(relpath, caption), ...], summary, table), ...]
+
+        def add(heading, result):
+            views = (result or {}).get("views") or []
+            figs = []
+            for n, (title, setter) in enumerate(views):
+                fname = "{}_{}.png".format(len(sections), n)
+                self._render_png(setter, os.path.join(fig_dir, fname))
+                figs.append((base + "_figures/" + fname, title))
+            sections.append((heading, figs, (result or {}).get("summary", ""), (result or {}).get("table")))
+
+        add("Window map", self._view_map())
+        if run.dims == 2:
+            add("Coverage of the RC plane", self._view_coverage())
+        add("RC distributions and overlap" if run.dims == 1 else "Overlap between neighbours", self._view_hist() if run.dims == 1 else self._view_overlap())
+        add("Drift / equilibration", self._view_drift())
+        if self._pmf is not None:
+            add("Potential of mean force (PMF)", self._view_pmf())
+        else:
+            sections.append(("Potential of mean force (PMF)", [],
+                              "No PMF was selected in the window (the 'PMF' box above) when the report was exported "
+                              "-- choose a WHAM file, or 'WHAM computed here', and export the report again to "
+                              "include it.", None))
+        needed = ["all", "first", "second"] + (["b0", "b1", "b2", "b3"] if run.dims == 1 else [])
+        if all(k in self._own for k in needed):
+            add("Convergence", self._view_conv())
+        else:
+            sections.append(("Convergence", [],
+                              "Not computed when the report was exported -- open the 'Convergence' view, press "
+                              "Compute, and export the report again to include it.", None))
+
+        self._write_report_markdown(path, sections)
+
+    def _write_report_markdown(self, path, sections):
+        run = self.run
+        lines = ["# Umbrella Sampling Report -- {}".format(os.path.basename(run.folder.rstrip(os.sep))), "",
+                 "*Generated by EasyHybrid on {} from `{}`.*".format(datetime.now().strftime("%Y-%m-%d %H:%M"), run.folder), "",
+                 "## Protocol", "", self.label_info.get_text().replace("\n", "  \n"), "",
+                 "## Synthesis", "",
+                 "One line per analysis below, meant as a starting point for a paper's Methods and Results sections "
+                 "-- check the numbers and figures before using them.", ""]
+        for heading, _figs, summary, _table in sections:
+            if summary:
+                lines.append("- **{}:** {}".format(heading, " ".join(summary.split())))
+        lines += ["", "## Results"]
+        for heading, figs, summary, table in sections:
+            lines += ["", "### " + heading, ""]
+            for relpath, title in figs:
+                lines += ["![{}]({})".format(title, relpath), ""]
+            if summary:
+                lines += [summary.replace("\n", "  \n"), ""]
+            if table:
+                cols, rows = table
+                lines.append("| " + " | ".join(cols) + " |")
+                lines.append("|" + "|".join(["---"] * len(cols)) + "|")
+                for r in rows:
+                    lines.append("| " + " | ".join(str(v) for v in r[:len(cols)]) + " |")
+                lines.append("")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(lines))
 
     def _ask_save(self, title, extensions, name):
         chooser = Gtk.FileChooserDialog(title=title, parent=self.window, action=Gtk.FileChooserAction.SAVE)
