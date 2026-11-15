@@ -142,3 +142,58 @@ def profile_error ( make_system, edits, quad, geometries, targets, e_ref ):
     return { "rmse": float ( np.sqrt ( np.mean ( ( mm - ref ) ** 2 ) ) ),
              "rmse_low": float ( np.sqrt ( np.mean ( ( mm[low] - ref[low] ) ** 2 ) ) ) if low.any ( ) else float ( "nan" ),
              "min_ok": bool ( ref[int ( np.argmin ( mm ) )] <= 2.092 ), "mm": mm.tolist ( ) }
+
+
+def scan_and_fit ( symbols, coordinates, bonds, targets, make, base_edits, charge, multiplicity, solvent, step, threads,
+                   workers, say, cancel = None, report_bond = None, log_dir_of = None ):
+    """ Relaxed xTB scans of the targets ( ( bond, quad ) ) in parallel, then the
+        self-consistent per-bond fit on the MM system given by make ( edits ).
+        report_bond ( bond ) -> the bond as reported (e.g. mapped to parent indices).
+        log_dir_of ( bond ) -> folder for the original xtb outputs of that scan (or None).
+        [EN] moved here from gui/windows/builder/dyff_parameters.py (2026-11): it never
+        had any GUI dependency (only pdynamo.torsion_fit and this module), and
+        pdynamo/residue_library.py (no-GUI) already called it as a private import. """
+    import concurrent.futures
+    from pdynamo import torsion_fit as TF
+    if not targets: return [ ]
+    say ( "{} rotatable bond(s): xTB scans...".format ( len ( targets ) ) )
+    def scan ( item ):
+        bond, quad = item
+        if cancel is not None and cancel ( ): return bond, quad, None
+        runner = TF.XTBRunner ( gfn = 2, charge = charge, multiplicity = multiplicity, solvent = solvent, threads = threads,
+                                log_dir = log_dir_of ( bond ) if log_dir_of else None )
+        return bond, quad, TF.run_scan ( symbols, coordinates, bonds, quad, step = step, relaxed = True, runner = runner )
+    scans = [ ]
+    with concurrent.futures.ThreadPoolExecutor ( max_workers = max ( 1, workers ) ) as pool:
+        for n, ( bond, quad, result ) in enumerate ( pool.map ( scan, targets ), 1 ):
+            scans.append ( ( bond, quad, result ) )
+            say ( "xTB scans {}/{}".format ( n, len ( targets ) ) )
+    results = [ ]
+    for n, ( bond, quad, scan_result ) in enumerate ( scans, 1 ):
+        if scan_result is None: continue
+        if cancel is not None and cancel ( ): break
+        reported = report_bond ( bond ) if report_bond else bond
+        say ( "fitting torsion {}/{} (bond {}-{})".format ( n, len ( scans ), *reported ) )
+        e_qm = np.array ( scan_result["e_qm"], dtype = float )            # torsion_fit.run_scan: already kJ/mol
+        broken = TF.broken_bonds ( symbols, bonds, scan_result["geometries"] )
+        if broken:
+            p, ( a, b ), d = broken[0]
+            results.append ( { "bond": reported, "quad": quad, "error": "the xTB scan changed the bonding (atoms {}-{} at {:.2f} A: "
+                               "proton transfer?) -- try implicit solvent (ALPB) or check charges/protonation".format ( a + 1, b + 1, d ) } )
+            continue
+        try:
+            pairs, wrmse, dropped = fit_bond ( make, base_edits, bonds, quad, scan_result["geometries"], scan_result["phi"], e_qm )
+            before = profile_error ( make, base_edits, quad, scan_result["geometries"], scan_result["phi"], e_qm )
+            # . 2026-10-23: the profiles too (kcal/mol, relative to each minimum), for plots and reports
+            after = profile_error ( make, _with_bond ( base_edits, quad[1], quad[2], pairs ), quad,
+                                    scan_result["geometries"], scan_result["phi"], e_qm )
+            results.append ( { "bond": reported, "quad": quad, "pairs": pairs, "fit_rmse": wrmse / 4.184, "before_rmse": before["rmse"] / 4.184,
+                               "barrier_xtb": float ( ( e_qm.max ( ) - e_qm.min ( ) ) / 4.184 ), "dropped": dropped,
+                               "profiles": { "phi": [ float ( x ) for x in scan_result["phi"] ],
+                                             "xtb": [ float ( x ) for x in ( e_qm - e_qm.min ( ) ) / 4.184 ],
+                                             "dyff_before": [ x / 4.184 for x in before["mm"] ],
+                                             "dyff_after": [ x / 4.184 for x in after["mm"] ],
+                                             "after_rmse": after["rmse"] / 4.184 } } )
+        except Exception as error:
+            results.append ( { "bond": reported, "quad": quad, "error": str ( error ).split ( "\n" )[0][:160] } )
+    return results

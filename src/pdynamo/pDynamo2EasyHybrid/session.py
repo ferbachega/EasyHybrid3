@@ -240,86 +240,12 @@ def _bond_orders_from_connectivity ( system, index_bonds ):
     return out
 
 
-def _apply_dyff_guanidinium_correction ( system ):
-    """ [EN] Fixes a confirmed DYFF atom-typing bug for guanidinium/
-    guanidino groups (the arginine side chain's -NH-C(=NH2)-NH2, and any
-    free-standing guanidinium the user draws) -- found by the user's own
-    live testing ("as cadeias laterais de argininas nao estao
-    corretamente interpretados"), reproduced and root-caused directly
-    against pDynamo3's own MMAtomTyper (not guessed):
-
-    Given a chemically valid guanidino carbon (bonded to EXACTLY 3
-    nitrogens and nothing else -- one C=N double bond, two C-N single
-    bonds, standard Kekule drawing) with all formal charges left at 0
-    (the Builder's own default -- see empty_object.
-    _build_pdynamo_system_from_vismol_object(), which never sets a
-    nonzero formalCharge, and a plain PDB import doesn't carry one
-    either), pDynamo3's automatic pattern typer gets the CARBON and the
-    two SINGLY-bonded nitrogens right ("C:Tri"/"N:Tri" each, correctly
-    trigonal/planar) but mis-types the DOUBLY-bonded nitrogen as "N:Tet"
-    (tetrahedral/pyramidal amine) instead of the chemically correct
-    "N:Tri" -- confirmed with a real 19-atom test molecule (a capped
-    guanidinopropyl fragment, i.e. an isolated arginine side chain) built
-    through the EXACT SAME code path the Builder itself uses. The
-    "Guanidinium Cation" pattern in dyff-1.0/patterns.yaml WOULD type the
-    whole group correctly, but only matches when the CARBON carries an
-    explicit formalCharge of +1 -- something neither the Builder nor a
-    plain PDB import ever sets (this project has no formal-charge UI at
-    all yet, a separate, documented limitation -- see [[project_dyff_
-    force_field_assignment]]).
-
-    This project's OWN existing patch to MMModel.BuildModel() (MMModel.py,
-    "Modified by Fernando Bachega ... September 11, 2024") already fixes
-    this EXACT class of mistyping for MOL2-imported systems, by
-    overriding specific atoms' perceived types from `target.
-    atomType_FromMol2` (a Tripos-type-string list only ever set by
-    pDynamo3's own MOL2 file reader) through pBabel.MOL2AtomTypesToDYFF.
-    TriposMOL2AtomTypes. Rather than touching that vendored code again,
-    this function reuses the EXACT SAME hook for Builder/PDB-derived
-    systems too: it finds every guanidino carbon structurally (element +
-    connectivity alone, not residue name -- works for arginine AND any
-    other guanidinium the user builds) and synthesises the same kind of
-    `atomType_FromMol2` list MOL2 import would have produced ("C.cat" for
-    the carbon, "N.pl3" for all 3 nitrogens -- verified live to map, via
-    the existing TriposMOL2AtomTypes table, to exactly "C:Tri"/"N:Tri",
-    the chemically correct result), so BuildModel()'s own existing
-    override logic does the rest, unchanged.
-
-    No-ops (returns 0) if `system` already carries a REAL atomType_
-    FromMol2 (an actual MOL2 import already ran its own, presumably more
-    complete, correction) -- never overwrites that. Returns the number of
-    guanidino groups corrected (0 if none found), used by define_MMModel()
-    to mention it in its own returned status message. """
-    connectivity = getattr ( system, "connectivity", None )
-    if connectivity is None or getattr ( system, "atomType_FromMol2", None ):
-        return 0
-
-    nodes    = connectivity.nodes
-    index_of = { atom : i for i, atom in enumerate ( nodes ) }
-    override = None
-    n_found  = 0
-
-    for atom in nodes:
-        if atom.atomicNumber != 6:
-            continue
-        neighbors = [ edge.Opposite ( atom ) for edge in connectivity.adjacentEdges.get ( atom, ( ) ) ]
-        if len ( neighbors ) != 3 or any ( n.atomicNumber != 7 for n in neighbors ):
-            continue
-        if override is None:
-            override = [ "" ] * len ( nodes )
-        override[ index_of[atom] ] = "C.cat"
-        for n in neighbors:
-            override[ index_of[n] ] = "N.pl3"
-        n_found += 1
-
-    if override is not None:
-        system.atomType_FromMol2 = override
-        dprint ( 'define_MMModel: corrected {} guanidinium/guanidino group(s) in "{}" '
-                '(DYFF pattern typer mistypes the C=N-bonded nitrogen as tetrahedral '
-                'otherwise -- see _apply_dyff_guanidinium_correction()\'s own '
-                'docstring).'.format ( n_found, getattr ( system, "label", "?" ) ) )
-
-    return n_found
+# . [EN] 2026-11: _apply_dyff_guanidinium_correction moved to
+#   pdynamo.dyff_edits.apply_guanidinium_correction -- it was pure
+#   pdynamo.connectivity logic with no GUI dependency at all, now part of
+#   dyff-1.0eh instead of this GUI-only module. Kept as an alias (the
+#   call site below, and anything importing the old name, keep working).
+from pdynamo.dyff_edits import apply_guanidinium_correction as _apply_dyff_guanidinium_correction
 
 
 def _apply_builder_partial_charges ( vm_session, system ):

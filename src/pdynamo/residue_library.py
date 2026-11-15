@@ -661,7 +661,7 @@ def scan_flexible_torsions ( z, xyz, bonds, formal, groups, targets, charges, ed
     from pMolecule.NBModel import NBModelFull
     from pdynamo import subsystem as SS
     from pdynamo.dyff_edits import dyff_model, soften_polar_hydrogens
-    from gui.windows.builder.dyff_parameters import _scan_and_fit
+    from pdynamo.dyff_bond_fit import scan_and_fit as _scan_and_fit
     say = say or ( lambda text: None )
     multiplicity_of = multiplicity_of or ( lambda atoms: 1 )
     all_charges = dict ( known_charges or { } ); all_charges.update ( charges )

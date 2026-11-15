@@ -755,61 +755,10 @@ def refine_torsions ( vismol_object, total_charge = None, multiplicity = 1, solv
     targets = rotatable_bonds ( vismol_object )
     library = [ ]
     if use_library: library, targets = library_torsion_results ( vismol_object, targets, say )
+    from pdynamo.dyff_bond_fit import scan_and_fit as _scan_and_fit
     return library + _scan_and_fit ( symbols, coordinates, bonds, targets, system_factory ( vismol_object ), base_edits, total_charge,
                                      multiplicity, solvent, step, threads, workers, say, cancel )
 
-
-def _scan_and_fit ( symbols, coordinates, bonds, targets, make, base_edits, charge, multiplicity, solvent, step, threads,
-                    workers, say, cancel = None, report_bond = None, log_dir_of = None ):
-    """ Relaxed xTB scans of the targets ( ( bond, quad ) ) in parallel, then the
-        self-consistent per-bond fit on the MM system given by make ( edits ).
-        report_bond ( bond ) -> the bond as reported (e.g. mapped to parent indices).
-        log_dir_of ( bond ) -> folder for the original xtb outputs of that scan (or None). """
-    import concurrent.futures
-    from pdynamo import torsion_fit as TF
-    from pdynamo import dyff_bond_fit as BF
-    if not targets: return [ ]
-    say ( "{} rotatable bond(s): xTB scans...".format ( len ( targets ) ) )
-    def scan ( item ):
-        bond, quad = item
-        if cancel is not None and cancel ( ): return bond, quad, None
-        runner = TF.XTBRunner ( gfn = 2, charge = charge, multiplicity = multiplicity, solvent = solvent, threads = threads,
-                                log_dir = log_dir_of ( bond ) if log_dir_of else None )
-        return bond, quad, TF.run_scan ( symbols, coordinates, bonds, quad, step = step, relaxed = True, runner = runner )
-    scans = [ ]
-    with concurrent.futures.ThreadPoolExecutor ( max_workers = max ( 1, workers ) ) as pool:
-        for n, ( bond, quad, result ) in enumerate ( pool.map ( scan, targets ), 1 ):
-            scans.append ( ( bond, quad, result ) )
-            say ( "xTB scans {}/{}".format ( n, len ( targets ) ) )
-    results = [ ]
-    for n, ( bond, quad, scan_result ) in enumerate ( scans, 1 ):
-        if scan_result is None: continue
-        if cancel is not None and cancel ( ): break
-        reported = report_bond ( bond ) if report_bond else bond
-        say ( "fitting torsion {}/{} (bond {}-{})".format ( n, len ( scans ), *reported ) )
-        e_qm = np.array ( scan_result["e_qm"], dtype = float )            # torsion_fit.run_scan: already kJ/mol
-        broken = TF.broken_bonds ( symbols, bonds, scan_result["geometries"] )
-        if broken:
-            p, ( a, b ), d = broken[0]
-            results.append ( { "bond": reported, "quad": quad, "error": "the xTB scan changed the bonding (atoms {}-{} at {:.2f} A: "
-                               "proton transfer?) -- try implicit solvent (ALPB) or check charges/protonation".format ( a + 1, b + 1, d ) } )
-            continue
-        try:
-            pairs, wrmse, dropped = BF.fit_bond ( make, base_edits, bonds, quad, scan_result["geometries"], scan_result["phi"], e_qm )
-            before = BF.profile_error ( make, base_edits, quad, scan_result["geometries"], scan_result["phi"], e_qm )
-            # . 2026-10-23: the profiles too (kcal/mol, relative to each minimum), for plots and reports
-            after = BF.profile_error ( make, BF._with_bond ( base_edits, quad[1], quad[2], pairs ), quad,
-                                       scan_result["geometries"], scan_result["phi"], e_qm )
-            results.append ( { "bond": reported, "quad": quad, "pairs": pairs, "fit_rmse": wrmse / 4.184, "before_rmse": before["rmse"] / 4.184,
-                               "barrier_xtb": float ( ( e_qm.max ( ) - e_qm.min ( ) ) / 4.184 ), "dropped": dropped,
-                               "profiles": { "phi": [ float ( x ) for x in scan_result["phi"] ],
-                                             "xtb": [ float ( x ) for x in ( e_qm - e_qm.min ( ) ) / 4.184 ],
-                                             "dyff_before": [ x / 4.184 for x in before["mm"] ],
-                                             "dyff_after": [ x / 4.184 for x in after["mm"] ],
-                                             "after_rmse": after["rmse"] / 4.184 } } )
-        except Exception as error:
-            results.append ( { "bond": reported, "quad": quad, "error": str ( error ).split ( "\n" )[0][:160] } )
-    return results
 
 
 def store_torsion_edits ( vismol_object, results, hessian_result = None ):
@@ -941,6 +890,7 @@ def refine_selection ( vismol_object, selection_ids, multiplicity = 1, solvent =
             q = tuple ( local[a] for a in quad )
             targets.append ( ( ( min ( q[1], q[2] ), max ( q[1], q[2] ) ), q ) )
     parent = sub["parent_index"]
+    from pdynamo.dyff_bond_fit import scan_and_fit as _scan_and_fit
     results = library + _scan_and_fit ( symbols, sub["coordinates"], pairs, targets, subsystem_factory ( vismol_object, sub ), base,
                                         sub["charge"], multiplicity, solvent, step, 1, workers, say, cancel,
                                         report_bond = lambda b: ( min ( parent[b[0]], parent[b[1]] ), max ( parent[b[0]], parent[b[1]] ) ) )
