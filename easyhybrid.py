@@ -160,21 +160,31 @@ def parse_bash_env_file(filepath):
         # Add to environment
         os.environ[var] = value
 
-    # Add pDynamo to python path
+    # Add pDynamo to python path. insert(0, ...), not append(): a stray
+    # PYTHONPATH env var pointing at a different pDynamo3 (e.g. set in the
+    # user's shell profile) sits ahead of anything appended here, and would
+    # otherwise silently shadow the one EasyHybrid actually means to use.
     if "PDYNAMO3_HOME" in env_vars:
-        sys.path.append(env_vars["PDYNAMO3_HOME"])
+        sys.path.insert(0, env_vars["PDYNAMO3_HOME"])
 
     return env_vars
 
 
 try:
     from paths import PDYNAMO_HOME
+except Exception:
+    # . No personal paths.py (e.g. a fresh clone): fall back to the bundled
+    # src/pdynamo3-eh submodule, the same way src/graphics_engine (vismol) is
+    # already bundled -- built with its own installation/Install.py -f.
+    PDYNAMO_HOME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src", "pdynamo3-eh")
+
+try:
     shell_scripts = os.path.join(PDYNAMO_HOME, 'installation/shellScripts/environment_bash.com')
     parse_bash_env_file(shell_scripts)
     logging.info('Importing environment variables from: %s', shell_scripts)
 except Exception as e:
-    logging.warning('paths.py / PDYNAMO_HOME not found -- pDynamo3 environment '
-                     'variables were not imported (%s).', e)
+    logging.warning('pDynamo3 environment variables were not imported from %s (%s).',
+                     PDYNAMO_HOME, e)
 
 
 

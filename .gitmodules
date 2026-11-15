@@ -5,3 +5,6 @@
 [submodule "src/dyffdock"]
 	path = src/dyffdock
 	url = https://github.com/ferbachega/dyffdock.git
+[submodule "src/pdynamo3-eh"]
+	path = src/pdynamo3-eh
+	url = https://github.com/ferbachega/pdynamo3-eh.git
