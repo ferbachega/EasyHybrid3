@@ -144,7 +144,7 @@ class XTBRunner:
         (callable from another thread). """
 
     def __init__ ( self, xtb = None, gfn = 2, charge = 0, multiplicity = 1, solvent = None, threads = 4, log_dir = None ):
-        from pdynamo.opls.ligand import find_xtb
+        from pdynamo.ligand_chemistry import find_xtb
         self.xtb = xtb or find_xtb ( )
         if self.xtb is None:
             raise RuntimeError ( "xtb was not found (set XTBHOME or put xtb in the PATH)." )

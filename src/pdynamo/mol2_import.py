@@ -33,7 +33,7 @@ def system_from_mol2 ( path, label = None ):
     """ pDynamo System (no sequence) from a .mol2 file. """
     from pMolecule import Atom, Bond, BondType, Connectivity, ConvertInputConnectivity, System
     from pScientific.Geometry3 import Coordinates3
-    from pdynamo.opls import ligand as L
+    from pdynamo import ligand_chemistry as L
     atoms, bonds = L._parse_mol2 ( path )
     if not atoms:
         raise ValueError ( "{}: no atoms.".format ( path ) )

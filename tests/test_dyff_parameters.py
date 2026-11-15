@@ -28,7 +28,7 @@ os.environ.setdefault("PDYNAMO3_PARAMETERS", os.path.join(_PDYNAMO, "parameters"
 
 @pytest.fixture
 def adenosine(make_vismol_object):
-    from pdynamo.opls import ligand
+    from pdynamo import ligand_chemistry as ligand
     atoms, bonds = ligand._parse_mol2(os.path.join(_TESTS_DIR, "data", "adenosine.mol2"))
     elements = [a[1] for a in atoms]
     kekule, _ = ligand._kekulize(elements, bonds)

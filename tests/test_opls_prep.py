@@ -144,7 +144,7 @@ def test_ligand_from_mol2_types_and_charges(tmp_path):
 
 @pytest.mark.skipif(not _have("obabel"), reason="obabel needed")
 def test_cationic_aromatic_ring_gets_its_charge():
-    from pdynamo.opls import ligand
+    from pdynamo import ligand_chemistry as ligand
     atoms = [(n, ligand.ELEMENT_Z[e], x) for (n, e, x, t) in ligand._parse_mol2(os.path.join(_TESTS_DIR, "data", "thiamine.mol2"))[0]]
     lig = ligand.ligand_chemistry("THI", atoms)
     assert lig.total_charge == +1                                      # thiazolium N+
@@ -164,7 +164,7 @@ def _builder_like_system():
     import numpy as np
     from pMolecule import Atom, Bond, BondType, Connectivity, ConvertInputConnectivity, System
     from pScientific.Geometry3 import Coordinates3
-    from pdynamo.opls import ligand
+    from pdynamo import ligand_chemistry as ligand
     atoms, bonds = ligand._parse_mol2(os.path.join(_TESTS_DIR, "data", "adenosine.mol2"))
     elements = [a[1] for a in atoms]
     kekule, _ = ligand._kekulize(elements, bonds)
@@ -216,7 +216,7 @@ def test_mol2_fragments_are_merged_into_one_ligand(tmp_path):
 
 @pytest.mark.skipif(not _have("obabel"), reason="obabel needed")
 def test_mol2_fallback_reads_charged_aromatics():
-    from pdynamo.opls import mol2_import
+    from pdynamo import mol2_import
     system, used_fallback = mol2_import.import_system(os.path.join(_TESTS_DIR, "data", "thiamine.mol2"))
     assert used_fallback
     assert sum(a.formalCharge for a in system.atoms) == +1
@@ -236,12 +236,13 @@ def test_quality_report_flags_phosphate_torsions(tmp_path):
 @pytest.mark.skipif(not (_have("xtb") and _have("obabel")), reason="xtb and obabel needed")
 def test_imidazole_classes_match_opls():
     import subprocess, tempfile
+    from pdynamo import ligand_chemistry
     from pdynamo.opls import ligand
     scratch = tempfile.mkdtemp()
     subprocess.run(["obabel", "-:[nH]1cncc1", "--gen3d", "-h", "-O", os.path.join(scratch, "i.mol2")], capture_output=True)
-    atoms, bonds = ligand._parse_mol2(os.path.join(scratch, "i.mol2"))
+    atoms, bonds = ligand_chemistry._parse_mol2(os.path.join(scratch, "i.mol2"))
     elements = [a[1] for a in atoms]
-    kekule, _ = ligand._kekulize(elements, bonds)
+    kekule, _ = ligand_chemistry._kekulize(elements, bonds)
     lig = ligand.parametrize_residue("IMI", [("%s%d" % (e, k), ligand.ELEMENT_Z[e], a[2]) for k, (a, e) in enumerate(zip(atoms, elements))],
                                      bonds=kekule, cm5_scale=1.0)
     assert lig.classes[:5] == ["NA", "CR", "NB", "CV", "CW"]    # OPLS-AA imidazole N1 C2 N3 C4 C5

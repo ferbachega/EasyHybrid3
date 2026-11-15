@@ -729,10 +729,10 @@ class pDynamoSession (pSimulations, pRemote, pAnalysis, ModifyRepInVismol, LoadA
                 except Exception as error:
                     # [EN] 2026-10-04: pDynamo's MOL2 reader rejects some charged
                     # aromatics (thiazolium, pyridinium...): build the system from
-                    # the file's own bonds instead (pdynamo/opls/mol2_import.py).
+                    # the file's own bonds instead (pdynamo/mol2_import.py).
                     if not ( coordinates_path.lower().endswith('.mol2') and 'connectivity' in str(error).lower() ):
                         raise
-                    from pdynamo.opls.mol2_import import system_from_mol2
+                    from pdynamo.mol2_import import system_from_mol2
                     system = system_from_mol2 ( coordinates_path, label = name )
                     self.main.bottom_notebook.status_teeview_add_new_item(message = 'pDynamo could not read the bond orders of {}: '
                         'loaded with the EasyHybrid mol2 reader (charged rings perceived from valences).'.format(os.path.basename(coordinates_path)), system = None)

@@ -73,7 +73,7 @@ def analyze ( system ):
         indices ], "metal_cofactors" [ residue indices ], "truncated" [ ( index, label,
         missing ) ] }. site = { "residue", "label", "element", "charge", "multiplicity",
         "model", "donors": [ ( residue index, atom name, distance ) ] }. """
-    from pdynamo.opls import prep
+    from pdynamo import structure_prep as prep
     analysis = prep.analyze_system ( system )
     residues = analysis.residues
     metals, ligands, metal_cofactors = [ ], [ ], [ ]
@@ -442,8 +442,8 @@ def build ( info, label = None, complete_truncated = True, ph = 7.4, random_seed
     from pMolecule import BondType, System
     from pScientific.RandomNumbers import RandomNumberGenerator
     from pSimulation import BuildHydrogenCoordinates3FromConnectivity
-    from pdynamo.opls import prep
-    from pdynamo.opls import ligand as L
+    from pdynamo import structure_prep as prep
+    from pdynamo import ligand_chemistry as L
     analysis = info["analysis"]
     residues = analysis.residues
     if info["covalent"]:

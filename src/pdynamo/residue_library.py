@@ -220,7 +220,7 @@ def xtb_cm5 ( symbols, xyz, charge, solvent = "water", threads = 4, multiplicity
         log_dir: the input geometry and the xtb output are kept there (param_logs). """
     import shutil, subprocess, tempfile
     import numpy as np
-    from pdynamo.opls.ligand import find_xtb
+    from pdynamo.ligand_chemistry import find_xtb
     tmp = tempfile.mkdtemp ( prefix = "cm5_" )
     try:
         with open ( os.path.join ( tmp, "m.xyz" ), "w" ) as handle:
