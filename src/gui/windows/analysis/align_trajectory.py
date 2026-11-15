@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -128,6 +128,11 @@ class AlignTrajectoryWindow:
 
             self.btn_align.connect("clicked", self.on_btn_align)
             self.combobox_systems.connect("changed", self.on_combobox_systems_changed)
+            # . 2026-10-24: start on the active system and its last object (the combos were empty)
+            for k, row in enumerate(self.main.system_liststore):
+                if row[1] == self.p_session.active_id:
+                    self.combobox_systems.set_active(k)
+                    break
             self.window.show_all()           
             self.Visible  = True
             

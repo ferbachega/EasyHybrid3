@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: quality assessment of the OPLS parameters of ligands
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -187,7 +187,7 @@ def markdown ( quality ):
               "Levels: **green** every term from the OPLS database and the charge within its class range; "
               "**yellow** generic terms (aromatic ring torsion, generic/zero improper) or a charge outlier; "
               "**red** estimated bonds/angles or a rotatable bond without torsion parameters. "
-              "In EasyHybrid every parameter, with its level, is listed (and can be edited) in Extras > OPLS > OPLS Parameters.", "" ]
+              "In EasyHybrid every parameter, with its level, is listed (and can be edited) in System > Force Field > Force Field Parameters.", "" ]
     for path, data in quality.items ( ):
         lv = data["levels"]
         total = sum ( lv.values ( ) ) or 1

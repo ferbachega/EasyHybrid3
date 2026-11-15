@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 
 
@@ -75,22 +75,25 @@ class WHAMAnalysis:
 
         results = {}
         
+        options = dict ( bins                 = parameters['bins'                 ],
+                         logFrequency         = parameters['logFrequency'         ],
+                         maximumIterations    = parameters['maximumIterations'    ],
+                         rmsGradientTolerance = parameters['rmsGradientTolerance' ],
+                         temperature          = parameters['temperature'          ],
+                         log                  = self.logFile2 )
+        resamples = int ( parameters.get ( 'resamples', 0 ) or 0 )
         try:
-            state = WHAM_ConjugateGradientMinimize ( parameters['file_names']                                  ,
-                                                     bins                 = parameters['bins'                 ],
-                                                     logFrequency         = parameters['logFrequency'         ],
-                                                     maximumIterations    = parameters['maximumIterations'    ],
-                                                     rmsGradientTolerance = parameters['rmsGradientTolerance' ],
-                                                     temperature          = parameters['temperature'          ],
-                                                     
-                                                     log = self.logFile2
-                                                     )
-            
+            if resamples > 1:
+                # . 2026-10-23: errors by bootstrap resampling (standard error and 95% confidence interval)
+                state = WHAM_Bootstrapping ( parameters['file_names'], resamples = resamples, **options )
+            else:
+                state = WHAM_ConjugateGradientMinimize ( parameters['file_names'], **options )
         except TypeError:
             return False, 'Error on pDynamo WHAM_ConjugateGradientMinimize! \n\nPlease, check your input data.'
-        
-        
-        
+
+        if resamples > 1 and not state.get ( "Converged", True ):
+            return False, 'The WHAM equations did not converge, so no bootstrapping was done.\n\nIncrease the maximum number of iterations or the gradient tolerance.'
+
         #try:
         # . Write the PMF to a file.
         histogram = state["Histogram"]
@@ -102,6 +105,15 @@ class WHAMAnalysis:
         else:
             histogram.ToTextFileWithData (  PMF_file , [ pmf ], format = "{:20.3f} {:20.3f}\n" )
         results['pmf'] = PMF_file
+        if "Standard Error" in state:
+            # . a separate file, so the PMF file keeps its format: bin(s), PMF, standard error, lower and upper 95% limits
+            errors_file = os.path.join(parameters['folder'], parameters['logfile']+'_pmf_errors.log')
+            columns = len ( histogram.dimensions ) + 4
+            histogram.ToTextFileWithData ( errors_file, [ pmf, state["Standard Error"], state["Lower 95% Confidence Interval"],
+                                                          state["Upper 95% Confidence Interval"] ],
+                                           format = " ".join ( ["{:20.3f}"] * columns ) + "\n" )
+            results['pmf_errors'] = errors_file
+            results['resamples']  = state.get ( "Number Of Resamples", resamples )
         #except TypeError:
         #    return False, 'Error on Write the PMF to a file!\n\n Please, check your input data.'
 
@@ -127,6 +139,24 @@ class WHAMAnalysis:
 
 
         msg = 'WHAM calculation performed successfully! \n\nPlease check:' + PMF_file
+        # . 2026-10-28: windows that do not overlap leave the PMF undetermined between them
+        try:
+            from pdynamo.us_data import neighbour_overlaps
+            overlaps = neighbour_overlaps ( files ) if parameters['type'] != 1 else []
+        except Exception:
+            overlaps = []
+        low = [ o for o in overlaps if o < 0.03 ]
+        results['overlaps'] = overlaps
+        if low:
+            msg += ('\n\nWARNING: {} of {} pairs of neighbouring windows do not overlap (overlap below 0.03, '
+                    'lowest {:.3f}). Across those gaps the PMF is not determined by the data, and different WHAM '
+                    'programs or bin choices give different curves. Use more windows or a smaller force constant '
+                    '(see Analysis > Umbrella Sampling Browser).'.format ( len ( low ), len ( overlaps ), min ( low ) ))
+        if not state.get ( "Converged", True ):
+            msg += ('\n\nWARNING: the WHAM equations did not converge in {} iterations - the PMF may be '
+                    'wrong. Increase the maximum number of iterations.'.format(parameters['maximumIterations']))
+        if results.get('pmf_errors'):
+            msg += '\n\nBootstrap errors ({} resamples): {}'.format(results['resamples'], results['pmf_errors'])
         results['msg'] = msg
 
         return True, results

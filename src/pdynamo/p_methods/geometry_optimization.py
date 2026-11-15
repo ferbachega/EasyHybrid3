@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 
 
@@ -52,6 +52,7 @@ import os, time, sys
 
 # --- imports entre modulos adicionados na refatoracao ---
 from pdynamo.p_methods._common import backup_qc_files, backup_orca_files
+from pdynamo.p_methods.baker_saddle import BakerSaddleOptimizeEH_SystemGeometry
 
 class GeometryOptimization:
     """ Class doc """
@@ -224,7 +225,7 @@ class GeometryOptimization:
 
     def _run_baker_saddle(self, parameters):
         """ Baker eigenvector-following transition-state search (Baker,
-            J. Comput. Chem. 4, 385-95, 1986) -- BakerSaddleOptimize_
+            J. Comput. Chem. 7, 385-395, 1986) -- BakerSaddleOptimize_
             SystemGeometry() itself already fixes numberOfNegativeModes=1
             and defaults hessianUpdatingOption to "BOFILL" whenever
             findMinimum is not requested (see pSimulation/
@@ -244,7 +245,20 @@ class GeometryOptimization:
         }
         if parameters['trajectory_name'] is not None:
             common["trajectories"] = [(self.trajectory, parameters['save_frequency'])]
-        BakerSaddleOptimize_SystemGeometry(parameters['system'], **common)
+        # . baker_saddle.py fixes followMode > 0 and analyticFrequency > 0. The
+        #   optimizer traps its own errors in the report instead of raising, so
+        #   check the report here.
+        report = BakerSaddleOptimizeEH_SystemGeometry(parameters['system'], **common)
+        if report.get('Error') is not None:
+            raise ValueError("Transition state search failed: {}".format(report['Error']))
+        if not report.get('Converged', False):
+            parameters['warning'] = (
+                "The search did NOT converge: {} iterations, RMS gradient {:.4g} (tolerance {:g}).\n"
+                "The final structure is not a transition state. Restart from it with more "
+                "iterations or start from a better guess.".format(
+                    report.get('Iterations', '?'), report.get('RMS Gradient', float('nan')),
+                    parameters['rmsGradientTolerance']))
+            if self.logFile2 is not None: self.logFile2.Paragraph(parameters['warning'])
 
     def _run_reaction_path(self, parameters):
         """ Intrinsic-reaction-coordinate-like path (pSimulation.

@@ -36,12 +36,10 @@
 #  atom_ops.py itself, using the same UFF-derived "typical" valence for
 #  the additional main-group elements added there.
 #
-#  Capped at Z=103 (Lr) -- matches pDynamo3's own DYFF/UFF parameter
-#  set's documented coverage (dyff-1.0/atomTypes.yaml goes up to Z=103)
-#  exactly, so every element this picker offers is guaranteed to also be
-#  typeable by DYFF later (see project_dyff_force_field_assignment) --
-#  the handful of post-Lr synthetic superheavy elements have no
-#  established chemistry to speak of anyway.
+#  Was capped at Z=103 (Lr), the coverage of pDynamo3's DYFF/UFF parameter
+#  set (dyff-1.0/atomTypes.yaml goes up to Z=103). 2026-10-21, user's
+#  request: the full table up to Og (Z=118) -- VisMol and pDynamo know
+#  these elements, but Z > 103 cannot be typed by DYFF (their tiles say so).
 # ============================================================================
 import gi
 gi.require_version ( "Gtk", "3.0" )
@@ -67,8 +65,15 @@ _MAIN_ROWS = [
     [ ( "Cs", 1 ), ( "Ba", 2 ), ( "La", 3 ), ( "Hf", 4 ), ( "Ta", 5 ), ( "W", 6 ), ( "Re", 7 ), ( "Os", 8 ),
       ( "Ir", 9 ), ( "Pt", 10 ), ( "Au", 11 ), ( "Hg", 12 ), ( "Tl", 13 ), ( "Pb", 14 ), ( "Bi", 15 ),
       ( "Po", 16 ), ( "At", 17 ), ( "Rn", 18 ) ],
-    [ ( "Fr", 1 ), ( "Ra", 2 ), ( "Ac", 3 ) ],   # capped at Z=103 -- see module docstring
+    # . 2026-10-21 user request: the whole table, up to Og (Z=118). Z > 103 has no
+    #   DYFF/UFF parameters (see the module docstring); the tiles say so.
+    [ ( "Fr", 1 ), ( "Ra", 2 ), ( "Ac", 3 ), ( "Rf", 4 ), ( "Db", 5 ), ( "Sg", 6 ), ( "Bh", 7 ), ( "Hs", 8 ),
+      ( "Mt", 9 ), ( "Ds", 10 ), ( "Rg", 11 ), ( "Cn", 12 ), ( "Nh", 13 ), ( "Fl", 14 ), ( "Mc", 15 ),
+      ( "Lv", 16 ), ( "Ts", 17 ), ( "Og", 18 ) ],
 ]
+_NO_DYFF_SYMBOLS = { "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og" }
+# . every tile the same size (pixels), whatever its symbol or the theme's padding
+_TILE_W, _TILE_H = 34, 30
 _LANTHANIDES = [ "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu" ]
 _ACTINIDES   = [ "Th", "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr" ]
 _F_BLOCK_FIRST_COLUMN = 4   # matches the real periodic table's own footnote-row convention
@@ -100,9 +105,11 @@ def choose_element ( main, parent_window = None ):
     function stays reusable anywhere else an element needs picking. """
     vm_session = main.vm_session
 
+    # [EN] 2026-10-21 user request: no Cancel button (closing the window
+    # or Esc cancels) and a fixed, non-resizable size -- the whole table
+    # is shown at its natural size, without a scroller.
     dialog = Gtk.Dialog ( title = "Periodic Table", transient_for = parent_window or main.window, modal = True )
-    dialog.add_buttons ( Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL )
-    dialog.set_default_size ( 560, 320 )
+    dialog.set_resizable ( False )
 
     content = dialog.get_content_area ( )
     content.set_spacing ( 6 )
@@ -123,10 +130,7 @@ def choose_element ( main, parent_window = None ):
     grid.set_row_homogeneous ( True )
     grid.set_column_homogeneous ( True )
 
-    scroller = Gtk.ScrolledWindow ( )
-    scroller.set_policy ( Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC )
-    scroller.add ( grid )
-    content.pack_start ( scroller, True, True, 0 )
+    content.pack_start ( grid, False, False, 0 )
 
     result = { "symbol": None }
 
@@ -140,14 +144,23 @@ def choose_element ( main, parent_window = None ):
         number = entry[0] if entry is not None else "?"
 
         button = Gtk.Button ( label = symbol )
-        button.set_tooltip_text ( "{} ({}) -- Z={}".format ( name, symbol, number ) )
+        button.set_size_request ( _TILE_W, _TILE_H )
+        button.get_child ( ).set_size_request ( 1, 1 )   # . the label must not widen the tile
+        tip = "{} ({}) -- Z={}".format ( name, symbol, number )
+        if symbol in _NO_DYFF_SYMBOLS:
+            tip += "\nNo DYFF/UFF parameters: can be drawn, but not given a force field"
+        button.set_tooltip_text ( tip )
         r, g, b = _element_tile_color ( vm_session, symbol )
         css = Gtk.CssProvider ( )
-        border = "2px solid #333333" if symbol in _QUICK_PICK_SYMBOLS else "1px solid #999999"
-        css.load_from_data ( "button {{ background-color: rgba({},{},{},0.55); border: {}; padding: 2px; }}".format (
-                int ( r * 255 ), int ( g * 255 ), int ( b * 255 ), border ).encode ( "utf-8" ) )
+        # . 2026-10-21: the same border for every tile (a thicker dark border made the
+        #   quick-pick tiles look smaller); quick-pick symbols are bold instead
+        weight = "bold" if symbol in _QUICK_PICK_SYMBOLS else "normal"
+        css.load_from_data ( "button {{ background-color: rgba({},{},{},0.55); border: 1px solid #999999; padding: 0px; "
+                             "min-width: 0px; min-height: 0px; font-weight: {}; }}".format (
+                int ( r * 255 ), int ( g * 255 ), int ( b * 255 ), weight ).encode ( "utf-8" ) )
         button.get_style_context ( ).add_provider ( css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION )
         button.connect ( "clicked", lambda w, s = symbol: _pick ( s ) )
+        button.set_hexpand ( False ); button.set_vexpand ( False )
         grid.attach ( button, col - 1, row - 1, 1, 1 )
 
     for row_index, row_entries in enumerate ( _MAIN_ROWS, start = 1 ):

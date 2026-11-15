@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import os
@@ -128,7 +128,8 @@ class PotentialEnergyScanWindow:
 
         # Optimizer methods combobox
         self.method_store = Gtk.ListStore(str)
-        methods = ["Conjugate Gradient", "FIRE", "L-BFGS", "Steepest Descent"]
+        # . 2026-10-24: same order as self.opt_methods (the index picks the optimizer)
+        methods = ["Conjugate Gradient", "Steepest Descent", "L-BFGS", "Quasi-Newton", "FIRE"]
         for method in methods:
             self.method_store.append([method])
         self.methods_combo = self.builder.get_object("combobox_methods")

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -201,6 +201,14 @@ def _simulation_target_process(parameters):
     # Avoid passing queue object to child processes inside parameters
     parameters['queue'] = None
 
+    # . DFT/HF systems pickled into a spawned process lose qcState.fitBases (util/qc_state_repair.py)
+    try:
+        from util.qc_state_repair import repair_qc_state
+        if parameters.get('system') is not None:
+            repair_qc_state(parameters['system'])
+    except Exception as error:
+        print('Could not check the QC state of the system:', error)
+
     try:
         target_process.run(parameters)
         results = {
@@ -211,6 +219,7 @@ def _simulation_target_process(parameters):
             'simulation_type': sim_type,
             'logfile': parameters['logfile'],
             'error': None,
+            'warning': parameters.get('warning'),
             'step_counter': parameters['system'].e_step_counter
         }
         queue.put((_MSG_RESULT, results))
@@ -473,6 +482,11 @@ class pSimulations:
         self.main.bottom_notebook.status_liststore.set_value(iter_, 1, value.replace('Running...', 'Error!'))
 
         system.e_job_history[system.e_step_counter].update(results)
+        from automation import events as automation_events
+        error = results.get('error')
+        automation_events.record('job_error', '{}: {}'.format(type(error).__name__, error) if error is not None else 'The job failed.', title = 'Error!',
+                                 system = system.e_id, job = step_counter,
+                                 job_type = system.e_job_history[step_counter].get('simulation_type'))
         
     def _handle_result(self, results):
         """Handle 'RESULT' messages from a worker process.
@@ -509,8 +523,12 @@ class pSimulations:
         Updates GUI, process pool status, and increments the step counter.
         """
         step_counter = self.psystem[e_id].e_step_counter
+        # . e.g. a transition state search that ran out of iterations.
+        warning = self.psystem[e_id].e_job_history[step_counter].get('warning')
         # Update GUI process manager window
-        self.main.process_manager_window.set_status(treeiter, "Finished")
+        self.main.process_manager_window.set_status(treeiter, "Finished", warning = warning)
+        if warning:
+            self.main.job_history_liststore[treeiter][5] = "Finished (not converged)"
         self.main.process_manager_window.set_time(treeiter, False, True)
         self.main.process_manager_window.set_step_counter(treeiter, self.psystem[e_id].e_step_counter)
         self.psystem[e_id].e_job_history[step_counter]['status'] = "Finished"
@@ -557,6 +575,15 @@ class pSimulations:
         self.MSG_DONE    = _MSG_DONE
         self.MSG_RUNNING = _MSG_RUNNING
         
+        # . 2026-10-28: remote machine (Simulate > Run Simulations On, or parameters["remote"])
+        from pdynamo.pDynamo2EasyHybrid.remote_mixin import REMOTE_TYPES
+        remote = parameters.pop('remote', None)
+        remote_cpus = parameters.pop('remote_cpus', None)
+        if remote is None and parameters.get('simulation_type') in REMOTE_TYPES:
+            remote = getattr(self, 'remote_target', None)
+        if remote:
+            return self.run_remote(parameters, remote, cpus=remote_cpus)
+
         # Validate active system
         if self.active_id not in self.psystem:
             self.main.simple_dialog.error(

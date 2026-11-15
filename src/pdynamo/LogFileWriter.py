@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 
 from util.debug import dprint
@@ -234,7 +234,11 @@ class LogFileReader:
 
         # Extract base name (file name only) and directory path of the logfile
         self.logfile  = logfile
+        # . 2026-10-24: "<folder>/output.log" -- every job writes output.log, so the folder
+        #   is what tells the datasets of one object apart in the PES Analysis
         self.basename = os.path.basename(logfile)
+        if self.basename == 'output.log' and os.path.dirname(logfile):
+            self.basename = os.path.join(os.path.basename(os.path.dirname(os.path.abspath(logfile))), self.basename)
         self.dirname  = os.path.dirname(logfile)
 
         # Open file and read all lines
@@ -478,7 +482,11 @@ class LogFileReader_old:
         
         self.type = None
         
+        # . 2026-10-24: "<folder>/output.log" -- every job writes output.log, so the folder
+        #   is what tells the datasets of one object apart in the PES Analysis
         self.basename = os.path.basename(logfile)
+        if self.basename == 'output.log' and os.path.dirname(logfile):
+            self.basename = os.path.join(os.path.basename(os.path.dirname(os.path.abspath(logfile))), self.basename)
         self.dirname  = os.path.dirname(logfile)
         
         data = open(logfile, "r")
@@ -715,6 +723,8 @@ _ATOM_LINE_RE = re.compile(r'ATOM\d*\*?\s*=\s*(\S+)\s+ATOM NAME\d*\s*=\s*(\S+)')
 # only ever appears for the FIXED-SHAPE 'multiple_distance' RC, which must
 # NOT be misdetected as advanced.
 _WEIGHT_LINE_RE = re.compile(r'(?:Sigma|WEIGHT)\s*=\s*(\S+)')
+_DMIN_LINE_RE   = re.compile(r'DMINIMUM\s*=\s*(\S+)')
+_SIGMA_LINE_RE  = re.compile(r'Sigma atom1 - atom3\s*=\s*(\S+)\s+Sigma atom3 - atom1\s*=\s*(\S+)')
 
 
 def detect_reaction_coordinates_from_log(log_path):
@@ -792,7 +802,18 @@ def detect_reaction_coordinates_from_log(log_path):
 
         atoms      = [int(idx) for idx, _name in atom_pairs]
         atom_names = [name for _idx, name in atom_pairs]
-        return {'rc_type': rc_type, 'ATOMS': atoms, 'ATOM_NAMES': atom_names}
+        rc = {'rc_type': rc_type, 'ATOMS': atoms, 'ATOM_NAMES': atom_names}
+        # Optional extras: the scan's starting value and, for the
+        # mass-weighted multiple distance, the two sigma weights -- the
+        # Umbrella Sampling RC box needs both to build the same restraint.
+        m = _DMIN_LINE_RE.search(section_text)
+        if m:
+            rc['dminimum'] = float(m.group(1))
+        m = _SIGMA_LINE_RE.search(section_text)
+        if m:
+            rc['sigma_pk1pk3'] = float(m.group(1))
+            rc['sigma_pk3pk1'] = float(m.group(2))
+        return rc
 
     idx_c1 = text.index('Coordinate 1')
     if 'Coordinate 2' in text:

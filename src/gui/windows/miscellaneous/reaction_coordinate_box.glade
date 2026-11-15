@@ -53,7 +53,7 @@
           <object class="GtkLabel" id="label_atom4_coord1">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Atom 4(index):</property>
+            <property name="label" translatable="yes">Atom 4 (index):</property>
             <property name="xalign">1</property>
           </object>
           <packing>
@@ -79,7 +79,7 @@
           <object class="GtkLabel" id="label_atom2_coord1">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Atom 2(index):</property>
+            <property name="label" translatable="yes">Atom 2 (index):</property>
             <property name="xalign">1</property>
           </object>
           <packing>
@@ -91,7 +91,7 @@
           <object class="GtkLabel" id="label_atom1_coord1">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Atom 1(index):</property>
+            <property name="label" translatable="yes">Atom 1 (index):</property>
             <property name="xalign">1</property>
           </object>
           <packing>
@@ -103,7 +103,7 @@
           <object class="GtkLabel" id="label_atom3_coord1">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Atom 3(index):</property>
+            <property name="label" translatable="yes">Atom 3 (index):</property>
             <property name="xalign">1</property>
           </object>
           <packing>
@@ -323,7 +323,7 @@
           <object class="GtkLabel">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Force Constante:</property>
+            <property name="label" translatable="yes">Force Constant:</property>
             <property name="xalign">1</property>
           </object>
           <packing>

@@ -335,7 +335,7 @@
                                       <object class="GtkLabel">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
-                                        <property name="label" translatable="yes">Maximum interactions:</property>
+                                        <property name="label" translatable="yes">Maximum iterations:</property>
                                         <property name="xalign">1</property>
                                       </object>
                                       <packing>
@@ -415,7 +415,7 @@
                         </child>
                         <child type="label">
                           <object class="GtkCheckButton" id="checkbox_geometry_optimization">
-                            <property name="label" translatable="yes">Optimiize Geometry</property>
+                            <property name="label" translatable="yes">Optimize Geometry</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
                             <property name="receives-default">False</property>
@@ -496,7 +496,7 @@
                                       <object class="GtkLabel" id="MMDialog_label1">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
-                                        <property name="label" translatable="yes">Number of Steps(fs):</property>
+                                        <property name="label" translatable="yes">Number of Steps:</property>
                                         <property name="xalign">1</property>
                                       </object>
                                       <packing>
@@ -544,7 +544,7 @@
                                       <object class="GtkLabel" id="MMDialog_label66">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
-                                        <property name="label" translatable="yes">Time Step(ps):</property>
+                                        <property name="label" translatable="yes">Time Step (ps):</property>
                                         <property name="xalign">1</property>
                                       </object>
                                       <packing>

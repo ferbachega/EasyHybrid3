@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -140,7 +140,7 @@ class ImportTrajectoryWindow:
             self.builder.add_from_file(os.path.join(self.home,'src/gui/windows/setup/import_trajectory_window.glade'))
             self.builder.connect_signals(self)
             self.window = self.builder.get_object('import_trajectory_window')
-            self.window.set_title('Import Data Window')
+            self.window.set_title('Import Data')
             self.window.set_keep_above(True)
             '''--------------------------------------------------------------------------------------------'''
             self.box = self.builder.get_object('box_system')
@@ -244,8 +244,26 @@ class ImportTrajectoryWindow:
             self.Visible  = True
         
         else:
+            # . 2026-10-26: "Import..." of a Finished! dialog while this window was
+            #   already open only raised it, with the values of the previous import
+            #   (the wrong folder and log were imported); the pre-fill is applied now
+            if prefill_data_path or prefill_new_vobj_name:
+                if sys_selected is not None:
+                    self.combobox_pdynamo_system.set_active_system(sys_selected)
+                if prefill_data_type_index is not None:
+                    self.combox.set_active(prefill_data_type_index)
+                if prefill_data_path:
+                    self.folder_chooser_button.set_folder(prefill_data_path)
+                logfile_btn = self.builder.get_object('file_chooser_btn_logfile')
+                if prefill_logfile:
+                    logfile_btn.set_filename(prefill_logfile)
+                else:
+                    logfile_btn.unselect_all()
+                if prefill_new_vobj_name:
+                    self.builder.get_object('radiobutton_import_as_new_object').set_active(True)
+                    self.builder.get_object('entry_create_a_new_vobj').set_text(prefill_new_vobj_name)
             self.window.present()
-    
+
     def close_window (self, button, data  = None):
         """ Function doc """
         self.window.destroy()

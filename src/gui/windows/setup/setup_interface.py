@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -100,6 +100,18 @@ class EasyHybridPreferencesWindow():
             self.window = self.builder.get_object('window')
             self.window.set_default_size(600, 600)  
             self.window.set_title('Preferences')  
+            # . 2026-10-24: the Representations > Surfaces tab has no settings yet: hidden
+            def _hide_empty_tabs(widget):
+                if isinstance(widget, Gtk.Notebook):
+                    for k in range(widget.get_n_pages()):
+                        page = widget.get_nth_page(k)
+                        if widget.get_tab_label_text(page) == 'Surfaces':
+                            page.set_no_show_all(True)
+                            page.hide()
+                if isinstance(widget, Gtk.Container):
+                    for child in widget.get_children():
+                        _hide_empty_tabs(child)
+            _hide_empty_tabs(self.window)
             self.window.set_keep_above(True)
             self.window.connect('destroy-event', self.close_window)
 
@@ -299,8 +311,30 @@ class EasyHybridPreferencesWindow():
             self._rebuild_active_cartoon_representations()
             # fog lives on the camera: push the reset defaults there too
             self.vm_session.vm_glcore.glcamera.apply_fog_parameters(self.vm_session.vm_config.gl_parameters)
+            self.vm_session.vm_glcore.apply_light_parameters()
             self.vm_session.vm_glcore.queue_draw()
     
+    def on_spin_lines_bond_spacing_changed (self, widget):
+        """ Applied immediately (LinesRepresentation reads gl_parameters
+            ['lines_bond_spacing'] at every draw); saved with "Apply and Save". """
+        self.vm_session.vm_config.gl_parameters['lines_bond_spacing'] = float(widget.get_value())
+        self.vm_session.vm_glcore.queue_draw()
+
+    # . double/triple bond geometry of sticks and dynamic bonds (Angstrom), 2026-10-15
+    STICKS_BOND_GEOMETRY = (('spin_sticks_radius_single', 'sticks_radius', 0.16),
+                            ('spin_sticks_radius_double', 'sticks_radius_double', 0.064),
+                            ('spin_sticks_radius_triple', 'sticks_radius_triple', 0.064),
+                            ('spin_sticks_spacing_double', 'sticks_spacing_double', 0.16),
+                            ('spin_sticks_spacing_triple', 'sticks_spacing_triple', 0.16))
+
+    def on_spin_sticks_bond_geometry_changed (self, widget):
+        """ Applied immediately (SticksRepresentation reads these gl_parameters
+            at every draw); saved with "Apply and Save". """
+        for wid, key, _ in self.STICKS_BOND_GEOMETRY:
+            if widget is self.builder.get_object(wid):
+                self.vm_session.vm_config.gl_parameters[key] = float(widget.get_value())
+        self.vm_session.vm_glcore.queue_draw()
+
     def on_btn_apply_all_changes (self, widget):
         """ Function doc """
         self.__apply_all_changes()
@@ -358,7 +392,7 @@ class EasyHybridPreferencesWindow():
             #self.vm_session.vm_glcore.vm_font_dist.vao = None
             pass
         #-----------------------------------------------------------------------
-        
+
 
         #-------------------------------------------------------------------------
         #                         pk Spheres
@@ -525,7 +559,41 @@ class EasyHybridPreferencesWindow():
             if getattr(self, '_theme_handler_widget', None) is not self.combo_interface_theme:
                 self.combo_interface_theme.connect('changed', self._on_interface_theme_changed)
                 self._theme_handler_widget = self.combo_interface_theme
+
+        # Toolbar icons (src/gui/icon_set.py) -- live, like the theme;
+        # "Apply and Save" persists gl_parameters['toolbar_icons'].
+        self.combo_toolbar_icons = self.builder.get_object('combo_toolbar_icons')
+        if self.combo_toolbar_icons is not None:
+            from gui.icon_set import icon_set_choices, icon_set_from_config, current_icon_set
+            wanted = icon_set_from_config(self.vm_session.vm_config.gl_parameters)
+            self._icons_combo_updating = True
+            try:
+                self.combo_toolbar_icons.remove_all()
+                for name, label in icon_set_choices():
+                    self.combo_toolbar_icons.append(name, label)
+                self.combo_toolbar_icons.set_active_id(wanted)
+            finally:
+                self._icons_combo_updating = False
+            # "Reset parameters" lands here too: follow the reset value
+            if wanted != current_icon_set():
+                self._apply_toolbar_icons(wanted)
+            if getattr(self, '_icons_handler_widget', None) is not self.combo_toolbar_icons:
+                self.combo_toolbar_icons.connect('changed', self._on_toolbar_icons_changed)
+                self._icons_handler_widget = self.combo_toolbar_icons
         pass
+
+    def _apply_toolbar_icons (self, name):
+        from gui.icon_set import apply_icon_set
+        main = getattr(self.vm_session, 'main_session', None)
+        if main is None or getattr(main, 'builder', None) is None:
+            return name
+        return apply_icon_set(main.builder, main.home, name)
+
+    def _on_toolbar_icons_changed (self, combo):
+        if getattr(self, '_icons_combo_updating', False):
+            return
+        name = combo.get_active_id() or 'modern'
+        self.vm_session.vm_config.gl_parameters['toolbar_icons'] = self._apply_toolbar_icons(name)
 
     def _on_interface_theme_changed (self, combo):
         if getattr(self, '_theme_combo_updating', False):
@@ -832,6 +900,24 @@ class EasyHybridPreferencesWindow():
         #-------------------------------------------------------------------------------------
 
         #-------------------------------------------------------------------------------------
+        #    Picking: angle/dihedral arcs (2026-10-29) -- on/off + a color each
+        #-------------------------------------------------------------------------------------
+        gp = self.vm_session.vm_config.gl_parameters
+        color = gp["pk_angle_arc_color"]
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.color_btn_pk_angle_arc = self.builder.get_object('color_btn_pk_angle_arc')
+        self.color_btn_pk_angle_arc.set_rgba(rgba)
+
+        color = gp["pk_dihedral_arc_color"]
+        rgba = Gdk.RGBA(color[0], color[1], color[2])
+        self.color_btn_pk_dihedral_arc = self.builder.get_object('color_btn_pk_dihedral_arc')
+        self.color_btn_pk_dihedral_arc.set_rgba(rgba)
+
+        self.checkbtn_show_pk_angle_dihedral_arcs = self.builder.get_object('checkbtn_show_pk_angle_dihedral_arcs')
+        self.checkbtn_show_pk_angle_dihedral_arcs.set_active(bool(gp.get('show_pk_angle_dihedral_arcs', True)))
+        #-------------------------------------------------------------------------------------
+
+        #-------------------------------------------------------------------------------------
         #    Picking / Distance Labels: SHARED font family, INDEPENDENT sizes
         #-------------------------------------------------------------------------------------
         # Picking labels (#1 #2 #3 #4) and distance labels use the same
@@ -944,29 +1030,27 @@ class EasyHybridPreferencesWindow():
         self.entry_lines_with           .set_text(str(lines_with))   
         self.entry_lines_with_selections.set_text(str(line_width_selection))   
         self.entry_lines_type           .set_text(str(line_type))   
+        # Spacing of the parallel lines of double/triple bonds (2026-10-15).
+        self.spin_lines_bond_spacing = self.builder.get_object('spin_lines_bond_spacing')
+        self.spin_lines_bond_spacing.set_value(
+            float(self.vm_session.vm_config.gl_parameters.get('lines_bond_spacing', 1.0)))
     
     def set_stick_parameters (self):
         """ Function doc """
-        sticks_radius = self.vm_session.vm_config.gl_parameters['sticks_radius']
+        # (the single-bond radius is a spin button with the double/triple
+        # ones, filled below from STICKS_BOND_GEOMETRY)
         sticks_type   = self.vm_session.vm_config.gl_parameters['sticks_type']
         
-        self.entry_stick_radius = self.builder.get_object('entry_stick_radius')         
         self.entry_stick_type   = self.builder.get_object('entry_stick_type')          
-        
-        self.entry_stick_radius.set_text(str(sticks_radius))
         self.entry_stick_type  .set_text(str(sticks_type))
         
         
         self.btn_stick_unique_color       = self.builder.get_object('btn_stick_unique_color')     
         self.checkbox_stick_unique_color  = self.builder.get_object('checkbox_stick_unique_color')
         
-        self.entry_dbond_radius           = self.builder.get_object('entry_dbond_radius')
-        self.entry_dbond_type             = self.builder.get_object('entry_dbond_type')
         self.btn_dbond_unique_color       = self.builder.get_object('btn_dbond_unique_color')
         self.checkbox_dbond_unique_color  = self.builder.get_object('checkbox_dbond_unique_color')
         
-        self.entry_dbond_radius.set_text(str(sticks_radius))
-        self.entry_dbond_type  .set_text(str(sticks_type))
         
         # Liga/desliga a representacao de ligacoes duplas/triplas nos sticks
         # (gl_parameters['multiple_bonds'] -- ver SticksRepresentation._get_
@@ -976,6 +1060,12 @@ class EasyHybridPreferencesWindow():
         self.checkbox_multiple_bonds = self.builder.get_object('checkbox_multiple_bonds')
         multiple_bonds = self.vm_session.vm_config.gl_parameters.get('multiple_bonds', True)
         self.checkbox_multiple_bonds.set_active(bool(multiple_bonds))
+        # Radius and spacing of double/triple bonds, Angstrom (2026-10-15;
+        # sticks and dynamic bonds share them -- the Dynamic Bonds frame keeps
+        # only its color options; lines has its own spacing).
+        gp = self.vm_session.vm_config.gl_parameters
+        for wid, key, default in self.STICKS_BOND_GEOMETRY:
+            self.builder.get_object(wid).set_value(float(gp.get(key, default)))
 
     def set_light_parameters (self):
         """ Function doc """
@@ -1011,6 +1101,70 @@ class EasyHybridPreferencesWindow():
         self.entry_light_intensity = self.builder.get_object('entry_light_intensity')
         light_intensity        = self.vm_session.vm_config.gl_parameters['light_intensity']
         self.entry_light_intensity.set_text(str(light_intensity))
+        self._set_light_setup_widgets()
+
+    def _set_light_setup_widgets (self):
+        """ "Light setup" (extra light sources) and "Shading" combos --
+        2026-10-13. Added to the Light grid from code, below its glade rows,
+        and applied live like the fog widgets (uniforms only, nothing to
+        rebuild); see VismolGLCore.apply_light_parameters(). """
+        grid = self.entry_light_intensity.get_parent()
+        if getattr(self, '_light_setup_grid', None) is not grid:
+            self._light_setup_grid = grid
+            self.combo_light_preset = Gtk.ComboBoxText()
+            self.combo_light_preset.append('headlight',   'Headlight (1 light)')
+            self.combo_light_preset.append('three_point', 'Three-point (key + fill + rim)')
+            self.combo_shading_mode = Gtk.ComboBoxText()
+            self.combo_shading_mode.append('standard', 'Standard')
+            self.combo_shading_mode.append('flat',     'Flat')
+            self.combo_shading_mode.append('toon',     'Toon')
+            self.combo_shading_mode.append('matte',    'Matte')
+            self.combo_shading_mode.append('glossy',   'Glossy')
+            self.combo_shading_mode.append('rim',      'Rim light')
+            # multisampling of the GLArea (and of the exported image)
+            self.combo_antialias = Gtk.ComboBoxText()
+            self.combo_antialias.append('0', 'Off')
+            self.combo_antialias.append('2', '2x')
+            self.combo_antialias.append('4', '4x')
+            self.combo_antialias.append('8', '8x')
+            for row, (text, combo) in enumerate((('Light setup:',  self.combo_light_preset),
+                                                 ('Shading:',      self.combo_shading_mode),
+                                                 ('Antialiasing:', self.combo_antialias)), start=6):
+                label = Gtk.Label(label=text)
+                label.set_halign(Gtk.Align.START)
+                grid.attach(label, 0, row, 1, 1)
+                grid.attach(combo, 1, row, 1, 1)
+                combo.connect('changed', self._on_light_setup_changed)
+            grid.show_all()
+        gp = self.vm_session.vm_config.gl_parameters
+        self._light_widgets_updating = True
+        try:
+            if not self.combo_light_preset.set_active_id(gp.get('light_preset', 'headlight')):
+                self.combo_light_preset.set_active_id('headlight')
+            if not self.combo_shading_mode.set_active_id(gp.get('shading_mode', 'standard')):
+                self.combo_shading_mode.set_active_id('standard')
+            samples = str(gp.get('antialias_samples', 4)) if gp.get('antialias', True) else '0'
+            if not self.combo_antialias.set_active_id(samples):
+                self.combo_antialias.set_active_id('4')
+        finally:
+            self._light_widgets_updating = False
+
+    def _on_light_setup_changed (self, widget):
+        if getattr(self, '_light_widgets_updating', False):
+            return
+        self._apply_light_setup()
+        self.vm_session.vm_glcore.queue_draw()
+
+    def _apply_light_setup (self):
+        """ Combos -> gl_parameters -> glcore. """
+        gp = self.vm_session.vm_config.gl_parameters
+        gp['light_preset'] = self.combo_light_preset.get_active_id() or 'headlight'
+        gp['shading_mode'] = self.combo_shading_mode.get_active_id() or 'standard'
+        samples = int(self.combo_antialias.get_active_id() or 4)
+        gp['antialias'] = samples > 0
+        if samples > 0:
+            gp['antialias_samples'] = samples
+        self.vm_session.vm_glcore.apply_light_parameters()
         
     def set_bond_parameters (self):
         """ Function doc """
@@ -1270,6 +1424,9 @@ class EasyHybridPreferencesWindow():
         color = color[:-1]
         self.gl_parameters["light_specular_color"] = color
         #---------------------------------------------------------------
+        # light preset / shading mode, and push everything above to the
+        # glcore (it only read these at startup before)
+        self._apply_light_setup()
     def __apply_sphere_parameters (self):
         """ Function doc """
 
@@ -1283,13 +1440,8 @@ class EasyHybridPreferencesWindow():
 
     def __apply_stick_parameters (self):
         """ Function doc """
-        stick_radius = float(self.entry_stick_radius.get_text())
         stick_type   = float(self.entry_stick_type  .get_text())
         
-        dbond_radius = float(self.entry_dbond_radius.get_text())
-        dbond_type   = float(self.entry_dbond_type  .get_text())
-        
-        self.gl_parameters['sticks_radius'] = stick_radius
         self.gl_parameters['sticks_type']   = stick_type  
         
         # Liga/desliga ligacoes duplas/triplas nos sticks. Nao precisa
@@ -1299,6 +1451,8 @@ class EasyHybridPreferencesWindow():
         # (ja disparado por __apply_all_changes logo apos todos os
         # __apply_*_parameters, via vm_glcore.queue_draw()).
         self.gl_parameters['multiple_bonds'] = self.checkbox_multiple_bonds.get_active()
+        for wid, key, _ in self.STICKS_BOND_GEOMETRY:
+            self.gl_parameters[key] = float(self.builder.get_object(wid).get_value())
 
     def __apply_lines_parameters (self):
         lines_with            = float(self.entry_lines_with           .get_text())
@@ -1308,6 +1462,7 @@ class EasyHybridPreferencesWindow():
         self.gl_parameters['line_width']           = lines_with           
         self.gl_parameters['line_width_selection'] = lines_with_selections
         self.gl_parameters['line_type']            = lines_type           
+        self.gl_parameters['lines_bond_spacing']   = float(self.spin_lines_bond_spacing.get_value())
 
     def __apply_bond_parameters (self):
         """ Function doc """
@@ -1364,8 +1519,36 @@ class EasyHybridPreferencesWindow():
         color = color[:-1]
         self.vm_session.vm_config.gl_parameters["dashed_dist_lines_color"] = color
         #self.vm_session.vm_glcore.vm_font_dist.vao = None
-        
-        
+
+
+        #-----------------------------------------------------------------------
+
+        #-----------------------------------------------------------------------
+        #    Picking: angle/dihedral arcs (2026-10-29)
+        #-----------------------------------------------------------------------
+        widget = self.builder.get_object('color_btn_pk_angle_arc')
+        if widget is not None:
+            color = list(widget.get_rgba())
+            self.vm_session.vm_config.gl_parameters["pk_angle_arc_color"] = color
+
+        widget = self.builder.get_object('color_btn_pk_dihedral_arc')
+        if widget is not None:
+            color = list(widget.get_rgba())
+            self.vm_session.vm_config.gl_parameters["pk_dihedral_arc_color"] = color
+
+        chk_arcs = self.builder.get_object('checkbtn_show_pk_angle_dihedral_arcs')
+        if chk_arcs is not None:
+            show_arcs = chk_arcs.get_active()
+            self.vm_session.vm_config.gl_parameters["show_pk_angle_dihedral_arcs"] = show_arcs
+            if not show_arcs:
+                # hide arcs already on screen right away, instead of waiting
+                # for the next atom pick to notice the setting changed
+                dic = self.vm_session.vm_geometric_object_dic
+                for label in ("pk_angle", "pk_dihedral"):
+                    obj = dic.get(label)
+                    if obj is not None:
+                        obj.representations["dash"].active = False
+                        obj.label_text = None
         #-----------------------------------------------------------------------
 
         #-----------------------------------------------------------------------

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 import os, sys, time
 import gi 
@@ -166,15 +166,15 @@ class TreeViewMenu_new:
                     
 
         menu_items = {
-            "Abrir": self._menu_rename,
-            "Salvar": self._menu_rename,
+            "Open": self._menu_rename,
+            "Save": self._menu_rename,
             "_separator": None,
 
             "Exportar": {
                 "Como PNG": self._menu_rename,
                 "Como JPG": self._menu_rename,
                 "_separator": None,
-                "Avançado": {
+                "Advanced": {
                     "Alta Qualidade": self._menu_rename,
                     "Baixa Qualidade": self._menu_rename,
                 }

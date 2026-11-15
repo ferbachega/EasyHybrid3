@@ -1,0 +1,14 @@
+{
+ "input": "/home/fernando/programs/EasyHybrid3_dev/examples/dyff_eh_system_preparation/inputs/4oas_raw.pdb",
+ "force_field": "DYFF (dyff-1.0-eh) + EasyHybrid residue library",
+ "atoms": 1639,
+ "formal_charge": 3,
+ "library": {
+  "matched": 93,
+  "residues": 94,
+  "rest_atoms": 71
+ },
+ "total_charge": 3.0,
+ "energy_kcal": -3263.166,
+ "seconds": 74.7
+}

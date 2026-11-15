@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 from logging import getLogger
@@ -38,6 +38,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, Pango
 from gi.repository import GdkPixbuf
 from gi.repository import GLib
+import traceback
 
 
 from gui.widgets.custom_widgets  import VismolSelectionTypeBox
@@ -64,7 +65,7 @@ from gui.windows.setup.windows_and_dialogs import MergeSystemWindow
 from gui.windows.setup.windows_and_dialogs import SolvateSystemWindow
 from gui.windows.setup.windows_and_dialogs import PrepareAmberSystemWindow
 from gui.windows.setup.windows_and_dialogs import PrepareOPLSSystemWindow
-from gui.windows.setup.windows_and_dialogs import OPLSParametersWindow
+from gui.windows.setup.windows_and_dialogs import ForceFieldParametersWindow
 from gui.windows.setup.windows_and_dialogs import PrepareLigandAntechamberWindow
 from gui.windows.setup.windows_and_dialogs import PrepareNamdRunWindow
 from gui.windows.setup.windows_and_dialogs import PrepareSMDWindow
@@ -211,6 +212,7 @@ class MainWindow:
         self.builder.add_from_file(os.path.join(self.home,'src/gui/MainWindow.glade'))
         self.builder.connect_signals(self)
         self.window = self.builder.get_object('window1')
+        self.refresh_run_on_menu()     # . Simulate > Run Simulations On (2026-10-28)
         # Restore the dimensions saved from the last session, but only if
         # gl_parameters['save_window_size'] is on (the "Save window size"
         # checkbox in Preferences). If off, always use the fixed 1200x600
@@ -289,7 +291,10 @@ class MainWindow:
         # (vm_widget is a single object, not the class) instead of editing
         # the graphics engine itself, so ESC now goes through the exact
         # same close path as clicking the window's [x] button.
-        self.vm_session.vm_widget._pressed_Escape = lambda: self.on_delete_event(self.window, None)
+        # . 2026-10-24 (user request): ESC does nothing in the main window -- closing is
+        #   done only from the window's [x] or File > Quit (ESC is the key people press to
+        #   cancel things, and closed the program when there were no unsaved changes).
+        self.vm_session.vm_widget._pressed_Escape = lambda: None
 
 
         # -------------------- SELECTION BOX --------------------
@@ -330,7 +335,14 @@ class MainWindow:
         #self.treeview = GtkEasyHybridMainTreeView(self, vm_session)
         #self.ScrolledWindow_notebook_H1.add(self.treeview)
 
-        self.notebook_H1.append_page(child = self.ScrolledWindow_notebook_H1, tab_label= Gtk.Label(label = 'Objects'))
+        # . 2026-10-21: mini trajectory player at the bottom of the Objects treeview
+        from gui.widgets.custom_widgets.mini_player import MiniPlayer
+        self.mini_player = MiniPlayer(self)
+        self.box_objects_page = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 0)
+        self.box_objects_page.pack_start(self.ScrolledWindow_notebook_H1, True, True, 0)
+        self.box_objects_page.pack_start(Gtk.Separator(orientation = Gtk.Orientation.HORIZONTAL), False, False, 0)
+        self.box_objects_page.pack_start(self.mini_player, False, False, 0)
+        self.notebook_H1.append_page(child = self.box_objects_page, tab_label= Gtk.Label(label = 'Objects'))
         
 
 
@@ -542,10 +554,13 @@ class MainWindow:
 
         self.edit_frames_dialog = EditFrameDialog(main = self)
         self.merge_system_window = MergeSystemWindow(main = self)
-        self.solvate_system_window = SolvateSystemWindow(main = self)
+        # . 2026-10-21: System > Solvate System... (replaces the old Edit > Solvate System)
+        from gui.windows.setup.windows_and_dialogs.system_windows.solvate_ready_system import SolvateReadySystemWindow
+        self.solvate_system_window = SolvateReadySystemWindow(main = self)
         self.prepare_amber_system_window = PrepareAmberSystemWindow(main = self)
         self.prepare_opls_system_window  = PrepareOPLSSystemWindow(main = self)
-        self.opls_parameters_window      = OPLSParametersWindow(main = self)
+        # . 2026-10-17: Force Field Parameters (report + editing) replaces the OPLS Parameters window
+        self.opls_parameters_window      = ForceFieldParametersWindow(main = self)
         self.prepare_ligand_antechamber_window = PrepareLigandAntechamberWindow(main = self)
         self.prepare_namd_run_window = PrepareNamdRunWindow(main = self)
         self.prepare_smd_window = PrepareSMDWindow(main = self)
@@ -811,9 +826,23 @@ class MainWindow:
             # per-row "Edit in Builder" menu item -- so it now asks New
             # vs Edit Existing first (builder_entry_dialog.py) instead of
             # always defaulting straight to a blank canvas.
-            from gui.windows.builder.builder_entry_dialog import choose_and_open_builder
-            choose_and_open_builder ( self )
-            
+            #
+            # [EN] 2026-10-17, user's request: now an "Edit and Build"
+            # TOGGLE. On -> New/Edit chooser; off -> close the session
+            # (its own Yes/No/Cancel DYFF question may keep it open). The
+            # button then mirrors the real session state, whatever way
+            # it was opened/closed -- see BuilderSidebarWindow.
+            # sync_main_toggle().
+            if getattr ( self, "_syncing_builder_toggle", False ):
+                return
+            sidebar = self.builder_sidebar_window
+            if button.get_active ( ) and not sidebar.visible:
+                from gui.windows.builder.builder_entry_dialog import choose_and_open_builder
+                choose_and_open_builder ( self )
+            elif not button.get_active ( ) and sidebar.visible:
+                sidebar.close_window ( allow_cancel = True )
+            sidebar.sync_main_toggle ( )
+
         if button == self.builder.get_object('toolbutton_terminal'):
             if button.get_active ():
                 self.terminal_window.open_window()
@@ -1191,6 +1220,14 @@ class MainWindow:
 
         elif menuitem == self.builder.get_object('menuitem_edit_cell'):
             self.edit_cell_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_center_in_cell'):
+            from gui.windows.setup.crystal_tools import center_in_cell
+            center_in_cell(self)
+
+        elif menuitem == self.builder.get_object('menuitem_expand_p1'):
+            from gui.windows.setup.crystal_tools import expand_to_p1
+            expand_to_p1(self)
             
             
             
@@ -1215,7 +1252,18 @@ class MainWindow:
             system = self.p_session.psystem[self.p_session.active_id]
             system.e_restraint_counter = 0
             system.e_restraints_dict   = {}
-        
+            # 2026-10-26: the dashed lines of the removed restraints stayed in
+            # the 3D view and the Selections and Restraints window
+            try:
+                self.p_session.update_restaint_representation(e_id=system.e_id)
+            except Exception:
+                dprint(traceback.format_exc())
+            try:
+                if getattr(self.selection_list_window, 'Visible', False):
+                    self.selection_list_window.update_window(selections=False, restraints=True)
+            except Exception:
+                dprint(traceback.format_exc())
+
         elif menuitem == self.builder.get_object('menuitem_custom_colors'): 
             system = self.p_session.psystem[self.p_session.active_id]
             name = system.label
@@ -1260,15 +1308,21 @@ class MainWindow:
             
             win = XtbFragmentChargesWindow(main=self, system=system)
             win.open_window()
-            
+
+        elif menuitem == self.builder.get_object('menuitem_esp_charges'):
+            from gui.windows.setup.esp_charges_window import ESPChargesWindow
+            if not hasattr(self, 'esp_charges_window'):
+                self.esp_charges_window = ESPChargesWindow(main=self)
+            self.esp_charges_window.open_window()
+
             
         elif menuitem == self.builder.get_object('menuitem_charge_inspection'): 
-            TrueFalse, msg = self.p_session.check_for_fragmented_charges()
-            #if true_or_false:
-            if TrueFalse:
-                self.simple_dialog.info(msg = msg )
-            else:
-                self.simple_dialog.error(msg = msg )
+            # . 2026-10-24: a window with the diagnosis, the correction and a report (the direct
+            #   correction is still p_session.check_for_fragmented_charges())
+            from gui.windows.setup.charge_block_inspector_window import ChargeBlockInspectorWindow
+            if getattr(self, 'charge_block_inspector_window', None) is None:
+                self.charge_block_inspector_window = ChargeBlockInspectorWindow(main = self)
+            self.charge_block_inspector_window.open_window()
         
         
         elif menuitem == self.builder.get_object('menuitem_nb_model'): 
@@ -1288,12 +1342,39 @@ class MainWindow:
             self.refresh_main_statusbar()
 
         elif menuitem == self.builder.get_object('menuitem_force_field_opls'):
-            ok, msg = self.p_session.define_MMModel ( force_field = 'OPLS' )
-            self.refresh_main_statusbar()
-            if ok:
-                self.bottom_notebook.status_teeview_add_new_item ( message = msg, system = self.p_session.psystem.get ( self.p_session.active_id ) )
-            else:
-                self.simple_dialog.error ( msg = msg )
+            # . 2026-10-17: missing parameters -> offers the Extras > OPLS parametrization
+            from gui.windows.setup.opls_assign import assign_opls
+            assign_opls ( self, self.p_session.psystem.get ( self.p_session.active_id ) )
+
+        elif menuitem == self.builder.get_object('menuitem_prepare_dyff_system'):
+            # . 2026-10-21: System > Force Field > Define Force Field; asks the DYFF version first
+            from gui.windows.setup.prepare_dyff_dialog import prepare_dyff_system
+            prepare_dyff_system(self)
+
+        elif menuitem == self.builder.get_object('menuitem_parametrization_report'):
+            self.open_parametrization_window()
+
+        elif menuitem == self.builder.get_object('menuitem_load_dyff_parametrization'):
+            # . 2026-10-23: a saved DYFF modified parametrization (pdynamo/param_report.py) applied again
+            self._load_dyff_parametrization_dialog()
+
+        elif menuitem == self.builder.get_object('menuitem_remove_force_field'):
+            system = self.p_session.psystem.get(self.p_session.active_id)
+            if system is None:
+                self.simple_dialog.error(msg="No active system.")
+            elif getattr(system, "mmModel", None) is None:
+                self.simple_dialog.info(msg="'{}' has no force field.".format(system.label), title="Remove Force Field")
+            elif self.simple_dialog.question("Remove the force field (MM and nonbonded models) of '{}'?\n\n"
+                                             "Atoms, bonds and coordinates are kept; energies cannot be computed "
+                                             "until a force field is defined again.".format(system.label)):
+                ok, msg = self.p_session.remove_MMModel(system)
+                self.refresh_main_statusbar()
+                if ok:
+                    self.bottom_notebook.status_teeview_add_new_item(message=msg, system=system)
+                else:
+                    self.simple_dialog.error(msg=msg)
+        elif menuitem == self.builder.get_object('menuitem_force_field_dyff_library'):
+            self._dyff_residue_library_dialog()
 
         elif menuitem == self.builder.get_object('menuitem_force_field_dyff'):
             ok, msg = self.p_session.define_MMModel ( force_field = 'DYFF' )
@@ -1351,6 +1432,13 @@ class MainWindow:
 
         elif menuitem == self.builder.get_object('menuitem_run_autodock_gpu'):
             self.prepare_autodock_gpu_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_run_dyffdock'):
+            from gui.windows.simulation.dyffdock_window import DYFFDockWindow
+            if not hasattr(self, 'dyffdock_window'):
+                self.dyffdock_window = DYFFDockWindow(main=self)
+                self.window_list.append(self.dyffdock_window)
+            self.dyffdock_window.open_window()
 
         elif menuitem == self.builder.get_object('menuitem_add_missing_hydrogens'):
             self.prepare_add_hydrogens_window.open_window()
@@ -1451,9 +1539,18 @@ class MainWindow:
 
         elif menuitem == self.builder.get_object('menuitem_mormal_modes_analysis'):
             self.normal_modes_analysis_window.open_window()
+
+        elif menuitem == self.builder.get_object('test_item'):
+            # . the IR spectrum is plotted from the imported normal modes ('Plot IR Spectrum')
+            self.normal_modes_analysis_window.open_window()
         
         elif menuitem == self.builder.get_object('menuitem_surface_analysis'):
-            self.surface_analysis_window.open_window()
+            # . 2026-10-24: new Orbitals and Surfaces window (energy levels, LCAO); the previous
+            #   SurfaceAnalysisWindow is kept in the code for comparison
+            from gui.windows.analysis.orbitals_surfaces_window import OrbitalsSurfacesWindow
+            if not hasattr(self, 'orbitals_surfaces_window'):
+                self.orbitals_surfaces_window = OrbitalsSurfacesWindow(main=self)
+            self.orbitals_surfaces_window.open_window()
             #self.surface_list_window.open_window()
 
         
@@ -1482,6 +1579,31 @@ class MainWindow:
 
         elif menuitem == self.builder.get_object('menuitem_rmsf_analysis'):
             self.rmsf_analysis_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_excited_states'):
+            from gui.windows.simulation.excited_states_window import ExcitedStatesWindow
+            if not hasattr(self, 'excited_states_window'):
+                self.excited_states_window = ExcitedStatesWindow(main=self)
+            self.excited_states_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_molecular_properties'):
+            from gui.windows.analysis.molecular_properties_window import MolecularPropertiesWindow
+            if not hasattr(self, 'molecular_properties_window'):
+                self.molecular_properties_window = MolecularPropertiesWindow(main=self)
+            self.molecular_properties_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_cavities'):
+            from gui.windows.analysis.cavities_window import CavitiesWindow
+            if not hasattr(self, 'cavities_window'):
+                self.cavities_window = CavitiesWindow(main=self)
+                self.window_list.append(self.cavities_window)
+            self.cavities_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_trajectory_analysis'):
+            from gui.windows.analysis.trajectory_analysis_window import TrajectoryAnalysisWindow
+            if not hasattr(self, 'trajectory_analysis_window'):
+                self.trajectory_analysis_window = TrajectoryAnalysisWindow(main=self)
+            self.trajectory_analysis_window.open_window()
 
         elif menuitem == self.builder.get_object('menuitem_rdf_analysis'):
             self.rdf_analysis_window.open_window()
@@ -1667,6 +1789,9 @@ class MainWindow:
         
         elif menuitem == self.builder.get_object('menuitem_WHAM'):
             self.WHAM_window.open_window()
+
+        elif menuitem == self.builder.get_object('menuitem_umbrella_browser'):
+            self.open_umbrella_browser()
         
         
         
@@ -1675,6 +1800,10 @@ class MainWindow:
             builder.add_from_file(os.path.join(self.home,'src/gui/windows/setup/about_dialog.glade'))
 
             dialog = builder.get_object('about_dialog')
+            # . the version comes from _version.py (EASYHYBRID_VERSION), not from the .glade
+            if self.EASYHYBRID_VERSION:
+                dialog.set_version(str(self.EASYHYBRID_VERSION))
+            dialog.set_transient_for(self.window)
             dialog.run()
             dialog.destroy()
 
@@ -1955,6 +2084,7 @@ class MainWindow:
         
         if system_e_id != None:
             
+            removed_vobjects = [ v for v in self.vm_session.vm_objects_dic.values() if v.e_id == system_e_id ]
             '''organizing the list of vobjects that should be removed from vm_object_dic'''
             pop_list = []
             for index, vobject in self.vm_session.vm_objects_dic.items():
@@ -2004,6 +2134,7 @@ class MainWindow:
                     self.p_session.active_id = 0
                     self.p_session.psystem[0] = None
 
+            self._on_vobjects_removed(removed_vobjects)
             self.vm_session.vm_glcore.queue_draw()
 
     def delete_vm_object (self, vm_object_index = None):
@@ -2047,8 +2178,718 @@ class MainWindow:
             self.vm_session.vobject_names.pop(name)# = None
             #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+            self._on_vobjects_removed([vobject])
             self.vm_session.vm_glcore.queue_draw()
-        
+
+    def _on_vobjects_removed(self, vobjects):
+        """ [EN] 2026-10-04 BUG FIX (user's report: a system deleted from the
+        treeview while the Builder was editing it left "residual atoms and
+        indices" in later Builder objects). Called by delete_system() and
+        delete_vm_object() with the objects just removed:
+          - their atoms leave vm_session.atom_dic_id (picking id -> Atom;
+            never cleaned before, every deleted system leaked its atoms);
+          - if the Builder was editing one of them, the session ends
+            silently (builder_sidebar.close_window() sees the object is gone:
+            no "incorporate" question, nothing rebuilt), which also closes
+            the Builder's DYFF Parameters / torsion fit windows -- they kept
+            showing and labelling the deleted object's atoms;
+          - a DYFF Parameters window left open on one of them is closed. """
+        vobjects = [v for v in vobjects if v is not None]
+        if not vobjects:
+            return
+        atom_dic_id = self.vm_session.atom_dic_id
+        for vobject in vobjects:
+            for atom in vobject.atoms.values():
+                if atom_dic_id.get(getattr(atom, 'unique_id', None)) is atom:
+                    atom_dic_id.pop(atom.unique_id, None)
+        removed = set(id(v) for v in vobjects)
+        self._drop_removed_atoms_from_selections(removed)
+        target = getattr(self.vm_session, 'builder_target_object', None)
+        sidebar = getattr(self, 'builder_sidebar_window', None)
+        if target is not None and id(target) in removed and sidebar is not None and getattr(sidebar, 'visible', False):
+            sidebar.close_window()
+            self.statusbar_main.push(1, "Builder closed: the object being edited ('{}') was deleted.".format(target.name))
+        elif target is not None and id(target) in removed:
+            self.vm_session.builder_target_object = None
+        dyff_window = getattr(self, 'dyff_parameters_window', None)
+        if dyff_window is not None and dyff_window.visible and id(getattr(dyff_window, 'target_object', None)) in removed:
+            dyff_window.close_window()
+
+    def show_sidebar_page(self, name, title=None):
+        """ [EN] 2026-10-17: right side panel (sidebar_root_box, LibreOffice
+        style) -- shows page `name` of sidebar_stack (e.g. "builder_add") with
+        `title` in its header. Tools can add their own pages to
+        self.builder.get_object('sidebar_stack') with add_titled(). """
+        box   = self.builder.get_object('sidebar_root_box')
+        stack = self.builder.get_object('sidebar_stack')
+        page  = stack.get_child_by_name(name)
+        if page is None:
+            return
+        if title is None:
+            title = stack.child_get_property(page, 'title') or ''
+        self.builder.get_object('sidebar_title_label').set_text(title)
+        page.show_all()
+        stack.set_visible_child(page)
+        box.set_no_show_all(False)
+        box.show_all()
+
+    def hide_sidebar(self):
+        """ [EN] 2026-10-17: hides the right side panel (see show_sidebar_page()). """
+        box = self.builder.get_object('sidebar_root_box')
+        box.hide()
+        box.set_no_show_all(True)
+
+    def _drop_removed_atoms_from_selections(self, removed):
+        """ [EN] 2026-10-09 BUG FIX (user's report: Builder object created and
+        deleted -> in the next object pk1/pk2, as projected by the DYFF
+        Parameters window, pointed to the deleted object). The picking list
+        (pk1..pk4) kept the deleted object's Atom objects and their marker
+        spheres stayed on screen; a click on the new object filled only the
+        EMPTY slots (pk3/pk4), so pk1/pk2 stayed on the deleted atoms (and
+        dihedral/bond tools used that object's topology). Removed atoms now
+        leave the picking list (the survivors are re-picked in order, which
+        also redraws the markers) and every viewing selection.
+        removed: set of id() of the removed vobjects. """
+        session = self.vm_session
+        picking = getattr(session, 'picking_selections', None)
+        if picking is not None:
+            pk_list = picking.picking_selections_list
+            if any(a is not None and id(a.vm_object) in removed for a in pk_list):
+                survivors = [a for a in pk_list if a is not None and id(a.vm_object) not in removed]
+                picking.selection_function_picking(None)
+                for atom in survivors:
+                    picking.selection_function_picking(atom)
+        for selection in getattr(session, 'selections', {}).values():
+            atoms = getattr(selection, 'selected_atoms', None)
+            if atoms:
+                for atom in [a for a in atoms if id(a.vm_object) in removed]:
+                    atoms.discard(atom)
+            objects = getattr(selection, 'selected_objects', None)
+            if objects:
+                for vobject in [v for v in objects if id(v) in removed]:
+                    objects.discard(vobject)
+
+
+    def _dyff_residue_library_dialog(self, as_new=False):
+        """ [EN] 2026-10-07: System > Add > Force Field > DYFF + residue library.
+        Residues are matched to the precomputed xTB library (src/pdynamo/residue_library.py);
+        the rest gets CM5 charges on a capped subsystem (worker thread); then DYFF is
+        defined with the library edits and the charges on the system's object.
+        as_new (2026-10-21): applied to a copy of the system (_dyff_copy_system). """
+        import threading
+        from pdynamo import residue_library as RL
+        system = self.p_session.psystem.get(self.p_session.active_id)
+        if system is None:
+            self.simple_dialog.error(msg="No active system."); return
+        if getattr(system, "qcModel", None) is not None:
+            self.simple_dialog.error(msg="The system has a QC model: remove the QC region before redefining the MM model."); return
+        # . the library matches residues by their bond graph and DYFF types atoms from bond
+        #   orders: a PDB read without CONECT records has no bonds at all (every atom would
+        #   become its own "rest" group, hundreds of xTB jobs)
+        if self._dyff_needs_preparation(system):
+            # . 2026-10-08: a raw structure goes through Prepare DYFF System (no OPLS typing:
+            #   hydrogens, protonation, metal sites, truncated residues), which then applies
+            #   the library itself
+            from gui.windows.setup.prepare_dyff_dialog import PrepareDYFFDialog
+            PrepareDYFFDialog(self).run(system)
+            return
+        vobject = next((v for v in self.vm_session.vm_objects_dic.values() if getattr(v, "e_id", None) == system.e_id), None)
+        if vobject is None or len(vobject.atoms) != len(system.atoms):
+            self.simple_dialog.error(msg="No object with the same atoms as the active system."); return
+        try:
+            p = RL.plan(system)
+        except Exception as error:
+            self.simple_dialog.error(msg="Residue library: {}".format(error)); return
+        s = p["summary"]
+        dialog = Gtk.Dialog(title="DYFF + residue library" + (" (new system)" if as_new else ""), transient_for=self.window, modal=True)
+        dialog.add_buttons("Cancel", Gtk.ResponseType.CANCEL, "Apply", Gtk.ResponseType.OK)
+        grid = Gtk.Grid(column_spacing=8, row_spacing=6, margin=10)
+        text = ("{}: {} of {} residues matched in the library ({}).\n"
+                "Not in the library: {}{}.\n{} atoms outside the library will get CM5 charges (capped subsystem, xTB)."
+                ).format(system.label, s["matched"], s["residues"],
+                         ", ".join("{} {}".format(n, t) for t, n in sorted(s["templates"].items())) or "none",
+                         ", ".join(s["unmatched"][:12]) or "none", " ..." if len(s["unmatched"]) > 12 else "", s["rest_atoms"])
+        if s.get("waters") or s.get("ions"):
+            text += ("\n{} water molecules (TIP3P charges and oxygen LJ on DYFF bonded terms -- not a validated water model) "
+                     "and {} monatomic ions (formal charge) get fixed parameters, no xTB.").format(s.get("waters", 0), s.get("ions", 0))
+        label = Gtk.Label(label=text, xalign=0); label.set_line_wrap(True); label.set_max_width_chars(90)
+        grid.attach(label, 0, 0, 2, 1)
+        solvent = Gtk.CheckButton(label="CM5 of the rest in implicit water (ALPB)"); solvent.set_active(True)
+        grid.attach(solvent, 0, 1, 2, 1)
+        bonded = Gtk.CheckButton(label="Outside the library also: bonds/angles from the xTB Hessian + torsions from the DFT torsion library")
+        bonded.set_tooltip_text("Same capped subsystem: modified Seminario on its xTB Hessian (calibrated to DFT by chemical environment), "
+                                "then the per-bond torsion series of pdynamo/bond_library.py (found by chemical environment; DYFF rules "
+                                "where none is found). Off: CM5 charges only, DYFF bonded rules.")
+        bonded.set_active(bool(s["rest_atoms"])); bonded.set_sensitive(bool(s["rest_atoms"]))
+        grid.attach(bonded, 0, 2, 2, 1)
+        method_combo, scale_spin = self._dyff_method_and_scale_widgets(grid, 3)
+        scan = self._dyff_scan_torsions_widget(bonded)
+        grid.attach(scan, 0, 5, 2, 1)
+        # . 2026-10-21, user's request: charge and multiplicity of the xTB calculations
+        charge_spin, mult_spin, electrons = self._dyff_charge_multiplicity_widgets(grid, 6, system, vobject)
+        grid.attach(Gtk.Label(label="Ligand charges:", xalign=0), 0, 8, 1, 1)
+        ligand_combo = self._dyff_ligand_charges_widget()
+        ligand_combo.set_sensitive(bool(s["rest_atoms"]))
+        grid.attach(ligand_combo, 1, 8, 1, 1)
+        charge_spin.set_sensitive(bool(s["rest_atoms"])); mult_spin.set_sensitive(bool(s["rest_atoms"]))
+        dialog.get_content_area().add(grid); dialog.show_all()
+        while True:
+            response = dialog.run()
+            if response != Gtk.ResponseType.OK or not s["rest_atoms"]: break
+            q, m = int(charge_spin.get_value()), int(mult_spin.get_value())
+            if (electrons - q) % 2 == (m - 1) % 2: break
+            self.simple_dialog.error(msg="Charge {:+d} gives {} electrons: the multiplicity must be {} (1, 3, 5... for an even "
+                                         "number of electrons; 2, 4, 6... for an odd one).".format(
+                                         q, electrons - q, "odd" if (electrons - q) % 2 == 0 else "even"))
+        use_water = solvent.get_active(); use_bonded = bonded.get_active()
+        scan_torsions = scan.get_active() and use_bonded
+        total_charge, multiplicity = int(charge_spin.get_value()), int(mult_spin.get_value())
+        method, cm5_scale = method_combo.get_active_id(), scale_spin.get_value()
+        ligand_charges = ligand_combo.get_active_id() or "cm5"
+        dialog.destroy()
+        if response != Gtk.ResponseType.OK: return
+        if as_new:
+            system, vobject = self._dyff_copy_system(system, vobject)
+            if vobject is None:
+                self.simple_dialog.error(msg="The copy of the system has no object."); return
+            p = RL.plan(system)
+        self._run_dyff_library(system, vobject, p, use_water=use_water, use_bonded=use_bonded, method=method, cm5_scale=cm5_scale,
+                               scan_torsions=scan_torsions, total_charge=total_charge, multiplicity=multiplicity,
+                               ligand_charges=ligand_charges, open_report=True)
+
+    def _load_dyff_parametrization_dialog(self):
+        """ [EN] 2026-10-23: System > Force Field > Define Force Field > Load DYFF Parametrization. """
+        system = self.p_session.psystem.get(self.p_session.active_id)
+        if system is None:
+            self.simple_dialog.error(msg="No active system."); return
+        if getattr(system, "qcModel", None) is not None:
+            self.simple_dialog.error(msg="'{}' has a QC model: DYFF cannot be assigned.".format(system.label)); return
+        chooser = Gtk.FileChooserDialog(title="Load DYFF Parametrization (parametrization.json)", parent=self.window,
+                                        action=Gtk.FileChooserAction.OPEN)
+        chooser.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OPEN, Gtk.ResponseType.OK)
+        flt = Gtk.FileFilter(); flt.set_name("DYFF parametrization (parametrization.json)"); flt.add_pattern("parametrization.json")
+        chooser.add_filter(flt)
+        folder = getattr(system, "e_working_folder", None)
+        if folder and os.path.isdir(folder):
+            chooser.set_current_folder(folder)
+        response, path = chooser.run(), chooser.get_filename()
+        chooser.destroy()
+        if response != Gtk.ResponseType.OK or not path:
+            return
+        try:
+            data = self.load_dyff_parametrization(path, system)
+        except Exception as error:
+            self.simple_dialog.error(msg="Load DYFF Parametrization: {}".format(error)); return
+        report = os.path.join(data["_folder"], "report.html")
+        if os.path.exists(report) and self.simple_dialog.question(
+                "The parameters of '{}' are being applied.\n\nOpen the parametrization report?".format(system.label)):
+            self._open_in_browser(report)
+
+    def open_ai_assistant(self, *_):
+        from gui.windows.setup.ai_assistant_window import AIAssistantWindow
+        if getattr(self, "ai_assistant_window", None) is None:
+            self.ai_assistant_window = AIAssistantWindow(main=self)
+        self.ai_assistant_window.open_window()
+
+    # ------------------------------------------------------------ remote machines
+    def refresh_run_on_menu(self):
+        """ Rebuilds the radio list of Simulate > Run Simulations On (menu_run_on,
+            in the glade file) from the profiles of Remote Machines. """
+        from remote import profiles as remote_profiles
+        submenu = self.builder.get_object('menu_run_on')
+        for child in submenu.get_children():
+            submenu.remove(child)
+        current = getattr(getattr(self, "p_session", None), "remote_target", None)
+        group = None
+        names = [None] + list(remote_profiles.load_all())
+        if current not in names:
+            current = None
+        for name in names:
+            label = "This Computer" if name is None else "{} (remote)".format(name)
+            item = Gtk.RadioMenuItem.new_with_label_from_widget(group, label)
+            group = item
+            item.set_active(name == current)
+            item.connect("toggled", self._on_run_on_toggled, name)
+            submenu.append(item)
+        submenu.show_all()
+
+    def _on_run_on_toggled(self, item, name):
+        if not item.get_active():
+            return
+        self.p_session.remote_target = name
+        if name is None:
+            self.statusbar_main.push(1, "Simulations run on this computer.")
+        else:
+            self.statusbar_main.push(1, "Simulations run on '{}': results come back to their output folder "
+                                        "(see the Process Manager).".format(name))
+
+    def open_remote_machines_window(self, *_):
+        from gui.windows.setup.remote_machines_window import RemoteMachinesWindow
+        if getattr(self, "remote_machines_window", None) is None:
+            self.remote_machines_window = RemoteMachinesWindow(main=self)
+        self.remote_machines_window.open_window()
+
+    def on_menuitem_control_server_toggled(self, menuitem):
+        """ [EN] 2026-10-28: Edit > AI Control Server -- starts (after the options
+            dialog) or stops the control server of src/automation (docs/AI_CONTROL.md). """
+        if getattr(self, "_syncing_control_menu", False):
+            return
+        server = getattr(self, "control_server", None)
+        if menuitem.get_active():
+            if server is not None and server.running:
+                return
+            from gui.windows.setup.ai_control_dialog import AIControlDialog, save_and_apply
+            settings = AIControlDialog(parent=self.window).run()
+            if settings is None:
+                self.sync_control_menu(False)
+                return
+            status = save_and_apply(settings)
+            try:
+                from automation.server import ControlServer
+                self.control_server = ControlServer(self, settings=settings)
+                path = self.control_server.start()
+            except Exception as error:
+                self.sync_control_menu(False)
+                self.simple_dialog.error(msg="Could not start the AI control server:\n{}".format(error))
+                return
+            self.statusbar_main.push(1, "AI control server on: {}. {}".format(path, status))
+        else:
+            if server is not None and server.running:
+                server.stop()
+            self.statusbar_main.push(1, "AI control server off.")
+
+    def on_menuitem_control_settings_activate(self, menuitem):
+        """ Edit > AI Control Settings...: the options, also while the server runs. """
+        from gui.windows.setup.ai_control_dialog import AIControlDialog, save_and_apply
+        server = getattr(self, "control_server", None)
+        running = server is not None and server.running
+        settings = AIControlDialog(parent=self.window, settings=server.settings if running else None,
+                                   starting=False).run()
+        if settings is None:
+            return
+        status = save_and_apply(settings)
+        if running:
+            server.apply_settings(settings)
+        self.statusbar_main.push(1, status)
+
+    def sync_control_menu(self, active):
+        """ Shows the state of the control server in Edit > AI Control Server
+            without starting or stopping anything (--control, terminal 'control'). """
+        item = self.builder.get_object("menuitem_control_server")
+        if item is None or item.get_active() == bool(active):
+            return
+        self._syncing_control_menu = True
+        try:
+            item.set_active(bool(active))
+        finally:
+            self._syncing_control_menu = False
+
+    def open_umbrella_browser(self, folder=None):
+        """ [EN] 2026-10-23: Analysis > Umbrella Sampling Browser. """
+        from gui.windows.analysis.umbrella_browser_window import UmbrellaBrowserWindow
+        if getattr(self, "umbrella_browser_window", None) is None:
+            self.umbrella_browser_window = UmbrellaBrowserWindow(main=self)
+        self.umbrella_browser_window.open_window(folder=folder)
+
+    def open_parametrization_window(self, folder=None, system=None):
+        """ [EN] 2026-10-23: System > Force Field > Parametrization Report (DYFF modified ligands). """
+        from gui.windows.analysis.parametrization_window import ParametrizationWindow
+        if getattr(self, "parametrization_window", None) is None:
+            self.parametrization_window = ParametrizationWindow(main=self)
+        self.parametrization_window.open_window(folder=folder, system=system)
+
+    def _open_in_browser(self, path):
+        """ [EN] 2026-10-23: a local HTML file in the default browser, without blocking. """
+        import threading
+        import webbrowser
+        threading.Thread(target=lambda: webbrowser.open("file://" + os.path.abspath(path)), daemon=True).start()
+
+    def load_dyff_parametrization(self, folder, system=None, vobject=None):
+        """ [EN] 2026-10-23: applies a saved DYFF parametrization (pdynamo/param_report.py
+        output folder) to the active system -- the same atoms, elements and bonds -- with the
+        residue library and the stored parameters of the atoms outside it, no xTB/ORCA. """
+        from pdynamo import residue_library as RL
+        from pdynamo import param_report as PR
+        data = PR.load(folder)
+        if system is None:
+            system = self.p_session.psystem[self.p_session.active_id]
+        if vobject is None:
+            vobject = self.get_active_vobject(getattr(system, "e_id", None))
+        if vobject is None:
+            raise ValueError("no object of the system '{}'".format(system.label))
+        reason = PR.check_system(data, system)
+        if reason:
+            raise ValueError("this parametrization does not fit '{}': {}".format(system.label, reason))
+        p = RL.plan(system)
+        if sorted(p["rest_atoms"]) != sorted(data["rest_atoms"]):
+            raise ValueError("the residue library now covers different atoms than when the parametrization was made")
+        o = data.get("settings") or {}
+        self._run_dyff_library(system, vobject, p, use_water=o.get("water", True), use_bonded=o.get("bonded", True),
+                               method=o.get("method", "gfn2"), cm5_scale=o.get("cm5_scale", 1.0),
+                               scan_torsions=o.get("scan_torsions", False), ligand_charges=o.get("ligand_charges", "cm5"),
+                               total_charge=o.get("total_charge"), multiplicity=o.get("multiplicity_override"),
+                               precomputed=data)
+        return data
+
+    def reapply_dyff_library(self, vobject, extra_message=""):
+        """ [EN] 2026-10-08: DYFF + residue library again on the system of `vobject`, with
+        the options it was parametrized with (vobject.dyff_library_options) -- after the
+        structure was edited in the Builder. Residues still matching the library get the
+        same parameters; the edited region (e.g. a metal site with a bonded hydroxide) is
+        outside the library and is refined with xTB; metal sites come from the structure. """
+        from pdynamo import residue_library as RL
+        system = self.p_session.psystem.get(getattr(vobject, "e_id", None))
+        if system is None:
+            self.simple_dialog.error(msg="No pDynamo system for '{}'.".format(vobject.name)); return False
+        if getattr(system, "qcModel", None) is not None:
+            self.simple_dialog.error(msg="'{}' has a QC model: DYFF was not assigned.".format(system.label)); return False
+        if len(vobject.atoms) != len(system.atoms):
+            self.simple_dialog.error(msg="The object and its system have different atoms."); return False
+        options = getattr(vobject, "dyff_library_options", None) or {}
+        try:
+            p = RL.plan(system)
+        except Exception as error:
+            self.simple_dialog.error(msg="Residue library: {}".format(error)); return False
+        self._run_dyff_library(system, vobject, p, use_water=options.get("water", True), use_bonded=options.get("bonded", True),
+                               scan_torsions=options.get("scan_torsions", False),
+                               ligand_charges=options.get("ligand_charges", "cm5"),
+                               total_charge=options.get("total_charge"), multiplicity=options.get("multiplicity_override"),
+                               method=options.get("method", "gfn2"), cm5_scale=options.get("cm5_scale", 1.0),
+                               extra_message=extra_message)
+        return True
+
+    def _dyff_copy_system(self, system, vobject=None):
+        """ [EN] 2026-10-21, user's request: DYFF preparation makes a NEW system by
+        default. A copy of `system` (coordinates, fixed atoms, cell; tag DYFF, name
+        <label>_DYFF) is added to the session; what DYFF reads from the object --
+        Builder partial charges and formal charges per atom, manual and metal type
+        overrides, the previous library options -- goes to the copy's object.
+        Returns ( new system, its object ). """
+        import copy
+        new_system = copy.deepcopy(system)
+        new_system.e_step_counter = 0
+        # . a system read from a file is labelled with its path: <file name>_DYFF
+        label = os.path.splitext(os.path.basename(system.label or "system"))[0].replace(" ", "_") or "system"
+        new_system = self.p_session.add_prepared_pdynamo_system(
+            new_system, name="{}_DYFF".format(label), tag="DYFF",
+            working_folder=getattr(system, "e_working_folder", None),
+            input_files=dict(getattr(system, "e_input_files", None) or {}))
+        new_vobject = next((v for v in self.vm_session.vm_objects_dic.values()
+                            if getattr(v, "e_id", None) == new_system.e_id), None)
+        if vobject is not None and new_vobject is not None and len(vobject.atoms) == len(new_vobject.atoms):
+            for attribute in ("manual_atom_type_overrides", "dyff_type_overrides", "dyff_library_options"):
+                value = getattr(vobject, attribute, None)
+                if value is not None:
+                    setattr(new_vobject, attribute, copy.deepcopy(value))
+            for i, atom in vobject.atoms.items():
+                target = new_vobject.atoms.get(i)
+                if target is None: continue
+                for attribute in ("mm_charge", "formal_charge"):
+                    if getattr(atom, attribute, None) is not None:
+                        setattr(target, attribute, getattr(atom, attribute))
+        return new_system, new_vobject
+
+    def _ask_dyff_charge_multiplicity(self, system, vobject, intro):
+        """ [EN] 2026-10-21, user's request: charge and multiplicity of the xTB
+        calculations when the dialog that started the parametrization could not ask
+        (Prepare DYFF System: the hydrogens, hence the electrons, only exist after the
+        build). Returns ( charge, multiplicity or None = keep the metal sites' ) or
+        None when cancelled. """
+        dialog = Gtk.Dialog(title="DYFF: charge and multiplicity", transient_for=self.window, modal=True)
+        dialog.add_buttons("Cancel", Gtk.ResponseType.CANCEL, "Continue", Gtk.ResponseType.OK)
+        dialog.set_default_response(Gtk.ResponseType.OK)
+        grid = Gtk.Grid(column_spacing=8, row_spacing=8, margin=12)
+        label = Gtk.Label(label=intro, xalign=0); label.set_line_wrap(True); label.set_max_width_chars(80)
+        grid.attach(label, 0, 0, 2, 1)
+        charge_spin, mult_spin, electrons = self._dyff_charge_multiplicity_widgets(grid, 1, system, vobject)
+        default_mult = int(mult_spin.get_value())
+        # . unchanged with metal sites: keep each site's own multiplicity (several metals)
+        from pdynamo import dyff_prep as DP
+        try:
+            has_sites = bool(DP.sites_from_system(system, (getattr(vobject, "dyff_library_options", None) or {}).get("multiplicities"))[1])
+        except Exception:
+            has_sites = False
+        dialog.get_content_area().add(grid); dialog.show_all()
+        result = None
+        while True:
+            response = dialog.run()
+            if response != Gtk.ResponseType.OK: break
+            q, m = int(charge_spin.get_value()), int(mult_spin.get_value())
+            if (electrons - q) % 2 == (m - 1) % 2:
+                result = (q, None if (has_sites and m == default_mult) else m); break
+            self.simple_dialog.error(msg="Charge {:+d} gives {} electrons: the multiplicity must be {} (1, 3, 5... for an even "
+                                         "number of electrons; 2, 4, 6... for an odd one).".format(
+                                         q, electrons - q, "odd" if (electrons - q) % 2 == 0 else "even"))
+        dialog.destroy()
+        return result
+
+    def _dyff_charge_multiplicity_widgets(self, grid, row, system, vobject=None):
+        """ [EN] 2026-10-21, user's request: "Charge" and "Multiplicity" of the xTB
+        calculations (CM5 charges, Hessians, torsion scans) of the atoms outside the
+        library. Defaults: the sum of the formal charges; the metal site's multiplicity
+        (as kept on the object or the DYFF default for the element) or, without metals,
+        1/2 from the electron count -- always made consistent with the electron count.
+        Returns ( charge spin, multiplicity spin, number of electrons at charge 0 ). """
+        from pdynamo import dyff_prep as DP
+        electrons = sum(int(a.atomicNumber) for a in system.atoms)
+        charge = sum(int(getattr(a, "formalCharge", 0) or 0) for a in system.atoms)
+        previous = (getattr(vobject, "dyff_library_options", None) or {}) if vobject is not None else {}
+        mult = previous.get("multiplicity_override")
+        if mult is None:
+            try:
+                _, states = DP.sites_from_system(system, previous.get("multiplicities"))
+            except Exception:
+                states = {}
+            mult = int(states[sorted(states)[0]]["multiplicity"]) if states else 1
+        if previous.get("total_charge") is not None:
+            charge = int(previous["total_charge"])
+        if (electrons - charge) % 2 != (mult - 1) % 2:
+            mult = max(1, mult - 1) if mult > 1 else 2
+        label = Gtk.Label(label="Charge / multiplicity (xTB, atoms outside the library):", xalign=0)
+        tip = ("Total charge and spin multiplicity used by the xTB calculations (CM5 charges, Hessians, torsion scans) of "
+               "the atoms outside the residue library. Charge: default = sum of the formal charges. Multiplicity: 2S+1; "
+               "default = the metal site's (the DYFF default for the element) or 1/2 from the electron count. With one "
+               "metal it is the metal's spin state (e.g. Fe(II) 1 low spin, 5 high spin); with several metals it goes on "
+               "the first one. Must agree with the number of electrons (odd for an even count).")
+        label.set_tooltip_text(tip)
+        grid.attach(label, 0, row, 1, 1)
+        box = Gtk.Box(spacing=6)
+        charge_spin = Gtk.SpinButton.new_with_range(-20, 20, 1); charge_spin.set_value(charge); charge_spin.set_tooltip_text(tip)
+        mult_spin = Gtk.SpinButton.new_with_range(1, 9, 1); mult_spin.set_value(mult); mult_spin.set_tooltip_text(tip)
+        box.pack_start(charge_spin, False, False, 0); box.pack_start(Gtk.Label(label="/"), False, False, 0)
+        box.pack_start(mult_spin, False, False, 0)
+        grid.attach(box, 1, row, 1, 1)
+        return charge_spin, mult_spin, electrons
+
+    @staticmethod
+    def _dyff_needs_preparation(system):
+        """ [EN] 2026-10-21 BUG FIX (user's report: a complex drawn from the structure
+        library failed with "Metal-containing cofactors are not supported yet"): a system
+        was sent to Prepare DYFF System (the raw-PDB route) whenever it had no double,
+        triple or aromatic bond -- so every saturated molecule built in the Builder (43 of
+        the 173 metal complexes of the library, alkanes, sugars) was treated as a raw PDB.
+        Raw now means: no bonds, or a main-group atom whose bonds (and formal charge) do
+        not complete its valence (missing hydrogens or bond orders). Atoms bonded to a
+        metal are not checked (dative bonds). """
+        connectivity = getattr(system, "connectivity", None)
+        bonds = list(connectivity.bonds) if connectivity is not None else []
+        if not bonds:
+            return True
+        order_of = {"Single": 1, "Double": 2, "Triple": 3}
+        valence = {6: lambda q: 4 - abs(q), 7: lambda q: 3 + q, 8: lambda q: 2 + q, 9: lambda q: 1, 17: lambda q: 1,
+                   35: lambda q: 1, 53: lambda q: 1, 1: lambda q: 1}
+        main_group = set(valence) | {5, 14, 15, 16, 34}
+        used = [0.0] * len(system.atoms)
+        next_to_metal = set()
+        for b in bonds:
+            i, j = b.node1.index, b.node2.index
+            order = 1.5 if getattr(b, "isAromatic", False) else order_of.get(getattr(getattr(b, "type", None), "name", None), 1)
+            used[i] += order; used[j] += order
+            zi, zj = system.atoms[i].atomicNumber, system.atoms[j].atomicNumber
+            if zi not in main_group: next_to_metal.add(j)
+            if zj not in main_group: next_to_metal.add(i)
+        for k, atom in enumerate(system.atoms):
+            rule = valence.get(atom.atomicNumber)
+            if rule is None or k in next_to_metal:
+                continue
+            if used[k] + 0.25 < rule(int(getattr(atom, "formalCharge", 0) or 0)):
+                return True
+        return False
+
+    def _dyff_scan_torsions_widget(self, bonded=None):
+        """ [EN] 2026-10-21, user's request: optional xTB scans + fits of the flexible
+        rotatable bonds that the DFT torsion library does not cover (residue_library.
+        flexible_scan_targets / scan_flexible_torsions). Off by default: one relaxed
+        xTB scan (24 points + single points) per bond. """
+        check = Gtk.CheckButton(label="Scan with xTB and fit the flexible bonds not in the torsion library (slow)")
+        check.set_tooltip_text("For the atoms outside the residue library: every rotatable single bond whose torsion is not "
+                               "in the DFT torsion library gets a relaxed GFN2-xTB scan (24 points, on the same capped "
+                               "fragment as the Hessian) and a fitted torsion. Rigid bonds are skipped: rings, double/aromatic "
+                               "bonds, amide-like C(=O)-N bonds and symmetric CH3/NH2/NH3+ rotors. Each scan takes from "
+                               "seconds to a few minutes; scans run in parallel. Off: those bonds keep the DYFF rule.")
+        check.set_active(False)
+        if bonded is not None:
+            check.set_sensitive(bonded.get_active() and bonded.get_sensitive())
+            bonded.connect("toggled", lambda b: (check.set_sensitive(b.get_active()), b.get_active() or check.set_active(False)))
+        return check
+
+    def _dyff_ligand_charges_widget(self):
+        """ [EN] 2026-10-23, user's decision: the charge model of the ligands (the whole
+        molecules among the atoms outside the residue library): CM5 (default) or RESP-2
+        on the GFN2-xTB or HF/6-31G* potential (residue_library.resp_group_charges).
+        Groups bonded to the rest of the system and metal sites keep CM5. """
+        from pdynamo.residue_library import LIGAND_CHARGE_MODELS
+        combo = Gtk.ComboBoxText()
+        for key, text in LIGAND_CHARGE_MODELS:
+            combo.append(key, text)
+        combo.set_active_id("cm5")
+        combo.set_tooltip_text("Charges of the ligands (whole molecules outside the residue library). RESP-2 is fitted to the "
+                               "gas-phase electrostatic potential (System > Charges > ESP / RESP Charges, identical to AmberTools "
+                               "resp). On the NCI Atlas RESP-HF was slightly better than CM5 and RESP-xTB slightly worse; on "
+                               "protein-ligand interaction energies RESP-xTB was better. Termini, modified residues, covalent "
+                               "ligands and metal sites keep CM5.")
+        return combo
+
+    def _dyff_method_and_scale_widgets(self, grid, row):
+        """ [EN] 2026-10-08: the Hessian method (GFN2-xTB / g-xTB / DFT, the latter not yet
+        available) and the CM5 charge scale, shared by the DYFF + residue library dialog
+        and Prepare DYFF System. Returns ( combo, spin ). """
+        grid.attach(Gtk.Label(label="Hessian method (atoms outside the library, metal sites):", xalign=0), 0, row, 1, 1)
+        combo = Gtk.ComboBoxText()
+        combo.append("gfn2", "GFN2-xTB (implicit water allowed)")
+        combo.append("gxtb", "g-xTB (more accurate; gas phase only)")
+        combo.append("dft", "DFT (ORCA) -- planned, not available yet")
+        combo.set_active_id("gfn2")
+        def no_dft(widget):
+            if widget.get_active_id() == "dft":
+                widget.set_active_id("gfn2")
+                self.simple_dialog.info(msg="DFT (ORCA) refinement is planned but not implemented yet; GFN2-xTB is used.",
+                                        title="DFT refinement")
+        combo.connect("changed", no_dft)
+        combo.set_tooltip_text("g-xTB runs through tblite, which has no implicit solvent: with charged sites prefer GFN2-xTB + ALPB.")
+        grid.attach(combo, 1, row, 1, 1)
+        grid.attach(Gtk.Label(label="CM5 charge scale:", xalign=0), 0, row + 1, 1, 1)
+        spin = Gtk.SpinButton.new_with_range(0.5, 1.5, 0.05); spin.set_digits(2); spin.set_value(1.0)
+        spin.set_tooltip_text("Charges scaled within every residue / group, totals kept: q' = q_mean + s (q - q_mean). On gas-phase DFT "
+                              "dipeptide energies and forces (SPICE) 0.7-0.8 is best; condensed-phase work has not been benchmarked: "
+                              "keep 1.0 unless you test it.")
+        grid.attach(spin, 1, row + 1, 1, 1)
+        return combo, spin
+
+    def _run_dyff_library(self, system, vobject, p, use_water=True, use_bonded=True, method="gfn2", site_states=None,
+                          cm5_scale=1.0, extra_message="", on_success=None, scan_torsions=False,
+                          total_charge=None, multiplicity=None, ligand_charges="cm5", open_report=False, precomputed=None):
+        """ [EN] 2026-10-08: applies DYFF + residue library to `system` (plan p from
+        residue_library.plan): the atoms outside the library refined on capped subsystems
+        in a worker thread (method gfn2/gxtb; site_states = spin of metal sites), the
+        charges optionally scaled, then the MM model defined.
+        2026-10-23: every run with atoms outside the library writes an output folder
+        (pdynamo/param_report.py: parametrization.json, report.html, the original xTB/ORCA
+        logs) in the system's working folder; open_report: show report.html when done.
+        precomputed: a loaded parametrization.json (param_report.load) whose parameters are
+        applied instead of computing them again. """
+        import threading
+        import time
+        from pdynamo import param_report as PR
+        from pdynamo import residue_library as RL
+        from pdynamo import dyff_prep as DP
+        s = p["summary"]
+        if method == "dft": method = "gfn2"
+        previous = getattr(vobject, "dyff_library_options", None) or {}
+        if site_states is None:
+            # . 2026-10-08: metal sites read from the structure itself (a system edited in the
+            #   Builder after Prepare DYFF: hydroxide bonded to Zn, donors changed, ...); the
+            #   spin states chosen at preparation are kept by atom path
+            overrides, site_states = DP.sites_from_system(system, previous.get("multiplicities"))
+            if overrides:
+                vobject.dyff_type_overrides = overrides
+        if multiplicity is not None and site_states:
+            # . 2026-10-21: the multiplicity chosen in the dialog goes on the metal site
+            #   (several metals: the first one, the others singlet)
+            for k, m in enumerate(sorted(site_states)):
+                site_states[m]["multiplicity"] = int(multiplicity) if k == 0 else 1
+        # . kept on the object: Edit in Builder carries them, and closing the Builder can
+        #   re-apply the library with the same choices (reapply_dyff_library)
+        vobject.dyff_library_options = {"water": use_water, "bonded": use_bonded, "method": method, "cm5_scale": cm5_scale,
+                                        "scan_torsions": bool(scan_torsions and use_bonded),
+                                        "ligand_charges": ligand_charges,
+                                        "total_charge": total_charge, "multiplicity_override": multiplicity,
+                                        "multiplicities": {system.atoms[i].path: st["multiplicity"] for i, st in (site_states or {}).items()}}
+        self.statusbar_main.push(1, "DYFF + residue library: {} atoms outside the library...".format(s["rest_atoms"]))
+        def say(text):
+            GLib.idle_add(lambda: self.statusbar_main.push(1, "DYFF + residue library: " + text) and False)
+        folder = None
+        if p["rest_atoms"] and precomputed is None:
+            try:
+                folder = PR.new_folder(getattr(system, "e_working_folder", None) or os.getcwd(), system.label)
+            except Exception as error:
+                print("DYFF parametrization report: no output folder ({})".format(error))
+        started = time.time()
+        def work():
+            if precomputed is not None:
+                GLib.idle_add(done, PR.rest_result(precomputed) if p["rest_atoms"] else None, None); return
+            try:
+                rest = RL.rest_parameters(system, p["rest_atoms"], solvent="water" if use_water else None, log_dir=os.path.join(folder, "logs") if folder else None,
+                                          hessian=use_bonded, torsions=use_bonded, say=say, method=method,
+                                          site_states=site_states, scan_torsions=bool(scan_torsions and use_bonded),
+                                          known_charges=p["charges"], known_edits=p["edits"],
+                                          total_charge=total_charge, multiplicity=multiplicity,
+                                          ligand_charges=ligand_charges) if p["rest_atoms"] else None
+                GLib.idle_add(done, rest, None)
+            except Exception as error:
+                traceback.print_exc()
+                GLib.idle_add(done, None, str(error))
+        def done(rest, error):
+            if error:
+                self.simple_dialog.error(msg="Parameters for the atoms outside the library failed:\n{}".format(error[-600:])); return False
+            charges = dict(p["charges"]); edits = {k: dict(v) for k, v in p["edits"].items()}
+            if rest:
+                charges.update(rest["charges"])
+                for key in ("bond_terms", "angle_terms", "dihedral_bonds"):
+                    edits.setdefault(key, {}).update(rest["edits"][key])
+            if abs(cm5_scale - 1.0) > 1e-9:
+                symbols, neighbours = RL.system_graph(system)
+                charges = RL.scale_charges(charges, RL.charge_groups(p["matches"], p["rest_atoms"], neighbours), cm5_scale)
+            total = RL.store_on_object(vobject, system, edits, charges)
+            ok, msg = self.p_session.define_MMModel(force_field='DYFF', system=system)
+            if ok and on_success is not None:
+                # . 2026-10-17: e.g. the Builder's Force Field Settings (nonbonded model)
+                msg += on_success() or ""
+            self.refresh_main_statusbar()
+            if ok:
+                msg += " Residue library: {}/{} residues; total charge {:+.3f}.".format(s["matched"], s["residues"], total)
+                if rest and use_bonded:
+                    r = rest["report"]
+                    msg += " Outside the library ({}): {} bonds, {} angles from the Hessian; {} of {} rotatable bonds from the DFT torsion library.".format(
+                        {"gxtb": "g-xTB"}.get(method, "GFN2-xTB"), r["bonds"], r["angles"], r["torsions"], r["rotatable"])
+                    if "scan_targets" in r:
+                        # . 2026-10-21: automatic xTB scans of the flexible bonds the library does not have
+                        msg += " xTB torsion scans: {} of {} flexible bond(s) fitted".format(r.get("scanned", 0), r["scan_targets"])
+                        details = [d for d in (r.get("scan_details") or []) if d.get("accepted", True)
+                                   and d.get("fit_rmse") is not None and d.get("before_rmse") is not None]
+                        if details:
+                            msg += " (RMSE vs xTB, mean: {:.2f} -> {:.2f} kcal/mol)".format(
+                                sum(d["before_rmse"] for d in details) / len(details), sum(d["fit_rmse"] for d in details) / len(details))
+                            poor = [d for d in details if d.get("poor")]
+                            if poor:
+                                msg += " WARNING: {} fitted torsion(s) still above 2 kcal/mol RMSE (bonds {}): the scan profile is not a pure torsion (internal hydrogen bonds?); check them in Force Field Parameters.".format(
+                                    len(poor), ", ".join(d["bond"] for d in poor[:5]))
+                        failed = r.get("scan_failed") or []
+                        msg += (" ({} failed: {}).".format(len(failed), "; ".join(failed[:3])) if failed else ".")
+                if rest and rest["report"].get("ligand_charges"):
+                    # . 2026-10-23: RESP charges of the ligands
+                    groups = rest["report"]["ligand_charges"]
+                    resp = [g for g in groups if g["status"].startswith("RESP")]
+                    kept = [g for g in groups if g["status"].startswith("CM5")]
+                    msg += " Ligand charges: {} molecule(s) with {}".format(len(resp), resp[0]["status"] if resp else "RESP")
+                    msg += ("; {} group(s) kept CM5 ({}).".format(len(kept), "; ".join(sorted({g["status"][10:] for g in kept})))
+                            if kept else ".")
+                if abs(cm5_scale - 1.0) > 1e-9:
+                    msg += " CM5 charges scaled by {:.2f}.".format(cm5_scale)
+                msg += extra_message
+                if precomputed is not None:
+                    vobject.dyff_param_folder = precomputed.get("_folder")
+                    msg += " Parameters read from {} (no new calculation).".format(precomputed.get("_folder", "parametrization.json"))
+                elif folder:
+                    try:
+                        data = PR.collect(system, p, rest, dict(vobject.dyff_library_options), charges, edits,
+                                          messages=[msg], total_seconds=time.time() - started)
+                        path = PR.write(folder, data)
+                        vobject.dyff_param_folder = folder
+                        msg += " Report and logs: {}".format(path)
+                        if open_report:
+                            # . 2026-10-23: the DYFF Parametrization window (report.html is written as well)
+                            GLib.idle_add(lambda: self.open_parametrization_window(folder, system) and False)
+                    except Exception as error:
+                        traceback.print_exc()
+                        msg += " (the parametrization report could not be written: {})".format(error)
+                self.bottom_notebook.status_teeview_add_new_item(message=msg, system=system)
+                self.statusbar_main.push(1, msg)
+            else:
+                self.simple_dialog.error(msg=msg)
+            return False
+        threading.Thread(target=work, daemon=True).start()
+
     def refresh_main_statusbar(self, message = None, psystem = None):
         """ Function doc """
         psystem = self.p_session.psystem[self.p_session.active_id]
@@ -2323,24 +3164,41 @@ class MainWindow:
             
 
             
-            if response == -9:   # Don't Save and close
-                self._persist_window_and_config()
-                Gtk.main_quit()
-            
-            elif response == -6: # Cancel - don't close
-                return True 
-            
-            elif response == -8: # Save and close
+            if response == Gtk.ResponseType.NO:        # Don't Save and close
+                pass                                     # . falls through to the safety-net autosave below
+
+            elif response == Gtk.ResponseType.CANCEL:   # Cancel - don't close
+                return True
+
+            elif response == Gtk.ResponseType.YES:      # Save and close
                 if self.session_filename == None:
                     self.gtk_save_as_file(widget)
+                    # . [BUG FIX] the Save As... dialog can itself be cancelled (user
+                    #   picked "Save" here, then changed their mind in the file
+                    #   chooser) -- this used to fall straight through to
+                    #   Gtk.main_quit() regardless, closing with the work neither
+                    #   saved for real NOR even left in .tmp. self.p_session.changed
+                    #   only clears on an actual successful save (see
+                    #   save_easyhybrid_session), so the safety-net autosave below
+                    #   now still catches this case.
                 else:
                     self.p_session.save_easyhybrid_session( filename = self.session_filename)
-                #print('Saving' )
-                self._persist_window_and_config()
-                Gtk.main_quit() 
-            
+
             else:
-                return True 
-        else:
-            self._persist_window_and_config()
-            Gtk.main_quit()
+                return True
+
+        # . [BUG FIX] closing used to just quit here, whatever the user had
+        #   picked -- the periodic/event-count autosave
+        #   (register_change_and_maybe_autosave, called from the normal
+        #   course of using the session) only fires every N events/minutes,
+        #   so whatever changed right before closing could be missing from
+        #   the one recovery copy (.tmp/<...>.easy for a session never
+        #   given a name yet, "<name>.easy~" for one that already has one)
+        #   -- see gui/windows/setup/recover_sessions_window.py, built to
+        #   list exactly those files. p_session.changed is already False
+        #   here after a real Save/Save As above, so this only runs when
+        #   there is something it would actually miss otherwise.
+        if self.p_session.changed:
+            self.p_session._do_autosave()
+        self._persist_window_and_config()
+        Gtk.main_quit()

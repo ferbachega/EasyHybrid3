@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 import gi
 
@@ -116,14 +116,14 @@ class EasyHybridDialogPrune:
         
         
         if _type == 1: #means it's cloning
-            self.dialog.set_title('Cloning Window')
+            self.dialog.set_title('Clone System')
             self.label_msg.set_text('The cloning process will generate a new system')
             self.builder.get_object('entry_name').set_text(name + '_cloned')
             self.builder.get_object('prune_dialog_button_prune').set_label("Clone it!")
             self.coordinates_combobox = CoordinatesComboBox(self.main.vobject_liststore_dict[e_id])
         
         else:          #means it's pruning 
-            self.dialog.set_title('Pruning Window')
+            self.dialog.set_title('Prune System')
             self.builder.get_object('entry_name').set_text(name + '_pruned')
             self.coordinates_combobox = CoordinatesComboBox(self.main.vobject_liststore_dict[self.p_session.active_id]) 
         

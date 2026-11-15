@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -74,6 +74,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
         self.input_types  = {
                             0 : 'From Coordinates (sequential)',
                             1 : 'From Trajectory (parallel)'   ,
+                            2 : 'From Multi-frame Object (parallel)',
                            }
         
         
@@ -132,7 +133,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('umbrella_samppling_window')
-            self.window.set_title('Umbrella Samppling Window')
+            self.window.set_title('Umbrella Sampling')
             self.window.set_keep_above(True)
             self.window.connect("destroy", self.close_window)
             
@@ -226,8 +227,11 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.opt_methods_combo = self.builder.get_object('combobox_geo_opt')
             self.opt_method_store = Gtk.ListStore(str)
 
+            # . 2026-10-24: readable names; the keys of self.opt_methods are what the job reads
+            _names = {'ConjugatedGradient': 'Conjugate Gradient', 'SteepestDescent': 'Steepest Descent',
+                      'LFBGS': 'L-BFGS', 'QuasiNewton': 'Quasi-Newton', 'FIRE': 'FIRE'}
             for key, method in self.opt_methods.items():
-                self.opt_method_store.append([method])
+                self.opt_method_store.append([_names.get(method, method)])
             
             self.opt_methods_combo.set_model(self.opt_method_store)
             renderer_text = Gtk.CellRendererText()
@@ -446,6 +450,19 @@ class UmbrellaSamplingWindow(Gtk.Window):
 
             self.builder.get_object('label_starting_coordinates').hide()
             self.combobox_starting_coordinates.hide()
+
+            self._set_rc_input_fields_sensitive(False)
+
+        if _type == 2:
+            # . one window per frame of the object (a scan, NEB or imported trajectory),
+            #   run in parallel as from a trajectory folder
+            self.builder.get_object('label_input_trajectory').hide()
+            self.builder.get_object('folder_chooser_box').hide()
+            self.builder.get_object('label_number_of_cpus').show()
+            self.builder.get_object('ncpus_spinbutton').show()
+
+            self.builder.get_object('label_starting_coordinates').show()
+            self.combobox_starting_coordinates.show()
 
             self._set_rc_input_fields_sensitive(False)
 
@@ -679,6 +696,17 @@ class UmbrellaSamplingWindow(Gtk.Window):
             if entry_name:
                 entry_name.set_text(str(atom_name))
 
+        # Mass-weighted multiple distance: reuse the scan's own sigmas, and
+        # fill dminimum so get_rc_data() doesn't fail on an empty entry.
+        sig1, sig3 = data.get('sigma_pk1pk3'), data.get('sigma_pk3pk1')
+        mass = rc_box.builder.get_object('mass_restraints1')
+        if data['rc_type'] == 'multiple_distance' and sig1 is not None and mass:
+            weighted = abs(sig1 - 1.0) > 1e-6 or abs(sig3 + 1.0) > 1e-6
+            mass.set_active(weighted)
+            rc_box.sigma_pk1_pk3, rc_box.sigma_pk3_pk1 = sig1, sig3
+        if data.get('dminimum') is not None:
+            rc_box.builder.get_object('entry_dmin_coord1').set_text(str(data['dminimum']))
+
     def _apply_detected_advanced_rc (self, liststore, data):
         """ Fills ONLY an AdvancedReactionCoordinateBox's weighted-distance
         treeview (via its backing liststore) from a
@@ -713,8 +741,14 @@ class UmbrellaSamplingWindow(Gtk.Window):
         elif parameters['input_type'] == 1:
             parameters['vobj'] = None
             parameters['source_folder'] = self.folder_chooser_button.get_folder ()
-            
-        
+
+        elif parameters['input_type'] == 2:
+            vobject_id = self.combobox_starting_coordinates.get_vobject_id()
+            vobject = self.main.vm_session.vm_objects_dic[vobject_id]
+            parameters['vobj'] = vobject.name
+            parameters['vobj_frames'] = vobject_id     # . written to a folder in run()
+            parameters['source_folder'] = None
+
         return parameters
     
         
@@ -756,7 +790,7 @@ class UmbrellaSamplingWindow(Gtk.Window):
         else:
             parameters["RC2"] = None
 
-            if parameters['input_type'] == 1:
+            if parameters['input_type'] in (1, 2):
                 parameters["NmaxThreads"] = int(self.builder.get_object('ncpus_spinbutton').get_value())
             else:
                 parameters["NmaxThreads"] = 1
@@ -798,12 +832,54 @@ class UmbrellaSamplingWindow(Gtk.Window):
         else:
             self.run_dialog()
             return None
-        
-        
+
+        if parameters['input_type'] == 2 and not self._write_object_frames(parameters):
+            return None
+
         self.main.p_session.run_simulation( parameters = parameters )
         self.window.destroy()
         self.Visible    =  False
 
+
+    def _write_object_frames (self, parameters):
+        """ "From Multi-frame Object": every frame of the object becomes
+        frame<i>.pkl in <folder>/<name>_input_frames, and the run goes on as
+        "From Trajectory" from that folder (one window per frame, the
+        restraint centred on the frame's own coordinate; a remote job sends
+        the folder with it). False when nothing should run. """
+        vobject = self.main.vm_session.vm_objects_dic.get(parameters.pop('vobj_frames', None))
+        n_frames = len(vobject.frames) if vobject is not None and vobject.frames is not None else 0
+        if n_frames < 2:
+            self.main.simple_dialog.error(
+                msg="The object has {} frame(s). \"From Multi-frame Object\" makes one umbrella sampling "
+                    "window per frame: choose an object with several frames (a scan, NEB or imported "
+                    "trajectory), or use \"From Coordinates\".".format(n_frames))
+            return False
+        if parameters.get('RC2') is not None:
+            self.main.simple_dialog.error(
+                msg="\"From Multi-frame Object\" works for one reaction coordinate. For a 2D umbrella "
+                    "sampling, use \"From Trajectory\" with the folder of a 2D scan (its frames are "
+                    "named frame<i>_<j>.pkl).")
+            return False
+        base = os.path.join(parameters['folder'], parameters['traj_folder_name'] + '_input_frames')
+        folder, k = base, 1
+        while os.path.exists(folder):
+            folder, k = '{}_{}'.format(base, k), k + 1
+        try:
+            from pCore import Clone, Pickle
+            os.makedirs(folder)
+            system = self.main.p_session.psystem[self.main.p_session.active_id]
+            backup = Clone(system.coordinates3)
+            for frame in range(n_frames):
+                self.main.p_session.set_psystem_coordinates_from_vobject(vobject, frame = frame)
+                Pickle(os.path.join(folder, 'frame{}.pkl'.format(frame)), system.coordinates3)
+            system.coordinates3 = backup
+        except Exception as error:
+            self.main.simple_dialog.error(msg="Could not write the frames of {}:\n{}".format(vobject.name, error))
+            return False
+        parameters['source_folder'] = folder
+        parameters['input_frames_of'] = vobject.name
+        return True
 
     def on_btn_export (self, widget):
         """ Function doc """
@@ -949,6 +1025,12 @@ class UmbrellaSamplingWindow(Gtk.Window):
             self.folder_chooser_button.btn.show()
             self.spinbutton.show()
             self.combobox_starting_coordinates.hide()
+        elif input_type == 2 and parameters.get('vobj') is not None:
+            # Frames of an object (on_combobox_inputtype already set the widgets)
+            for vobj_id, vobj in self.main.vm_session.vm_objects_dic.items():
+                if vobj.name == parameters['vobj']:
+                    self.combobox_starting_coordinates.set_active(vobj_id)
+                    break
 
         # ----------------------------
         # Reaction Coordinates
@@ -1094,7 +1176,7 @@ class UmbrellaSamplingWindow_old(Gtk.Window):
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('umbrella_samppling_window')
-            self.window.set_title('Umbrella Samppling Window')
+            self.window.set_title('Umbrella Sampling')
             self.window.set_keep_above(True)
             self.window.connect("destroy", self.close_window)
             
@@ -1174,8 +1256,11 @@ class UmbrellaSamplingWindow_old(Gtk.Window):
             self.opt_methods_combo = self.builder.get_object('combobox_geo_opt')
             self.opt_method_store = Gtk.ListStore(str)
 
+            # . 2026-10-24: readable names; the keys of self.opt_methods are what the job reads
+            _names = {'ConjugatedGradient': 'Conjugate Gradient', 'SteepestDescent': 'Steepest Descent',
+                      'LFBGS': 'L-BFGS', 'QuasiNewton': 'Quasi-Newton', 'FIRE': 'FIRE'}
             for key, method in self.opt_methods.items():
-                self.opt_method_store.append([method])
+                self.opt_method_store.append([_names.get(method, method)])
             
             self.opt_methods_combo.set_model(self.opt_method_store)
             renderer_text = Gtk.CellRendererText()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -124,11 +124,13 @@ class EasyHybridSelectionWindow:
                         3 : "ByComplement" ,
                         }
         
+        # . keys = positions in the combo box (2026-10-24: "Chain" had key 4 while the combo
+        #   has 4 rows, so choosing it raised KeyError: 3)
         self.select_by_dict ={
                              0 : "Atom"      ,
                              1 : "Residue"   ,
                              2 : "Molecule"  ,
-                             4 : "Chain"    ,
+                             3 : "Chain"    ,
                              }
         
         
@@ -145,7 +147,7 @@ class EasyHybridSelectionWindow:
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('modify_selection_window')
-            self.window.set_title('Modify Selection Window')
+            self.window.set_title('Extend Selection')
             self.window.set_keep_above(True)
              
             
@@ -279,7 +281,7 @@ class PDynamoSelectionWindow:
             self.builder.connect_signals(self)
             
             self.window = self.builder.get_object('pdynamo_selection_window')
-            self.window.set_title('pDynamo Selection Window')
+            self.window.set_title('pDynamo Selection')
             self.window.set_keep_above(True)
             
             #self.chain_entry  = self.builder.get_object('chain_entry')

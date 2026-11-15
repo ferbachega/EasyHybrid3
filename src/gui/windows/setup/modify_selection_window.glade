@@ -63,7 +63,7 @@
                           <object class="GtkLabel">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
-                            <property name="label" translatable="yes">Radius distance (angstron):</property>
+                            <property name="label" translatable="yes">Radius (Å):</property>
                           </object>
                           <packing>
                             <property name="left_attach">0</property>

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -221,6 +221,13 @@ class pAnalysis:
                             line2 = line.split()
                             X.append(float(line2[0]) )
                             Y.append(float(line2[1]))
+                        # . 2026-10-28: counts -> probability density (counts / N / bin width): each
+                        #   window has its own 360-bin grid, so raw counts were not comparable between
+                        #   windows (nor with the Umbrella Sampling Browser, which draws densities)
+                        total = sum(Y)
+                        if total > 0 and len(X) > 1:
+                            width = abs(X[1] - X[0]) or 1.0
+                            Y = [y / (total * width) for y in Y]
                         self.plot.add ( X = X, Y = Y,
                                         symbol = None, sym_color = [1,1,1], sym_fill = False,
                                         line = 'solid', line_color = rgb, energy_label = None,
@@ -230,7 +237,7 @@ class pAnalysis:
                     window =  Gtk.Window()
                     window.set_default_size(800, 300)
                     window.move(900, 300)
-                    window.set_title('Histograms')
+                    window.set_title('Histograms (probability density)')
                     _pack_plot_with_statusbar ( window, self.plot )
 
                     # [EN] User's own request -- "ao clicar no grafico
@@ -249,9 +256,9 @@ class pAnalysis:
                     # the title bar persists until the next click instead.
                     def _on_histogram_curve_clicked ( index, label, window = window ):
                         if index is None:
-                            window.set_title ( 'Histograms' )
+                            window.set_title ( 'Histograms (probability density)' )
                         else:
-                            window.set_title ( 'Histograms -- selected: {}'.format ( label ) )
+                            window.set_title ( 'Histograms (probability density) -- selected: {}'.format ( label ) )
                     self.plot.on_curve_click_callback = _on_histogram_curve_clicked
 
                     window.show_all()
@@ -294,11 +301,28 @@ class pAnalysis:
                     self.plot2.add ( X = X, Y = Y,
                                     symbol = 'dot', sym_color = [0,0,0], sym_fill = False, 
                                     line = 'solid', line_color = [0,0,0], energy_label = None)
+
+                    # . 2026-10-23: 95% confidence interval from bootstrapping (pmf_errors file:
+                    #   x, PMF, standard error, lower, upper)
+                    if results.get ( 'pmf_errors' ):
+                        lower, upper = ( [], [] ), ( [], [] )
+                        for line in open ( results['pmf_errors'] ):
+                            cols = line.split ( )
+                            if len ( cols ) < 5 or 'inf' in cols or 'nan' in cols:
+                                continue
+                            lower[0].append ( float ( cols[0] ) ); lower[1].append ( float ( cols[3] ) )
+                            upper[0].append ( float ( cols[0] ) ); upper[1].append ( float ( cols[4] ) )
+                        for xs, ys in ( lower, upper ):
+                            self.plot2.add ( X = xs, Y = ys, symbol = None, sym_color = [1,1,1], sym_fill = False,
+                                             line = 'solid', line_color = [0.65, 0.65, 0.85], energy_label = None,
+                                             label = '95% confidence limit' )
                     
                     window2 =  Gtk.Window()
                     window2.set_default_size(800, 300)
                     window2.move(100, 300)
-                    window2.set_title(results['pmf'])
+                    # . 2026-10-26: was the full path of the PMF file as the title
+                    window2.set_title('PMF: {}'.format(os.path.basename(results['pmf'])))
+                    window2.set_tooltip_text(results['pmf'])
                     _pack_plot_with_statusbar ( window2, self.plot2 )
                     window2.show_all()
 

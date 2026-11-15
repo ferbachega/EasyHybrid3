@@ -65,7 +65,7 @@
                           <object class="GtkLabel">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">LogFrequency:</property>
+                            <property name="label" translatable="yes">Log frequency:</property>
                             <property name="xalign">1</property>
                           </object>
                           <packing>
@@ -397,7 +397,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">log file:</property>
+                    <property name="label" translatable="yes">Log file:</property>
                     <property name="xalign">1</property>
                   </object>
                   <packing>

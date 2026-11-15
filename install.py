@@ -838,6 +838,11 @@ PYTHON_LIBRARIES = {
     # again on Windows), unlike an earlier version of this feature that
     # read /proc directly and consequently never worked on macOS at all.
     "psutil":   "psutil",
+    # [EN] pdynamo/residue_library.py's match_residues() hard-imports this
+    # (graph isomorphism against the DYFF residue-library templates --
+    # Prepare DYFF System / "DYFF + residue library", whole-protein prep).
+    # Was missing from this dict and from requirements.txt.
+    "networkx": "networkx",
 }
 
 # [EN] macOS-only, checked in ADDITION to PYTHON_LIBRARIES above (see

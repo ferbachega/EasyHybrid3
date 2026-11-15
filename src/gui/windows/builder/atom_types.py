@@ -53,7 +53,8 @@ def _dyff_type_labels_by_atomic_number ( parameter_set = "dyff-1.0" ):
         return cached
 
     from pMolecule.MMModel.MMAtomTyper import MMAtomTyper
-    base_dir = os.path.join ( os.environ["PDYNAMO3_PARAMETERS"], "forceFields", "dyff", parameter_set )
+    from pdynamo.dyff_edits import dyff_parameter_dir           # EasyHybrid extended set (dyff-1.0-eh)
+    base_dir = dyff_parameter_dir ( parameter_set )
     typer = MMAtomTyper.FromPath ( base_dir )
 
     by_number = { }
@@ -109,7 +110,8 @@ def compute_atom_types ( vismol_object, atom_ids = None, parameter_set = "dyff-1
     DetermineAtomGeometry ( system.connectivity )
     DetermineAtomOxidationState ( system.connectivity )
 
-    base_dir = os.path.join ( os.environ["PDYNAMO3_PARAMETERS"], "forceFields", "dyff", parameter_set )
+    from pdynamo.dyff_edits import dyff_parameter_dir           # EasyHybrid extended set (dyff-1.0-eh)
+    base_dir = dyff_parameter_dir ( parameter_set )
     typer = MMAtomTyper.FromPath ( base_dir )
     try:
         ( perceived_types, _atom_charges ) = typer.TypeAtoms ( system.connectivity, system.sequence, None )

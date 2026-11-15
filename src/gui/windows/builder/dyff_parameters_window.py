@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: DYFF Parameters window of the Builder (replaces the Atom Types window)
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -35,6 +35,7 @@ gi.require_version ( "Gtk", "3.0" )
 from gi.repository import Gtk, GLib
 
 from gui.windows.builder import dyff_parameters as D
+import numpy as np
 
 
 _TERM_TABS = [
@@ -51,8 +52,8 @@ _TERM_TABS = [
 # . Atoms tab: ( title, field, editable )
 _ATOM_COLUMNS = [ ( "Atom", "atom_id", False ), ( "Symbol", "symbol", False ), ( "Name", "name", False ),
                   ( "Residue", "residue", False ), ( "DYFF type", "type", True ), ( "Perceived", "perceived", False ),
-                  ( "Hybridization", "hybridization", False ), ( "Formal charge", "formal", True ),
-                  ( "Partial charge", "charge", True ) ]
+                  ( "Hybrid.", "hybridization", False ), ( "Formal q", "formal", True ),
+                  ( "Partial q", "charge", True ) ]
 _FILTERS = [ ( "selected", "Selected atoms" ), ( "attention", "Needs attention (yellow/red)" ), ( "all", "All" ) ]
 
 
@@ -94,7 +95,7 @@ class DYFFParametersWindow:
                                                                     ( "red", "strained / untyped" ), ( "blue", "manual type" ) ) ) )
             for key, text in _FILTERS: self.combo_filter.append ( key, text )
             self._build_tabs ( )
-            self._build_atom_actions ( get ( 'box_atom_actions' ) )
+            self._reorganize_layout ( )
             self.window.connect ( 'destroy', self.close_window )
             self.window.show_all ( )
             self.builder.get_object ( 'button_apply' ).hide ( )      # DYFF edits apply immediately
@@ -103,6 +104,7 @@ class DYFFParametersWindow:
             self.window.present ( )
         self.combo_filter.set_active_id ( "selected" if self.selected_atoms else "all" )
         self.refresh ( )
+        self._on_page ( self.notebook.get_current_page ( ) )
 
     def close_window ( self, *args ):
         if not self.visible: return
@@ -111,6 +113,7 @@ class DYFFParametersWindow:
         self.vm_session.builder_atom_types_labeled_atoms = [ ]
         self.window.destroy ( )
         self.visible = self.Visible = False
+        self.target_object, self.selected_atoms, self.tables, self.current = None, [ ], None, None
         if getattr ( self.vm_session, "vm_glcore", None ) is not None:
             self.vm_session.vm_glcore.queue_draw ( )
 
@@ -169,19 +172,140 @@ class DYFFParametersWindow:
             self._new_tree ( term, title, columns, editable_fields = editable.get ( term, ( ) ) )
         self.notebook.connect ( "switch-page", lambda nb, page, n: self._update_labeled_atoms ( n ) )
 
-    def _build_atom_actions ( self, box ):
-        for label, handler, tip in (
-                ( "Protonate", self.on_protonate, "Add a proton to the selected rows' atoms (+1)" ),
-                ( "Deprotonate", self.on_deprotonate, "Remove a proton from the selected rows' atoms (-1)" ),
-                ( "Clear type", self.on_clear_override, "Back to the perceived DYFF type for the selected rows" ),
-                ( "Rename Residue...", self.on_rename_residue, "Rename the residue(s) of the selected rows" ),
-                ( "CM5 charges...", self.on_cm5_charges, "Partial charges of the whole molecule: GFN1-xTB CM5" ),
-                ( "Clear charges", self.on_clear_charges, "Remove every partial charge (DYFF: all zero)" ) ):
-            button = Gtk.Button ( label = label )
-            button.set_tooltip_text ( tip )
-            button.connect ( "clicked", handler )
-            box.pack_start ( button, False, False, 0 )
-        box.show_all ( )
+    #-------------------------------------------------------------------------
+    #  L A Y O U T   (2026-10-24: the actions were 9 buttons in the header row,
+    #  ~2100 px wide; now a sidebar of three groups, each with its current state)
+    #-------------------------------------------------------------------------
+    def _reorganize_layout ( self ):
+        get = self.builder.get_object
+        actions = get ( 'box_atom_actions' )
+        actions.set_no_show_all ( True ); actions.hide ( )
+        # . notebook -> paned ( sidebar | notebook )
+        main_box = self.notebook.get_parent ( )
+        position = main_box.child_get_property ( self.notebook, "position" )
+        main_box.remove ( self.notebook )
+        paned = Gtk.Paned ( orientation = Gtk.Orientation.HORIZONTAL )
+        paned.pack1 ( self._build_sidebar ( ), False, False )
+        paned.pack2 ( self.notebook, True, False )
+        main_box.pack_start ( paned, True, True, 0 )
+        main_box.reorder_child ( paned, position )
+        # . the long help text goes to the bottom of the sidebar
+        help_label = get ( 'label_help' )
+        help_label.get_parent ( ).remove ( help_label )
+        help_label.set_max_width_chars ( 34 )
+        help_label.set_xalign ( 0 )
+        help_label.set_markup ( "<small>" + GLib.markup_escape_text ( help_label.get_text ( ) ) + "</small>" )
+        self.sidebar.pack_end ( help_label, False, False, 0 )
+        # . projection bar: shorter text, Fit only on the Dihedrals tab
+        self.checkbox_project.set_label ( "Show in the 3D view" )
+        self.checkbox_project.set_tooltip_text ( "Show the atoms of the selected row in the structure (picking markers pk1-pk4); "
+                                                 "the arrows step through the terms of the same parameter." )
+        self.notebook.connect ( "switch-page", lambda nb, page, n: self._on_page ( n ) )
+        # . legend and status in the bottom row
+        legend = self.label_legend
+        legend.get_parent ( ).remove ( legend )
+        bottom = self.label_status.get_parent ( )
+        bottom.pack_start ( legend, False, False, 0 )
+        bottom.reorder_child ( legend, 1 )
+        self.label_status.set_ellipsize ( 3 )               # . Pango.EllipsizeMode.END
+        self.label_status.set_hexpand ( True )
+        self.label_status.connect ( "notify::label", lambda w, *_: w.set_tooltip_text ( w.get_text ( ) ) )
+        self.window.set_default_size ( 1000, 640 )
+        self.window.resize ( 1000, 640 )
+
+    def _group ( self, title ):
+        frame = Gtk.Frame ( label = " {} ".format ( title ) )
+        box = Gtk.Box ( orientation = Gtk.Orientation.VERTICAL, spacing = 4, margin = 6 )
+        frame.add ( box )
+        self.sidebar.pack_start ( frame, False, False, 0 )
+        return box
+
+    def _button ( self, label, handler, tip ):
+        button = Gtk.Button ( label = label )
+        button.set_tooltip_text ( tip )
+        button.connect ( "clicked", handler )
+        return button
+
+    def _state_label ( self, box ):
+        label = Gtk.Label ( xalign = 0 )
+        label.set_line_wrap ( True )
+        label.set_max_width_chars ( 34 )
+        box.pack_start ( label, False, False, 0 )
+        return label
+
+    def _build_sidebar ( self ):
+        self.sidebar = Gtk.Box ( orientation = Gtk.Orientation.VERTICAL, spacing = 8, margin_end = 6 )
+        self.sidebar.set_size_request ( 250, -1 )
+        # . selected atoms
+        box = self._group ( "Selected atoms" )
+        self.label_atoms_state = self._state_label ( box )
+        grid = Gtk.Grid ( column_spacing = 4, row_spacing = 4, column_homogeneous = True )
+        self.atom_buttons = [
+            self._button ( "Protonate (+1)", self.on_protonate, "Add a proton to each selected atom (formal charge +1, H placed)" ),
+            self._button ( "Deprotonate (-1)", self.on_deprotonate, "Remove a proton from each selected atom (formal charge -1)" ),
+            self._button ( "Reset Type", self.on_clear_override, "Back to the perceived DYFF type (removes a type typed by hand)" ),
+            self._button ( "Rename Residue...", self.on_rename_residue, "Rename the residue(s) of the selected atoms" ) ]
+        for k, button in enumerate ( self.atom_buttons ):
+            grid.attach ( button, k % 2, k // 2, 1, 1 )
+        box.pack_start ( grid, False, False, 0 )
+        # . partial charges
+        box = self._group ( "Partial charges" )
+        self.label_charges_state = self._state_label ( box )
+        row = Gtk.Box ( spacing = 4, homogeneous = True )
+        row.pack_start ( self._button ( "CM5 (xTB)...", self.on_cm5_charges,
+                                        "Partial charges of the whole molecule: GFN1-xTB CM5, averaged over equivalent atoms" ), True, True, 0 )
+        self.button_clear_charges = self._button ( "Clear", self.on_clear_charges, "Remove every partial charge (DYFF: all zero)" )
+        row.pack_start ( self.button_clear_charges, True, True, 0 )
+        box.pack_start ( row, False, False, 0 )
+        # . xTB refinement
+        box = self._group ( "xTB refinement" )
+        self.label_refine_state = self._state_label ( box )
+        row = Gtk.Box ( spacing = 4, homogeneous = True )
+        row.pack_start ( self._button ( "Refine...", self.on_refine_xtb,
+                                        "Bonds and angles from the xTB Hessian and/or torsions of the rotatable bonds (DFT "
+                                        "library or relaxed xTB scans), for the molecule or the selected atoms" ), True, True, 0 )
+        self.button_clear_refine = self._button ( "Clear", self.on_clear_hessian,
+                                                  "Back to the DYFF rules for bonds, angles and the refined torsions" )
+        row.pack_start ( self.button_clear_refine, True, True, 0 )
+        box.pack_start ( row, False, False, 0 )
+        return self.sidebar
+
+    def _on_page ( self, n ):
+        term = [ "atoms" ] + [ t for t, _title, _c in _TERM_TABS ]
+        term = term[n] if 0 <= n < len ( term ) else None
+        self.button_fit_torsion.set_visible ( term == "dihedral" )
+        self._update_sidebar_state ( )
+
+    def _update_sidebar_state ( self ):
+        if not getattr ( self, "sidebar", None ) or self.target_object is None: return
+        n_sel = len ( self._selected_atom_objects ( ) ) if self.tables is not None else 0
+        on_atoms = self.notebook.get_current_page ( ) == 0
+        if n_sel:
+            self.label_atoms_state.set_markup ( "<small>{} atom(s) selected in the Atoms tab.</small>".format ( n_sel ) )
+        else:
+            self.label_atoms_state.set_markup ( "<small>Select rows in the Atoms tab (Ctrl or Shift + click).</small>" )
+        for button in self.atom_buttons:
+            button.set_sensitive ( bool ( n_sel ) and on_atoms )
+        if self.tables is not None and self.tables["has_charges"]:
+            self.label_charges_state.set_markup ( "<small>Set on every atom: total <b>{:+.4f}</b> e.</small>".format (
+                                                  self.tables["total_partial"] ) )
+            self.button_clear_charges.set_sensitive ( True )
+        else:
+            self.label_charges_state.set_markup ( "<small>None: DYFF uses zero charges. Compute CM5 charges or type "
+                                                  "them in the Atoms tab.</small>" )
+            self.button_clear_charges.set_sensitive ( False )
+        edits = getattr ( self.target_object, "dyff_parameter_edits", None ) or { }
+        nb, na, nt = len ( edits.get ( "bond_terms" ) or { } ), len ( edits.get ( "angle_terms" ) or { } ), \
+                     len ( edits.get ( "dihedral_bonds" ) or { } )
+        if nb or na or nt:
+            parts = [ ]
+            if nb or na: parts.append ( "Hessian: {} bond(s), {} angle(s)".format ( nb, na ) )
+            if nt: parts.append ( "{} torsion(s) fitted".format ( nt ) )
+            self.label_refine_state.set_markup ( "<small>{}.</small>".format ( "; ".join ( parts ) ) )
+            self.button_clear_refine.set_sensitive ( True )
+        else:
+            self.label_refine_state.set_markup ( "<small>None: bonds, angles and torsions follow the DYFF rules.</small>" )
+            self.button_clear_refine.set_sensitive ( False )
 
     def _row_visible ( self, model, tree_iter, data = None ):
         key = self.combo_filter.get_active_id ( ) or "all"
@@ -255,11 +379,11 @@ class DYFFParametersWindow:
         header = "{}: {} atom(s){}".format ( name, len ( self.target_object.atoms ),
                                            ", {} selected".format ( len ( selected_ids ) ) if selected_ids else "" )
         self.header_label.set_text ( header )
-        partial = "{:+.4f}".format ( self.tables["total_partial"] ) if self.tables["has_charges"] else "none (DYFF: 0)"
-        self.label_charge.set_markup ( "Formal charge: <b>{:+d}</b>   Partial charges: <b>{}</b>".format ( self.tables["total_formal"], partial ) )
+        self.label_charge.set_markup ( "Formal charge: <b>{:+d}</b>".format ( self.tables["total_formal"] ) )   # . partial: sidebar
         if self.tables["error"]:
             self.label_status.set_text ( "DYFF model not built: {} -- fix the red (untyped) atoms.".format ( self.tables["error"][:160] ) )
         self._update_labeled_atoms ( )
+        self._update_sidebar_state ( )
 
     def _update_labeled_atoms ( self, page = None ):
         """ Numbered labels in the 3D view for the atoms listed in the Atoms
@@ -281,6 +405,7 @@ class DYFFParametersWindow:
     def on_row_selected ( self, selection, term ):
         if self.tables is None: return
         if term == "atoms":
+            self._update_sidebar_state ( )
             model, paths = selection.get_selected_rows ( )
             if not paths: return
             rid = model[paths[-1]][0]
@@ -339,7 +464,9 @@ class DYFFParametersWindow:
 
     def _project ( self ):
         import numpy as np
+        if not self.current or self.tables is None: return
         term, rid, k = self.current
+        if rid >= len ( self.tables.get ( term ) or [ ] ): return          # the tables changed (refresh) since the click
         row = self.tables[term][rid]
         instances = row["instances"]
         if not instances: return
@@ -527,7 +654,224 @@ class DYFFParametersWindow:
             self.main.simple_dialog.error ( msg = "CM5 charges failed:\n{}".format ( error ) )
             self.label_status.set_text ( "CM5 charges failed." ); return
         self.refresh ( )
-        self.label_status.set_text ( "CM5 charges set (total {:+d}, multiplicity {}); they are used by System > Add > Force Field > DYFF and Optimize.".format ( q, m ) )
+        self.label_status.set_text ( "CM5 charges set (total {:+d}, multiplicity {}); they are used by DYFF (System > Force Field) and Optimize.".format ( q, m ) )
+
+    def _run_hessian ( self, target, q, m, solvent, adopt_geometry ):
+        """ xTB optimization + Hessian -> bond/angle edits, in a worker thread. """
+        import threading
+        n = len ( target.atoms )
+        self.label_status.set_text ( "Running xTB optimization + Hessian ({} atoms)...".format ( n ) )
+        threads = max ( 1, min ( 8, ( os.cpu_count ( ) or 2 ) // 2 ) )
+        def work ( ):
+            try:
+                result = D.compute_hessian_edits ( target, q, m, threads = threads, solvent = solvent )
+                GLib.idle_add ( self._hessian_done, target, result, adopt_geometry, None )
+            except Exception as error:
+                traceback.print_exc ( )
+                GLib.idle_add ( self._hessian_done, target, None, adopt_geometry, str ( error ) )
+        threading.Thread ( target = work, daemon = True ).start ( )
+
+    def _hessian_done ( self, target, result, adopt_geometry, error ):
+        if error:
+            self.main.simple_dialog.error ( msg = "xTB Hessian failed:\n{}".format ( error[-800:] ) )
+            if self.visible: self.label_status.set_text ( "xTB Hessian failed." )
+            return False
+        try:
+            summary = D.store_hessian_edits ( target, result, adopt_geometry )
+        except Exception as error:
+            self.main.simple_dialog.error ( msg = str ( error ) ); return False
+        if getattr ( self.vm_session, "vm_glcore", None ) is not None:
+            self.vm_session.vm_glcore.queue_draw ( )
+        if self.visible and self.target_object is target:
+            self.refresh ( )
+            text = "Hessian parameters: {} bonds, {} angles (Undo reverts){}.".format ( summary["bonds"], summary["angles"],
+                   "; geometry = xTB minimum" if adopt_geometry else "" )
+            if summary["skipped"]:
+                text += " {} term(s) kept the DYFF value (non-physical Hessian constant: {}).".format (
+                        len ( summary["skipped"] ), ", ".join ( "{} {}".format ( k, "-".join ( str ( i ) for i in atoms ) )
+                                                               for k, atoms, _ in summary["skipped"][:4] ) )
+            if summary["n_imaginary"]:
+                text += " Warning: {} imaginary frequency(ies) -- not a true minimum.".format ( summary["n_imaginary"] )
+            calibrated = sum ( ( result.get ( "calibrated" ) or { } ).values ( ) )
+            if calibrated:
+                text += " {} term(s) calibrated to DFT by chemical environment.".format ( calibrated )
+            self.label_status.set_text ( text )
+        return False
+
+    def on_refine_xtb ( self, button ):
+        """ Hessian bonds/angles + per-bond torsions from relaxed xTB scans of the
+            molecule (dyff_parameters.refine_torsions); worker thread. """
+        import threading
+        target = self.target_object
+        bonds = D.rotatable_bonds ( target )
+        n = len ( target.atoms )
+        formal = sum ( int ( getattr ( a, "formal_charge", 0 ) or 0 ) for a in target.atoms.values ( ) )
+        has_hessian = bool ( ( getattr ( target, "dyff_parameter_edits", None ) or { } ).get ( "bond_terms" ) )
+        dialog = Gtk.Dialog ( title = "Refine DYFF with xTB", transient_for = self.window, modal = True )
+        dialog.add_buttons ( "Cancel", Gtk.ResponseType.CANCEL, "Run", Gtk.ResponseType.OK )
+        grid = Gtk.Grid ( column_spacing = 8, row_spacing = 6, margin = 10 )
+        note = ( "{} atoms, {} rotatable bond(s). The Hessian gives every bond and angle its own force constant\n"
+                 "(modified Seminario); each rotatable bond gets a torsion series fitted to a relaxed GFN2-xTB scan\n"
+                 "(24 points) or taken from the DFT library. Selected atoms: a capped subsystem around them, whose\n"
+                 "charge is the sum of its formal charges. One Undo step." ).format ( n, len ( bonds ) )
+        grid.attach ( Gtk.Label ( label = note, xalign = 0 ), 0, 0, 2, 1 )
+        hess = Gtk.CheckButton ( label = "Bonds and angles from the xTB Hessian (recommended)" )
+        hess.set_active ( not has_hessian ); grid.attach ( hess, 0, 1, 2, 1 )
+        # . 2026-10-24: the separate "Bonds/angles from xTB Hessian..." button is now these two options
+        tors = Gtk.CheckButton ( label = "Torsions of the {} rotatable bond(s) (DFT library or relaxed xTB scans)".format ( len ( bonds ) ) )
+        tors.set_active ( bool ( bonds ) ); grid.attach ( tors, 0, 2, 2, 1 )
+        adopt = Gtk.CheckButton ( label = "Use the xTB optimized geometry (Hessian without torsions)" )
+        adopt.set_active ( True ); grid.attach ( adopt, 0, 4, 2, 1 )
+        def update_options ( *args ):
+            if sel_radio.get_active ( ):                 # . the selection refinement always fits the torsions
+                tors.set_active ( True )
+            tors.set_sensitive ( not sel_radio.get_active ( ) )
+            adopt.set_sensitive ( hess.get_active ( ) and not tors.get_active ( ) and not sel_radio.get_active ( ) )
+            library.set_sensitive ( tors.get_active ( ) and D.torsion_library_available ( ) )
+        hess.connect ( "toggled", update_options ); tors.connect ( "toggled", update_options )
+        library = Gtk.CheckButton ( label = "From the DFT torsion library when the environment is known (xTB scans for the rest)" )
+        library.set_tooltip_text ( "pdynamo/bond_library.py: B3LYP-D3BJ/DZVP torsion scans (QCArchive) fitted on the same DYFF + Hessian base, "
+                                   "looked up by chemical environment (exact, then 2 bonds, then 1 bond around the bond). On held-out "
+                                   "molecules as good as the molecule's own xTB scan (2 bonds) or better (1 bond), without scanning." )
+        library.set_active ( True ); library.set_sensitive ( D.torsion_library_available ( ) )
+        library.set_margin_start ( 24 ); grid.attach ( library, 0, 3, 2, 1 )
+        grid.attach ( Gtk.Label ( label = "Total charge:", xalign = 0 ), 0, 8, 1, 1 )
+        spin_q = Gtk.SpinButton.new_with_range ( -20, 20, 1 ); spin_q.set_value ( formal ); grid.attach ( spin_q, 1, 8, 1, 1 )
+        grid.attach ( Gtk.Label ( label = "Multiplicity:", xalign = 0 ), 0, 9, 1, 1 )
+        spin_m = Gtk.SpinButton.new_with_range ( 1, 9, 1 ); spin_m.set_value ( 1 ); grid.attach ( spin_m, 1, 9, 1, 1 )
+        solvent = Gtk.CheckButton ( label = "Implicit water (ALPB) -- recommended for ions" ); solvent.set_active ( any ( int ( getattr ( a, "formal_charge", 0 ) or 0 ) for a in target.atoms.values ( ) ) )
+        grid.attach ( solvent, 0, 10, 2, 1 )
+        grid.attach ( Gtk.Label ( label = "Parallel xTB scans:", xalign = 0 ), 0, 11, 1, 1 )
+        spin_w = Gtk.SpinButton.new_with_range ( 1, 32, 1 ); spin_w.set_value ( max ( 1, min ( len ( bonds ), ( os.cpu_count ( ) or 2 ) // 2 ) ) )
+        grid.attach ( spin_w, 1, 11, 1, 1 )
+        # . region: whole molecule or the selected atoms (capped subsystem)
+        selected = self._selection_ids ( )
+        whole_radio = Gtk.RadioButton.new_with_label ( None, "Whole molecule" )
+        sel_radio = Gtk.RadioButton.new_with_label_from_widget ( whole_radio, "Selected atoms only ({})".format ( len ( selected ) ) )
+        sel_radio.set_sensitive ( bool ( selected ) )
+        grid.attach ( whole_radio, 0, 5, 1, 1 ); grid.attach ( sel_radio, 1, 5, 1, 1 )
+        grid.attach ( Gtk.Label ( label = "Environment shell (bonds):", xalign = 0 ), 0, 6, 1, 1 )
+        spin_shell = Gtk.SpinButton.new_with_range ( 1, 8, 1 ); spin_shell.set_value ( D.SELECTION_SHELL )
+        grid.attach ( spin_shell, 1, 6, 1, 1 )
+        sub_label = Gtk.Label ( label = "", xalign = 0 ); grid.attach ( sub_label, 0, 7, 2, 1 )
+        def update_sub ( *args ):
+            on = sel_radio.get_active ( )
+            spin_shell.set_sensitive ( on )
+            if not on:
+                sub_label.set_text ( "" ); return
+            try:
+                sub = D.selection_subsystem ( target, selected, shell = int ( spin_shell.get_value ( ) ) )
+                rot = sum ( 1 for b, q in bonds if b[0] in sub["selection_parent"] and b[1] in sub["selection_parent"] )
+                sub_label.set_text ( "xTB subsystem: {} atoms ({} capping H, charge {:+d}); {} rotatable bond(s) inside the selection.\n"
+                                     "Only bonds, angles and torsions with ALL atoms selected are refined.".format (
+                                     len ( sub["atomic_numbers"] ), sub["n_caps"], sub["charge"], rot ) )
+            except Exception as error:
+                sub_label.set_text ( "subsystem: {}".format ( error ) )
+        sel_radio.connect ( "toggled", update_sub ); spin_shell.connect ( "value-changed", update_sub )
+        sel_radio.connect ( "toggled", update_options )
+        if selected and len ( selected ) < n: sel_radio.set_active ( True )
+        dialog.get_content_area ( ).add ( grid ); dialog.show_all ( ); update_sub ( ); update_options ( )
+        response = dialog.run ( )
+        options = dict ( q = int ( spin_q.get_value ( ) ), m = int ( spin_m.get_value ( ) ), hessian = hess.get_active ( ),
+                         solvent = "water" if solvent.get_active ( ) else None, workers = int ( spin_w.get_value ( ) ),
+                         selection = selected if sel_radio.get_active ( ) else None, shell = int ( spin_shell.get_value ( ) ),
+                         library = library.get_active ( ) and library.get_sensitive ( ),
+                         torsions = tors.get_active ( ), adopt = adopt.get_active ( ) )
+        dialog.destroy ( )
+        if response != Gtk.ResponseType.OK: return
+        if not options["torsions"] and not options["selection"]:
+            if not options["hessian"]:
+                self.label_status.set_text ( "Nothing to refine: choose the Hessian and/or the torsions." ); return
+            self._run_hessian ( target, options["q"], options["m"], options["solvent"], options["adopt"] ); return
+        if options["selection"]:
+            self._run_selection_refinement ( target, options ); return
+        self._refine_running = True
+        def say ( text ):
+            GLib.idle_add ( lambda: ( self.visible and self.label_status.set_text ( "Refine with xTB: " + text ) ) and False )
+        def work ( ):
+            try:
+                hessian_result, base = None, getattr ( target, "dyff_parameter_edits", None )
+                if options["hessian"]:
+                    say ( "xTB Hessian (bonds and angles)..." )
+                    hessian_result = D.compute_hessian_edits ( target, options["q"], options["m"], threads = 2, solvent = options["solvent"] )
+                    import copy
+                    base = copy.deepcopy ( base or { } )
+                    base["bond_terms"] = hessian_result["edits"]["bond_terms"]; base["angle_terms"] = hessian_result["edits"]["angle_terms"]
+                    base.pop ( "term_signature", None )
+                results = D.refine_torsions ( target, options["q"], options["m"], options["solvent"], workers = options["workers"],
+                                              base_edits = base, progress = say, use_library = options["library"] )
+                GLib.idle_add ( self._refine_done, target, results, hessian_result, None )
+            except Exception as error:
+                traceback.print_exc ( )
+                GLib.idle_add ( self._refine_done, target, None, None, str ( error ) )
+        threading.Thread ( target = work, daemon = True ).start ( )
+
+    def _selection_ids ( self ):
+        """ Atom ids selected in the Atoms tab, else the Builder selection the window was opened with. """
+        ids = [ a.atom_id for a in self._selected_atom_objects ( ) ] if hasattr ( self, "trees" ) else [ ]
+        if not ids: ids = [ a.atom_id for a in self.selected_atoms if self.target_object.atoms.get ( a.atom_id ) is a ]
+        return sorted ( set ( ids ) )
+
+    def _run_selection_refinement ( self, target, options ):
+        import threading
+        def say ( text ):
+            GLib.idle_add ( lambda: ( self.visible and self.label_status.set_text ( "Refine selection with xTB: " + text ) ) and False )
+        def work ( ):
+            try:
+                result = D.refine_selection ( target, options["selection"], multiplicity = options["m"], solvent = options["solvent"],
+                                              shell = options["shell"], do_hessian = options["hessian"], workers = options["workers"],
+                                              progress = say, use_library = options["library"] )
+                GLib.idle_add ( self._selection_done, target, result, None )
+            except Exception as error:
+                traceback.print_exc ( )
+                GLib.idle_add ( self._selection_done, target, None, str ( error ) )
+        threading.Thread ( target = work, daemon = True ).start ( )
+
+    def _selection_done ( self, target, result, error ):
+        if error:
+            self.main.simple_dialog.error ( msg = "Refine selection with xTB failed:\n{}".format ( error[-800:] ) ); return False
+        self.last_refine_results = result["results"]
+        counts = D.store_selection_refinement ( target, result )
+        sub = result["subsystem"]
+        failed = sum ( 1 for r in result["results"] if "error" in r )
+        from_library = sum ( 1 for r in result["results"] if r.get ( "source" ) == "library" )
+        if self.visible and self.target_object is target:
+            self.refresh ( )
+            self.label_status.set_text ( "Selection refined on a {}-atom subsystem ({} caps): {} bonds, {} angles, {} torsion(s){}{}{} "
+                                         "(Undo reverts).".format ( sub["n_atoms"], sub["n_caps"], counts["bonds"], counts["angles"],
+                                         counts["torsions"], " ({} from the DFT library)".format ( from_library ) if from_library else "",
+                                         ", {} failed".format ( failed ) if failed else "",
+                                         "; {} non-physical Hessian term(s) kept DYFF".format ( len ( result["skipped"] ) ) if result["skipped"] else "" ) )
+        return False
+
+    def _refine_done ( self, target, results, hessian_result, error ):
+        self._refine_running = False
+        if error:
+            self.main.simple_dialog.error ( msg = "Refine with xTB failed:\n{}".format ( error[-800:] ) ); return False
+        self.last_refine_results = results
+        n = D.store_torsion_edits ( target, results, hessian_result )
+        failed = [ r for r in results if "error" in r ]
+        scanned = [ r for r in results if "pairs" in r and "fit_rmse" in r ]
+        from_library = [ r for r in results if r.get ( "source" ) == "library" ]
+        lines = [ "bond {}-{}: residual {:.2f} kcal/mol (before {:.2f}), xTB barrier {:.1f}".format (
+                  r["bond"][0] + 1, r["bond"][1] + 1, r["fit_rmse"], r["before_rmse"], r["barrier_xtb"] ) for r in scanned ]
+        lines += [ "bond {}-{}: DFT library ({} environment, {} scan(s))".format (
+                   r["bond"][0] + 1, r["bond"][1] + 1, r["level"], r["n_scans"] ) for r in from_library ]
+        self.last_refine_report = "\n".join ( lines )
+        if self.visible and self.target_object is target:
+            self.refresh ( )
+            self.label_status.set_text ( "Refine with xTB: {}{} torsion(s){}{} (Undo reverts). {}".format (
+                "bonds/angles from the Hessian + " if hessian_result else "", n,
+                " ({} from the DFT library, {} from xTB scans)".format ( len ( from_library ), len ( scanned ) ) if from_library else "",
+                ", {} failed".format ( len ( failed ) ) if failed else "",
+                "Mean xTB-fit residual {:.2f} kcal/mol.".format ( np.mean ( [ r["fit_rmse"] for r in scanned ] ) ) if scanned else "" ) )
+        return False
+
+    def on_clear_hessian ( self, button ):
+        if D.clear_hessian_edits ( self.target_object ):
+            self.refresh ( ); self.label_status.set_text ( "xTB refinement removed: bonds, angles and torsions back to the DYFF rules." )
+        else:
+            self.label_status.set_text ( "There is no xTB refinement on this molecule." )
 
     def on_clear_charges ( self, button ):
         D.clear_partial_charges ( self.target_object )

@@ -1,0 +1,14 @@
+{
+ "input": "/home/fernando/programs/EasyHybrid3_dev/examples/dyff_eh_system_preparation/inputs/theophylline.xyz",
+ "force_field": "DYFF (dyff-1.0-eh) + EasyHybrid residue library",
+ "atoms": 21,
+ "formal_charge": 0,
+ "library": {
+  "matched": 0,
+  "residues": 1,
+  "rest_atoms": 21
+ },
+ "total_charge": 0.0,
+ "energy_kcal": -44.503,
+ "seconds": 3.2
+}

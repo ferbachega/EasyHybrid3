@@ -212,12 +212,53 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkCheckButton" id="checkbox_truncate">
-                    <property name="label" translatable="yes">Truncate residues with missing heavy atoms (side chain removed: ALA, or GLY without CB)</property>
+                  <object class="GtkBox" id="box_incomplete">
                     <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="receives-default">False</property>
-                    <property name="draw-indicator">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="spacing">10</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Residues with missing heavy atoms:</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="radio_rebuild">
+                        <property name="label" translatable="yes">Rebuild them</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">The missing heavy atoms are placed geometrically from the residue template, with the side-chain rotamer chosen away from the other atoms, then hydrogens are added. Minimize and check the rebuilt residues before production.</property>
+                        <property name="active">True</property>
+                        <property name="draw-indicator">True</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkRadioButton" id="radio_truncate">
+                        <property name="label" translatable="yes">Truncate them (side chain removed: ALA, or GLY without CB)</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="draw-indicator">True</property>
+                        <property name="group">radio_rebuild</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">2</property>
+                      </packing>
+                    </child>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -394,7 +435,7 @@
                   <object class="GtkLabel" id="label_ligand_info">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Simplified parametrization: Open Babel hydrogens and bond orders (only for structures without them), OPLS-AA atom classes by rules, GFN1-xTB CM5 charges (scaled by the factor above, default 1.00) averaged over equivalent atoms, bonded terms from the OPLS database (pDynamo, OPLS-AA/L, OPLS-AA 2008). Terms missing from the database are estimated from the geometry and listed in the report. Monoatomic ions (Mg, Ca, ...) use the OPLS-AA ion parameters. Covalently bound ligands are not supported.</property>
+                    <property name="label" translatable="yes">Simplified parametrization: hydrogens, bond orders and protonation by the native perception (pH rules; only for structures without hydrogens; review/edit them with Review protonation), OPLS-AA atom classes by rules, GFN1-xTB CM5 charges (scaled by the factor above, default 1.00) averaged over equivalent atoms, bonded terms from the OPLS database (pDynamo, OPLS-AA/L, OPLS-AA 2008). Terms missing from the database are estimated from the geometry and listed in the report. Monoatomic ions (Mg, Ca, ...) use the OPLS-AA ion parameters. Covalently bound ligands are not supported.</property>
                     <property name="wrap">True</property>
                     <property name="xalign">0</property>
                   </object>
@@ -749,7 +790,7 @@
                 </child>
                 <child>
                   <object class="GtkCheckButton" id="checkbox_open_parameters">
-                    <property name="label" translatable="yes">Open the OPLS Parameters window when done (parameter quality per charge, bond, angle, dihedral, improper and Lennard-Jones type, with manual editing)</property>
+                    <property name="label" translatable="yes">Open the Force Field Parameters window when done (parameter quality per charge, bond, angle, dihedral, improper and Lennard-Jones type, with manual editing)</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">False</property>

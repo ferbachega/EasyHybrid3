@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Molecule Builder -- empty object creation + pDynamo system sync
 #
 #  Description:
@@ -139,6 +139,15 @@ def register_builder_object ( vm_session, vismol_object, show_molecule = False )
     vismol_object.is_builder_only = True
     vismol_object.e_id = None
 
+    # [EN] 2026-10-09 BUG FIX: same model matrix as every other object (as
+    # pDynamo2EasyHybrid's own object creation does). Left at identity, a
+    # Builder object created after the scene had been centred/panned (e.g.
+    # the DYFF window centring on a previous, since-deleted object) was drawn
+    # off the pk1-pk4 markers and atom labels, which use vm_glcore.model_mat.
+    vm_glcore = getattr ( vm_session, "vm_glcore", None )
+    if vm_glcore is not None:
+        vismol_object.set_model_matrix ( vm_glcore.model_mat )
+
     if show_molecule:
         vismol_object.create_representation ( rep_type = "sticks" )
         vismol_object.create_representation ( rep_type = "stick_spheres" )
@@ -261,6 +270,47 @@ def _build_pdynamo_system_from_vismol_object ( vismol_object, label = None ):
     Returns the new System (not yet registered with any eSession/
     treeview -- see sync_pdynamo_system(), which calls this and then
     handles registration). """
+    return _build_system_from_snapshot ( _pdynamo_snapshot ( vismol_object, label ) )
+
+
+#-----------------------------------------------------------------------------
+#  [EN] 2026-10-17, user's report ("editing a big system is still very slow"):
+#  the pDynamo system is rebuilt from scratch on every Builder edit (~1.3 s at
+#  20k atoms). The build is split in two: _pdynamo_snapshot() reads the
+#  vismol object (cheap, GTK thread) and _build_system_from_snapshot() makes
+#  the System from plain data only -- so sync_pdynamo_system() can run it in a
+#  worker thread for big objects (see _BackgroundSync below).
+#-----------------------------------------------------------------------------
+def _pdynamo_snapshot ( vismol_object, label = None ):
+    """ Plain data for _build_system_from_snapshot(): per atom ( symbol, name,
+        formal charge, ( chain name, residue name, residue index ) or None ),
+        bonds ( i, j, order, aromatic ) in atom positions, coordinates, cell. """
+    atom_ids = sorted ( vismol_object.atoms.keys ( ) )
+    atoms = [ ]
+    for atom_id in atom_ids:
+        atom    = vismol_object.atoms[atom_id]
+        residue = getattr ( atom, "residue", None )
+        chain   = getattr ( atom, "chain", None ) or getattr ( residue, "chain", None )
+        where   = None
+        if residue is not None and chain is not None:
+            where = ( str ( getattr ( chain, "name", "" ) or "" ), residue.name, residue.index )
+        atoms.append ( ( atom.symbol, atom.name, int ( getattr ( atom, "formal_charge", 0 ) or 0 ), where ) )
+    position_of = { atom_id: k for k, atom_id in enumerate ( atom_ids ) }
+    orders   = getattr ( vismol_object, "manual_bond_orders", None ) or { }
+    aromatic = getattr ( vismol_object, "manual_aromatic_bonds", None ) or set ( )
+    bonds = [ ( position_of[i], position_of[j], orders.get ( ( i, j ), 1 ), ( i, j ) in aromatic )
+              for ( i, j ) in ( getattr ( vismol_object, "manual_bonds", None ) or set ( ) )
+              if i in position_of and j in position_of ]
+    coordinates = np.array ( vismol_object.frames[0][atom_ids], dtype = np.float64 ) if atom_ids else np.zeros ( ( 0, 3 ) )
+    return { "label": label if label else vismol_object.name, "atoms": atoms, "bonds": bonds,
+             "coordinates": coordinates, "cell": getattr ( vismol_object, "builder_cell", None ) }
+
+
+def _build_system_from_snapshot ( snapshot ):
+    """ The System of a snapshot: with a sequence when possible
+        (_build_sequenced_from_snapshot()), otherwise from the connectivity
+        alone; the Builder cell as its symmetry. Plain data only: safe in a
+        worker thread. """
     from pMolecule             import Atom, Bond, BondType, Connectivity, ConvertInputConnectivity, System
     from pScientific            import PeriodicTable
     from pScientific.Geometry3  import Coordinates3
@@ -270,66 +320,40 @@ def _build_pdynamo_system_from_vismol_object ( vismol_object, label = None ):
     # too -- System.FromConnectivity() (below) builds NO sequence, so a PDB
     # protein edited in the Builder used to come back with every residue
     # gone. Tried first; the old path stays as the fallback.
-    sequenced = _build_sequenced_pdynamo_system ( vismol_object, label )
-    if sequenced is not None:
-        _apply_builder_cell ( vismol_object, sequenced )
-        return sequenced
-
-    connectivity = Connectivity ( )
-
-    for atom_id in sorted ( vismol_object.atoms.keys ( ) ):
-        atom = vismol_object.atoms[atom_id]
-        atomic_number = PeriodicTable.AtomicNumber ( atom.symbol )
-        # [EN] 2026-09-25: propagates the Builder's own formal_charge
-        # (atom_ops.protonate_atom()/deprotonate_atom()) into the real
-        # pDynamo Atom -- pMolecule.Atom already has a first-class
-        # `formalCharge` attribute (default 0, confirmed in pMolecule/
-        # Atom.py), read by DYFF's own ionic/charged pattern matching
-        # (see _apply_dyff_guanidinium_correction()'s own docstring for
-        # a worked example already in this codebase) and by anything
-        # that sums total system/QC-region charge. Previously ALWAYS 0
-        # here -- this was this project's own documented "no formal-
-        # charge UI" limitation (see project_dyff_force_field_assignment
-        # memory), now fixed.
-        formal_charge = int ( getattr ( atom, "formal_charge", 0 ) )
-        connectivity.AddNode ( Atom.WithOptions ( atomicNumber = atomic_number, label = atom.name,
-                                                   formalCharge = formal_charge ) )
-
-    bond_type_by_order   = { 1: BondType.Single, 2: BondType.Double, 3: BondType.Triple }
-    manual_bonds         = getattr ( vismol_object, "manual_bonds", None ) or set ( )
-    manual_bond_orders   = getattr ( vismol_object, "manual_bond_orders", None ) or { }
-    manual_aromatic_bonds = getattr ( vismol_object, "manual_aromatic_bonds", None ) or set ( )
-
-    for ( i, j ) in manual_bonds:
-        order     = manual_bond_orders.get ( ( i, j ), 1 )
-        bond_type = bond_type_by_order.get ( order, BondType.Single )
-        connectivity.AddEdge ( Bond.WithNodes ( connectivity.nodes[i], connectivity.nodes[j],
-                                                 isAromatic = ( i, j ) in manual_aromatic_bonds, type = bond_type ) )
-
-    ConvertInputConnectivity ( connectivity, { } )
-
-    system       = System.FromConnectivity ( connectivity = connectivity )
-    system.label = label if label else vismol_object.name
-
-    n_atoms      = len ( vismol_object.atoms )
-    coordinates3 = Coordinates3.WithExtent ( n_atoms )
-    for atom_id in range ( n_atoms ):
-        pos = vismol_object.frames[0, atom_id]
-        coordinates3[atom_id, 0] = float ( pos[0] )
-        coordinates3[atom_id, 1] = float ( pos[1] )
-        coordinates3[atom_id, 2] = float ( pos[2] )
-    system.coordinates3 = coordinates3
-    _apply_builder_cell ( vismol_object, system )
-
+    system = _build_sequenced_from_snapshot ( snapshot )
+    if system is None:
+        connectivity = Connectivity ( )
+        # [EN] 2026-09-25: the Builder's own formal_charge goes into the real
+        # pDynamo Atom (formalCharge, read by DYFF's charged patterns and by
+        # anything that sums the total charge).
+        for ( symbol, name, formal_charge, where ) in snapshot["atoms"]:
+            connectivity.AddNode ( Atom.WithOptions ( atomicNumber = PeriodicTable.AtomicNumber ( symbol ), label = name,
+                                                       formalCharge = formal_charge ) )
+        bond_type_by_order = { 1: BondType.Single, 2: BondType.Double, 3: BondType.Triple }
+        for ( i, j, order, is_aromatic ) in snapshot["bonds"]:
+            connectivity.AddEdge ( Bond.WithNodes ( connectivity.nodes[i], connectivity.nodes[j], isAromatic = is_aromatic,
+                                                     type = bond_type_by_order.get ( order, BondType.Single ) ) )
+        ConvertInputConnectivity ( connectivity, { } )
+        system = System.FromConnectivity ( connectivity = connectivity )
+        system.label = snapshot["label"]
+        coordinates3 = Coordinates3.WithExtent ( len ( snapshot["atoms"] ) )
+        for k, xyz in enumerate ( snapshot["coordinates"] ):
+            coordinates3[k, 0], coordinates3[k, 1], coordinates3[k, 2] = float ( xyz[0] ), float ( xyz[1] ), float ( xyz[2] )
+        system.coordinates3 = coordinates3
+    _apply_cell ( snapshot["cell"], system )
     return system
 
 
 def _apply_builder_cell ( vismol_object, system ):
     """ [EN] 2026-10-03: a Builder object with a periodic cell (set by the
     Solvate tool, atom_ops.set_builder_cell()) gets it as the pDynamo
-    system's symmetry -- cubic when a = b = c with right angles,
-    orthorhombic for other right-angled boxes, triclinic otherwise. """
-    cell = getattr ( vismol_object, "builder_cell", None )
+    system's symmetry. """
+    _apply_cell ( getattr ( vismol_object, "builder_cell", None ), system )
+
+
+def _apply_cell ( cell, system ):
+    """ cubic when a = b = c with right angles, orthorhombic for other
+        right-angled boxes, triclinic otherwise. """
     if not cell:
         return
     try:
@@ -347,15 +371,22 @@ def _apply_builder_cell ( vismol_object, system ):
         system.symmetry           = PeriodicBoundaryConditions.WithCrystalSystem ( crystal )
         system.symmetryParameters = system.symmetry.MakeSymmetryParameters ( **parameters )
     except Exception as exc:
-        dprint ( "empty_object._apply_builder_cell: could not set the cell ({})".format ( exc ) )
+        dprint ( "empty_object._apply_cell: could not set the cell ({})".format ( exc ) )
 
 
 def _build_sequenced_pdynamo_system ( vismol_object, label = None ):
-    """ [EN] Same system as _build_pdynamo_system_from_vismol_object() but
-    WITH a sequence (entity = vismol chain name, component = "RESN.resi",
-    atom label = atom name), built through Sequence.FromAtomPaths() +
-    System.FromSequence() -- the path util/hydrogen_builder.py already uses.
-    Returns None (caller falls back to the sequence-less build) when:
+    """ The sequenced System of vismol_object, or None (see
+        _build_sequenced_from_snapshot()). """
+    system = _build_sequenced_from_snapshot ( _pdynamo_snapshot ( vismol_object, label ) )
+    return system
+
+
+def _build_sequenced_from_snapshot ( snapshot ):
+    """ [EN] Same system as _build_system_from_snapshot() but WITH a sequence
+    (entity = vismol chain name, component = "RESN.resi", atom label = atom
+    name), built through Sequence.FromAtomPaths() + System.FromSequence() --
+    the path util/hydrogen_builder.py already uses. Returns None (caller
+    falls back to the sequence-less build) when:
       - any atom has no chain/residue, or a residue has two atoms with the
         same name (pDynamo atom paths must be unique);
       - a residue's atoms are not contiguous in atom_id order, or a chain
@@ -364,26 +395,22 @@ def _build_sequenced_pdynamo_system ( vismol_object, label = None ):
         vismol atom k;
       - pDynamo raises for any other reason. """
     try:
-        from pMolecule             import Atom, Bond, BondType, ConvertInputConnectivity, System
+        from pMolecule             import Atom, BondType, ConvertInputConnectivity, System
         from pMolecule.Sequence    import Sequence
         from pScientific           import PeriodicTable
         from pScientific.Geometry3 import Coordinates3
 
-        atom_ids = sorted ( vismol_object.atoms.keys ( ) )
-        if not atom_ids:
+        if not snapshot["atoms"]:
             return None
         paths, atoms_list = [ ], [ ]
         seen_paths = set ( )
         seen_residues, seen_chains = set ( ), set ( )
         last_residue_key, last_chain = None, None
-        for atom_id in atom_ids:
-            atom    = vismol_object.atoms[atom_id]
-            residue = getattr ( atom, "residue", None )
-            chain   = getattr ( atom, "chain", None ) or getattr ( residue, "chain", None )
-            if residue is None or chain is None:
+        for ( symbol, name, formal_charge, where ) in snapshot["atoms"]:
+            if where is None:
                 return None
-            chain_name  = str ( getattr ( chain, "name", "" ) or "" )
-            residue_key = ( chain_name, residue.name, residue.index )
+            chain_name, residue_name, residue_index = where
+            residue_key = where
             if residue_key != last_residue_key:
                 if residue_key in seen_residues:
                     return None                       # residue split: would be reordered
@@ -394,34 +421,22 @@ def _build_sequenced_pdynamo_system ( vismol_object, label = None ):
                     last_chain = chain_name
                 seen_residues.add ( residue_key )
                 last_residue_key = residue_key
-            path = "{}:{}.{}:{}".format ( chain_name, residue.name, residue.index, atom.name )
+            path = "{}:{}.{}:{}".format ( chain_name, residue_name, residue_index, name )
             if path in seen_paths:
                 return None
             seen_paths.add ( path )
             paths.append ( path )
-            atoms_list.append ( Atom.WithOptions ( atomicNumber = PeriodicTable.AtomicNumber ( atom.symbol ),
-                                                   label = atom.name,
-                                                   formalCharge = int ( getattr ( atom, "formal_charge", 0 ) ) ) )
-        position_of = { atom_id: k for k, atom_id in enumerate ( atom_ids ) }
-
-        bond_type_by_order    = { 1: BondType.Single, 2: BondType.Double, 3: BondType.Triple }
-        manual_bonds          = getattr ( vismol_object, "manual_bonds", None ) or set ( )
-        manual_bond_orders    = getattr ( vismol_object, "manual_bond_orders", None ) or { }
-        manual_aromatic_bonds = getattr ( vismol_object, "manual_aromatic_bonds", None ) or set ( )
+            atoms_list.append ( Atom.WithOptions ( atomicNumber = PeriodicTable.AtomicNumber ( symbol ),
+                                                   label = name, formalCharge = formal_charge ) )
+        bond_type_by_order = { 1: BondType.Single, 2: BondType.Double, 3: BondType.Triple }
         # (i, j, type, isAromatic) tuples with INTEGER positions, not Bond
         # objects: pDynamo's Bond.FromIterable checks `bond.node1 in nodes` on
         # a plain list for every Bond object (O(atoms) per bond -- ~2 s of a
         # 6000-atom rebuild, i.e. most of a Builder Undo), while integer
         # positions are a direct nodes[i]. Positions == final atom order,
         # which is verified right after System.FromSequence() below.
-        bonds = [ ]
-        for ( i, j ) in manual_bonds:
-            if i not in position_of or j not in position_of:
-                continue
-            order = manual_bond_orders.get ( ( i, j ), 1 )
-            bonds.append ( ( position_of[i], position_of[j],
-                             bond_type_by_order.get ( order, BondType.Single ),
-                             ( i, j ) in manual_aromatic_bonds ) )
+        bonds = [ ( i, j, bond_type_by_order.get ( order, BondType.Single ), is_aromatic )
+                  for ( i, j, order, is_aromatic ) in snapshot["bonds"] ]
 
         sequence = Sequence.FromAtomPaths ( paths, atoms = atoms_list )
         system   = System.FromSequence ( sequence, bonds = bonds )
@@ -433,19 +448,178 @@ def _build_sequenced_pdynamo_system ( vismol_object, label = None ):
         for k, atom in enumerate ( atoms_list ):
             if atom.index != k or system.atoms[k] is not atom:
                 return None
-        system.label = label if label else vismol_object.name
+        system.label = snapshot["label"]
         coordinates3 = Coordinates3.WithExtent ( len ( atoms_list ) )
-        for k, atom_id in enumerate ( atom_ids ):
-            pos = vismol_object.frames[0, atom_id]
-            coordinates3[k, 0] = float ( pos[0] )
-            coordinates3[k, 1] = float ( pos[1] )
-            coordinates3[k, 2] = float ( pos[2] )
+        for k, xyz in enumerate ( snapshot["coordinates"] ):
+            coordinates3[k, 0], coordinates3[k, 1], coordinates3[k, 2] = float ( xyz[0] ), float ( xyz[1] ), float ( xyz[2] )
         system.coordinates3 = coordinates3
         return system
     except Exception as exc:
-        dprint ( "empty_object._build_sequenced_pdynamo_system: falling back to a sequence-less "
+        dprint ( "empty_object._build_sequenced_from_snapshot: falling back to a sequence-less "
                  "system ({})".format ( exc ) )
         return None
+
+
+# [EN] 2026-10-17: background rebuild of a big Builder object's pDynamo system.
+BACKGROUND_SYNC_MIN_ATOMS = 1500
+BACKGROUND_SYNC_DELAY_MS  = 300   # the worker starts after this pause: clicks and the redraw don't share the GIL with it
+_BACKGROUND_JOBS = { }          # id ( vismol_object ) -> _BackgroundSync
+
+
+class _BackgroundSync:
+    """ Rebuilds one Builder object's pDynamo system in a worker thread.
+        request(): snapshot now (GTK thread) and build it; a request made while
+        a build runs is built next, so bursts of edits collapse into the
+        newest one. The newest result is installed in an idle callback. Until
+        then p_session.psystem has a pending flush for the entry: any reader
+        waits for the build (flush()), so nothing reads a stale system. """
+
+    def __init__ ( self, vismol_object, main, e_id ):
+        import threading
+        self.obj, self.main, self.e_id = vismol_object, main, e_id
+        self.lock    = threading.Lock ( )
+        self.gen     = 0             # newest request
+        self.latest  = None          # ( gen, snapshot ) of the newest request
+        self.queued  = None          # ( gen, snapshot ) not taken by the worker yet
+        self.result  = None          # ( gen, system or None, error )
+        self.applied = 0             # newest gen installed (or given up)
+        self.thread  = None
+        self.timer   = None          # GLib source that starts the worker
+
+    def request ( self ):
+        from gi.repository import GLib
+        snapshot = _pdynamo_snapshot ( self.obj, label = self.obj.name )
+        with self.lock:
+            self.gen += 1
+            self.latest = self.queued = ( self.gen, snapshot )
+        psystem = self.main.p_session.psystem
+        if hasattr ( psystem, "set_pending" ):
+            psystem.set_pending ( self.e_id, self.flush )
+        # . (re)start the pause: a burst of edits builds once, after the last one
+        if self.timer is not None:
+            GLib.source_remove ( self.timer )
+        self.timer = GLib.timeout_add ( BACKGROUND_SYNC_DELAY_MS, self._start_worker )
+
+    def _start_worker ( self ):
+        import threading
+        self.timer = None
+        with self.lock:
+            if self.thread is not None or self.queued is None:
+                return False                         # running (takes the queued job next) or nothing to do
+            self.thread = threading.Thread ( target = self._work, daemon = True )
+        self.thread.start ( )
+        return False
+
+    def _stop_timer ( self ):
+        if self.timer is not None:
+            from gi.repository import GLib
+            GLib.source_remove ( self.timer )
+            self.timer = None
+
+    def cancel ( self ):
+        """ A synchronous rebuild replaces whatever is pending. """
+        self._stop_timer ( )
+        with self.lock:
+            self.applied = self.gen
+            self.queued = None
+        psystem = self.main.p_session.psystem
+        if hasattr ( psystem, "clear_pending" ):
+            psystem.clear_pending ( self.e_id )
+
+    def _work ( self ):
+        from gi.repository import GLib
+        while True:
+            with self.lock:
+                job, self.queued = self.queued, None
+                if job is None:
+                    self.thread = None
+                    return
+            gen, snapshot = job
+            try:
+                system, error = _build_system_from_snapshot ( snapshot ), None
+            except Exception as exc:
+                system, error = None, exc
+            with self.lock:
+                self.result = ( gen, system, error )
+            GLib.idle_add ( self._install_idle )
+
+    def _install_idle ( self ):
+        try:
+            self._install ( )
+        except Exception as exc:
+            dprint ( "empty_object._BackgroundSync: install failed ({})".format ( exc ) )
+        return False
+
+    def _install ( self ):
+        with self.lock:
+            result, newest = self.result, self.gen
+        if result is None:
+            return
+        gen, system, error = result
+        if gen != newest or gen <= self.applied:
+            return                                   # a newer build is coming, or this one is done
+        self.applied = gen
+        p_session = self.main.p_session
+        p_session.psystem.clear_pending ( self.e_id )
+        obj = self.obj
+        if error is not None or system is None:
+            dprint ( "WARNING empty_object.sync_pdynamo_system (background): could not rebuild the pDynamo "
+                     "system of '{}' -- Builder editing continues unaffected. Error: {}".format ( obj.name, error ) )
+            return
+        if ( obj not in obj.vm_session.vm_objects_dic.values ( ) or getattr ( obj, "e_id", None ) != self.e_id
+                or p_session.psystem.peek ( self.e_id ) is None ):
+            return
+        _swap_rebuilt_system_into_psystem ( p_session, self.e_id, system )
+        self.main.main_treeview.refresh ( )
+
+    def flush ( self ):
+        """ Called by p_session.psystem when the entry is read: the newest
+            system installed now (waiting for the worker, or building it). """
+        self._stop_timer ( )
+        with self.lock:
+            self.queued = None                       # built right here if the worker has not taken it
+        thread = self.thread
+        if thread is not None:
+            thread.join ( )
+        with self.lock:
+            result, latest, newest = self.result, self.latest, self.gen
+        if self.applied >= newest:
+            return
+        if result is None or result[0] != newest:
+            try:
+                system, error = _build_system_from_snapshot ( latest[1] ), None
+            except Exception as exc:
+                system, error = None, exc
+            with self.lock:
+                self.result = ( newest, system, error )
+        self._install ( )
+
+
+def _background_sync_job ( vismol_object, main ):
+    """ The background job for this Builder object, or None when the object
+        is synced synchronously (small, not the Builder target, not
+        registered yet, or EASYHYBRID_BUILDER_SYNC=sync). """
+    import os
+    job = _BACKGROUND_JOBS.get ( id ( vismol_object ) )
+    if job is not None and job.obj is not vismol_object:
+        job = None
+    e_id = getattr ( vismol_object, "e_id", None )
+    psystem = main.p_session.psystem
+    eligible = ( os.environ.get ( "EASYHYBRID_BUILDER_SYNC", "" ).lower ( ) != "sync"
+                 and hasattr ( psystem, "peek" )
+                 and vismol_object is getattr ( vismol_object.vm_session, "builder_target_object", None )
+                 and e_id is not None and psystem.peek ( e_id ) is not None
+                 and len ( vismol_object.atoms ) >= BACKGROUND_SYNC_MIN_ATOMS )
+    if not eligible:
+        if job is not None:
+            job.cancel ( )
+            _BACKGROUND_JOBS.pop ( id ( vismol_object ), None )
+        return None
+    if job is None or job.e_id != e_id:
+        if job is not None:
+            job.cancel ( )
+        job = _BACKGROUND_JOBS[id ( vismol_object )] = _BackgroundSync ( vismol_object, main, e_id )
+    return job
 
 
 def sync_pdynamo_system ( vismol_object ):
@@ -485,9 +659,23 @@ def sync_pdynamo_system ( vismol_object ):
     anything in the pDynamo/eSession call chain fails -- the Builder's
     OWN vismol_object state is the source of truth either way, so a
     pDynamo-sync failure shouldn't take down editing itself. """
+    # [EN] 2026-10-04 BUG FIX: never (re)create a pDynamo system for an
+    # object that is no longer in the session (deleted from the treeview
+    # while a Builder tool still held it) -- that made orphan systems.
+    if vismol_object not in vismol_object.vm_session.vm_objects_dic.values ( ):
+        dprint ( "empty_object.sync_pdynamo_system: '{}' is no longer in the session -- not synced.".format (
+                 getattr ( vismol_object, "name", "?" ) ) )
+        return
     try:
         main       = vismol_object.vm_session.main
         p_session  = main.p_session
+
+        # [EN] 2026-10-17: big Builder objects are rebuilt in a worker thread
+        # (_BackgroundSync); the edit returns at once
+        job = _background_sync_job ( vismol_object, main )
+        if job is not None:
+            job.request ( )
+            return
 
         new_system = _build_pdynamo_system_from_vismol_object ( vismol_object, label = vismol_object.name )
 
@@ -712,8 +900,10 @@ def begin_editing_existing_system ( vm_session, e_id, vismol_object = None ):
             proceed = simple_dialog.question (
                     "System '{}' already has {} assigned.\n\n"
                     "Editing it in the Builder rebuilds its structure from scratch -- "
-                    "this assignment will be LOST, and will need to be redone afterward.\n\n"
+                    "this assignment will be LOST, and will need to be redone afterward.{}\n\n"
                     "Continue anyway?".format (
+                            "\n\nIt was made with DYFF + residue library: closing the Builder offers to apply "
+                            "the library again to the edited structure." if getattr ( original_vobject, "dyff_library_options", None ) else "",
                             original_system.label,
                             " / ".join ( filter ( None, [ "an MM force field" if has_mm_model else None,
                                                            "a QC potential" if has_qc_model else None ] ) ) ) )
@@ -767,7 +957,12 @@ def begin_editing_existing_system ( vm_session, e_id, vismol_object = None ):
     from gui.windows.builder.atom_ops import ( bootstrap_manual_bonds_from_existing, _reapply_manual_bonds,
                                                  _activate_new_sphere_representation,
                                                  _refresh_bond_dependent_representations )
-    bootstrap_manual_bonds_from_existing ( temp_vobject, source_vobject = original_vobject )
+    bootstrap_manual_bonds_from_existing ( temp_vobject, source_vobject = original_vobject, source_system = original_system )
+    # . a system parametrized with DYFF + residue library (Prepare DYFF System): the
+    #   options travel with the edit, so closing the Builder can re-apply the library
+    if getattr ( original_vobject, "dyff_library_options", None ):
+        import copy
+        temp_vobject.dyff_library_options = copy.deepcopy ( original_vobject.dyff_library_options )
 
     temp_vobject.cov_radii_array = None
     temp_vobject.electronegativity_array = None

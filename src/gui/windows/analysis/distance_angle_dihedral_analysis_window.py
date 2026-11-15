@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -101,6 +101,10 @@ class DistanceAngleDihedralAnalysisWindow:
             self.folder_chooser_button = FolderChooserButton(main =  self.main, sel_type = 'folder', home =  self.home)
             self.builder.get_object('folder_chooser_box').pack_start(self.folder_chooser_button.btn, True, True, 0)
             system_id      = self.p_session.active_id
+            # . 2026-10-24: start in the active system's working folder
+            system = self.p_session.psystem.get(system_id)
+            if system is not None and getattr(system, 'e_working_folder', None):
+                self.folder_chooser_button.set_folder(folder = system.e_working_folder)
 
             
             self.build_treeview()
@@ -429,6 +433,32 @@ class DistanceAngleDihedralAnalysisWindow:
         
         dprint(text)
         textwindow = TextWindow(text)
+
+        # . 2026-10-24: the "log file" and "Working Folder" fields were not used, and nothing
+        #   was plotted: write the table there and plot the measures along the trajectory.
+        labels = []
+        for job in self.parameters:
+            atoms = '-'.join('{}{}:{}'.format(a.residue.name if a.residue else '', a.residue.index if a.residue else '', a.name) for a in job[1:])
+            labels.append({'distance': 'd', 'angle': 'angle', 'dihedral': 'dihedral'}[job[0]] + ' ' + atoms)
+        try:
+            folder = self.folder_chooser_button.get_folder()
+            name = self.builder.get_object('log_name').get_text().strip() or 'measures'
+            if folder:
+                path = os.path.join(folder, name if name.endswith('.log') else name + '.log')
+                with open(path, 'w') as handle:
+                    handle.write('# frame  ' + '  '.join(labels) + '\n')
+                    handle.write(text)
+                self.main.bottom_notebook.status_teeview_add_new_item(message = 'Measures written to {}'.format(path), system = None)
+        except Exception as error:
+            dprint('measures log:', error)
+        if measures:
+            from util.analysis_plot import show_plot_window, PALETTE
+            kinds = {job[0] for job in self.parameters}
+            unit = 'Å' if kinds == {'distance'} else ('degrees' if 'distance' not in kinds else 'Å / degrees')
+            series = [{'x': [float(i) for i in range(size)], 'y': [float(v) for v in measures[j]], 'label': labels[j],
+                       'color': PALETTE[j % len(PALETTE)], 'width': 1.5} for j in range(jobsize)]
+            show_plot_window('Distances, Angles and Dihedrals', series, 'frame', unit,
+                             '{} measure(s) along {} frames'.format(jobsize, size), default_name = 'measures.png', parent = self.window)
 
     
     

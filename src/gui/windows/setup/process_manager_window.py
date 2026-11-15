@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -36,7 +36,8 @@ from gi.repository import GdkPixbuf
 from gui.widgets.custom_widgets  import get_colorful_square_pixel_buffer
 from gui.windows.setup.windows_and_dialogs import TextWindow, TabbedLogWindow
 from gui.windows.setup.windows_and_dialogs import SimpleDialog
-import os, sys, time, signal
+import os
+import re, sys, time, signal
 import psutil
 from pprint import pprint
 
@@ -263,6 +264,14 @@ class ProcessManagerWindow(Gtk.Window):
         menu_item2 = Gtk.MenuItem(label="Abort")
         menu_item2.connect("activate", self.on_stop_activate)
         self.popup_menu.append(menu_item2)
+
+        # . 2026-10-28: jobs sent to a remote machine (Simulate > Run Simulations On)
+        menu_item_remote = Gtk.MenuItem(label="Check Remote Jobs Now")
+        menu_item_remote.connect("activate", self.on_remote_check_activate)
+        self.popup_menu.append(menu_item_remote)
+        menu_item_cancel = Gtk.MenuItem(label="Cancel Remote Job")
+        menu_item_cancel.connect("activate", self.on_remote_cancel_activate)
+        self.popup_menu.append(menu_item_cancel)
 
         # Remove job
         menu_item3 = Gtk.MenuItem(label="Remove")
@@ -502,8 +511,8 @@ class ProcessManagerWindow(Gtk.Window):
         
         return treeiter
 
-    def set_status (self, treeiter = None, status = 'Queued' ):
-        """ Function doc """
+    def set_status (self, treeiter = None, status = 'Queued', warning = None ):
+        """ Function doc (warning: extra text for the "Finished!" dialog) """
         self.main.job_history_liststore[treeiter][5] = status
         if status == 'Finished':
             system_name = self.main.job_history_liststore[treeiter][0]
@@ -523,7 +532,14 @@ class ProcessManagerWindow(Gtk.Window):
                 #f"Start time: {start_time}\n"
                 #f"End time: {end_time}\n"
                 #f"Status: {status}"
-                )            
+                )
+            if warning: msg += f"\nWARNING: {warning}\n"
+            # . automation layer (src/automation): every finished job is an event
+            from automation import events as automation_events
+            automation_events.record('finished', msg, title = 'Finished!', system = sys_num,
+                                     job = job_num, job_type = job_type, warning = warning)
+            if automation_events.active():
+                return
             dialog = SimpleDialog(self )
             dialog.finished_with_import(
                 msg = msg, modal = False, title = 'Finished!',
@@ -567,9 +583,36 @@ class ProcessManagerWindow(Gtk.Window):
             folder = os.path.dirname(logfile)
             data_path = folder
             data_type_index = 1 if folder.endswith('.ptGeo') else 0
+            # . a 2D scan writes frame{i}_{j}.pkl: 'pklfolder2D' (index 2), not the 1D 'pklfolder'
+            try:
+                if data_type_index == 1 and any(re.match(r'frame\d+_\d+\.pkl$', f) for f in os.listdir(folder)):
+                    data_type_index = 2
+            except OSError:
+                pass
 
         simulation_type = job.get('simulation_type', 'result')
+        # . 2026-10-24: an energy refinement writes only its output.log (energies); the
+        #   structures are those of the trajectory it read -> import that trajectory with
+        #   the new log (was: the log folder as a pkl file -> Import Error)
+        if simulation_type == 'Energy_Refinement':
+            backup = job.get('backup_parameters') or {}
+            traj_type = backup.get('traj_type')
+            if traj_type in ('pklfolder', 'pklfolder2D') and backup.get('data_path'):
+                data_path = backup['data_path']
+                data_type_index = 1 if traj_type == 'pklfolder' else 2
+            elif traj_type == 'vobject':
+                data_type_index = 10      # log only, appended to the refined object
         new_vobj_name = '{}_{}_{}'.format(system.label.strip(), simulation_type, step_counter)
+
+        # . 2026-10-26: only logs with an energy table (scans, refinements, paths) are
+        #   imported with the frames; a molecular dynamics log gave "Could not parse log file"
+        if logfile:
+            try:
+                from pdynamo.LogFileWriter import LogFileReader
+                if LogFileReader(logfile).type is None:
+                    logfile = None
+            except Exception:
+                logfile = None
 
         self.main.import_trajectory_window.open_window(
             sys_selected = e_id,
@@ -678,6 +721,30 @@ class ProcessManagerWindow(Gtk.Window):
         treeiter = model.get_iter(path)
         self._open_log_for_row(model, treeiter)
 
+    def _selected_remote_jobs(self):
+        model, paths = self.treeview.get_selection().get_selected_rows()
+        jobs = []
+        for path in paths:
+            row = model[model.get_iter(path)]
+            job_id = self.p_session.remote_job_of_row(row[7], row[8])
+            if job_id:
+                jobs.append(job_id)
+        return jobs
+
+    def on_remote_check_activate(self, widget):
+        """ Asks the remote machines about the selected jobs (all remote jobs when none is). """
+        jobs = self._selected_remote_jobs()
+        self.p_session.remote_refresh_now(jobs or None)
+
+    def on_remote_cancel_activate(self, widget):
+        jobs = self._selected_remote_jobs()
+        if not jobs:
+            self.main.simple_dialog.info(msg="Select a job that runs on a remote machine.")
+            return
+        if self.main.simple_dialog.question("Cancel {} remote job(s)? The work done so far is lost.".format(len(jobs))):
+            for job_id in jobs:
+                self.p_session.remote_cancel(job_id)
+
     def on_view_log_activate(self, widget):
         """ Handler for the popup menu's new "View Log" item -- opens
         the log for whichever row is currently selected (right-clicked),
@@ -760,7 +827,14 @@ class ProcessManagerWindow(Gtk.Window):
         tabs = [("pDynamo", data)]
         if qc_text:
             tabs.append((qc_label, qc_text))
-        TabbedLogWindow(tabs, title=logfile)
+        window = TabbedLogWindow(tabs, title=logfile)
+        # . 2026-10-28: Plots tabs (util/log_analysis.py), built when first opened
+        try:
+            from gui.windows.setup.windows_and_dialogs.dialogs.log_plots import analysis_tabs
+            for label, make_page, reset in analysis_tabs(logfile, job.get('simulation_type')):
+                window.add_lazy_tab(label, make_page, reset)
+        except Exception as error:
+            dprint("log plots:", error)
 
     def _find_qc_log(self, pdynamo_logfile, system=None):
         """Locate and read the QC-program log that belongs to THIS job.
@@ -1171,14 +1245,23 @@ class ProcessManagerWindow(Gtk.Window):
                     return False
  
                 # Append job to the ListStore.
-                self.add_new_process ( 
-                             system    = system, 
-                             _type     = job_type, 
+                treeiter = self.add_new_process (
+                             system    = system,
+                             _type     = job_type,
                              potential = potential,
-                             start     = started, 
-                             end       = ended, 
+                             start     = started,
+                             end       = ended,
                              status    = status,
                              step      = job_num)
+
+                # Remote jobs submitted in an earlier (now closed) session
+                # are not tracked in memory any more after a restart --
+                # reconnect this reconstructed row to the job registry so
+                # status polling and "Check Remote Jobs Now"/result fetch
+                # work again for it (see pRemote.remote_reattach()).
+                remote_job_id = job.get("remote_job")
+                if remote_job_id:
+                    self.p_session.remote_reattach(e_id, job_num, remote_job_id, treeiter)
  
     def get_combobox_active_id (self, e_id = None, key6 = None):
         """ Function doc """

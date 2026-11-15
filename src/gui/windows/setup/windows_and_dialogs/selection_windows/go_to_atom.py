@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -326,7 +326,7 @@ class EasyHybridGoToAtomWindow(Gtk.Window):
             self.window.set_default_size(600, 600)  
             self.window.add(self.box_vertical)
             self.window.connect("destroy", self.close_window)
-            self.window.set_title('Go to Atom Window') 
+            self.window.set_title('Go To Atom') 
             self.window.show_all() 
                                                           
             #                                                                

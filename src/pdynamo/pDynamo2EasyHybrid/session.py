@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 from util.pdb_tools import dedupe_pdb_atom_names
@@ -117,6 +117,7 @@ from gui.windows.setup.windows_and_dialogs import call_message_dialog
 
 # --- imports entre modulos adicionados na refatoracao ---
 from pdynamo.pDynamo2EasyHybrid.simulations_mixin import pSimulations
+from pdynamo.pDynamo2EasyHybrid.remote_mixin import pRemote
 from pdynamo.pDynamo2EasyHybrid.analysis_mixin import pAnalysis
 from pdynamo.pDynamo2EasyHybrid.representation import ModifyRepInVismol
 from pdynamo.pDynamo2EasyHybrid.io_data import LoadAndSaveData
@@ -171,6 +172,72 @@ for _name, _candidate_names, _free_parameters in _CRYSTAL_SYSTEM_CANDIDATES:
         dprint( 'EditCellWindow: crystal system "{}" is not available in this pDynamo3 '
                'installation (tried: {}) -- it will not be offered in the "Edit Cell" '
                'window.'.format( _name, ', '.join( _candidate_names ) ) )
+
+
+def _apply_connectivity_bond_orders ( vm_object, system ):
+    """ [EN] 2026-10-18: after VisMol found the bonds by distance, take the bond
+    orders from the pDynamo connectivity for the residues whose orders pDynamo
+    knows (any Double/Triple bond in the residue -- e.g. a ligand perceived by
+    Add Hydrogens). VisMol's valence heuristic does not know formal charges and
+    drew the amidinium of a protonated ligand without its C=N+. """
+    connectivity = getattr ( system, "connectivity", None )
+    if connectivity is None or vm_object.index_bonds is None or vm_object.bond_order_list is None:
+        return
+    order_of = { "Single": 1, "Double": 2, "Triple": 3 }
+    known = { id ( b.node1.parent ) for b in connectivity.bonds
+              if getattr ( b.type, "name", "" ) in ( "Double", "Triple" ) }
+    if not known:
+        return
+    orders = { }
+    for b in connectivity.bonds:
+        name = getattr ( b.type, "name", "Undefined" )
+        if name in order_of and id ( b.node1.parent ) in known and id ( b.node2.parent ) in known:
+            i, j = b.node1.index, b.node2.index
+            orders[( min ( i, j ), max ( i, j ) )] = order_of[name]
+    changed = False
+    for k in range ( len ( vm_object.index_bonds ) // 2 ):
+        i, j = int ( vm_object.index_bonds[2 * k] ), int ( vm_object.index_bonds[2 * k + 1] )
+        key = ( min ( i, j ), max ( i, j ) )
+        order = orders.get ( key )
+        if order is None or order == int ( vm_object.bond_order_list[k] ):
+            continue
+        vm_object.bond_order_list[k] = order
+        bond = vm_object.bonds.get ( key ) if vm_object.bonds else None
+        if bond is not None:
+            bond.bond_order = order
+        changed = True
+    if changed:
+        vm_object._build_bond_order_per_atom ( )
+
+
+def _bond_orders_from_connectivity ( system, index_bonds ):
+    """ [EN] 2026-10-15: bond orders of `index_bonds` (flat pairs, e.g. the Harmonic
+    Bond term's Get12Indices) from the pDynamo connectivity, in VisMol's external
+    order convention (one order per pair that is not an H-H pair). Before this the
+    orders were left to VisMol's valence heuristic, which does not know formal
+    charges: a charged C=N+ (Arg guanidinium of a prepared system) was drawn as
+    three single bonds. Returns None -- keep VisMol's perception -- when the
+    connectivity has no multiple bond or an undefined one. """
+    connectivity = getattr ( system, "connectivity", None )
+    if connectivity is None or not index_bonds:
+        return None
+    order_of = { "Single": 1, "Double": 2, "Triple": 3 }
+    orders = { }
+    for bond in connectivity.bonds:
+        name = getattr ( bond.type, "name", "Undefined" )
+        if name not in order_of:                          # . aromatic bonds carry their Kekule type
+            return None
+        i, j = bond.node1.index, bond.node2.index
+        orders[( min ( i, j ), max ( i, j ) )] = order_of[name]
+    if not any ( o > 1 for o in orders.values ( ) ):
+        return None
+    z = [ a.atomicNumber for a in system.atoms ]
+    out = [ ]
+    for k in range ( 0, len ( index_bonds ) - 1, 2 ):
+        i, j = int ( index_bonds[k] ), int ( index_bonds[k + 1] )
+        if z[i] == 1 and z[j] == 1: continue                  # . excluded by VisMol (H-H)
+        out.append ( orders.get ( ( min ( i, j ), max ( i, j ) ), 1 ) )
+    return out
 
 
 def _apply_dyff_guanidinium_correction ( system ):
@@ -331,8 +398,97 @@ def _apply_manual_atom_type_overrides ( system, overrides ):
     return added_keys
 
 
-class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveData, EasyHybridImportTrajectory, Restraints):
+class PSystemDict ( dict ):
+    """ [EN] 2026-10-17: p_session.psystem. A Builder object's pDynamo system
+    may be rebuilt in a worker thread (gui/windows/builder/empty_object.py,
+    sync_pdynamo_system()); until it is installed, reading that entry --
+    psystem[e_id], .get(e_id), .values(), .items() -- first waits for the
+    build and installs it (set_pending() registers how), so no caller ever
+    sees a system older than the object. peek() reads without waiting (the
+    hover status line). Pickled/copied as a plain dict. """
+
+    def __init__ ( self, *args, **kwargs ):
+        super ( ).__init__ ( *args, **kwargs )
+        self._pending = { }
+
+    def set_pending ( self, key, flush ):
+        self._pending[key] = flush
+
+    def clear_pending ( self, key ):
+        self._pending.pop ( key, None )
+
+    def _flush ( self, key ):
+        flush = self._pending.pop ( key, None ) if self._pending else None
+        if flush is not None:
+            flush ( )
+
+    def _flush_all ( self ):
+        for key in list ( self._pending ):
+            self._flush ( key )
+
+    def __getitem__ ( self, key ):
+        self._flush ( key )
+        return super ( ).__getitem__ ( key )
+
+    def get ( self, key, default = None ):
+        self._flush ( key )
+        return super ( ).get ( key, default )
+
+    def peek ( self, key, default = None ):
+        return super ( ).get ( key, default )
+
+    def values ( self ):
+        self._flush_all ( )
+        return super ( ).values ( )
+
+    def items ( self ):
+        self._flush_all ( )
+        return super ( ).items ( )
+
+    def pop ( self, key, *default ):
+        self._pending.pop ( key, None )
+        return super ( ).pop ( key, *default )
+
+    def __delitem__ ( self, key ):
+        self._pending.pop ( key, None )
+        super ( ).__delitem__ ( key )
+
+    def __reduce__ ( self ):
+        return ( dict, ( dict ( super ( ).items ( ) ), ) )
+
+
+def _pdb_title(path):
+    """ The TITLE record of a PDB file (columns 11-80, continuation lines joined), title case
+        as pDynamo does; None when there is none. """
+    parts = []
+    try:
+        with open(path, errors='replace') as handle:
+            for line in handle:
+                if line.startswith('TITLE'):
+                    text = line[10:80].strip()
+                    if text:
+                        parts.append(text)
+                elif line.startswith(('ATOM', 'HETATM', 'MODEL')):
+                    break
+    except OSError:
+        return None
+    title = ''
+    for text in parts:
+        title += ('' if not title or title.endswith('-') else ' ') + text
+    return title.title() if title else None
+
+
+class pDynamoSession (pSimulations, pRemote, pAnalysis, ModifyRepInVismol, LoadAndSaveData, EasyHybridImportTrajectory, Restraints):
     """ Class doc """
+
+    # . every assignment (session reset, pSimulations.__init__) becomes a PSystemDict
+    @property
+    def psystem ( self ):
+        return self.__dict__.get ( "_psystem" )
+
+    @psystem.setter
+    def psystem ( self, value ):
+        self.__dict__["_psystem"] = value if isinstance ( value, PSystemDict ) else PSystemDict ( value or { } )
     
     def __init__ (self, vm_session = None):
         """ Class initialiser """
@@ -586,6 +742,13 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             self.main.bottom_notebook.status_teeview_add_new_item(message = 'loading file:  {} '.format(input_files['coordinates']), system = None)
         else:
             pass
+        # . 2026-10-24: pDynamo reads TITLE columns 11-70 only (the record goes to 80), so long
+        #   titles lost words ("... ZINC FINGER DNA-" + "BINDING DOMAIN" became "FingerBinding")
+        coordinates = ( input_files or {} ).get('coordinates') or ''
+        if isinstance(coordinates, str) and coordinates.lower().endswith(('.pdb', '.ent')):
+            title = _pdb_title(coordinates)
+            if title:
+                system.label = title
         system.Summary()
         
         
@@ -614,7 +777,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         if name is None:
             name = 'System'
         if len(name) > 70:
-            name = name[-70:]
+            # . the start of a title says what the system is: keep it (the end was kept before)
+            name = name[:67].rstrip() + '...'
         
         
         self.remove_PES_data (system = system )
@@ -637,7 +801,14 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self.main.bottom_notebook.status_teeview_add_new_item(message = 'New System:  {} ({}) - Force Field:  {}'.format(system.label, system.e_tag, ff), system =system)
         
         # Add the system as a vismol object to the easyhybrid session
-        self._add_vismol_object_to_easyhybrid_session (system, True)
+        new_vobject = self._add_vismol_object_to_easyhybrid_session (system, True)
+
+        # . 2026-10-24: frame the new molecule (the view used to stay 10 A from its center
+        #   with a 6 A slab: a protein appeared as a few bonds on a black screen)
+        try:
+            self.vm_session.fit_view_to_vobject(new_vobject)
+        except Exception as error:
+            dprint('fit_view_to_vobject:', error)
 
         # A system loaded directly from a .pkl/.pdb/etc (as opposed to
         # inside a .easy project -- see load_easyhybrid_serialization_file
@@ -681,7 +852,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         self._add_vismol_object_to_easyhybrid_session ( system, True )
         return system
 
-    def _add_vismol_object_to_easyhybrid_session (self, system, show_molecule=True, name = 'new_coords', key6 = None):
+    def _add_vismol_object_to_easyhybrid_session (self, system, show_molecule=True, name = 'coords', key6 = None):
         """ Function doc """
         # Create a VisMol object from the given pDynamo system
         vm_object = self._build_vobject_from_pdynamo_system ( system = system, name = name ) 
@@ -719,7 +890,14 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                                           color          = None            ,
                                           changed        = False ):
         """ Function doc """  
-    
+        # . 2026-10-24: DFT/HF systems read from pickle (.pkl, .easy) lose qcState.fitBases
+        #   (see util/qc_state_repair.py); their QC model is defined again.
+        try:
+            from util.qc_state_repair import repair_qc_state
+            if repair_qc_state(system):
+                print('QC model of {} redefined (DFT state read from a file).'.format(system.label))
+        except Exception as error:
+            print('Could not check the QC state of the system:', error)
         
         # - - - - - - - Name and Tag - - - - - - - -
         if name:
@@ -1113,15 +1291,24 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         #self.psystem[system_id].Summary()
         #print(vobject.cell_coordinates)
         #print(vobject.cell_coordinates)
-        if self.psystem[system_id].symmetry:
-            a = vobject.cell_coordinates[frame][7][0]
-            b = vobject.cell_coordinates[frame][7][1]
-            c = vobject.cell_coordinates[frame][7][2]
-            
-            alpha = vobject.cell_parameters['alpha']
-            beta  = vobject.cell_parameters['beta']
-            gamma = vobject.cell_parameters['gamma']
-            
+        # . 2026-10-21: objects without a cell of their own (created before the
+        #   cell was defined, or trajectories imported without box data) keep
+        #   the system's current cell instead of crashing; a frame beyond the
+        #   stored cell frames uses the last one.
+        cells = getattr(vobject, 'cell_coordinates', None)
+        if self.psystem[system_id].symmetry and cells is not None and len(cells) > 0:
+            n_cells = len(cells)
+            f = frame if -n_cells <= frame < n_cells else n_cells - 1
+            a = cells[f][7][0]
+            b = cells[f][7][1]
+            c = cells[f][7][2]
+
+            params = vobject.cell_parameters or {}
+            current = self.psystem[system_id].symmetryParameters
+            alpha = params.get('alpha', current.alpha)
+            beta  = params.get('beta',  current.beta)
+            gamma = params.get('gamma', current.gamma)
+
             dprint('setting cell parameters vobj to psys:')
             dprint('a = ', a)
             dprint('b = ', b)
@@ -1463,6 +1650,8 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             #'''
                 
             if index_bonds:
+                if bond_orders is None:
+                    bond_orders = _bond_orders_from_connectivity(system, index_bonds)
                 vm_object.define_bonds_from_external(index_bonds=index_bonds, bond_orders = bond_orders)
             else:
                 vm_object.find_bonded_and_nonbonded_atoms()
@@ -1637,11 +1826,14 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
                 if term.label == 'Harmonic Bond':
                     index_bonds = term.Get12Indices()
             if index_bonds:
-                vm_object.define_bonds_from_external(index_bonds=index_bonds, bond_orders=None)
+                vm_object.define_bonds_from_external(index_bonds=index_bonds,
+                                                     bond_orders=_bond_orders_from_connectivity(system, index_bonds))
             else:
                 vm_object.find_bonded_and_nonbonded_atoms()
+                _apply_connectivity_bond_orders(vm_object, system)
         else:
             vm_object.find_bonded_and_nonbonded_atoms()
+            _apply_connectivity_bond_orders(vm_object, system)
 
         vm_object._generate_color_vectors(self.vm_session.atom_id_counter)
 
@@ -1982,7 +2174,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         # . Work around a pDynamo3 bug: AddCounterIons/SolvateSystemBySuperposition
         #   merge the solute with systems that normally have no RestraintModel
         #   (ion systems, solvent boxes). If the solute itself has restraints
-        #   defined (e.g. from a QM/MM reaction-coordinate setup) but the
+        #   defined (e.g. from a QC/MM reaction-coordinate setup) but the
         #   system it's being merged with does not, pDynamo3's
         #   RestraintModel.Merge() ends up trying to set an attribute on
         #   None and crashes with "AttributeError: 'NoneType' object has no
@@ -2564,6 +2756,28 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         return True
     
     
+    def remove_MMModel ( self, system = None ):
+        """ [EN] 2026-10-21, System > Force Field > Remove Force Field. pDynamo drops
+        the MM state and the NB model with the MM model (DefineMMModel ( None )). The
+        DYFF edits, library options and metal type overrides kept on the system's
+        objects are cleared too, so a later DYFF starts clean. Returns ( ok, message ). """
+        if system is None:
+            system = self.psystem[self.active_id]
+        if getattr ( system, "mmModel", None ) is None:
+            return False, "'{}' has no force field.".format ( system.label )
+        if getattr ( system, "qcModel", None ) is not None:
+            return False, "'{}' has a QC region: remove the QC atoms first (System > Remove > QC Atoms).".format ( system.label )
+        name = type ( system.mmModel ).__name__.replace ( "MMModel", "" )
+        system.DefineMMModel ( None )
+        system.nbModel = None
+        for vobject in self.vm_session.vm_objects_dic.values ( ):
+            if getattr ( vobject, "e_id", None ) == getattr ( system, "e_id", None ):
+                for attribute in ( "dyff_parameter_edits", "dyff_library_options", "dyff_type_overrides" ):
+                    if getattr ( vobject, attribute, None ) is not None:
+                        setattr ( vobject, attribute, None )
+        return True, "Force field ({}) removed from '{}'.".format ( name, system.label )
+
+
     def remove_PES_data (self, system = False ):
         """ Function doc """
         if system:
@@ -2732,16 +2946,46 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
             # [EN] 2026-10-04: parameters edited in the Builder's DYFF Parameters window
             from pdynamo.dyff_edits import dyff_model
-            edits = None
+            from pdynamo.dyff_edits import applicable_edits
+            edits, edit_owner, type_overrides = None, None, None
+            high_spin_atoms = set ( )
             for candidate in self.vm_session.vm_objects_dic.values ( ):
                 if getattr ( candidate, "e_id", None ) == getattr ( system, "e_id", None ):
-                    edits = getattr ( candidate, "dyff_parameter_edits", None ) or edits
-            mmModel = dyff_model ( parameter_set, edits )
+                    if getattr ( candidate, "dyff_parameter_edits", None ):
+                        edits, edit_owner = candidate.dyff_parameter_edits, candidate
+                    # . 2026-10-08: DYFF types for atoms the pattern typer leaves untyped
+                    #   (metals: pdynamo/dyff_prep.type_overrides, set by Prepare DYFF System)
+                    type_overrides = getattr ( candidate, "dyff_type_overrides", None ) or type_overrides
+                    # . 2026-10-13: high-spin Mn/Fe/Co sites (multiplicity >= 4, chosen at Prepare DYFF
+                    #   System) get the high-spin M-L bond offsets (dyff_edits.HIGH_SPIN_BOND_OFFSETS;
+                    #   DYFF_validation, MetalPDB validation)
+                    multiplicities = ( getattr ( candidate, "dyff_library_options", None ) or { } ).get ( "multiplicities" ) or { }
+                    if multiplicities:
+                        for i, atom in enumerate ( system.atoms ):
+                            if atom.atomicNumber in ( 25, 26, 27 ) and int ( multiplicities.get ( atom.path, 1 ) ) >= 4:
+                                high_spin_atoms.add ( i )
+            stale_term_edits = False
+            if edits and edit_owner is not None:
+                # . per-term (Hessian / per-bond) edits are tied to atom indices
+                # . Builder objects carry their own bond list; a system read from a file
+                #   (e.g. a protein with the residue library) is checked against its connectivity
+                owner_bonds = getattr ( edit_owner, "manual_bonds", None ) or list ( system.connectivity.bondIndices )
+                edits, stale_term_edits = applicable_edits ( edits, len ( system.atoms ), owner_bonds )
+            if type_overrides and len ( system.atoms ) <= max ( int ( k ) for k in type_overrides ):
+                type_overrides = None                      # stale: the molecule changed
+            mmModel = dyff_model ( parameter_set, edits, type_overrides, high_spin_atoms = high_spin_atoms )
             system.DefineMMModel ( mmModel )
 
             # [EN] 2026-10-04: partial charges set in the Builder's DYFF Parameters
             # window (atom.mm_charge; DYFF itself has none -- every charge is 0)
             n_charges = _apply_builder_partial_charges ( self.vm_session, system )
+            # . with charges, polar H get a small LJ type (dyff_edits.soften_polar_hydrogens)
+            n_polar_h = 0
+            n_water = 0
+            if n_charges:
+                from pdynamo.dyff_edits import soften_polar_hydrogens, water_lj
+                n_polar_h = soften_polar_hydrogens ( system )
+                n_water = water_lj ( system )
 
             if getattr ( system, "nbModel", None ) is None:
                 self.define_NBModel ( _type = 1, system = system )
@@ -2753,7 +2997,11 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             if added_override_keys:
                 msg += " ({} manual atom type override(s) applied.)".format ( len ( added_override_keys ) )
             if n_charges:
-                msg += " ({} partial charges from the Builder.)".format ( n_charges )
+                msg += " ({} partial charges from the object: Builder or residue library".format ( n_charges )
+                msg += "; {} polar hydrogens with a small Lennard-Jones radius".format ( n_polar_h ) if n_polar_h else ""
+                msg += "; {} water oxygens with the TIP3P Lennard-Jones.)".format ( n_water ) if n_water else ".)"
+            if stale_term_edits:
+                msg += " (Per-atom bond/angle/torsion edits were NOT applied: the molecule changed after they were made.)"
             return True, msg
 
         except Exception as exc:
@@ -2784,6 +3032,10 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         orders) does not type: the message points to Prepare OPLS System.
         Returns ( ok, message ). """
         from pdynamo.opls import prep, parameters
+        # . [EN] 2026-10-17: why the last call failed for lack of parameters
+        #   (untyped atoms / missing terms) -- gui/windows/setup/opls_assign.py
+        #   then offers the Extras > OPLS parametrization; None otherwise
+        self.last_opls_missing = None
         try:
             types, charges, untyped = prep.type_atoms ( system, parameter_set )
         except Exception as exc:
@@ -2794,8 +3046,9 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             for atom in untyped:
                 path = atom.parent.path if atom.parent is not None else '?'
                 if path not in residues: residues.append ( path )
+            self.last_opls_missing = { "atoms": len ( untyped ), "residues": residues }
             return False, ( "{} atom(s) of '{}' match no OPLS atom type (residues: {}{}).\n\n"
-                            "OPLS needs bond orders, formal charges and hydrogens. Use Extras > OPLS > "
+                            "OPLS needs bond orders, formal charges and hydrogens. Use System > Force Field > Define Force Field > "
                             "Prepare OPLS System... to build them from a PDB structure.".format (
                             len ( untyped ), system.label, ", ".join ( residues[:8] ), ", ..." if len ( residues ) > 8 else "" ) )
         folder = getattr ( system, 'e_working_folder', None ) or os.environ.get ( 'PDYNAMO3_SCRATCH' ) or os.getcwd ( )
@@ -2806,6 +3059,7 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
             missing = { t: v for t, v in report["missing"].items ( ) if v }
             if missing:
                 lines = [ "{}: {}".format ( t, ", ".join ( "-".join ( k ) for k in v[:6] ) ) for t, v in missing.items ( ) ]
+                self.last_opls_missing = { "terms": sum ( len ( v ) for v in missing.values ( ) ), "residues": [ ] }
                 return False, "Missing OPLS parameters for '{}':\n{}".format ( system.label, "\n".join ( lines ) )
             # . DefineMMModel() drops the NB model: keep the user's one
             nb_model = getattr ( system, "nbModel", None )
@@ -2950,6 +3204,31 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
         
         
         
+        elif parameters['format'] == 8:
+            # . 2026-10-21: NAMD (CHARMM-format PSF/PRM/PDB/CRD + a minimization
+            #   configuration) through util/dyff_eh_to_namd.py, for DYFF and OPLS
+            #   systems; AMBER and CHARMM systems are read by NAMD from their own files
+            if coords_from_vobject:
+                if getattr ( vobject, 'idx_2D_xy', False):
+                    frame =  vobject.idx_2D_xy[(parameters['last'],parameters['last2'])]
+                else:
+                    frame = parameters['last']
+                self.set_psystem_coordinates_from_vobject(vobject = vobject, system_id = parameters['system_id'], frame = frame)
+            system = self.psystem[parameters['system_id']]
+            model  = type ( getattr ( system, 'mmModel', None ) ).__name__
+            if getattr ( system, 'mmModel', None ) is None:
+                self.active_id = active_id
+                raise ValueError ( "'{}' has no force field: NAMD export needs a DYFF or OPLS MM model.".format ( system.label ) )
+            if not ( model.startswith ( 'MMModelDYFF' ) or model == 'MMModelOPLS' ):
+                self.active_id = active_id
+                raise ValueError ( "NAMD export writes DYFF and OPLS systems. {} systems are read by NAMD from their "
+                                   "original topology files (prmtop / psf + parameters).".format ( model.replace ( 'MMModel', '' ) ) )
+            if getattr ( system, 'qcModel', None ) is not None:
+                self.active_id = active_id
+                raise ValueError ( "NAMD export writes the MM model only: remove the QC region first." )
+            from util import dyff_eh_to_namd
+            dyff_eh_to_namd.convert ( system, os.path.join ( folder, filename ) )
+
         elif parameters['format'] == 2:
             
             #'''   When is Single File     '''
@@ -3234,46 +3513,45 @@ class pDynamoSession (pSimulations, pAnalysis, ModifyRepInVismol, LoadAndSaveDat
 
 
     def check_for_fragmented_charges (self, system_id = None):
-        """ Function doc """
+        """ Charge Block Inspector: makes the MM charge of every residue an integer, spreading
+            the difference evenly over its atoms. 2026-10-24: works on a copy and applies it at
+            the end (a failure used to leave the charges half changed); refused with a QC region
+            (its MM charges are already redistributed); the backup used when a QC region is
+            defined is taken from the MM charges (AtomicCharges() raised before any QC energy). """
         try:
-            system = self.psystem[self.active_id]
-            itotal  = sum(system.mmState.charges)
-            #print('total charge =', total)
-
+            system = self.psystem[self.active_id if system_id is None else system_id]
+            if system.mmModel is None or system.mmState is None:
+                return False, 'The system has no MM charges (no force field).'
+            if system.qcModel is not None:
+                return False, ('The system has a QC region. Remove it first (System > Remove > QC Atoms): '
+                               'the inspection works on the MM charges of whole residues.')
+            charges = list(system.mmState.charges)
+            itotal  = sum(charges)
             vobj_tmp = self._build_vobject_from_pdynamo_system (system = system)
-            n = 0
+            n_residues, n_changed = 0, 0
             for chain in vobj_tmp.chains:
                 for resi, residue in vobj_tmp.chains[chain].residues.items():
-            
-                #for res_index, residue in vobj_tmp.residues.items():
-                    n = 0.0
-                    res_charge = 0.0
-                    for atom_index, atom in residue.atoms.items():
-                        res_charge += system.mmState.charges[atom_index]
-                        n += 1
-                    
-                    
+                    indices = list(residue.atoms.keys())
+                    if not indices:
+                        continue
+                    n_residues += 1
+                    res_charge = sum(charges[i] for i in indices)
                     difference = res_charge - float(round(res_charge))
-                    fraction = difference/n
-
-                    res_charge2 = 0.0
-                    for atom_index, atom in residue.atoms.items():
-                        system.mmState.charges[atom_index] -= fraction
-                        res_charge2 += system.mmState.charges[atom_index]
-                    
-                    n += 1
-                
-                #print('Initial charge: {}, Differente{} {}'.format(res_charge, difference, res_charge2))
-
-            system.e_charges_backup = list(system.AtomicCharges()).copy()
-            ftotal = sum(system.mmState.charges)
-            
-            
-            
-            
-            return True, 'Inspection of partial charges performed successfully.\n\nNumber of resdues: {} \nInitial sum of charges: {} \nFinal sum of charges: {}'.format(n, itotal, ftotal)
-        except:
-            return False, 'Inspection of partial charges failed!'
+                    if abs(difference) > 1e-6:
+                        n_changed += 1
+                    for i in indices:
+                        charges[i] -= difference / len(indices)
+            for i, q in enumerate(charges):
+                system.mmState.charges[i] = q
+            system.e_charges_backup = list(charges)
+            ftotal = sum(charges)
+            return True, ('Inspection of partial charges performed successfully.\n\n'
+                          'Residues: {}  (changed: {})\nInitial sum of charges: {:.6f}\n'
+                          'Final sum of charges: {:.6f}').format(n_residues, n_changed, itotal, ftotal)
+        except Exception as error:
+            import traceback
+            traceback.print_exc()
+            return False, 'Inspection of partial charges failed: {}'.format(error)
         
         
     def generate_new_empty_vismol_object (self, system_id = None, name = 'new_coordinates' ):

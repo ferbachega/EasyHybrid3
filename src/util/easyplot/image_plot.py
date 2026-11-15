@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -81,6 +81,9 @@ class ImagePlot(Canvas):
         self.is_discrete = True
         
         self.selected_dot = None #it is the i and j coordinates at the energey matrix
+        # . 2026-10-24: extra symbols on the matrix (stationary points of the PES window):
+        #   [ { "points": [ (x, y) ], "shape": "circle" | "diamond", "color": [r, g, b] } ]
+        self.markers = []
         self.sel_dot_rgb  = [1,0,0]
 
         # [NOVO] Cor unica para eixos, marcas de escala, rotulos (x/y e da
@@ -637,6 +640,22 @@ class ImagePlot(Canvas):
                 pass
                 cr.stroke ()
     
+    def draw_markers (self, cr):
+        """ self.markers: open symbols with a white halo, readable on any colour map. """
+        for marker in self.markers:
+            r = max(5.0, min(9.0, 0.35 * min(self.factor_x, self.factor_y)))
+            for x, y in marker.get("points", []):
+                cx = (x + 0.5) * self.factor_x + self.bx
+                cy = (y + 0.5) * self.factor_y + self.by
+                for width, rgb in ((4.0, (1, 1, 1)), (2.0, marker.get("color", (0, 0, 0)))):
+                    cr.set_line_width(width)
+                    cr.set_source_rgb(*rgb)
+                    if marker.get("shape") == "diamond":
+                        cr.move_to(cx, cy - r); cr.line_to(cx + r, cy); cr.line_to(cx, cy + r); cr.line_to(cx - r, cy); cr.close_path()
+                    else:
+                        cr.new_sub_path(); cr.arc(cx, cy, r, 0, 2 * 3.14159265)
+                    cr.stroke()
+
     def draw_lines (self, cr, line_width = 2, color = [0,0,0]):
         """ Function doc """
         cr.set_source_rgb( color[0], color[1], color[2])
@@ -1021,6 +1040,8 @@ class ImagePlot(Canvas):
         self.draw_dots (self.temp_cr, self.extra_points, [0.75, 0, 0.5], False)
 
         self.draw_lines (self.temp_cr, line_width = 2, color = [0,0,0])#(cr, line_width = 2, color = [0,0,0])
+
+        self.draw_markers (self.temp_cr)
     
         cr.set_source_surface(self.temp_surface, 0, 0)
         cr.paint()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -99,8 +99,14 @@ class ReimagingTrajectoryWindow:
             self.combobox_systems = SystemComboBox(self.main, self.coordinates_combobox)
             self.box_system.pack_start  (self.combobox_systems, False, False, 0)
 
-            self.combobox_systems.set_active(0)
-            self.coordinates_combobox.set_active(0)
+            # . 2026-10-24: the active system and its last object (was the first system/object)
+            for k, row in enumerate(self.main.system_liststore):
+                if row[1] == self.p_session.active_id:
+                    self.combobox_systems.set_active(k)
+                    break
+            else:
+                self.combobox_systems.set_active(0)
+            self.coordinates_combobox.set_active_vobject(-1)
             
             self.method_store = Gtk.ListStore(str)
             methods = [

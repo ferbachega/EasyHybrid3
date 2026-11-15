@@ -1333,7 +1333,7 @@
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">False</property>
                                     <property name="draw-indicator">True</property>
-                                    <property name="tooltip-text" translatable="yes">MM point-charge coordinates/values used for QM/MM electrostatic embedding.</property>
+                                    <property name="tooltip-text" translatable="yes">MM point-charge coordinates/values used for QC/MM electrostatic embedding.</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
@@ -1347,7 +1347,7 @@
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">False</property>
                                     <property name="draw-indicator">True</property>
-                                    <property name="tooltip-text" translatable="yes">Gradient on the MM point charges (QM/MM electrostatic embedding).</property>
+                                    <property name="tooltip-text" translatable="yes">Gradient on the MM point charges (QC/MM electrostatic embedding).</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">2</property>
@@ -2140,7 +2140,7 @@
                       <object class="GtkLabel">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">ORCA Inputfile Hearder</property>
+                        <property name="label" translatable="yes">ORCA Input File Header</property>
                       </object>
                     </child>
                   </object>

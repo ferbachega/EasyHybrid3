@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: namd_runner
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -812,6 +812,18 @@ def build_namd_config(
         lines.append("switchdist                      {}".format(
             switchdist if switchdist is not None else cutoff - 2.0))
     if is_charmm:
+        # . 2026-10-15: parameter files exported from an EasyHybrid DYFF system
+        #   (util/dyff_eh_to_namd.py) declare the NAMD settings DYFF needs
+        #   (geometric sigma combining, its own 1-4 electrostatic scaling);
+        #   they override the CHARMM defaults here.
+        try:
+            from util.dyff_eh_to_namd import namd_settings_from_prm
+        except ImportError:
+            from dyff_eh_to_namd import namd_settings_from_prm
+        dyff = namd_settings_from_prm(charmm_parameters)
+        if dyff:
+            one_four_scaling = dyff.get("1-4scaling", one_four_scaling)
+            lines.append("vdwGeometricSigma               yes      ;# DYFF (EasyHybrid export)")
         lines.append("1-4scaling                      {}".format(one_four_scaling))
     else:
         lines.append("oneFourScaling                  {}".format(one_four_scaling))

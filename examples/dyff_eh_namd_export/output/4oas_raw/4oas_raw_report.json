@@ -1,0 +1,67 @@
+{
+ "input": "../dyff_eh_system_preparation/output/4oas_raw_dyff_eh.pkl",
+ "conversion": {
+  "atoms": 1639,
+  "atom_types": 713,
+  "bonds": 1656,
+  "angles": 3014,
+  "dihedrals": 4419,
+  "impropers": 927,
+  "bond_types": 878,
+  "angle_types": 1790,
+  "dihedral_types": 3070,
+  "improper_types": 672,
+  "electrostaticScale14": 0.5
+ },
+ "single_point": [
+  {
+   "term": "BOND",
+   "pdynamo": 75.77129517139885,
+   "namd": 75.7716,
+   "expected": 75.77129517139885,
+   "note": "exact"
+  },
+  {
+   "term": "DIHED",
+   "pdynamo": -1218.4083333363683,
+   "namd": 7737.5193,
+   "expected": 7737.519112873084,
+   "note": "exact (pDynamo minus the constants of the cosine series, -8955.9274)"
+  },
+  {
+   "term": "ELECT",
+   "pdynamo": -7810.084110453061,
+   "namd": -7810.1137,
+   "expected": -7810.084110453061,
+   "note": "exact (incl. 1-4)"
+  },
+  {
+   "term": "VDW",
+   "pdynamo": -141.93967778254637,
+   "namd": -141.932,
+   "expected": -141.93967778254637,
+   "note": "exact (incl. 1-4)"
+  },
+  {
+   "term": "ANGLE",
+   "pdynamo": 257.9900416482748,
+   "namd": 256.8356,
+   "expected": 256.8355409773993,
+   "note": "harmonic approximation; pDynamo relative to the minima: 255.4706"
+  },
+  {
+   "term": "IMPRP",
+   "pdynamo": 54.36769831385877,
+   "namd": 58.592,
+   "expected": 58.59201872914046,
+   "note": "harmonic approximation"
+  }
+ ],
+ "namd_minimization": {
+  "rmsd": 0.21255630231519407,
+  "rmsd_heavy": 0.18226022115030577,
+  "max_displacement": 1.8877364223874886,
+  "E_pdynamo_pkl": -8782.469623060413,
+  "E_pdynamo_at_namd_minimum": -8834.538476230975
+ }
+}

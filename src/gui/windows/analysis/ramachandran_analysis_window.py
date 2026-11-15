@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Ramachandran (phi/psi) analysis window
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -104,6 +104,16 @@ class RamachandranAnalysisWindow:
         self.window.show_all()
         self.Visible = True
 
+    def on_btn_hide_settings_toggled(self, widget):
+        """ 2026-10-21, user's request: hide the settings frames so the plot can
+        use the whole window. """
+        hide = widget.get_active()
+        for name in ('frame_trajectory', 'frame_selection', 'frame_range', 'frame_save_output'):
+            frame = self.builder.get_object(name)
+            if frame is not None:
+                frame.set_visible(not hide)
+        widget.set_label('Show settings' if hide else 'Hide settings')
+
     def on_save_file_checkbox(self, widget):
         self.grid_save_output.set_sensitive(widget.get_active())
 
@@ -134,7 +144,7 @@ class RamachandranAnalysisWindow:
             return
         frame_text = '' if point['frame'] is None else ' (frame {})'.format(point['frame'])
         self.label_status.set_text(
-            'Resíduo {}{} — cadeia {} — φ = {:.1f}°, ψ = {:.1f}°{} [{}]'.format(
+            'Residue {}{} — chain {} — φ = {:.1f}°, ψ = {:.1f}°{} [{}]'.format(
                 point['resname'], point['resnum'], point['chain'] or '-',
                 point['phi'], point['psi'], frame_text,
                 CATEGORY_LABELS.get(point['category'], point['category'])))
@@ -230,8 +240,8 @@ class RamachandranAnalysisWindow:
         n_residues = len(set((r['chain'], r['resnum']) for r in results))
         n_frames = len(set(r['frame'] for r in results))
         self.label_status.set_text(
-            '{} pontos plotados ({} resíduos, {} frame{}). Passe o mouse sobre um ponto '
-            'para identificar o resíduo.'.format(
+            '{} points plotted ({} residues, {} frame{}). Hover over a point '
+            'to identify the residue.'.format(
                 len(results), n_residues, n_frames, 's' if n_frames != 1 else ''))
 
         if self.builder.get_object('chk_save_file').get_active():

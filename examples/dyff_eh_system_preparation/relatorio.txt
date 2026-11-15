@@ -1,0 +1,45 @@
+Criei a pasta examples/dyff_eh_system_preparation/ com o script prepare_dyff_eh.py e as três entradas. Rodei nas três: cada uma gerou o .pkl com DYFF-1.0-eh, e ao reler o arquivo a energia saiu idêntica.
+
+Conteúdo da pasta
+- prepare_dyff_eh.py: o passo a passo, comentado.
+- README.md: os passos, as opções e como abrir o .pkl.
+- inputs/: os três arquivos de entrada.
+- output/: os resultados desta rodada (.pkl, .pdb com a estrutura preparada, .json com um relatório curto).
+
+Os 7 passos. São os mesmos que o GUI executa em Prepare DYFF System seguido de DYFF + residue library:
+1. Importar o arquivo.
+2. Preparar: química, protonação no pH escolhido, adição de H, resíduos truncados completados e sítios metálicos.
+3. Casar os resíduos com a biblioteca.
+4. Calcular com xTB o que ficou de fora: cargas CM5, ligações e ângulos pela Hessiana, torsões pela biblioteca DFT.
+5. Montar o modelo MM DYFF-1.0-eh com cargas, LJ dos H polares e correção do guanidínio.
+6. Definir o modelo não ligado e calcular a energia (minimização opcional).
+7. Salvar.
+
+Resultados
+
+┌────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────┬────────┬───────┐
+│          entrada           │                                            o que demonstra                                            │ átomos │ tempo │
+├────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────┤
+│ theophylline.xyz           │ só coordenadas: ligações e ordens percebidas da geometria                                             │ 21     │ 3 s   │
+├────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────┤
+│ valacyclovir.mol2          │ ordens vindas do arquivo; 11 de 12 ligações rotáveis estão na biblioteca de torsões                   │ 43     │ 15 s  │
+├────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────┤
+│ 4oas_raw.pdb (PLINDER,     │ ~850 H adicionados, 3 resíduos truncados completados, 93 de 94 resíduos pela biblioteca, ligante 2SW  │ 1.639  │ 81 s  │
+│ cru)                       │ pelo xTB                                                                                              │        │       │
+└────────────────────────────┴───────────────────────────────────────────────────────────────────────────────────────────────────────┴────────┴───────┘
+
+Uso:
+- python3 prepare_dyff_eh.py roda as três entradas.
+- python3 prepare_dyff_eh.py arquivo.xyz --minimize roda um arquivo seu.
+- Opções: --ph, --no-solvent, --charges-only, --threads e --ou
+
+Observações
+- PDB cru: use --minimize. Antes da minimização a energia fica em +65.330 kcal/mol, por causa dos H recém-colocados e dos resíduos completados em
+  conformação estendida. Depois dela cai para −7.087 kcal/mol.
+- Script pDynamo puro: para abrir o .pkl, o src/ do EasyHybrid precisa estar no sys.path, porque a classe do modelo MM fica em dyff_edits.py. No
+  EasyHybrid ele abre direto. O README mostra como.
+- Correção do guanidínio: na valaciclovir, ela pegou o C2 da guanina. O critério é "carbono ligado a 3 N", pensado para arginina, e o N3 do anel acaba
+  retipado como N:Tri. Isso já acontece igual no GUI, e o scriados desse ligante vêm do xTB, então o efeito deve ser pequeno, mas vale corrigir excluindo carbonos em anel. Não mexi.
+- xTB: a etapa da Hessiana só procura o xTB no PATH ou em ~/prOME, ao contrário da etapa das cargas. O README diz isso.
+
+Nada foi commitado.

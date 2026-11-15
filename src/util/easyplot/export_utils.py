@@ -43,14 +43,14 @@ def export_plot_to_png(plot_widget, filepath, scale=4):
     height = plot_widget.get_allocated_height()
     if width <= 0 or height <= 0:
         raise ValueError(
-            "export_plot_to_png: o widget do grafico ainda nao tem "
-            "tamanho alocado (width={}, height={}) -- mostre a janela "
-            "antes de exportar.".format(width, height)
+            "export_plot_to_png: the plot widget has no allocated size "
+            "yet (width={}, height={}) -- show the window "
+            "before exporting.".format(width, height)
         )
 
     out_dir = os.path.dirname(os.path.abspath(filepath))
     if out_dir and not os.path.isdir(out_dir):
-        raise ValueError("export_plot_to_png: diretorio nao existe: {}".format(out_dir))
+        raise ValueError("export_plot_to_png: folder does not exist: {}".format(out_dir))
 
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32,
                                   int(width * scale), int(height * scale))

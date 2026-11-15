@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -88,15 +88,30 @@ class XYPlot(Gtk.DrawingArea):
 
         rng = _nice_num(hi - lo, False)
         step = _nice_num(rng / max(n - 1, 1), True)
+        if step <= 1e-12 * max(1.0, abs(lo), abs(hi)):
+            return [lo, hi]
         start = math.ceil(lo / step) * step
         ticks = []
         v = start
         # +0.5*step de folga p/ incluir o ultimo tick por seguranca numerica
-        while v <= hi + 0.5 * step:
+        while v <= hi + 0.5 * step and len(ticks) < 1000:
             if lo - 1e-9 <= v <= hi + 1e-9:
                 ticks.append(round(v, 10))
             v += step
         return ticks if ticks else [lo, hi]
+
+    @staticmethod
+    def _tick_text(v, ticks):
+        """ Tick label with the decimals the tick step needs (0, 0.5, 2.5, 120, ...). """
+        if abs(v) < 1e-12:
+            return '0'
+        step = abs(ticks[1] - ticks[0]) if len(ticks) > 1 else abs(v)
+        if abs(v) >= 1e5 or abs(v) < 1e-3:
+            return '{:.2e}'.format(v)
+        decimals = 0
+        while decimals < 6 and abs(step * 10 ** decimals - round(step * 10 ** decimals)) > 1e-6:
+            decimals += 1
+        return '{:.{}f}'.format(v, decimals)
 
     def __init__ (self, bg_color = [1,1,1], 
                         pl_color = [0,0,0], 
@@ -368,14 +383,10 @@ class XYPlot(Gtk.DrawingArea):
         # texto em X  --  rotulos em valores "redondos", posicionados pela posicao
         # real de cada valor (bx + (v-Xmin)/deltaX * x_box_size), igual aos pontos.
         cr.set_font_size(font_size)
-        for v in self._nice_x_ticks(self.Xmin, self.Xmax, self.x_major_ticks + 1):
-            # rotulo: inteiro quando o valor e inteiro, senao usa self.decimal casas
-            if abs(v - round(v)) < 1e-9:
-                text = '{:d}'.format(int(round(v)))
-            else:
-                text = ('{:.' + str(self.decimal) + 'f}').format(v)
-            if len(text) > 7:
-                text = '{:.2e}'.format(v)
+        x_label_ticks = self._nice_x_ticks(self.Xmin, self.Xmax, self.x_major_ticks + 1)
+        for v in x_label_ticks:
+            # . 2026-10-24: as many decimals as the tick step needs (0.2 -> "0.2", not "0.20")
+            text = self._tick_text(v, x_label_ticks)
 
             px = self.bx + (v - self.Xmin) / self.deltaX * self.x_box_size
             x_bearing, y_bearing, width, height, x_advance, y_advance = cr.text_extents(text)
@@ -402,56 +413,29 @@ class XYPlot(Gtk.DrawingArea):
 
         
         #---------------------------------------------------------------------------------------------------
-        y_major_factor = (self.y_box_size) / float(self.y_major_ticks)
-        y_minor_factor =  y_major_factor   / float(self.y_minor_ticks)
-        
-        counter = 1
-        self.deltaY2 =  self.deltaY
-        for i in range(0, self.y_major_ticks+1):
-            # marcacoes em x
-            cr.move_to (self.bx, self.by+ i*y_major_factor )
-            cr.line_to (self.bx - 15, self.by+ i*y_major_factor ) 
-            #--------------------------------------------------------------------------------------------
-            if i == self.y_major_ticks:
-                pass
-            else:
-                for j in range(0, self.y_minor_ticks ):
-                    cr.move_to  (self.bx, 
-                                 self.by+ i*y_major_factor+j*y_minor_factor)
-                    cr.line_to (self.bx -  10, 
-                                self.by+ i*y_major_factor+j*y_minor_factor )
-        
-        
-            #--------------------------------------------------------------------------------------------
-            # texto em y
-            cr.set_font_size(font_size)
-            text = '{:>6.3f}'.format(self.Ymax - (i/self.y_major_ticks)*self.deltaY )
-            if len(text) >6:
-                num = self.Ymax - (i/self.y_major_ticks)*self.deltaY
-                text = (f"{num:.2e}")
-            
+        # . 2026-10-24: y ticks and labels on "round" values (as the x axis), instead of
+        #   y_major_ticks equal divisions of [Ymin, Ymax] (labels such as 1.14e+02, 88.800)
+        y_ticks = self._nice_x_ticks(self.Ymin, self.Ymax, self.y_major_ticks + 1)
+        y_px = lambda v: self.by + self.y_box_size - (v - self.Ymin) / self.deltaY * self.y_box_size
+        for v in y_ticks:
+            cr.move_to (self.bx, y_px(v))
+            cr.line_to (self.bx - 15, y_px(v))
+        if len(y_ticks) >= 2:
+            step = y_ticks[1] - y_ticks[0]
+            v = y_ticks[0] - step
+            while v < self.Ymax:
+                for j in range(1, self.y_minor_ticks):
+                    m = v + j * step / self.y_minor_ticks
+                    if self.Ymin <= m <= self.Ymax:
+                        cr.move_to (self.bx, y_px(m))
+                        cr.line_to (self.bx - 10, y_px(m))
+                v += step
+        cr.set_font_size(font_size)
+        for v in y_ticks:
+            text = self._tick_text(v, y_ticks)
             x_bearing, y_bearing, width, height, x_advance, y_advance = cr.text_extents(text)
-            
-            cr.move_to(  
-                        self.bx -x_advance -20  , 
-                        self.by+ i*y_major_factor )
+            cr.move_to(self.bx - x_advance - 20, y_px(v) + height / 2)
             cr.show_text(text)
-            #--------------------------------------------------------------------------------------------
-            counter +=1
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-            counter +=1
         cr.stroke ()
         #---------------------------------------------------------------------------------------------------
         
@@ -473,13 +457,10 @@ class XYPlot(Gtk.DrawingArea):
         
         
         #---------------------------------------------------------------------------------------------------
-        y_major_factor = (self.y_box_size) / float(self.y_major_ticks)
-        y_minor_factor =  y_major_factor   / float(self.y_minor_ticks)
-        counter = 1
-        for i in range(0, self.y_major_ticks+1):
-            # marcacoes em x
-            cr.move_to (self.bx, self.by+ i*y_major_factor )
-            cr.line_to (self.bx +self.x_box_size, self.by+ i*y_major_factor ) 
+        for v in self._nice_x_ticks(self.Ymin, self.Ymax, self.y_major_ticks + 1):
+            py = self.by + self.y_box_size - (v - self.Ymin) / self.deltaY * self.y_box_size
+            cr.move_to (self.bx, py)
+            cr.line_to (self.bx + self.x_box_size, py)
         cr.stroke ()
         #---------------------------------------------------------------------------------------------------
         

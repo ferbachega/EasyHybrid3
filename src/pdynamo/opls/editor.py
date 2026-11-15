@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: OPLS parameter tables, quality levels and manual editing
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -117,7 +117,7 @@ def build_tables ( system ):
     from pdynamo.opls import quality
     folder = parameter_folder ( system )
     if folder is None:
-        raise ValueError ( "The system has no OPLS parameter set prepared by EasyHybrid (Extras > OPLS > Prepare OPLS System)." )
+        raise ValueError ( "The system has no OPLS parameter set prepared by EasyHybrid (System > Force Field > Define Force Field > Prepare OPLS System)." )
     pset    = P.PDynamoSet ( folder )
     sources = P.read_sources ( folder )
     types   = system_types ( system )

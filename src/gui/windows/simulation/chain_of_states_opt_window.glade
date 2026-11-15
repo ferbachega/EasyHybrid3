@@ -194,7 +194,7 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">Maximum Interactions:</property>
+                                <property name="label" translatable="yes">Maximum Iterations:</property>
                                 <property name="xalign">1</property>
                               </object>
                               <packing>

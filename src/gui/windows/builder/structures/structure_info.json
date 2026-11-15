@@ -1,0 +1,13 @@
+{
+  "_comment": "Curated spin information for library structures (2026-10-21). Keys: category/file.mol2. The total charge always comes from the formal charges of the file; multiplicity here overrides the default (tmQM complexes: 1, the closed-shell tmQM reference; other molecules: 1 or 2 from the electron count). note: shown in the Structures tab.",
+  "12_cofactors_coenzymes_vitamins_porphyrins/heme_a.mol2":            { "metal": "Fe", "oxidation": 2, "multiplicity": 1, "note": "low spin in cytochrome a (two His); high spin (5) in heme a3" },
+  "12_cofactors_coenzymes_vitamins_porphyrins/heme_b.mol2":            { "metal": "Fe", "oxidation": 2, "multiplicity": 5, "note": "high spin in deoxy globins (one His); low spin (1) with two strong axial ligands or O2/CO bound" },
+  "12_cofactors_coenzymes_vitamins_porphyrins/heme_c.mol2":            { "metal": "Fe", "oxidation": 2, "multiplicity": 1, "note": "low spin in c-type cytochromes (His/Met or His/His)" },
+  "12_cofactors_coenzymes_vitamins_porphyrins/siroheme.mol2":          { "metal": "Fe", "oxidation": 2, "multiplicity": 5, "note": "high spin without strong axial ligands; depends on the axial ligation in the enzyme" },
+  "12_cofactors_coenzymes_vitamins_porphyrins/cobalamin.mol2":         { "metal": "Co", "oxidation": 2, "multiplicity": 2, "note": "cob(II)alamin, low-spin d7 radical" },
+  "12_cofactors_coenzymes_vitamins_porphyrins/cyanocobalamin.mol2":    { "metal": "Co", "oxidation": 3, "multiplicity": 1, "note": "low-spin Co(III); the DMB base is not bonded to Co in this file" },
+  "12_cofactors_coenzymes_vitamins_porphyrins/methylcobalamin.mol2":   { "metal": "Co", "oxidation": 3, "multiplicity": 1, "note": "low-spin Co(III); the DMB base is not bonded to Co in this file" },
+  "12_cofactors_coenzymes_vitamins_porphyrins/adenosylcobalamin.mol2": { "metal": "Co", "oxidation": 3, "multiplicity": 1, "note": "low-spin Co(III)" },
+  "12_cofactors_coenzymes_vitamins_porphyrins/coenzyme_f430.mol2":     { "metal": "Ni", "oxidation": 2, "multiplicity": 1, "note": "square-planar Ni(II) as drawn; 3 (high spin) when six-coordinate, as in methyl-coenzyme M reductase" },
+  "12_cofactors_coenzymes_vitamins_porphyrins/zinc_protoporphyrin.mol2": { "metal": "Zn", "oxidation": 2, "multiplicity": 1, "note": "d10, closed shell" }
+}

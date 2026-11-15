@@ -647,7 +647,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="receives-default">False</property>
-                        <property name="tooltip-text" translatable="yes">Carboxilate, -COOH</property>
+                        <property name="tooltip-text" translatable="yes">Carboxylate, -COO⁻</property>
                         <property name="hexpand">True</property>
                         <property name="draw-indicator">False</property>
                         <property name="group">element_C_radio</property>
@@ -811,7 +811,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="receives-default">False</property>
-                        <property name="tooltip-text" translatable="yes">Phophite, -PO3</property>
+                        <property name="tooltip-text" translatable="yes">Phosphono, -PO3H2</property>
                         <property name="hexpand">True</property>
                         <property name="draw-indicator">False</property>
                         <property name="group">element_C_radio</property>
@@ -848,7 +848,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="receives-default">False</property>
-                        <property name="tooltip-text" translatable="yes">Cyclopropane</property>
+                        <property name="tooltip-text" translatable="yes">Cyclopentyl</property>
                         <property name="hexpand">True</property>
                         <property name="draw-indicator">False</property>
                         <property name="group">element_C_radio</property>
@@ -870,7 +870,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="receives-default">False</property>
-                        <property name="tooltip-text" translatable="yes">Cyclopentadieno</property>
+                        <property name="tooltip-text" translatable="yes">Cyclopentadienyl</property>
                         <property name="hexpand">True</property>
                         <property name="draw-indicator">False</property>
                         <property name="group">element_C_radio</property>

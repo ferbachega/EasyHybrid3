@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: QC engine (XTB/ORCA/DFTB+) scratch folder and executable path checks
 #
 #  Copyright 2022-2025 Fernando Bachega

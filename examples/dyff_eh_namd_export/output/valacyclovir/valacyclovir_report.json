@@ -1,0 +1,67 @@
+{
+ "input": "../dyff_eh_system_preparation/output/valacyclovir_dyff_eh.pkl",
+ "conversion": {
+  "atoms": 43,
+  "atom_types": 43,
+  "bonds": 44,
+  "angles": 76,
+  "dihedrals": 101,
+  "impropers": 30,
+  "bond_types": 44,
+  "angle_types": 76,
+  "dihedral_types": 101,
+  "improper_types": 30,
+  "electrostaticScale14": 0.5
+ },
+ "single_point": [
+  {
+   "term": "BOND",
+   "pdynamo": 1.3926444346537983,
+   "namd": 1.3926,
+   "expected": 1.3926444346537983,
+   "note": "exact"
+  },
+  {
+   "term": "DIHED",
+   "pdynamo": -10.067411738790835,
+   "namd": 24.3458,
+   "expected": 24.345829178991213,
+   "note": "exact (pDynamo minus the constants of the cosine series, -34.4132)"
+  },
+  {
+   "term": "ELECT",
+   "pdynamo": -75.15717420727061,
+   "namd": -75.1568,
+   "expected": -75.15717420727061,
+   "note": "exact (incl. 1-4)"
+  },
+  {
+   "term": "VDW",
+   "pdynamo": 5.007423922918679,
+   "namd": 5.0075,
+   "expected": 5.007423922918679,
+   "note": "exact (incl. 1-4)"
+  },
+  {
+   "term": "ANGLE",
+   "pdynamo": 7.513915211956803,
+   "namd": 7.4867,
+   "expected": 7.48671550075952,
+   "note": "harmonic approximation; pDynamo relative to the minima: 7.5139"
+  },
+  {
+   "term": "IMPRP",
+   "pdynamo": 0.3090820909318841,
+   "namd": 0.3293,
+   "expected": 0.32931415064607755,
+   "note": "harmonic approximation"
+  }
+ ],
+ "namd_minimization": {
+  "rmsd": 0.005097204075236294,
+  "rmsd_heavy": 0.0032437468725913525,
+  "max_displacement": 0.018261975088783525,
+  "E_pdynamo_pkl": -71.00478135908266,
+  "E_pdynamo_at_namd_minimum": -70.98338386926324
+ }
+}

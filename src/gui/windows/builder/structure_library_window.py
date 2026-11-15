@@ -101,9 +101,10 @@ class StructureLibraryWindow ( ):
         "selection" instead of trying to load a folder as a structure. """
         self.treestore.clear ( )
         for category_name, entries in discover_structure_files ( ):
-            category_iter = self.treestore.append ( None, [ category_name, "" ] )
+            from gui.windows.builder.structure_library import pretty_library_name
+            category_iter = self.treestore.append ( None, [ pretty_library_name ( category_name, category = True ), "" ] )
             for display_name, file_path in entries:
-                self.treestore.append ( category_iter, [ display_name, file_path ] )
+                self.treestore.append ( category_iter, [ pretty_library_name ( display_name ), file_path ] )
         # [EN] 2026-10-02 user request: start with every category collapsed
         # (used to expand_all()).
         self.treeview.collapse_all ( )

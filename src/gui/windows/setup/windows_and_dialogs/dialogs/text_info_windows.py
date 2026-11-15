@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,12 +26,12 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Pango
+from gi.repository import Gtk, GLib, Pango
 from gi.repository import Gdk
 from gi.repository import GdkPixbuf
 import cairo
@@ -175,7 +175,7 @@ class TextWindow:
     
     def __init__ (self, text = 'No text', title = None):
         """ Class initialiser """
-        self.window = Gtk.Window(title=title)
+        self.window = Gtk.Window(title=title or 'EasyHybrid')
         self.window.set_default_size(1100, 600)
         
         #if title:
@@ -302,7 +302,49 @@ class TabbedLogWindow:
             notebook.append_page(self._make_log_view("(no log content available)"),
                                  Gtk.Label(label="Log"))
 
+        # . 2026-10-28: tabs built only when first opened (the Plots tabs)
+        self.notebook = notebook
+        self._lazy = {}
+        notebook.connect("switch-page", self._on_switch_page)
         self.window.show_all()
+
+    def add_lazy_tab(self, label, make_page, reset=None):
+        """ A tab whose content make_page(refresh) builds when it is first
+            opened; refresh() (given to make_page) rebuilds it, after reset(). """
+        holder = Gtk.Box()
+        holder.pack_start(Gtk.Label(label="Opening..."), True, True, 0)
+        index = self.notebook.append_page(holder, Gtk.Label(label=label))
+        self._lazy[index] = (holder, make_page, reset, False)
+        holder.show_all()
+        return index
+
+    def _on_switch_page(self, _notebook, _page, index):
+        entry = self._lazy.get(index)
+        if entry is None or entry[3]:
+            return
+        self._lazy[index] = entry[:3] + (True,)
+        GLib.idle_add(self._build_lazy, index)
+
+    def _build_lazy(self, index):
+        holder, make_page, reset, _built = self._lazy[index]
+
+        def refresh():
+            if reset is not None:
+                reset()
+            self._fill(holder, make_page, refresh)
+
+        self._fill(holder, make_page, refresh)
+        return False
+
+    def _fill(self, holder, make_page, refresh):
+        for child in holder.get_children():
+            holder.remove(child)
+        try:
+            page = make_page(refresh)
+        except Exception as error:
+            page = Gtk.Label(label="Could not analyze this log: {}: {}".format(type(error).__name__, error))
+        holder.pack_start(page, True, True, 0)
+        holder.show_all()
 
     def _make_log_view(self, text):
         """Builds one scrolled, monospace, highlighted text view for a tab."""
@@ -349,4 +391,5 @@ class InfoWindow:
             header = '' 
         
         text = header+text
-        textwindow = TextWindow(text)
+        title = 'System Info - {}'.format(system.label) if system is not None else 'System Info'
+        textwindow = TextWindow(text, title = title)

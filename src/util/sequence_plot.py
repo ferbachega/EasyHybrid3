@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -423,6 +423,11 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
         
         
         self.select_in_motion = True
+        # . click-and-drag selection: the residue under the press decides
+        #   whether the drag selects (it was unselected) or deselects (it was
+        #   selected); every residue touched afterwards gets that same state
+        self._drag_target_state = None   # True = select, False = deselect
+        self._drag_last_cell    = None   # (column, row) of the last residue touched
         
         self.mode = 0 # 0 - one letter code / 1 - three letter code
 
@@ -738,6 +743,49 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
         
         return canvas_x, canvas_y
         
+    def _residue_at(self, column, row):
+        """ Returns the SeqResidue at a canvas cell, or None for gaps / outside the sequences. """
+        if row < 0 or row >= len(self.sequences):
+            return None
+        if column < 0 or column >= len(self.sequences[row]):
+            return None
+        residue = self.sequences[row][column]
+        if residue.rcode == '-' or not residue.vres or not residue.vres.atoms:
+            return None
+        return residue
+
+    def _set_residue_selected(self, residue, state):
+        """ Puts a residue into the selected (True) or unselected (False) state,
+        through the session selection (it follows the current selection mode). """
+        residue._is_selected()
+        if residue.is_selected == state:
+            return False
+        atom = next(iter(residue.vres.atoms.values()))
+        self.main.vm_session._selection_function_set({atom})
+        residue._is_selected()
+        return True
+
+    def _drag_select_to(self, column, row):
+        """ Applies the drag state to every residue between the last touched cell
+        and (column, row), so a fast mouse movement does not skip residues. """
+        if self._drag_target_state is None:
+            return False
+        if self._drag_last_cell == (column, row):
+            return False
+        cells = [(column, row)]
+        if self._drag_last_cell is not None and self._drag_last_cell[1] == row:
+            last_col = self._drag_last_cell[0]
+            step     = 1 if column > last_col else -1
+            cells    = [(c, row) for c in range(last_col + step, column + step, step)]
+        self._drag_last_cell = (column, row)
+
+        changed = False
+        for c, r in cells:
+            residue = self._residue_at(c, r)
+            if residue is not None:
+                changed = self._set_residue_selected(residue, self._drag_target_state) or changed
+        return changed
+
     def on_motion(self, widget, event):
         '''(i/self.x_major_ticks)*self.deltaX + self.Xmin'''
         
@@ -776,23 +824,9 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
             pass
             
         if self.is_button_1_pressed:
-            
-            #print(self.sequences[canvas_y][canvas_x].vres.name,
-            #      self.sequences[canvas_y][canvas_x].rnum)
-            '''
-            if self.select_in_motion:
-                if self.sequences[canvas_y][canvas_x].rcode == '-':
-                    pass
-                else:
-                    self.sequences[canvas_y][canvas_x].set_active(True)
-                    #atom_keys = list(self.sequences[canvas_y][canvas_x].vres.atoms.values())
-                    #self.main.vm_session._selection_function_set({atom_keys[0]})
-            else:
-                self.sequences[canvas_y][canvas_x].set_active(False)
-            #'''
-
-            self.main.vm_session.vm_glcore.queue_draw()
-            self.text_drawing_area.queue_draw()
+            if self._drag_select_to(canvas_x, canvas_y):
+                self.main.vm_session.vm_glcore.queue_draw()
+                self.text_drawing_area.queue_draw()
 
     def button_press (self, button, event):
         """ Function doc """
@@ -801,41 +835,21 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
         
         if event.button == 1:
             self.is_button_1_pressed = True # mouse left button
+            self._drag_target_state = None
+            self._drag_last_cell    = (canvas_x, canvas_y)
 
-            # Checking if the canvas position (y) is smaller than the size of the sequence list
-            size = len(self.sequences)
-            #print(canvas_x, canvas_y, size)
-            if canvas_y <= size-1:
-                atom_keys = list(self.sequences[canvas_y][canvas_x].vres.atoms.values())
-                self.main.vm_session._selection_function_set({atom_keys[0]})
+            residue = self._residue_at(canvas_x, canvas_y)
+            if residue is not None:
+                residue._is_selected()
+                # . a click toggles the residue; dragging carries that new state on
+                #   (only in viewing mode - picking mode keeps one pick per click)
+                self.main.vm_session._selection_function_set({next(iter(residue.vres.atoms.values()))})
+                if not getattr(self.main.vm_session, "picking_selection_mode", False):
+                    self._drag_target_state = not residue.is_selected
+                residue._is_selected()
                 self.main.vm_session.vm_glcore.queue_draw()
-                
-                if self.sequences[canvas_y][canvas_x].is_selected:
-                    #print(canvas_x,canvas_y, self.sequences[canvas_y][canvas_x].rname)
-                    self.sequences[canvas_y][canvas_x].set_active(False)
-                    self.select_in_motion = False
-                    
-                    #print('if dentro',self.sequences[0][canvas_x].is_selected) 
-                    #print('if dentro',self.sequences[1][canvas_x].is_selected)
-                else:
-                    #print('else dentro',self.sequences[0][canvas_x].is_selected) 
-                    #print('else dentro',self.sequences[1][canvas_x].is_selected)
-                    if self.sequences[canvas_y][canvas_x].rcode == '-':
-                        pass
-                    else:
-                        self.sequences[canvas_y][canvas_x].set_active(True)
-                        self.select_in_motion = True
-                    
-                        
-                    
-                #    print('else dentro',self.sequences[0][canvas_x].is_selected) 
-                #    print('else dentro',self.sequences[1][canvas_x].is_selected)
-                #    
-                #print('fora1',self.sequences[0][canvas_x].is_selected) 
-                #print('fora1',self.sequences[1][canvas_x].is_selected) 
-            
-            #self.text_drawing_area.queue_draw()
             self.text_drawing_area.queue_draw()
+
         if event.button == 2:
 
             
@@ -856,6 +870,42 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
         
         if event.button == 3:
             self.is_button_3_pressed = True # mouse right button
+            self.show_selection_menu(event, canvas_x, canvas_y)
+            # . stop here: otherwise the click reaches the bottom GtkNotebook,
+            #   whose own tab popup (enable-popup) opens over the selection menu
+            return True
+
+    def show_selection_menu (self, event, canvas_x, canvas_y):
+        """ Right click: opens the same selection menu as the 3D view (glArea).
+
+        If nothing is selected, the residue under the pointer is selected first,
+        so the menu always acts on what the sequence shows highlighted.
+        """
+        vm_session = self.main.vm_session
+        vm_widget  = getattr(vm_session, "vm_widget", None)
+        menu       = getattr(vm_widget, "glmenu_sele", None)
+        if menu is None or getattr(vm_session, "picking_selection_mode", False):
+            return False
+
+        selection = vm_session.selections[vm_session.current_selection]
+        if not selection.selected_atoms:
+            residue = self._residue_at(canvas_x, canvas_y)
+            if residue is None:
+                return False
+            self._set_residue_selected(residue, True)
+            vm_session.vm_glcore.queue_draw()
+            if not selection.selected_atoms:
+                return False
+
+        # . menu actions (show/hide, color, invert, ...) can change the selection:
+        #   redraw the sequence when the menu closes
+        if not getattr(self, "_sele_menu_hooked", False):
+            menu.connect("deactivate", lambda *_: self.text_drawing_area.queue_draw())
+            self._sele_menu_hooked = True
+
+        menu.popup_at_pointer(event)
+        self.text_drawing_area.queue_draw()
+        return True
             
     def button_release (self, button, event):
         """ Function doc """
@@ -879,6 +929,8 @@ class GtkSequenceViewer(Gtk.ScrolledWindow):
                 self.text_drawing_area.queue_draw()
             '''
             self.is_button_1_pressed = False # mouse left button
+            self._drag_target_state = None
+            self._drag_last_cell    = None
         
         if event.button == 2:          
             self.is_button_2_pressed = False # mouse middle button

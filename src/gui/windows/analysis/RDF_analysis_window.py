@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Radial distribution function g(r) analysis window
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -141,6 +141,18 @@ class RDFAnalysisWindow:
             self.combo_group_a.append_text(name)
             self.combo_group_b.append_text(name)
 
+    def _export_plot_png(self, parent, plot, default_name):
+        dialog = Gtk.FileChooserDialog(title='Export g(r) plot', transient_for=parent, action=Gtk.FileChooserAction.SAVE)
+        dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
+        dialog.set_do_overwrite_confirmation(True)
+        dialog.set_current_name(default_name)
+        if dialog.run() == Gtk.ResponseType.OK:
+            path = dialog.get_filename()
+            if not path.lower().endswith('.png'):
+                path += '.png'
+            plot.export_png(path)
+        dialog.destroy()
+
     def _resolve_group(self, combo, system_id, n_atoms):
         name = combo.get_active_text()
         if name is None or name == _ALL_ATOMS:
@@ -215,17 +227,26 @@ class RDFAnalysisWindow:
         textwindow = TextWindow(text)
 
         if self.builder.get_object('chk_plot').get_active():
-            from util.easyplot import XYPlot
-            self.plot = XYPlot()
-            self.plot.add(X=list(r), Y=list(g_r),
-                           symbol=None, sym_color=[1, 1, 1], sym_fill=False,
-                           line='solid', line_color=[0, 0, 0], energy_label=None)
-            self.plot.Ymin_list = [0]
+            # . 2026-10-21: own g(r) plot (util/rdf_plot.py): g(r) from 0, N(r) on
+            #   the right axis, axis titles, hover readout, PNG export
+            from util.rdf_plot import RDFPlot
+            name_a = self.combo_group_a.get_active_text() or _ALL_ATOMS
+            name_b = self.combo_group_b.get_active_text() or _ALL_ATOMS
+            self.plot = RDFPlot()
+            self.plot.set_data(r, g_r, coordination, title='{} – {}  ({} frames)'.format(name_a, name_b, len(coords_a)))
 
             window = Gtk.Window()
             window.set_title('g(r)')
-            window.add(self.plot)
-            window.set_default_size(700, 420)
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, margin=6)
+            box.pack_start(self.plot, True, True, 0)
+            export = Gtk.Button(label='Export PNG…')
+            export.set_halign(Gtk.Align.END)
+            plot = self.plot
+            default_name = 'rdf_{}_{}.png'.format(name_a, name_b).replace(' ', '_').replace('(', '').replace(')', '')
+            export.connect('clicked', lambda b: self._export_plot_png(window, plot, default_name))
+            box.pack_start(export, False, False, 0)
+            window.add(box)
+            window.set_default_size(720, 460)
             window.show_all()
 
         self.label_info.set_text(

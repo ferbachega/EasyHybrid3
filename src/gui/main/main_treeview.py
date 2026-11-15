@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import os, sys, time
@@ -565,6 +565,8 @@ class EasyHybridMainTreeView(Gtk.TreeView):
         # Update the trajectory player window with the new range
         self.main.trajectory_player_window.change_range(upper=higher)
         self.main.trajectory_player_window.upper = higher
+        if getattr(self.main, 'mini_player', None) is not None:
+            self.main.mini_player.refresh()
 
     def refresh(self):
         """Rebuild the TreeView with the current systems and vobjects."""

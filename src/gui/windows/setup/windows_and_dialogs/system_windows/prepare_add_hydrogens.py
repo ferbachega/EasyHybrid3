@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: "Add Missing Hydrogens" window
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -40,7 +40,7 @@
 #
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gtk, GLib
 
 import os
 import traceback
@@ -62,6 +62,8 @@ class PrepareAddHydrogensWindow:
         self._results = []
         self._system_id = None
         self._undo_snapshot = None   # (system_id, old_system) -- one level, this tool's own runs only
+        self._undo_charges = []      # (atom, formal charge) the last rebuild changed -- restored by Undo
+        self._ligand_plans = {}      # residue key -> reviewed protonation (LigandProtonationDialog)
         # [EN] 2026-10-02: optional caller context (the Builder's "Add
         # Hydrogens" button): the exact VismolObject to rebuild, and hooks
         # called right before / after the system is replaced (also on Undo).
@@ -193,18 +195,50 @@ class PrepareAddHydrogensWindow:
 
         self._system_id = system_id
         self._results = results
+        self._ligand_plans = {}
         self._refresh_residue_liststore()
 
         n_standard = sum(1 for r in results if r['is_standard_residue'])
-        n_skipped = sum(1 for r in results if not r['is_standard_residue'])
+        n_skipped = sum(1 for r in results if not r['is_standard_residue'] and not r.get('is_organic_candidate'))
         n_missing = sum(len(r.get('missing_hydrogens', [])) for r in results)
         status = '{} residue(s) need hydrogens ({} atom(s) total).'.format(n_standard, n_missing)
         if n_skipped:
             status += ' {} non-standard residue(s) skipped.'.format(n_skipped)
         if not results:
             status = 'Nothing to do -- every standard residue already has all its hydrogens.'
-        self.label_status.set_text(status)
+        n_ligands = sum(1 for r in results if r.get('is_organic_candidate'))
+        if n_ligands:
+            status += ' {} ligand(s): double-click one (or "Review ligand protonation...") to check/change ' \
+                      'its protonation.'.format(n_ligands)
+        # . [EN] 2026-10-18, user's request: say up front that incomplete side
+        #   chains will be rebuilt (hydrogen_builder.add_missing_heavy_atoms())
+        incomplete = self._incomplete_side_chains(results)
+        if incomplete:
+            listing = ', '.join('{} {}'.format(key[1], key[2]) for key, names in incomplete[:8])
+            if len(incomplete) > 8:
+                listing += ', ...'
+            status += ('  WARNING: {} amino acid(s) with missing heavy atoms ({}) -- their side chains will be '
+                       'REBUILT (ideal geometry, rotamer chosen to avoid clashes) when hydrogens are added.'.format(
+                       len(incomplete), listing))
+            self.label_status.set_markup('{}<span foreground="#d08000"><b>{}</b></span>'.format(
+                GLib.markup_escape_text(status[:status.index('  WARNING')]),
+                GLib.markup_escape_text(status[status.index('  WARNING'):])))
+        else:
+            self.label_status.set_text(status)
         self.button_add_hydrogens.set_sensitive(bool(results))
+
+    @staticmethod
+    def _incomplete_side_chains(results):
+        """ [ ( key, [missing heavy atom names] ) ] of the amino acids whose
+            missing heavy atoms will be rebuilt (hydrogen names start with H). """
+        out = []
+        for r in results or []:
+            if not r.get('is_standard_residue'):
+                continue
+            heavy = [n for n in (r.get('unbuildable') or []) if not n.startswith('H')]
+            if heavy and r['key'][1].upper() in hydrogen_builder._AMINO_ACID_FILES:
+                out.append((r['key'], heavy))
+        return out
 
     def _selected_residue_keys(self, system_id, system):
         """ Maps the current 3D-view selection's atoms (only the ones
@@ -259,8 +293,12 @@ class PrepareAddHydrogensWindow:
             if r.get('disulfide_bonded'):
                 status_bits.append('disulfide-bonded')
             if r['unbuildable']:
-                status_bits.append('{} not addable ({})'.format(
-                    len(r['unbuildable']), ', '.join(r['unbuildable'])))
+                heavy = [n for n in r['unbuildable'] if not n.startswith('H')]
+                if heavy and resName.upper() in hydrogen_builder._AMINO_ACID_FILES:
+                    status_bits.append('side chain incomplete ({}) -- will be rebuilt'.format(', '.join(heavy)))
+                else:
+                    status_bits.append('{} not addable ({})'.format(
+                        len(r['unbuildable']), ', '.join(r['unbuildable'])))
             ambiguous = r.get('ambiguous_choices')
             choices_csv = '|'.join(ambiguous) if ambiguous else ''
             self.liststore_residues.append([
@@ -308,6 +346,16 @@ class PrepareAddHydrogensWindow:
         bar.pack_start(Gtk.Label(label='Show:'), False, False, 0)
         bar.pack_start(self.combobox_residue_filter, False, False, 0)
         bar.pack_end(self.label_filter_count, False, False, 0)
+        # . [EN] 2026-10-18: review/change the protonation of a ligand
+        self.button_review_ligand = Gtk.Button(label='Review ligand protonation...')
+        self.button_review_ligand.set_tooltip_text(
+            'Shows the N/O/S atoms of the selected ligand with their protonation (current hydrogens or '
+            'the pH model at the row\'s pH) and lets you add/remove protons. Double-clicking a ligand does the same.')
+        self.button_review_ligand.set_sensitive(False)
+        self.button_review_ligand.connect('clicked', lambda b: self._review_selected_ligand())
+        bar.pack_end(self.button_review_ligand, False, False, 0)
+        self.treeview_residues.get_selection().connect('changed', self._on_residue_selection_changed)
+        self.treeview_residues.connect('row-activated', lambda view, path, column: self._review_selected_ligand())
         box.pack_start(bar, False, False, 0)
         box.pack_start(scrolled, True, True, 0)
         container.add(box)
@@ -358,7 +406,67 @@ class PrepareAddHydrogensWindow:
         except ValueError:
             self.main.simple_dialog.info(msg='pH must be a number (e.g. 7.4).')
             return
-        self.liststore_residues[self._store_path(path)][9] = new_text
+        row = self.liststore_residues[self._store_path(path)]
+        row[9] = new_text
+        key = (row[5], row[6], row[7])
+        if self._ligand_plans.pop(key, None) is not None:
+            # . a new pH means OpenBabel's prediction again: the review is dropped
+            row[1], row[2] = self._ligand_status(key), ''
+
+    # -------------------------------------------------------------------
+    #  Ligand protonation review (2026-10-18 user request: "inspecionar o
+    #  resultado da protonação e poder alterar se for preciso")
+    # -------------------------------------------------------------------
+    def _selected_row(self):
+        model, treeiter = self.treeview_residues.get_selection().get_selected()
+        if treeiter is None:
+            return None
+        if model is not self.liststore_residues:
+            treeiter = model.convert_iter_to_child_iter(treeiter)
+        return self.liststore_residues[treeiter]
+
+    def _on_residue_selection_changed(self, selection):
+        row = self._selected_row()
+        self.button_review_ligand.set_sensitive(bool(row is not None and row[10]))
+
+    def _ligand_status(self, key):
+        for r in self._results:
+            if r['key'] == key:
+                return 'organic/ligand -- {} heavy atom(s)'.format(r.get('n_heavy_atoms', 0))
+        return 'organic/ligand'
+
+    def _review_selected_ligand(self):
+        row = self._selected_row()
+        if row is None or not row[10] or self._system_id is None:
+            return
+        system = self.p_session.psystem.get(self._system_id)
+        if system is None:
+            self.main.simple_dialog.info(msg='The selected system is no longer available.')
+            return
+        key = (row[5], row[6], row[7])
+        atoms = hydrogen_builder.build_residue_atom_objects(system).get(key)
+        if not atoms:
+            self.main.simple_dialog.info(msg='Residue {} {} not found -- run Analyze again.'.format(key[1], key[2]))
+            return
+        from gui.windows.setup.windows_and_dialogs.system_windows.ligand_protonation_dialog import (
+            LigandProtonationDialog)
+        try:
+            ph = float(row[9] or 7.4)
+        except ValueError:
+            ph = 7.4
+        dialog = LigandProtonationDialog(self.window, self.main, system, self._vobject_for_system(self._system_id),
+                                         key, atoms, ph=ph, previous=self._ligand_plans.get(key))
+        plan = dialog.run()
+        if plan is None:
+            return
+        self._ligand_plans[key] = plan
+        if plan['ph'] is not None:
+            row[9] = '{:.1f}'.format(plan['ph'])
+        source = 'current H' if plan['source'] == 'current' else 'pH {:.1f}'.format(plan['ph'])
+        row[1] = '{} -- reviewed: {}, {} change(s), {} H added, {} removed'.format(
+            self._ligand_status(key), source, plan['n_changes'], len(plan['add']),
+            len([a for a in plan['remove']]))
+        row[2] = 'net charge {:+d}'.format(plan['net_charge'])
 
     def _do_get_choice_model(self, column, cell, model, treeiter, data=None):
         """ CellDataFunc: builds a per-row options GtkListStore for the
@@ -401,7 +509,7 @@ class PrepareAddHydrogensWindow:
             them forward verbatim is correct.
 
             EXCEPT the handful that store raw ATOM INDICES
-            (e_qc_table/e_qc_residue_table/e_fixed_table -- QM/MM region
+            (e_qc_table/e_qc_residue_table/e_fixed_table -- QC/MM region
             definitions; e_color_segments; e_bonds) -- adding OR
             removing atoms shifts the index space, so an old index
             copied verbatim can silently point at a DIFFERENT atom in
@@ -452,8 +560,12 @@ class PrepareAddHydrogensWindow:
                 variant_label = None if choice in ('', 'Protonated') else choice
                 residue_variant_choices[(chain, resName, resSeq)] = variant_label
             elif row[10]:
-                residue_variant_choices[(chain, resName, resSeq)] = (
-                    hydrogen_builder.ORGANIC_CHOICE_KIND, float(row[9]))
+                plan = self._ligand_plans.get((chain, resName, resSeq))
+                if plan is not None:
+                    residue_variant_choices[(chain, resName, resSeq)] = (hydrogen_builder.ORGANIC_PLAN_KIND, plan)
+                else:
+                    residue_variant_choices[(chain, resName, resSeq)] = (
+                        hydrogen_builder.ORGANIC_CHOICE_KIND, float(row[9]))
 
         if not residue_variant_choices:
             self.main.simple_dialog.info(msg='Nothing to add.')
@@ -468,13 +580,34 @@ class PrepareAddHydrogensWindow:
 
         new_system = report['system']
         if new_system is None:
+            for atom, charge in report.get('old_formal_charges', []):
+                atom.formalCharge = charge
             self.main.simple_dialog.info(msg='Nothing to add.')
             return
 
         had_index_dependent_data = self._commit_rebuilt_system(system, new_system, vm_object)
+        self._undo_charges = list(report.get('old_formal_charges', []))
 
-        n_added = sum(len(v) for v in report['added'].values())
+        rebuilt = report.get('rebuilt_side_chains') or {}
+        n_heavy = sum(len(v) for v in rebuilt.values())
+        n_added = sum(len(v) for v in report['added'].values()) - n_heavy
         msg_bits = ['{} hydrogen(s) added across {} residue(s).'.format(n_added, len(report['added']))]
+        removed = report.get('removed') or {}
+        if removed:
+            msg_bits.append('{} hydrogen(s) removed (reviewed ligand protonation): {}.'.format(
+                sum(len(v) for v in removed.values()),
+                ', '.join('{} {} {}'.format(k[1], k[2], '/'.join(v)) for k, v in removed.items())))
+        if rebuilt:
+            # . [EN] 2026-10-18: missing side-chain atoms rebuilt before the hydrogens
+            msg_bits.append('WARNING: missing side chains were rebuilt -- {} heavy atom(s) in {} residue(s): {}. '
+                            'Ideal geometry; where the whole side chain was missing the rotamer was chosen to avoid '
+                            'clashes and may differ from the real one. Check them and minimize before production.'.format(
+                            n_heavy, len(rebuilt), ', '.join('{} {}'.format(k[1], k[2]) for k in list(rebuilt)[:12]) +
+                            (', ...' if len(rebuilt) > 12 else '')))
+        not_rebuilt = report.get('not_rebuilt_side_chains') or {}
+        if not_rebuilt:
+            msg_bits.append('Could not rebuild (backbone N/CA/C missing): {}.'.format(
+                ', '.join('{} {}'.format(k[1], k[2]) for k in not_rebuilt)))
         if report['skipped_non_standard']:
             msg_bits.append('{} residue(s) skipped (non-standard).'.format(len(report['skipped_non_standard'])))
         if report['unbuildable']:
@@ -500,6 +633,7 @@ class PrepareAddHydrogensWindow:
         self.button_undo.set_sensitive(True)
         self.button_add_hydrogens.set_sensitive(False)
         self._results = []
+        self._ligand_plans = {}
         self.liststore_residues.clear()
         self._update_filter_count()
 
@@ -550,6 +684,7 @@ class PrepareAddHydrogensWindow:
 
         self._system_id = system_id
         had_index_dependent_data = self._commit_rebuilt_system(system, new_system, vm_object)
+        self._undo_charges = []
 
         msg_bits = ['{} hydrogen(s) removed ({}).'.format(
             len(atoms_to_remove), 'nonpolar only' if mode == 'apolar' else 'all')]
@@ -577,6 +712,15 @@ class PrepareAddHydrogensWindow:
             self.main.simple_dialog.info(msg='The object is no longer available -- cannot undo.')
             return
         self._call_hook(self._on_before_apply, vm_object)
+        # . the rebuild reused old_system's Atom objects: their .index and the
+        #   formal charges it changed belong to the new system now
+        for atom, charge in self._undo_charges:
+            atom.formalCharge = charge
+        self._undo_charges = []
+        try:
+            old_system.atoms.Reindex()
+        except Exception:
+            traceback.print_exc()
         self.p_session.psystem[system_id] = old_system
         self.p_session._refresh_vobject_from_pdynamo_system(vm_object=vm_object, system=old_system)
         self._call_hook(self._on_after_apply, vm_object)

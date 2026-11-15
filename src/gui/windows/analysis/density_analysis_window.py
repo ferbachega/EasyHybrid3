@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Box density analysis window
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -300,31 +300,12 @@ class DensityAnalysisWindow:
             fh.write('\n'.join(lines) + '\n')
 
     def _plot(self, frame_indices, densities, mean, name):
-        from util.easyplot import XYPlot
-        self.plot = XYPlot()
-        X = list(frame_indices)
+        # . 2026-10-24: AnalysisPlot window (axis titles, export) instead of XYPlot
+        from util.analysis_plot import show_plot_window
+        X = [float(v) for v in frame_indices]
         Y = [float(d) for d in densities]
-        self.plot.add(X=X, Y=Y,
-                      symbol=None, sym_color=[1, 1, 1], sym_fill=False,
-                      line='solid', line_color=[0, 0, 0], energy_label=None)
-        # . Average as a horizontal red line across the analysed range.
-        self.plot.add(X=[X[0], X[-1]], Y=[mean, mean],
-                      symbol=None, sym_color=[1, 1, 1], sym_fill=False,
-                      line='solid', line_color=[0.85, 0.1, 0.1], energy_label=None)
-
-        # . XYPlot.define_xy_limits() floors/ceils the Y axis to integers
-        #   with an extra -1/+1 margin (made for energies), which flattens
-        #   density fluctuations of ~0.01 g/cm^3 into a straight line.
-        #   Tighten the Y axis around the data instead (add() is the only
-        #   caller of define_xy_limits(), so this survives redraws).
-        y_lo, y_hi = min(Y), max(Y)
-        margin = 0.1 * (y_hi - y_lo) if y_hi > y_lo else max(0.005, 0.01 * abs(y_hi))
-        self.plot.Ymin = y_lo - margin
-        self.plot.Ymax = y_hi + margin
-        self.plot.deltaY = self.plot.Ymax - self.plot.Ymin
-
-        window = Gtk.Window()
-        window.set_title('Box density (g/cm³): {}  |  mean = {:.4f}'.format(name, mean))
-        window.add(self.plot)
-        window.set_default_size(700, 420)
-        window.show_all()
+        series = [{"x": X, "y": Y, "label": "density", "color": (0.12, 0.47, 0.71), "width": 1.6},
+                  {"x": [X[0], X[-1]], "y": [mean, mean], "label": "mean {:.4f}".format(mean), "color": (0.85, 0.1, 0.1), "dash": True}]
+        show_plot_window('Box density: {}'.format(name), series, "frame", "density (g/cm³)",
+                         "Box density of {}  ·  mean {:.4f} g/cm³".format(name, mean),
+                         default_name="density_{}.png".format(name), parent=self.window)

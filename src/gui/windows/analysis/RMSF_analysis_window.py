@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: RMSF (root-mean-square fluctuation) analysis window
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -284,15 +284,11 @@ class RMSFAnalysisWindow:
             self._save_text_to_file(text, default_name)
 
         if self.builder.get_object('chk_plot').get_active():
-            from util.easyplot import XYPlot
-            self.plot = XYPlot()
-            self.plot.add(X=x_values, Y=y_values,
-                           symbol=None, sym_color=[1, 1, 1], sym_fill=False,
-                           line='solid', line_color=[0, 0, 0], energy_label=None)
-            self.plot.Ymin_list = [0]
-
-            window = Gtk.Window()
-            window.set_title(plot_title)
-            window.add(self.plot)
-            window.set_default_size(700, 420)
-            window.show_all()
+            # . 2026-10-24: AnalysisPlot window (axis titles, y from 0, export) instead of XYPlot
+            from util.analysis_plot import show_plot_window
+            series = [{"x": [float(v) for v in x_values], "y": [float(v) for v in y_values],
+                       "color": (0.12, 0.47, 0.71), "width": 1.6}]
+            if group_by_residue:
+                series.append({"x": series[0]["x"], "y": series[0]["y"], "style": "points", "color": (0.12, 0.47, 0.71)})
+            show_plot_window(plot_title, series, "residue" if group_by_residue else "atom index", "RMSF (Å)",
+                             plot_title, ymin=0.0, default_name="rmsf.png", parent=self.window)

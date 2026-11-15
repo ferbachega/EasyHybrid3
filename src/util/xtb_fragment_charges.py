@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: xtb_fragment_charges
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -518,7 +518,7 @@ def validate_method_and_charge_model(method, charge_model, cm5_policy="fallback"
     if cm == "cm5" and me != "gfn1":
         if cm5_policy == "force_gfn1":
             return "gfn1", "cm5", "CM5 requer GFN1: metodo forcado para GFN1."
-        return me, "mulliken", "CM5 indisponivel em {}: usando Mulliken.".format(me.upper())
+        return me, "mulliken", "CM5 not available with {}: using Mulliken.".format(me.upper())
     return me, cm, None
 
 
@@ -566,7 +566,7 @@ def read_charges(workdir, charge_model="cm5", stdout_text=None):
     if stdout_text:
         return _parse_charges_from_stdout(stdout_text, charge_model)
 
-    raise RuntimeError("Nao consegui ler as cargas do xtb em {}".format(workdir))
+    raise RuntimeError("Could not read the xtb charges in {}".format(workdir))
 
 
 def _parse_charges_from_stdout(text, charge_model):
@@ -593,7 +593,7 @@ def _parse_charges_from_stdout(text, charge_model):
             elif charges:
                 break
     if not charges:
-        raise RuntimeError("Tabela Mulliken/CM5 nao encontrada no stdout.")
+        raise RuntimeError("Mulliken/CM5 table not found in the xtb output.")
     return charges
 
 
@@ -635,7 +635,7 @@ def handle_boundary(fragment, charges, mode="redistribute"):
     elif mode == "discard":
         pass  # simply ignore the cap charges
     else:
-        raise ValueError("modo de fronteira desconhecido: {}".format(mode))
+        raise ValueError("unknown boundary mode: {}".format(mode))
     return real
 
 

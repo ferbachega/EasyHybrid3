@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: OPLS system preparation -- phase 0 (no GUI)
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -114,8 +114,10 @@ class PrepResidue:
         self.disulfide_partner = None  # index of the partner PrepResidue
         self.missing_heavy = [ ]       # library heavy atoms absent from the file
         self.added_atoms   = [ ]       # atoms placed by this module (e.g. OXT)
+        self.rebuilt_atoms = [ ]       # missing heavy atoms rebuilt by build_prepared_system ( complete_truncated = True )
         self.bonds         = None      # [ ( i, j, order ) ] inside the residue when the input has bond orders
         self.source_atoms  = None      # the input system's atoms of this residue
+        self.source_names  = None      # their atom names in self.atoms (parallel to source_atoms)
         self.notes         = ""
         self.formal_charges = None     # per atom, from the input system
 
@@ -143,6 +145,7 @@ class PrepAnalysis:
         self.ligand_options = { }                   # residue name -> { "charge": int or None, "multiplicity": int }
         self.extra_library_paths = [ ]              # per-system PDB component folders (ligands)
         self.ligand_warnings = [ ]
+        self.ligand_variants = { }                  # new residue name -> original (split_ligand_variants)
 
     def summary ( self ):
         kinds = Counter ( r.kind for r in self.residues )
@@ -369,6 +372,7 @@ def _merge_bonded_ligands ( system, analysis ):
         atoms = [ a for k in members for a in residues[k].source_atoms ]
         r.atoms = [ a for k in members for a in residues[k].atoms ]
         r.source_atoms = atoms
+        r.source_names = [ n for k in members for n in ( residues[k].source_names or [ ] ) ]
         r.kind, r.library_name, r.variant, r.variant_source = "unsupported", None, None, "library default"
         r.n_hydrogens = sum ( 1 for a in r.atoms if a[1] == 1 )
         r.bonds, r.formal_charges = _residue_chemistry ( system, atoms )
@@ -401,6 +405,7 @@ def analyze_system ( system, coordinates3 = None, known_ligands = None, extra_li
             residue = PrepResidue ( )
             residue.entity, residue.name, residue.number, residue.icode = entity_label, name, number, icode
             residue.source_atoms = group_atoms
+            residue.source_names = [ ]
             library_name, alias_variant = RESIDUE_ALIASES.get ( name, ( name, None ) )
             library_component = _component ( library_name )
             residue.library_name = library_name if library_component is not None else None
@@ -413,6 +418,7 @@ def analyze_system ( system, coordinates3 = None, known_ligands = None, extra_li
                 except Exception:
                     pass
                 residue.atoms.append ( ( atom_name, atom.atomicNumber, xyz ) )
+                residue.source_names.append ( atom_name )
             residue.n_hydrogens = sum ( 1 for a in residue.atoms if a[1] == 1 )
             if library_component is not None and _template_mismatch ( residue, library_component ):
                 # . a residue name of the library with atoms the component does not
@@ -473,7 +479,10 @@ def analyze_system ( system, coordinates3 = None, known_ligands = None, extra_li
             key = ( r.entity, r.kind )
             if key not in others:
                 tag = { "water": "W", "ion": "I" }.get ( r.kind, "X" )
-                others[key] = new_segment ( "{}{}".format ( r.entity, tag ) )
+                # . [EN] 2026-10-18: a prepared system's segment already has the tag
+                #   (re-preparing turned "BX" into "BXX", "BXXX", ...)
+                base = r.entity if ( r.entity or "" ).endswith ( tag ) and len ( r.entity ) > 1 else "{}{}".format ( r.entity, tag )
+                others[key] = new_segment ( base )
             r.segment = others[key]
             current_entity = None                     # a non-polymer ends the polymer
             continue
@@ -546,48 +555,76 @@ def truncate_residue ( analysis, index ):
 #=============================================================================
 COVALENT_CONTACT = 2.0      # A, ligand heavy atom closer than this to another residue = covalent
 
-def parametrize_ligands ( analysis, work_dir, ph = 7.4, xtb = None, cm5_scale = None, progress = None ):
+
+class CloseContactError ( ValueError ):
+    """ [EN] 2026-10-17: a residue to parametrize has a heavy atom closer than
+        COVALENT_CONTACT to another residue WITHOUT a bond between them -- maybe
+        a covalent link missing from the input. The user can ignore it
+        (prepare_opls_system ( trust_connectivity = True )): only the bonds of
+        the input are bonds. """
+    def __init__ ( self, message, residue = "", atom = "", other = "", distance = 0.0 ):
+        super ( ).__init__ ( message )
+        self.residue, self.atom, self.other, self.distance = residue, atom, other, distance
+
+def parametrize_ligands ( analysis, work_dir, ph = 7.4, xtb = None, cm5_scale = None, progress = None,
+                          trust_connectivity = False ):
     """ Parametrizes every unsupported residue of the analysis
         (pdynamo/opls/ligand.py: Open Babel hydrogens at pH, OPLS classes by
         rules, GFN1-xTB CM5 charges) and makes it buildable: its PDB
         component goes to <work_dir>/pdb_components, the residue becomes a
         "ligand". One parametrization per residue NAME; every copy gets its
-        own hydrogens. Raises ValueError for covalently bound residues. """
+        own hydrogens. Raises CloseContactError for a heavy atom closer than
+        COVALENT_CONTACT to another residue, unless trust_connectivity (the
+        input's bonds are the only bonds: a Builder system). """
     from pdynamo.opls import ligand as L
     say = progress or ( lambda text: None )
     if not analysis.unsupported: return { }
     residues = analysis.residues
-    heavy_others = [ ( i, xyz ) for i, r in enumerate ( residues ) for ( n, z, xyz ) in r.atoms
+    heavy_others = [ ( i, xyz, n ) for i, r in enumerate ( residues ) for ( n, z, xyz ) in r.atoms
                      if z != 1 and xyz is not None and r.kind != "water" ]
-    others_xyz = np.array ( [ x for ( _, x ) in heavy_others ] ) if heavy_others else np.zeros ( ( 0, 3 ) )
-    others_id  = np.array ( [ i for ( i, _ ) in heavy_others ] ) if heavy_others else np.zeros ( 0, int )
+    others_xyz = np.array ( [ x for ( _, x, _ ) in heavy_others ] ) if heavy_others else np.zeros ( ( 0, 3 ) )
+    others_id  = np.array ( [ i for ( i, _, _ ) in heavy_others ] ) if heavy_others else np.zeros ( 0, int )
+    others_nm  = [ n for ( _, _, n ) in heavy_others ]
     library_root = os.path.join ( work_dir, "pdb_components" )
+    split_ligand_variants ( analysis )
     by_name = OrderedDict ( )
     for i in analysis.unsupported:
         by_name.setdefault ( residues[i].name, [ ] ).append ( i )
-    for name, indices in by_name.items ( ):
+    # . every contact checked before anything is changed: after a CloseContactError
+    #   the analysis is intact and the caller can run again with trust_connectivity
+    for name, indices in ( [ ] if trust_connectivity else by_name.items ( ) ):
         for i in indices:
             r = residues[i]
-            mine = np.array ( [ xyz for ( n, z, xyz ) in r.atoms if z != 1 and xyz is not None ] )
+            mine_atoms = [ ( n, xyz ) for ( n, z, xyz ) in r.atoms if z != 1 and xyz is not None ]
+            mine = np.array ( [ xyz for ( n, xyz ) in mine_atoms ] )
             if len ( mine ) and len ( others_xyz ):
                 mask = others_id != i
                 d = np.linalg.norm ( others_xyz[mask][:, None, :] - mine[None, :, :], axis = 2 )
                 if d.size and d.min ( ) < COVALENT_CONTACT and len ( r.atoms ) > 1:
-                    raise ValueError ( "Residue {} is closer than {:.1f} A to another residue (covalent link?); "
-                                       "covalent ligands are not supported.".format ( r.label, COVALENT_CONTACT ) )
+                    k_other, k_mine = np.unravel_index ( int ( np.argmin ( d ) ), d.shape )
+                    other_index = np.nonzero ( mask )[0][k_other]
+                    other = "{} {}".format ( residues[others_id[other_index]].label, others_nm[other_index] )
+                    atom  = "{} {}".format ( r.label, mine_atoms[k_mine][0] )
+                    raise CloseContactError ( "{} and {} are {:.2f} A apart (closer than {:.1f} A: covalent "
+                                              "link?); covalent ligands are not supported.".format (
+                                              atom, other, float ( d.min ( ) ), COVALENT_CONTACT ),
+                                              residue = r.label, atom = atom, other = other, distance = float ( d.min ( ) ) )
+    for name, indices in by_name.items ( ):
         first = residues[indices[0]]
         say ( "Parametrizing {} (CM5 charges)...".format ( name ) )
         options = analysis.ligand_options.get ( name, { } )
         lig = L.parametrize_residue ( name, first.atoms, ph = ph, xtb = xtb, cm5_scale = cm5_scale,
                                       keep_scratch = os.path.join ( work_dir, "ligand_" + name ),
                                       bonds = first.bonds, formal_charges = first.formal_charges,
-                                      total_charge = options.get ( "charge" ), multiplicity = options.get ( "multiplicity" ) )
+                                      total_charge = options.get ( "charge" ), multiplicity = options.get ( "multiplicity" ),
+                                      h_counts = options.get ( "h_counts" ) )
         lig.write_pdb_component ( library_root )
         names = [ a[0] for a in lig.atoms ]
         for i in indices:
             r = residues[i]
             atoms = lig.atoms if i == indices[0] else L.ligand_chemistry ( name, r.atoms, ph = ph, bonds = r.bonds,
-                                                                             formal_charges = r.formal_charges ).atoms
+                                                                             formal_charges = r.formal_charges,
+                                                                             h_counts = options.get ( "h_counts" ) ).atoms
             if [ a[0] for a in atoms ] != names:
                 raise ValueError ( "The copies of residue {} differ in atoms/protonation.".format ( name ) )
             r.atoms = [ ( a[0], a[1], np.asarray ( a[2], float ) ) for a in atoms ]
@@ -600,6 +637,84 @@ def parametrize_ligands ( analysis, work_dir, ph = 7.4, xtb = None, cm5_scale = 
     return dict ( analysis.ligands )
 
 
+def _chemistry_signature ( residue ):
+    """ What makes two copies of a residue the same molecule: atoms (name,
+        element), bonds between atom names with their order, formal charges --
+        independent of the atom order. """
+    atoms = residue.atoms
+    names = [ a[0] for a in atoms ]
+    atom_part = tuple ( sorted ( ( a[0], int ( a[1] ) ) for a in atoms ) )
+    bond_part = None
+    if residue.bonds:
+        bond_part = tuple ( sorted ( ( min ( names[i], names[j] ), max ( names[i], names[j] ), int ( o ) )
+                                     for ( i, j, o ) in residue.bonds if i < len ( names ) and j < len ( names ) ) )
+    charges = residue.formal_charges or [ ]
+    charge_part = tuple ( sorted ( ( names[k], int ( q ) ) for k, q in enumerate ( charges ) if q and k < len ( names ) ) )
+    return ( atom_part, bond_part, charge_part )
+
+
+def _new_residue_name ( base, taken ):
+    """ A 3-character residue name derived from `base` not in `taken` and not
+        in the PDB component library: AD1..AD9, A01..A99. """
+    stem = ( base or "LIG" ).upper ( )
+    candidates = [ "{}{}".format ( stem[:2], d ) for d in range ( 1, 10 ) ] + \
+                 [ "{}{:02d}".format ( stem[:1], d ) for d in range ( 1, 100 ) ]
+    for name in candidates:
+        if name not in taken and _component ( name ) is None:
+            return name
+    raise ValueError ( "No free residue name for a variant of {}.".format ( base ) )
+
+
+def split_ligand_variants ( analysis ):
+    """ [EN] 2026-10-17 BUG FIX (user's report: "The copies of residue ADN
+    differ in atoms/protonation" after editing ONE of the ADN residues in the
+    Builder): residues to parametrize were grouped by NAME only, and every
+    copy had to be the same molecule. Copies with different chemistry now
+    become variants with their own name (the first one keeps the original
+    name, e.g. ADN, the others AD1, AD2, ...) and are parametrized separately.
+    Renames r.name in place (the prepared system uses the new names); safe to
+    call again. Returns { new name: original name } for the renamed ones. """
+    residues = analysis.residues
+    taken = { r.name for r in residues if r.name }
+    by_name = OrderedDict ( )
+    for i in analysis.unsupported:
+        by_name.setdefault ( residues[i].name, [ ] ).append ( i )
+    renamed = OrderedDict ( )
+    for name, indices in by_name.items ( ):
+        groups = OrderedDict ( )
+        for i in indices:
+            groups.setdefault ( _chemistry_signature ( residues[i] ), [ ] ).append ( i )
+        for k, members in enumerate ( groups.values ( ) ):
+            if k == 0: continue
+            new = _new_residue_name ( name, taken )
+            taken.add ( new )
+            for i in members:
+                residues[i].name = new
+            renamed[new] = name
+            if name in analysis.ligand_options and new not in analysis.ligand_options:
+                analysis.ligand_options[new] = dict ( analysis.ligand_options[name] )
+    if renamed:
+        analysis.ligand_variants = dict ( getattr ( analysis, "ligand_variants", { } ), **renamed )
+    return renamed
+
+
+def ligands_to_parametrize ( analysis ):
+    """ [ { "name", "original", "copies", "residues", "atoms", "heavy" } ] -- what
+        parametrize_ligands() will do, after split_ligand_variants(). """
+    split_ligand_variants ( analysis )
+    variants = getattr ( analysis, "ligand_variants", { } )
+    rows = OrderedDict ( )
+    for i in analysis.unsupported:
+        r = analysis.residues[i]
+        row = rows.get ( r.name )
+        if row is None:
+            row = rows[r.name] = { "name": r.name, "original": variants.get ( r.name, r.name ), "copies": 0, "residues": [ ],
+                                   "atoms": len ( r.atoms ), "heavy": sum ( 1 for a in r.atoms if a[1] != 1 ) }
+        row["copies"] += 1
+        row["residues"].append ( r.label )
+    return list ( rows.values ( ) )
+
+
 def ligand_preview ( analysis, ph = 7.4 ):
     """ { residue name: { "copies", "heavy", "hydrogens", "charge", "electrons",
           "multiplicity", "source" } } for the unsupported residues, from the
@@ -607,6 +722,7 @@ def ligand_preview ( analysis, ph = 7.4 ):
         what the GUI shows before the user edits charge and multiplicity.
         "charge" is None when the chemistry could not be perceived. """
     from pdynamo.opls import ligand as L
+    split_ligand_variants ( analysis )
     preview = OrderedDict ( )
     for i in analysis.unsupported:
         r = analysis.residues[i]
@@ -616,7 +732,9 @@ def ligand_preview ( analysis, ph = 7.4 ):
         entry = { "copies": 1, "heavy": sum ( 1 for a in r.atoms if a[1] != 1 ), "hydrogens": None,
                   "charge": None, "electrons": None, "multiplicity": 1, "source": None, "error": None }
         try:
-            lig = L.ligand_chemistry ( r.name, r.atoms, ph = ph, bonds = r.bonds, formal_charges = r.formal_charges )
+            lig = L.ligand_chemistry ( r.name, r.atoms, ph = ph, bonds = r.bonds, formal_charges = r.formal_charges,
+                                       h_counts = analysis.ligand_options.get ( r.name, { } ).get ( "h_counts" ) )
+            entry["user_protonation"] = bool ( analysis.ligand_options.get ( r.name, { } ).get ( "h_counts" ) )
             entry["hydrogens"] = sum ( 1 for a in lig.atoms if a[1] == 1 )
             entry["charge"]    = lig.total_charge
             entry["electrons"] = lig.n_electrons
@@ -626,6 +744,52 @@ def ligand_preview ( analysis, ph = 7.4 ):
             entry["error"] = str ( error )
         preview[r.name] = entry
     return preview
+
+
+class _SiteAtom:
+    """ What hydrogen_builder.ligand_protonation_sites() reads from an atom. """
+    __slots__ = ( "label", "atomicNumber", "formalCharge", "index" )
+    def __init__ ( self, label, z, charge = 0, index = None ):
+        self.label, self.atomicNumber, self.formalCharge, self.index = label, int ( z ), int ( charge ), index
+
+
+def ligand_protonation_baseline ( analysis, name, ph = 7.4, rebuild = None ):
+    """ [EN] 2026-10-18, user's request: the protonation of ligand `name` as the
+        preparation would make it (ligand.ligand_chemistry, no user counts), in
+        the format of util/hydrogen_builder.ligand_protonation_baseline() so the
+        Add Hydrogens review dialog can show/edit it. rebuild: drop the input
+        hydrogens and use the pH model (None: only when the input has none).
+        Atom .index = the input system's atom index when known (Show in 3D). """
+    from pdynamo.opls import ligand as L
+    split_ligand_variants ( analysis )
+    r = next ( analysis.residues[i] for i in analysis.unsupported if analysis.residues[i].name == name )
+    has_h = any ( z == 1 for ( _, z, _ ) in r.atoms )
+    rebuild = ( not has_h ) if rebuild is None else bool ( rebuild )
+    lig = L.ligand_chemistry ( r.name, r.atoms, ph = ph, bonds = r.bonds, formal_charges = r.formal_charges,
+                               add_hydrogens = True if rebuild else None )
+    index_of = { }
+    for atom in ( r.source_atoms or [ ] ):
+        label = getattr ( atom, "label", None )
+        if label is not None and getattr ( atom, "index", None ) is not None:
+            index_of[label] = atom.index
+    charges = list ( lig.formal_charges ) + [ 0 ] * ( len ( lig.atoms ) - len ( lig.formal_charges ) )
+    atoms = [ _SiteAtom ( n, z, charges[k], index_of.get ( n ) ) for k, ( n, z, _ ) in enumerate ( lig.atoms ) ]
+    adjacency = { id ( a ): [ ] for a in atoms }
+    for ( i, j, _o ) in lig.bonds:
+        adjacency[id ( atoms[i] )].append ( atoms[j] ); adjacency[id ( atoms[j] )].append ( atoms[i] )
+    heavy = [ a for a in atoms if a.atomicNumber != 1 ]
+    h_atoms = { id ( a ): [ n for n in adjacency[id ( a )] if n.atomicNumber == 1 ] for a in heavy }
+    by_name = { a.label: a for a in heavy }
+    decisions = { }
+    for note in lig.notes:
+        if note.startswith ( "protonation: " ) and ": " in note[13:]:
+            label, text = note[13:].split ( ": ", 1 )
+            if label in by_name: decisions[id ( by_name[label] )] = text
+    xyz = { id ( a ): lig.atoms[k][2] for k, a in enumerate ( atoms ) }
+    h_xyz = { i: [ tuple ( xyz[id ( h )] ) for h in v ] for i, v in h_atoms.items ( ) }
+    return { "source": "ph" if rebuild else "current", "ph": float ( ph ) if rebuild else None, "decisions": decisions,
+             "atoms": atoms, "heavy": heavy, "adjacency": adjacency, "h_atoms": h_atoms, "h_xyz": h_xyz,
+             "n_h": { i: len ( v ) for i, v in h_atoms.items ( ) }, "charge": { id ( a ): a.formalCharge for a in heavy } }
 
 
 #=============================================================================
@@ -684,12 +848,19 @@ def _make_system ( model, label = None, altLoc = None ):
     elif model.label is not None: system.label = model.label
     return system
 
-def build_prepared_system ( analysis, label = None, random_seed = 1, keep_pdb = None ):
+def build_prepared_system ( analysis, label = None, random_seed = 1, keep_pdb = None, complete_truncated = False ):
     """ Builds the prepared system. Returns ( system, report ):
           report = { "atoms", "added_hydrogens", "undefined_heavy" [paths],
                      "formal_charge", "variants" {label: variant},
-                     "disulfides", "chain_breaks", "pdb" (path if kept) }
-        Raises ValueError for unsupported residues (see analysis.unsupported). """
+                     "disulfides", "chain_breaks", "pdb" (path if kept),
+                     "completed" [paths], "rebuilt_residues" [labels] }
+        Raises ValueError for unsupported residues (see analysis.unsupported).
+        complete_truncated (2026-10-21, user's request): residues with missing
+        heavy atoms are rebuilt -- the atoms of the component library absent
+        from the file are placed geometrically and their side-chain rotamer
+        chosen away from the other atoms (dyff_prep.complete_heavy_atoms /
+        place_completed_side_chains, the same as Prepare DYFF System);
+        otherwise they raise ValueError (truncate_residue() first). """
     from pBabel import PDBFileReader, PDBModelLink, PDBModelVariant
     from pSimulation import BuildHydrogenCoordinates3FromConnectivity
     from pScientific.RandomNumbers import RandomNumberGenerator
@@ -699,6 +870,11 @@ def build_prepared_system ( analysis, label = None, random_seed = 1, keep_pdb = 
         raise ValueError ( "Residues without a PDB component (ligands/cofactors): {}. "
                            "They must be parametrized separately.".format ( ", ".join ( names ) ) )
     incomplete = [ r.label for r in analysis.residues if r.missing_heavy ]
+    if incomplete and complete_truncated:
+        for r in analysis.residues:
+            if r.missing_heavy:
+                r.rebuilt_atoms, r.missing_heavy = list ( r.missing_heavy ), [ ]
+        incomplete = [ ]
     if incomplete:
         raise ValueError ( "Residues with missing heavy atoms: {}. Complete them or truncate them "
                            "(truncate_residue()).".format ( ", ".join ( incomplete ) ) )
@@ -731,6 +907,11 @@ def build_prepared_system ( analysis, label = None, random_seed = 1, keep_pdb = 
     model.MakeAtomicModelFromComponentLibrary ( libraryPaths = list ( analysis.extra_library_paths ) + library_paths ( ), log = None )
     model.ExtractAtomData ( raw, log = None )
     system = _make_system ( model, label = label or analysis.label )
+    completed = [ ]
+    if complete_truncated:
+        from pdynamo import dyff_prep
+        completed = dyff_prep.complete_heavy_atoms ( system )
+        if completed: dyff_prep.place_completed_side_chains ( system, completed )
     undefined_before = system.coordinates3.numberUndefined
     rng = RandomNumberGenerator.WithSeed ( random_seed ) if random_seed is not None else RandomNumberGenerator.WithRandomSeed ( )
     BuildHydrogenCoordinates3FromConnectivity ( system, log = None, randomNumberGenerator = rng )
@@ -747,8 +928,38 @@ def build_prepared_system ( analysis, label = None, random_seed = 1, keep_pdb = 
                "variants"        : variants,
                "disulfides"      : len ( analysis.disulfides ),
                "chain_breaks"    : len ( analysis.chain_breaks ),
-               "segments"        : list ( analysis.segments.keys ( ) ) }
+               "segments"        : list ( analysis.segments.keys ( ) ),
+               "completed"       : [ system.atoms[i].path for i in completed ],
+               "rebuilt_residues": [ r.label for r in analysis.residues if getattr ( r, "rebuilt_atoms", None ) ] }
     return system, report
+
+
+def source_atom_map ( analysis, new_system ):
+    """ [EN] 2026-10-18: { input atom index: prepared atom index } for the atoms
+        that survive the preparation (same residue, same atom name). Used to
+        carry the QC region, selections, restraints, ... of a system that is
+        replaced in place (util/system_remap.py). Atoms the preparation added
+        (hydrogens, OXT, water, ions) and atoms it removed (truncation) are not
+        in the map. Call after build_prepared_system() (analysis.pdb_labels). """
+    labels = getattr ( analysis, "pdb_labels", None ) or { }
+    by_residue = { }
+    for atom in new_system.atoms:
+        component = getattr ( atom, "parent", None )
+        entity = getattr ( component, "parent", None )
+        if component is None or entity is None: continue
+        number = ( component.label or "" ).split ( "." , 1 )[-1]
+        by_residue.setdefault ( ( entity.label, number ), { } )[atom.label] = atom.index
+    mapping = { }
+    for i, r in enumerate ( analysis.residues ):
+        if i not in labels or not r.source_atoms or not r.source_names: continue
+        segment, component_label = labels[i]
+        names = by_residue.get ( ( segment, component_label.split ( ".", 1 )[-1] ) )
+        if not names: continue
+        for atom, name in zip ( r.source_atoms, r.source_names ):
+            k = names.get ( name )
+            if k is not None and getattr ( atom, "index", None ) is not None:
+                mapping[atom.index] = k
+    return mapping
 
 
 #=============================================================================
@@ -792,9 +1003,24 @@ def typing_report ( system, parameter_set = DEFAULT_PARAMETER_SET ):
 #=============================================================================
 #  End to end
 #=============================================================================
+def copy_symmetry ( source, target ):
+    """ The periodic cell (symmetry + parameters) of `source` on `target`
+        (nothing when `source` has none). Returns True when a cell was set. """
+    symmetry = getattr ( source, "symmetry", None )
+    parameters = getattr ( source, "symmetryParameters", None )
+    if symmetry is None or parameters is None: return False
+    from pScientific.Symmetry import PeriodicBoundaryConditions
+    crystal = symmetry.crystalSystem
+    unique = crystal.GetUniqueSymmetryParameters ( parameters )
+    target.symmetry           = PeriodicBoundaryConditions.WithCrystalSystem ( crystal.__class__ ( ) )
+    target.symmetryParameters = target.symmetry.MakeSymmetryParameters ( **unique )
+    return True
+
+
 def prepare_opls_system ( system, parameter_set = DEFAULT_PARAMETER_SET, work_dir = None, label = None,
                           analysis = None, define_nb_model = True, solvation = None, progress = None,
-                          parametrize_unsupported = True, ligand_ph = 7.4, cm5_scale = None, xtb = None ):
+                          parametrize_unsupported = True, ligand_ph = 7.4, cm5_scale = None, xtb = None,
+                          trust_connectivity = False, complete_truncated = False ):
     """ Loaded system -> prepared, typed system with an OPLS MM model.
 
         analysis: an edited analyze_system() result (protonation choices);
@@ -817,9 +1043,15 @@ def prepare_opls_system ( system, parameter_set = DEFAULT_PARAMETER_SET, work_di
         say ( "Analyzing residues..." )
         analysis = analyze_system ( system )
     if analysis.unsupported and parametrize_unsupported:
-        parametrize_ligands ( analysis, work_dir, ph = ligand_ph, cm5_scale = cm5_scale, progress = say, xtb = xtb )
+        parametrize_ligands ( analysis, work_dir, ph = ligand_ph, cm5_scale = cm5_scale, progress = say, xtb = xtb,
+                              trust_connectivity = trust_connectivity )
     say ( "Building hydrogens, termini and links..." )
-    new_system, report = build_prepared_system ( analysis, label = label )
+    new_system, report = build_prepared_system ( analysis, label = label, complete_truncated = complete_truncated )
+    # . [EN] 2026-10-17 BUG FIX (user's report: a system solvated in the Builder lost
+    #   its box when OPLS was assigned): the rebuilt system keeps the input's periodic
+    #   cell unless this call solvates it again (which sets its own cell)
+    if solvation is None:
+        copy_symmetry ( system, new_system )
     # . ligand total charges set by the user (not carried by the atoms' formal charges)
     correction = 0
     for r in analysis.residues:
@@ -837,6 +1069,8 @@ def prepare_opls_system ( system, parameter_set = DEFAULT_PARAMETER_SET, work_di
         report["atoms"] = solvation_report["atoms"]
         report["formal_charge"] = solvation_report["formal_charge"]
         report["total_charge"]  = solvation_report["formal_charge"] + correction
+    if getattr ( analysis, "ligand_variants", None ):
+        report["ligand_variants"] = dict ( analysis.ligand_variants )
     if analysis.ligands:
         from pdynamo.opls import parameters as _parameters
         parameter_set = _parameters.extend_parameter_set ( os.path.join ( work_dir, "base_with_ligands" ),
@@ -909,6 +1143,9 @@ def report_markdown ( report, analysis = None, title = "OPLS system preparation"
         truncated = [ r.label for r in analysis.residues if r.variant_source == "truncated" ]
         if truncated:
             lines += [ "", "Truncated residues (incomplete side chains): " + ", ".join ( truncated ) ]
+        rebuilt = [ "{} ({})".format ( r.label, " ".join ( r.rebuilt_atoms ) ) for r in analysis.residues if getattr ( r, "rebuilt_atoms", None ) ]
+        if rebuilt:
+            lines += [ "", "Rebuilt residues (missing heavy atoms placed geometrically -- minimize and check them): " + ", ".join ( rebuilt ) ]
     solvation = report.get ( "solvation" )
     if solvation:
         lines += [ "", "## Solvation", "",
@@ -919,6 +1156,9 @@ def report_markdown ( report, analysis = None, title = "OPLS system preparation"
     ligands = report.get ( "ligands" )
     if ligands:
         lines += [ "", "## Ligands (simplified parametrization)", "" ]
+        for new, old in ( report.get ( "ligand_variants" ) or { } ).items ( ):
+            lines.append ( "- {}: copy of {} with different atoms/bonds (edited), parametrized separately under this name.".format ( new, old ) )
+        if report.get ( "ligand_variants" ): lines.append ( "" )
         for name, data in ligands.items ( ):
             lines.append ( "- **{}**: {} atoms, charge {:+d}, multiplicity {}, charges: {}, classes: {}".format (
                     name, data["atoms"], data["total_charge"], data.get ( "multiplicity", 1 ), data["charge_method"],

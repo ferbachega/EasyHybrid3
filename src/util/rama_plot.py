@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Ramachandran plot widget
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -54,15 +54,18 @@ CATEGORY_COLORS = {
     "pre-proline": (0.55, 0.35, 0.75),
 }
 CATEGORY_LABELS = {
-    "general":     "Geral",
-    "glycine":     "Glicina",
-    "proline":     "Prolina",
-    "pre-proline": "Pré-prolina",
+    "general":     "General",
+    "glycine":     "Glycine",
+    "proline":     "Proline",
+    "pre-proline": "Pre-proline",
 }
 # . Order in which categories are drawn (and listed in the legend) --
 #   "general" first/bottom so the smaller, more informative categories
 #   (Gly/Pro/pre-Pro) are never hidden underneath a sea of generic points.
 _CATEGORY_ORDER = ["general", "glycine", "proline", "pre-proline"]
+# . Legend box size and its gap from the plot square (legend drawn to the right).
+_LEGEND_W   = 118
+_LEGEND_GAP = 14
 
 
 def _ellipse_points(cx, cy, rx, ry, n=48):
@@ -175,12 +178,19 @@ class RamachandranPlot(Gtk.DrawingArea):
             left for axis labels.
         """
         left, right, top, bottom = 56, 22, 30, 46
-        avail_w = max(width  - left - right, 10)
+        # . 2026-10-21, user's request: the legend sits to the RIGHT of the
+        #   square, not over it; the square + legend group is centred.
+        legend = _LEGEND_W + _LEGEND_GAP if self._legend_categories() else 0
+        avail_w = max(width  - left - right - legend, 10)
         avail_h = max(height - top  - bottom, 10)
         size = min(avail_w, avail_h)
         origin_x = left   + (avail_w - size) / 2.0
         origin_y = top    + (avail_h - size) / 2.0
         return origin_x, origin_y, size
+
+    def _legend_categories(self):
+        present = {point.get("category", "general") for point in self.data}
+        return [c for c in _CATEGORY_ORDER if c in present]
 
     def _to_canvas(self, phi, psi, origin_x, origin_y, size):
         x = origin_x + ((phi + 180.0) / 360.0) * size
@@ -323,7 +333,7 @@ class RamachandranPlot(Gtk.DrawingArea):
 
         # . Axis titles.
         cr.set_font_size(12)
-        phi_label = "φ (graus)"
+        phi_label = "φ (degrees)"
         extents = cr.text_extents(phi_label)
         cr.move_to(origin_x + size / 2.0 - extents.width / 2.0, origin_y + size + 34)
         cr.show_text(phi_label)
@@ -331,7 +341,7 @@ class RamachandranPlot(Gtk.DrawingArea):
         cr.save()
         cr.translate(16, origin_y + size / 2.0)
         cr.rotate(-math.pi / 2.0)
-        psi_label = "ψ (graus)"
+        psi_label = "ψ (degrees)"
         extents = cr.text_extents(psi_label)
         cr.move_to(-extents.width / 2.0, 0)
         cr.show_text(psi_label)
@@ -345,16 +355,13 @@ class RamachandranPlot(Gtk.DrawingArea):
         if not present:
             return
 
-        # . Bottom-right corner of the square (large positive phi, very
-        #   negative psi) is essentially always empty for real proteins
-        #   -- the same reason that corner is coloured "disallowed" on
-        #   any textbook Ramachandran plot -- so the legend box never
-        #   covers a favoured region or real data.
+        # . 2026-10-21: outside the square, to its right and top-aligned
+        #   (_layout() leaves the room), so it never covers any point.
         row_h = 15
-        box_w = 118
+        box_w = _LEGEND_W
         box_h = 10 + row_h * len(present)
-        box_x = origin_x + size - box_w - 8
-        box_y = origin_y + size - box_h - 8
+        box_x = origin_x + size + _LEGEND_GAP
+        box_y = origin_y
 
         cr.set_source_rgba(1, 1, 1, 0.85)
         cr.rectangle(box_x, box_y, box_w, box_h)

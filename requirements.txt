@@ -41,6 +41,14 @@ Pillow>=9.0.0
 # of a job's process cross-platform (see install.py's PYTHON_LIBRARIES
 # for the fuller explanation of why).
 psutil>=5.9.0
+# pdynamo/residue_library.py's match_residues() hard-imports this (graph
+# isomorphism to match a system's residues against the DYFF residue
+# library templates -- Prepare DYFF System / "DYFF + residue library",
+# whole-protein preparation). Was missing from this file; a fresh
+# install would only fail the first time that code path ran, not at
+# startup. gui/windows/builder/structure_library.py also uses it
+# (Kekulization matching) but already degrades gracefully if absent.
+networkx>=2.8
 # macOS only: GTK3's Quartz backend corrupts window compositing when a
 # Gtk.GLArea is realized (see MACOS_NATIVE_RENDERING_FIX.md), so on
 # macOS the 3D view renders into a hidden GLFW window/offscreen OpenGL

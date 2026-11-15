@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: IRC / Reaction Path window
 #
 #  Copyright 2022-2026 Fernando Bachega
@@ -123,6 +123,16 @@ class ReactionPathWindow:
         self.window.show_all()
         self.Visible = True
 
+    def _default_folder (self):
+        """ 2026-10-26: the log of a run without a saved trajectory went to the
+            current directory of the process; use the folder of the window
+            (the system's working folder) instead. """
+        try:
+            folder = self.save_trajectory_box.folder_chooser_button.get_folder()
+        except Exception:
+            folder = None
+        return folder if folder and os.path.isdir(folder) else os.getcwd()
+
     def close_window(self, button=None, data=None):
         """ Function doc """
         self.window.destroy()
@@ -153,7 +163,7 @@ class ReactionPathWindow:
             "optimizer"           : "ReactionPath",
             "trajectory_name"     : None,
             "dialog"              : False,
-            "folder"              : os.getcwd(),
+            "folder"              : self._default_folder(),
             "maximumIterations"   : 50,
             "logFrequency"        : 1,
             "save_frequency"      : 1,

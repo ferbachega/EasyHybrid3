@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 
 from util.debug import dprint
@@ -52,9 +52,9 @@ class VismolConfig                       :
                                       "dots_size"                  : 2,
                                       "dot_type"                   : 1,
                                       "dot_sel_size"               : 2.0,
-                                      "line_width"                 : 3,
+                                      "line_width"                 : 7,
                                       "line_width_selection"       : 10,
-                                      "line_type"                  : 1,
+                                      "line_type"                  : 0,
                                       "line_color"                 : 0,
                                       
                                       "ribbon_width"               : 0.4, # Now being used (defined in the shader)
@@ -71,10 +71,16 @@ class VismolConfig                       :
                                       #"sticks_radius"             : 2.5,
                                       
                                       "sticks_radius"              : 0.16, # not being used (defined in the shader)
-                                      "multiple_bonds"             : False,
+                                      "multiple_bonds"             : True,
+                                      "lines_bond_spacing"         : 0.7, # factor on the default spacing of double/triple bonds in lines
+                                      "sticks_radius_double"       : 0.064, # A, each cylinder of a double bond (sticks and dynamic bonds)
+                                      "sticks_radius_triple"       : 0.064, # A, each cylinder of a triple bond
+                                      "sticks_spacing_double"      : 0.16,  # A, between the two cylinder axes of a double bond
+                                      "sticks_spacing_triple"      : 0.16,  # A, from the bond axis to each cylinder of a triple bond
                                       "sticks_color"               : 0,
                                       "sticks_type"                : 0,
                                       "antialias"                  : True,
+                                      "antialias_samples"          : 4,
                                       "mouse_rotation_sensibility" : 1.5,
                                       "scroll_step"                : 0.9,
                                       "scroll_step_fraction"       : 0.138,
@@ -97,6 +103,15 @@ class VismolConfig                       :
                                       "light_shininess"            : 5.5,
                                       "light_intensity"            : [0.6, 0.6, 0.6],
                                       "light_specular_color"       : [1.0, 1.0, 1.0],
+                                      # Preferences > Light (2026-10-13) -- see vismol
+                                      # libgl/shaders/lighting.py and
+                                      # VismolGLCore.apply_light_parameters(); these
+                                      # defaults reproduce the original single light.
+                                      "light_preset"               : "headlight",  # or "three_point"
+                                      "extra_lights"               : [],   # {"direction":[x,y,z], "intensity":[r,g,b]}
+                                      "shading_mode"               : "standard",   # "flat", "toon", "matte", "glossy", "rim"
+                                      "flat_softness"              : 0.25,
+                                      "toon_bands"                 : 3,
                                       "center_on_coord_sleep_time" : 0.01,
                                       "gridsize"                   : 0.8,
                                       "maxbond"                    : 2.6,
@@ -104,9 +119,33 @@ class VismolConfig                       :
                                       
                                       "picking_dots_color"         : [0.0, 1.0, 1.0],
                                       "picking_dots_safe"          : True,
+                                      # 2026-11-01: a click selects the nearest atom within
+                                      # this many pixels (0 = only the pixel under the cursor)
+                                      "picking_radius"             : 6,
                                       "pk_label_color"             : [1.0, 1.0, 1.0, 1.0],
                                       "pk_dist_label_color"        : [1.0, 1.0, 1.0, 1.0],
-                                      "dashed_dist_lines_color"    : [0.1, 0.1, 0.1, 1.0],
+                                      # 2026-11-01: grey (was [0.1, 0.1, 0.1], invisible on black)
+                                      "dashed_dist_lines_color"    : [0.467, 0.463, 0.482, 1.0],
+
+                                      # Label fonts (Preferences > Labels), 2026-11-01 defaults:
+                                      # Amiko (src/graphics_engine/src/vismol/libgl/fonts).
+                                      # Before, missing keys fell back to vismol's DEFAULT_FONT_*.
+                                      "label_font_file"            : "Amiko-Bold.ttf",      # #1..#4
+                                      "label_font_size"            : 0.41,
+                                      "pk_dist_label_font_file"    : "Amiko-Bold.ttf",      # distances, angles
+                                      "pk_dist_label_font_size"    : 0.15,
+                                      "atom_label_font_file"       : "Amiko-SemiBold.ttf",  # Atom Labels
+                                      "atom_label_font_size"       : 0.35,
+                                      "labels_zoom_sensitivity"    : 1.0,
+                                      "label_content"              : "name",
+
+                                      # Picking: angle (#1-#2-#3) / dihedral (#1-#2-#3-#4) arcs
+                                      # drawn over the picked atoms (Preferences > Selections >
+                                      # Picking Selections, 2026-10-29); colors were previously
+                                      # hard-coded in vismol_selections.ARC_COLORS.
+                                      "show_pk_angle_dihedral_arcs": True,
+                                      "pk_angle_arc_color"         : [1.0, 0.745, 0.435, 1.0],
+                                      "pk_dihedral_arc_color"      : [0.35, 0.80, 1.0, 1.0],
 
                                       # [NOVO] Dynamic bonds (regiao QC): opcao de
                                       # draw the dynamic bonds in a single
@@ -173,6 +212,9 @@ class VismolConfig                       :
                                       # 'default' = the original look (no extra CSS).
                                       # Preferences > Startup applies it live.
                                       'interface_theme'     : 'default',
+                                      # Main toolbar icons -- see src/gui/icon_set.py.
+                                      # 'modern' (3.2) or 'classic' (3.1 icons).
+                                      'toolbar_icons'       : 'classic',
                                       # Recently opened/saved projects (.easy) and
                                       # systems (single-file opens via File > Open --
                                       # .pkl/.pdb/.mol2/.xyz/.crd/etc). Each entry:
@@ -181,6 +223,12 @@ class VismolConfig                       :
                                       # add_recent_file/get_recent_files/clear_recent_files
                                       # below and MainWindow's "Open Recent" submenu.
                                       'recent_files'        : [],
+
+                                      # [EN] 2026-10-17: Builder > Force Field Settings --
+                                      # force field given to systems drawn in the Builder
+                                      # when the session closes (see builder_sidebar.py's
+                                      # FF_SETTINGS_DEFAULTS for the keys).
+                                      'builder_ff_settings' : {},
 
                                       # [EN] Cartoon (ribbon) representation --
                                       # "Preferences > Cartoon" tab (user
@@ -269,8 +317,10 @@ class VismolConfig                       :
                                       'surface_taubin_enabled'      : False,
                                       'surface_taubin_iterations'   : 15,
                                       'surface_color_mode'          : 'atom',
-                                      'cartoon_color_helix'        : [0.90, 0.20, 0.55],
-                                      'cartoon_color_strand'       : [0.95, 0.85, 0.15],
+                                      # 2026-11-01: light blue helix / light green strand
+                                      # (was magenta [0.90, 0.20, 0.55] / yellow [0.95, 0.85, 0.15])
+                                      'cartoon_color_helix'        : [0.600, 0.757, 0.945],
+                                      'cartoon_color_strand'       : [0.561, 0.941, 0.643],
                                       'cartoon_color_coil'         : [0.85, 0.85, 0.85],
                                       }
                               
@@ -460,6 +510,23 @@ class VismolConfig                       :
         except Exception as e:
             dprint("Could not load saved preferences (%s): %s" % (config_path, e))
             return False
+        # [EN] 2026-10-15: one "Bond spacing" (multiple_bond_spacing) was split
+        # into lines_bond_spacing and sticks_bond_spacing; an old saved value
+        # becomes the value of both.
+        old_spacing = loaded.pop('multiple_bond_spacing', None)
+        if old_spacing is not None:
+            loaded.setdefault('lines_bond_spacing', old_spacing)
+            loaded.setdefault('sticks_bond_spacing', old_spacing)
+        # [EN] 2026-10-15: the sticks factor was replaced by spacings in Angstrom
+        # for double and triple bonds (factor x stick radius).
+        old_sticks = loaded.pop('sticks_bond_spacing', None)
+        if old_sticks is not None:
+            try:
+                radius = float(loaded.get('sticks_radius', self.gl_parameters.get('sticks_radius', 0.16)))
+                loaded.setdefault('sticks_spacing_double', round(float(old_sticks) * radius, 4))
+                loaded.setdefault('sticks_spacing_triple', round(float(old_sticks) * radius, 4))
+            except (TypeError, ValueError):
+                pass
         self.gl_parameters.update(loaded)
         return True
 

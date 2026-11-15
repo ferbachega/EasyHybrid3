@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -130,8 +130,8 @@ class ImportANewSystemWindow(Gtk.Window):
         self.OPLS_txt = '''When preparing systems natively in pDynamo utilizing the OPLS force field, it is necessary to have two components: a folder containing the OPLS parameters, and a topology and coordinate file (in formats such as pdb, mol2, or mol).'''
         self.DYFF_txt = '''The DYFF force field is a generic force field specifically designed for use within the pDynamo program. When utilizing DYFF to prepare systems natively in pDynamo, it is essential to have two components: a folder containing the necessary force field parameters, and a coordinate file in formats such as pdb, mol2, or mol.'''
         self.gmx_txt = '''Systems prepared natively in GROMACS using the CHARMM(or AMBER) force field require: A parameter/topology (top) file and coordinate file (pdb, mol2, mol, ...) .  '''
-        self.xyz_pdb_text = '''If you load a coordinate file in this manner, you won't be able to perform any molecular mechanics simulations.'''
-        self.pkl_text = '''If you load a coordinate file in this manner, you won't be able to perform any molecular mechanics simulations.'''
+        self.xyz_pdb_text = '''The structure is loaded without a force field. Prepare one with System > Force Field (DYFF or OPLS-AA) before molecular mechanics simulations, or define a QC model for the whole system.'''
+        self.pkl_text = '''pDynamo files (pkl, yaml) hold a whole system as it was saved: atoms, coordinates, force field, QC model, fixed atoms and restraints.'''
     
     
         self.color_pallet = {
@@ -343,10 +343,12 @@ class ImportANewSystemWindow(Gtk.Window):
             path = os.environ.get('PDYNAMO3_PARAMETERS')
             path = os.path.join(path,'forceFields/opls/protein')
             self.builder.get_object('OPLS_folderchooserbutton').set_filename(path)
+            self.system_types_combo.set_tooltip_text(self.OPLS_txt)
             
             
         if fftype == 3: #"pDynamo files(*.pkl,*.yaml)":
             self.builder.get_object('gtkbox_OPLS_folderchooser').hide()
+            self.system_types_combo.set_tooltip_text(self.pkl_text)
             
         if fftype == 4: #"Other(*.pdb,*.xyz,*.mol2...)":
             self.builder.get_object('gtkbox_OPLS_folderchooser').hide()
@@ -358,8 +360,9 @@ class ImportANewSystemWindow(Gtk.Window):
             #try:
             '''Eventually, the user may have another set of parameters, but 
             by default, the pDynamo3 parameter directories are first searched.'''
-            path = os.environ.get('PDYNAMO3_PARAMETERS')            
-            path = os.path.join(path,'forceFields/dyff/dyff-1.0')
+            # 2026-10-08: EasyHybrid's extension of dyff-1.0 (aromatic P/Se/B, borane clusters)
+            from pdynamo.dyff_edits import dyff_parameter_dir
+            path = dyff_parameter_dir('dyff-1.0')
             self.builder.get_object('OPLS_folderchooserbutton').set_filename(path)
             self.system_types_combo.set_tooltip_text(self.DYFF_txt)
                 

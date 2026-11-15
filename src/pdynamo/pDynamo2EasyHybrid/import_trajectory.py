@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #  
-#  EasyHybrid: Python interface for QM/MM and molecular simulations using pDynamo3
+#  EasyHybrid: Python interface for QC/MM and molecular simulations using pDynamo3
 #  Module: Selection utilities for pDynamo systems
 #
 #  Copyright 2022-2025 Fernando Bachega
@@ -26,7 +26,7 @@
 #
 #  Description:
 #      Provides functions for selecting atoms and residues in pDynamo systems
-#      to facilitate QM/MM partitioning and molecular simulations.
+#      to facilitate QC/MM partitioning and molecular simulations.
 #
 from util.debug import dprint
 import gi
@@ -34,7 +34,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
 import multiprocessing
 
-import glob, math, os, os.path, sys, shutil
+import glob, math, os, os.path, re, sys, shutil
 import pickle
 import threading
 from util.file_parser import read_MOL2  
@@ -261,6 +261,11 @@ class EasyHybridImportTrajectory:
 
     def _import_coordinates_from_pklfolder (self, parameters):
         files = os.listdir( parameters['data_path'])
+        # . 2026-10-24: a 2D scan folder (frame{i}_{j}.pkl) chosen as a 1D folder made
+        #   ImportTrajectory fail after the new object was created (an empty object was left)
+        if parameters['new_vobj_name'] and any(re.match(r'frame\d+_\d+\.pkl$', f) for f in files):
+            parameters['data_type'] = 'pklfolder2D'
+            return self._import_coordinates_from_pklfolder2D (parameters)
         pkl_files = []
         for _file in files:
             # Check if the file is a text file
@@ -418,7 +423,24 @@ class EasyHybridImportTrajectory:
         modes_dict = {}
         
         x = len(vismol_object.frames)  
+        # . 2026-10-24: the folder of the Normal Modes job can be chosen instead of its
+        #   mode*.ptGeo folders; it is expanded to them, in mode order.
+        trajectories = []
         for trajectory in parameters['trajectories']:
+            if os.path.isfile(os.path.join(trajectory, 'frequency.log')):
+                trajectories.append(trajectory)
+                continue
+            inner = [d for d in os.listdir(trajectory)
+                     if re.match(r'mode\d+\.ptGeo$', d) and os.path.isfile(os.path.join(trajectory, d, 'frequency.log'))]
+            inner.sort(key = lambda d: int(re.findall(r'\d+', d)[0]))
+            trajectories += [os.path.join(trajectory, d) for d in inner]
+        if not trajectories:
+            raise ValueError('No normal modes found: choose the folder of a Normal Modes job or its mode*.ptGeo folders.')
+        # . RestoreOwnerData overwrites the system coordinates with each frame: keep the
+        #   coordinates of the system (the stationary point), used e.g. by the thermochemistry.
+        from pCore import Clone
+        _saved_coordinates3 = Clone(self.psystem[parameters['system_id']].coordinates3)
+        for trajectory in trajectories:
             
             log   = open(os.path.join(trajectory,'frequency.log'), 'r')
             line  = log.readline()
@@ -460,6 +482,7 @@ class EasyHybridImportTrajectory:
             trajectory.ReadFooter ( )
             trajectory.Close ( )
             #-----------------------------------------------------------------------------------------------------------------------------
+        self.psystem[parameters['system_id']].coordinates3 = _saved_coordinates3
         vismol_object.normal_modes_dict = modes_dict
 
         # [EN] BUG FIX (reported by the user: "IndexError: list index out
@@ -484,6 +507,76 @@ class EasyHybridImportTrajectory:
         self._apply_QC_representation_to_vobject(system_id = parameters['system_id'], vismol_object = vismol_object)
         #print (modes_dict)
         return modes_dict
+
+    def _apply_frame_range (self, parameters, frames_before = 0):
+        """ Keeps frames first..last (inclusive; last < 0 = the last frame) every stride of the
+            frames added by this import. """
+        first  = parameters.get('first')
+        last   = parameters.get('last')
+        stride = parameters.get('stride')
+        first  = 0 if first is None else int(first)
+        last   = -1 if last is None else int(last)
+        stride = 1 if not stride else max(1, int(stride))
+        if first == 0 and last < 0 and stride == 1:
+            return
+        vobject = parameters['vobject']
+        new = vobject.frames[frames_before:]
+        end = None if last < 0 else last + 1
+        kept = new[first:end:stride]
+        if len(kept) == 0:
+            raise ValueError('No frame between first = {} and last = {} (the trajectory has {} frames).'.format(first, last, len(new)))
+        vobject.frames = np.concatenate((vobject.frames[:frames_before], kept))
+        self._apply_QC_representation_to_vobject(vismol_object = vobject)
+
+    # . 2026-10-24: "pdb folder" and "netcdf" were offered by Import Data but had no importer
+    #   (choosing them did nothing)
+    def _add_frames_to_object (self, parameters, frames, label):
+        """ frames: ( n, atoms, 3 ) in A -> a new object (new_vobj_name) or appended to vobject. """
+        system = self.psystem[parameters['system_id']]
+        frames = np.asarray(frames, dtype = np.float32)
+        if frames.ndim != 3 or frames.shape[0] == 0:
+            raise ValueError('No coordinates found in {}.'.format(parameters['data_path']))
+        if frames.shape[1] != len(system.atoms):
+            raise ValueError('{} has {} atoms per frame but the system "{}" has {}.'.format(
+                label, frames.shape[1], system.label, len(system.atoms)))
+        if parameters['new_vobj_name']:
+            vismol_object = self.generate_new_empty_vismol_object (system_id = parameters['system_id'], name = parameters['new_vobj_name'])
+            parameters['vobject_id'] = vismol_object.index
+            parameters['vobject']    = vismol_object
+            vismol_object.cell_coordinates = None
+            vismol_object.frames = frames
+        else:
+            vismol_object = parameters['vobject']
+            vismol_object.frames = np.vstack((vismol_object.frames, frames))
+        self._apply_QC_representation_to_vobject(vismol_object = vismol_object)
+        return vismol_object
+
+    def _import_pdb_folder (self, parameters):
+        """ Every .pdb file of the folder, in natural order (frame2 before frame10). """
+        folder = parameters['data_path']
+        files = [f for f in os.listdir(folder) if f.lower().endswith(('.pdb', '.ent'))]
+        files.sort(key = lambda f: [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', f)])
+        if not files:
+            raise ValueError('No .pdb files in {}.'.format(folder))
+        frames = []
+        for f in files:
+            p_coords = ImportCoordinates3(os.path.join(folder, f), log = None)
+            frames.append(np.array(list(p_coords), dtype = np.float32).reshape(-1, 3))
+        if len({len(x) for x in frames}) != 1:
+            raise ValueError('The .pdb files of {} do not all have the same number of atoms.'.format(folder))
+        self._add_frames_to_object(parameters, np.stack(frames), '"{}"'.format(files[0]))
+
+    def _import_netcdf_file (self, parameters):
+        """ AMBER NetCDF trajectory (coordinates variable, A). """
+        from scipy.io import netcdf_file
+        handle = netcdf_file(parameters['data_path'], 'r', mmap = False)
+        try:
+            if 'coordinates' not in handle.variables:
+                raise ValueError('{} has no "coordinates" variable: not an AMBER NetCDF trajectory.'.format(parameters['data_path']))
+            frames = np.array(handle.variables['coordinates'][:], dtype = np.float32)
+        finally:
+            handle.close()
+        self._add_frames_to_object(parameters, frames, 'The trajectory')
 
     def _import_dcd_file (self, parameters):
         """ Function doc """
@@ -582,6 +675,13 @@ class EasyHybridImportTrajectory:
         
         """
         
+        # . 2026-10-24: frames first/last/stride of the Import Data window (they were enabled
+        #   for trajectories but no importer read them). Applied to the frames just read.
+        _trajectory_types = ('pklfolder', 'dcd', 'pdbfolder', 'netcdf')
+        _frames_before = 0
+        if parameters['data_type'] in _trajectory_types and not parameters.get('new_vobj_name') and parameters.get('vobject') is not None:
+            _frames_before = len(parameters['vobject'].frames)
+
         if parameters['data_type'] in ['pklfile']:#,'pdbfile', 'xyz', 'mol2', 'crd']:
             self._import_pkl_coordinates_from_file (parameters)
         
@@ -596,6 +696,15 @@ class EasyHybridImportTrajectory:
         
         elif parameters['data_type'] == 'dcd':
             self._import_dcd_file (parameters)
+
+        elif parameters['data_type'] == 'pdbfolder':
+            self._import_pdb_folder (parameters)
+
+        elif parameters['data_type'] == 'netcdf':
+            self._import_netcdf_file (parameters)
+
+        if parameters['data_type'] in _trajectory_types and parameters.get('vobject') is not None:
+            self._apply_frame_range(parameters, _frames_before)
         
         elif parameters['data_type'] == 'charges':
             #print(parameters['data_path'])
