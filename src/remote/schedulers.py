@@ -38,7 +38,7 @@ def _body(profile, job_dir, code_dir, job=None):
                   "export PDYNAMO3_PARAMETERS=$PDYNAMO3_HOME/parameters",
                   "export PDYNAMO3_STYLE=$PDYNAMO3_PARAMETERS/ccsStyleSheets/defaultStyle.css",
                   "export PYTHONPATH=$PDYNAMO3_HOME${PYTHONPATH:+:$PYTHONPATH}"]
-    lines += ["export PYTHONPATH={}${{PYTHONPATH:+:$PYTHONPATH}}".format(_q(code_dir)),
+    lines += ["export PYTHONPATH={}:{}${{PYTHONPATH:+:$PYTHONPATH}}".format(_q(code_dir), _q(code_dir + "/dyffdock")),
               "export OMP_NUM_THREADS=${OMP_NUM_THREADS:-1}",
               # . several ORCA mpiruns at once (2D scan, umbrella windows): no core binding,
               #   or they all pile up on the same cores

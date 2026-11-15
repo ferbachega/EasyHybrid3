@@ -210,6 +210,12 @@ EASYHYBRID_HOME = os.path.dirname(easy_main_file)
 sys.path.append(os.path.join(EASYHYBRID_HOME,"src/graphics_engine/src"))
 sys.path.append(os.path.join(EASYHYBRID_HOME,"src/"))
 
+#.src/dyffdock is now its own repository (github.com/ferbachega/dyffdock), added
+# as a submodule: the "dyffdock" package lives one level deeper than before
+# (src/dyffdock/dyffdock/, not src/dyffdock/), so its own root needs its own
+# sys.path entry for "import dyffdock" to keep resolving.
+sys.path.append(os.path.join(EASYHYBRID_HOME,"src/dyffdock"))
+
 
 from gui.main import MainWindow
 from gui.eSession import EasyHybridSession

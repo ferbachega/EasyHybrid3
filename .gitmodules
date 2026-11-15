@@ -2,3 +2,6 @@
 	path = src/graphics_engine
 	url = https://github.com/casebor/graphics_engine
 	branch = vismol_easyhybrid
+[submodule "src/dyffdock"]
+	path = src/dyffdock
+	url = https://github.com/ferbachega/dyffdock.git
