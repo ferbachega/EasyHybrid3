@@ -1345,12 +1345,32 @@ Terminal=true
 Categories=Science;Education;
 """
 
+    def _write_shortcut(path):
+        """Write desktop_entry to path, backing up a pre-existing shortcut that
+        pointed somewhere else first (e.g. a different EasyHybrid checkout) --
+        found the hard way: running this installer against a throwaway test
+        clone silently overwrote the user's real desktop/menu shortcut with
+        one pointing into that (temporary) clone."""
+        if path.exists():
+            try:
+                old = path.read_text()
+            except Exception:
+                old = ""
+            if "Exec=" + str(exec_path) not in old:
+                backup = path.with_suffix(path.suffix + ".bak")
+                try:
+                    shutil.copy2(str(path), str(backup))
+                    print(c_warn(f"An existing shortcut at {path} pointed elsewhere; "
+                                  f"backed it up to {backup}."))
+                except Exception as e:
+                    print(c_warn(f"Could not back up the existing {path}: {e}"))
+        with open(path, "w") as f:
+            f.write(desktop_entry)
+
     if ask_yes_no("Create a desktop shortcut?"):
 
         desktop_file = Path(desktop) / "easyhybrid.desktop"
-
-        with open(desktop_file, "w") as f:
-            f.write(desktop_entry)
+        _write_shortcut(desktop_file)
         os.chmod(desktop_file, 0o755)
         print(c_ok("✓ Desktop shortcut created successfully."))
 
@@ -1361,9 +1381,7 @@ Categories=Science;Education;
         app_dir.mkdir(parents=True, exist_ok=True)
 
         menu_file = app_dir / "easyhybrid.desktop"
-
-        with open(menu_file, "w") as f:
-            f.write(desktop_entry)
+        _write_shortcut(menu_file)
 
         print(c_ok("✓ Application menu entry created successfully."))
 
