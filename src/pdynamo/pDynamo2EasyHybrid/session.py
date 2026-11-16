@@ -2449,10 +2449,17 @@ class pDynamoSession (pSimulations, pRemote, pAnalysis, ModifyRepInVismol, LoadA
                 os.environ['PYSCF_TMPDIR'] = parameters['scratch']
             if parameters.get('pyscf_ncpu'):
                 os.environ['OMP_NUM_THREADS'] = str ( parameters['pyscf_ncpu'] )
+            # . Effective core potential (heavy elements): CreateMole() does
+            #   mole.__dict__.update(self.mole_kwargs), so {'ecp': name} is
+            #   exactly how Mole.ecp gets set -- same as in a plain PySCF
+            #   script (mol.ecp = 'def2-TZVP'); confirmed on a real UHF/
+            #   def2-SVP+ECP iodine-atom calculation while adding this.
+            mole_kwargs = { 'ecp': parameters['ecp'] } if parameters.get('ecp') else { }
             qcModel = QCModelPySCF.WithOptions ( method         = parameters['method'       ],
                                                  functional     = parameters['functional'   ],
                                                  orbitalBasis   = parameters['orbitalBasis'  ],
                                                  deleteJobFiles = parameters['deleteJobFiles'],
+                                                 mole_kwargs    = mole_kwargs                 ,
                                                  )
 
         else:

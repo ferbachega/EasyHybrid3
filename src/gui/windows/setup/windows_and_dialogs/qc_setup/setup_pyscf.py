@@ -27,13 +27,16 @@
 #  Description:
 #      Setup window for the PySCF QC model (pdynamo3-eh's addOns/pySCF/
 #      QCModelPySCF.py): method (HF/DFT, combined with the main window's
-#      Restricted/Unrestricted choice), functional, basis set, OMP thread
-#      count and scratch folder. Modelled on SetupORCAWindow's pattern
-#      (self.parameters persisted across window close/reopen, an engine
-#      status line, scratch auto-create + writability check, a CPU-count
-#      warning) -- see that file's own history for why each of those
-#      exists; this window is simpler since PySCF has no free-form
-#      keyword input to worry about.
+#      Restricted/Unrestricted choice), functional, basis set, ECP, OMP
+#      thread count and scratch folder. Modelled on SetupORCAWindow's
+#      pattern (self.parameters persisted across window close/reopen, an
+#      engine status line, scratch auto-create + writability check, a
+#      CPU-count warning) -- see that file's own history for why each of
+#      those exists. The curated functional/basis dropdowns
+#      (util/pyscf_qc_keywords.py) cover common choices; "Custom
+#      Functional"/"Custom Basis Set" let anyone type any PySCF/libxc-valid
+#      string beyond that list (checked, when pyscf is importable, against
+#      pyscf.dft.libxc.parse_xc()/pyscf.gto.basis.load() before accepting).
 #
 #      QCModelPySCF quirk (pdynamo3-eh/addOns/pySCF/QCModelPySCF.py
 #      _CheckOptions): the scratch folder is NOT a WithOptions kwarg --
@@ -82,14 +85,22 @@ class SetupPySCFWindow:
 
         # . Persisted across window close/reopen (the comboboxes
         #   themselves are rebuilt from scratch every open_window()).
+        # . 'custom_functional'/'custom_basis' override the dropdown
+        #   selections when non-empty -- PySCF/libxc accept far more
+        #   functional and basis strings than any curated dropdown could
+        #   list (see util/pyscf_qc_keywords.py's own module docstring).
+        # . 'ecp_id' == 0 means "None (all-electron)", PySCF's own default.
         self.parameters = {
-            'type_id'          : 0    ,
-            'functional_id'    : 0    ,
-            'basis_group_id'   : 0    ,
-            'basis_id'         : 0    ,
-            'ncpu'             : 1    ,
-            'scratch'          : None ,
-            'delete_job_files' : True ,
+            'type_id'           : 0    ,
+            'functional_id'     : 0    ,
+            'basis_group_id'    : 0    ,
+            'basis_id'          : 0    ,
+            'ecp_id'            : 0    ,
+            'custom_functional' : ''   ,
+            'custom_basis'      : ''   ,
+            'ncpu'              : 1    ,
+            'scratch'           : None ,
+            'delete_job_files'  : True ,
         }
 
         #---------------------------------------------------------------------
@@ -108,6 +119,10 @@ class SetupPySCFWindow:
             self.pyscf_basis_dict[key] = Gtk.ListStore(str)
             for basis in pyscf_keys.type_basis_dict[key]:
                 self.pyscf_basis_dict[key].append([basis])
+
+        self.liststore_pyscf_ecp = Gtk.ListStore(str)
+        for ecp in pyscf_keys.ecp_dict.values():
+            self.liststore_pyscf_ecp.append([ecp])
         #---------------------------------------------------------------------
 
     def open_window (self, vismol_object = None):
@@ -149,7 +164,18 @@ class SetupPySCFWindow:
         renderer_text = Gtk.CellRendererText()
         self.pyscf_basis_combo.pack_start(renderer_text, True)
         self.pyscf_basis_combo.add_attribute(renderer_text, "text", 0)
+
+        self.pyscf_ecp_combo = self.builder.get_object('combobox_pyscf_ecp')
+        self.pyscf_ecp_combo.set_model(self.liststore_pyscf_ecp)
+        renderer_text = Gtk.CellRendererText()
+        self.pyscf_ecp_combo.pack_start(renderer_text, True)
+        self.pyscf_ecp_combo.add_attribute(renderer_text, "text", 0)
         #-------------------------------------------------------------------------------
+
+        self.entry_pyscf_custom_functional = self.builder.get_object('entry_pyscf_custom_functional')
+        self.entry_pyscf_custom_functional.set_text(self.parameters['custom_functional'])
+        self.entry_pyscf_custom_basis      = self.builder.get_object('entry_pyscf_custom_basis')
+        self.entry_pyscf_custom_basis.set_text(self.parameters['custom_basis'])
 
         self.spinbutton_pyscf_ncpus = self.builder.get_object('spin_button_pyscf_ncpus')
         self.spinbutton_pyscf_ncpus.set_adjustment(self.adjustment_nCPU)
@@ -186,6 +212,7 @@ class SetupPySCFWindow:
         self.pyscf_functional_combo.set_active(self.parameters['functional_id'])
         self.pyscf_basis_group_combo.set_active(self.parameters['basis_group_id'])
         self.pyscf_basis_combo.set_active(self.parameters['basis_id'])
+        self.pyscf_ecp_combo.set_active(self.parameters['ecp_id'])
         self.spinbutton_pyscf_ncpus.set_value(self.parameters['ncpu'])
         self.checkbox_pyscf_delete_job_files.set_active(self.parameters['delete_job_files'])
 
@@ -305,8 +332,10 @@ class SetupPySCFWindow:
                 return
 
         try:
-            import pyscf  # noqa: F401
+            import pyscf
+            pyscf_available = True
         except ImportError:
+            pyscf_available = False
             self._show_message(Gtk.MessageType.WARNING,
                 'pyscf is not installed in this Python environment. '
                 'This setup will be saved, but running it will fail until it is (pip install pyscf).')
@@ -315,6 +344,7 @@ class SetupPySCFWindow:
         functional_id = self.pyscf_functional_combo.get_active()
         basis_group_id = self.pyscf_basis_group_combo.get_active()
         basis_id = self.pyscf_basis_combo.get_active()
+        ecp_id = self.pyscf_ecp_combo.get_active()
 
         functional_model = self.pyscf_functional_combo.get_model()
         functional = functional_model[functional_id][0].split()[0] if functional_model is not None else ''
@@ -322,18 +352,57 @@ class SetupPySCFWindow:
         basis_model = self.pyscf_basis_combo.get_model()
         basis = basis_model[basis_id][0].split()[0] if basis_model is not None else ''
 
-        self.parameters['type_id']          = type_id
-        self.parameters['functional_id']    = functional_id
-        self.parameters['basis_group_id']   = basis_group_id
-        self.parameters['basis_id']         = basis_id
-        self.parameters['ncpu']             = ncpu
-        self.parameters['scratch']          = scratch
-        self.parameters['delete_job_files'] = self.checkbox_pyscf_delete_job_files.get_active()
+        ecp_model = self.pyscf_ecp_combo.get_model()
+        ecp = ecp_model[ecp_id][0].split()[0] if ecp_model is not None else 'None'
+
+        custom_functional = self.entry_pyscf_custom_functional.get_text().strip()
+        custom_basis      = self.entry_pyscf_custom_basis.get_text().strip()
+        if custom_functional:
+            functional = custom_functional
+        if custom_basis:
+            basis = custom_basis
+
+        # . A light sanity check against the real PySCF/libxc tables, so a
+        #   typo in a custom functional/basis (or one PySCF genuinely
+        #   doesn't know) is caught here instead of deep inside a QC/MM
+        #   job's traceback. Advisory only (some legitimate basis sets
+        #   only cover certain elements, e.g. heavy-element-only ECP
+        #   basis sets, so a single test element can't be a hard gate).
+        if pyscf_available:
+            problems = []
+            if type_id == 1:  # DFT: functional actually matters
+                try:
+                    pyscf.dft.libxc.parse_xc(functional)
+                except Exception as e:
+                    problems.append('Functional "{}": {}'.format(functional, e))
+            try:
+                pyscf.gto.basis.load(basis, 'C')
+            except Exception as e:
+                problems.append('Basis set "{}" (tested on carbon): {}'.format(basis, e))
+            if problems:
+                proceed = self._ask_yes_no(
+                    "PySCF didn't recognise:\n\n{}\n\nThis may be fine if your system doesn't contain "
+                    "carbon and the basis is simply element-limited (e.g. an ECP/-PP set). "
+                    "Save this setup anyway?".format('\n'.join(problems)))
+                if not proceed:
+                    return
+
+        self.parameters['type_id']           = type_id
+        self.parameters['functional_id']     = functional_id
+        self.parameters['basis_group_id']    = basis_group_id
+        self.parameters['basis_id']          = basis_id
+        self.parameters['ecp_id']            = ecp_id
+        self.parameters['custom_functional'] = custom_functional
+        self.parameters['custom_basis']      = custom_basis
+        self.parameters['ncpu']              = ncpu
+        self.parameters['scratch']           = scratch
+        self.parameters['delete_job_files']  = self.checkbox_pyscf_delete_job_files.get_active()
 
         # . What session.py actually needs to build QCModelPySCF.WithOptions().
-        self.parameters['method']         = self.restrited_label  # RHF/UHF/RKS/UKS
-        self.parameters['functional']     = functional.lower() if type_id == 1 else None
-        self.parameters['orbitalBasis']    = basis
+        self.parameters['method']       = self.restrited_label  # RHF/UHF/RKS/UKS
+        self.parameters['functional']   = functional.lower() if type_id == 1 else None
+        self.parameters['orbitalBasis'] = basis
+        self.parameters['ecp']          = None if ecp_id == 0 else ecp
 
         dprint(self.parameters)
         self.close_window(None)

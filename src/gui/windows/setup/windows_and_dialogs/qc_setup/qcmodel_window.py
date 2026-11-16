@@ -501,6 +501,7 @@ class EasyHybridSetupQCModelWindow:
             parameters['method'        ] = self.setup_pyscf_window.parameters['method']        # RHF/UHF/RKS/UKS
             parameters['functional'    ] = self.setup_pyscf_window.parameters['functional']    # None for HF
             parameters['orbitalBasis'  ] = self.setup_pyscf_window.parameters['orbitalBasis']
+            parameters['ecp'           ] = self.setup_pyscf_window.parameters['ecp']           # None or a name, e.g. 'def2-TZVP'
             parameters['deleteJobFiles'] = self.setup_pyscf_window.parameters['delete_job_files']
             parameters['scratch'       ] = self.setup_pyscf_window.parameters['scratch']
             parameters['pyscf_ncpu'    ] = self.setup_pyscf_window.parameters['ncpu']

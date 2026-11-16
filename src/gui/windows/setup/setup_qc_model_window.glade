@@ -2347,7 +2347,7 @@
                   </packing>
                 </child>
                 <child>
-                  <!-- n-columns=2 n-rows=7 -->
+                  <!-- n-columns=2 n-rows=10 -->
                   <object class="GtkGrid">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
@@ -2455,12 +2455,82 @@
                       <object class="GtkLabel">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">Number of CPUs:</property>
+                        <property name="label" translatable="yes">Custom Functional:</property>
                         <property name="xalign">1</property>
                       </object>
                       <packing>
                         <property name="left-attach">0</property>
                         <property name="top-attach">4</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkEntry" id="entry_pyscf_custom_functional">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="tooltip-text" translatable="yes">Overrides the Functional dropdown above if non-empty. Any PySCF/libxc functional string (case-insensitive), e.g. wb97x-v, m06-2x, b2plyp -- PySCF accepts many more than the dropdown lists.</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">4</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Custom Basis Set:</property>
+                        <property name="xalign">1</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">5</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkEntry" id="entry_pyscf_custom_basis">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="tooltip-text" translatable="yes">Overrides the Basis Set dropdown above if non-empty. Any PySCF-valid basis string (case-insensitive, dashes/underscores ignored), e.g. aug-cc-pvtz, cc-pvdz-pp. A different basis per element isn't offered here -- use a script for that.</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">5</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">ECP (heavy elements):</property>
+                        <property name="xalign">1</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">6</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkComboBox" id="combobox_pyscf_ecp">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="popup-fixed-width">False</property>
+                        <property name="tooltip-text" translatable="yes">Effective core potential (relativistic core replacement) for heavy elements. Use an orbital basis meant to go with it (e.g. a def2-* ECP needs a def2-* orbital basis). "None" runs all-electron, PySCF's own default.</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">6</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Number of CPUs:</property>
+                        <property name="xalign">1</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">7</property>
                       </packing>
                     </child>
                     <child>
@@ -2471,7 +2541,7 @@
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
-                        <property name="top-attach">4</property>
+                        <property name="top-attach">7</property>
                       </packing>
                     </child>
                     <child>
@@ -2483,7 +2553,7 @@
                       </object>
                       <packing>
                         <property name="left-attach">0</property>
-                        <property name="top-attach">5</property>
+                        <property name="top-attach">8</property>
                       </packing>
                     </child>
                     <child>
@@ -2521,7 +2591,7 @@
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
-                        <property name="top-attach">5</property>
+                        <property name="top-attach">8</property>
                       </packing>
                     </child>
                     <child>
@@ -2531,7 +2601,7 @@
                       </object>
                       <packing>
                         <property name="left-attach">0</property>
-                        <property name="top-attach">6</property>
+                        <property name="top-attach">9</property>
                       </packing>
                     </child>
                     <child>
@@ -2546,7 +2616,7 @@
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
-                        <property name="top-attach">6</property>
+                        <property name="top-attach">9</property>
                       </packing>
                     </child>
                   </object>
