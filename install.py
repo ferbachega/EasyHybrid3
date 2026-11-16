@@ -122,6 +122,19 @@ def c_info(text):
 
 EASYHYBRID_HOME = Path(__file__).resolve().parent
 VISMOL_PATH = EASYHYBRID_HOME / "src" / "graphics_engine"
+PDYNAMO3_EH_PATH = EASYHYBRID_HOME / "src" / "pdynamo3-eh"
+DYFF_1_0EH_PATH = EASYHYBRID_HOME / "src" / "dyff-1.0eh"
+DYFFDOCK_PATH = EASYHYBRID_HOME / "src" / "dyffdock"
+
+# Every git submodule, in the order they should be checked/built. Each entry
+# names the module (for the init step) and, when it needs compiling, the
+# path to its own install script.
+SUBMODULES = {
+    "src/graphics_engine": VISMOL_PATH,
+    "src/pdynamo3-eh":     PDYNAMO3_EH_PATH,
+    "src/dyff-1.0eh":      DYFF_1_0EH_PATH,
+    "src/dyffdock":        DYFFDOCK_PATH,
+}
 
 
 # ---------------------------------------------------------------------
@@ -260,6 +273,51 @@ def ask_yes_no(question):
 
 
 # ---------------------------------------------------------------------
+# Git submodules (graphics_engine/vismol, pdynamo3-eh, dyff-1.0eh, dyffdock)
+# ---------------------------------------------------------------------
+
+def init_submodules():
+    """git submodule update --init --recursive, then report which of the 4
+    expected submodule directories actually ended up non-empty.
+
+    A plain `git clone` of EasyHybrid (without --recursive) leaves every
+    submodule path present but EMPTY -- an easy trap: later steps that
+    build/import from them fail with confusing "not found" errors that look
+    like a missing dependency rather than a forgotten clone step. Returns
+    True if every submodule is present (NOT that it builds/imports -- the
+    later per-submodule steps check that), False if git itself is missing
+    or the command failed.
+    """
+    print(c_header("\nInitializing git submodules (graphics_engine, pdynamo3-eh, dyff-1.0eh, dyffdock)...\n"))
+
+    git = shutil.which("git")
+    if git is None:
+        print(c_error("ERROR: git was not found. It is needed to fetch the submodules."))
+        return False
+
+    if not (EASYHYBRID_HOME / ".git").exists():
+        print(c_warn("This does not look like a git checkout of EasyHybrid (no .git here) -- "
+                      "skipping submodule initialization. If the submodule folders below are "
+                      "empty, you will need to fetch them yourself."))
+    else:
+        try:
+            subprocess.run(["git", "submodule", "update", "--init", "--recursive"],
+                            cwd=str(EASYHYBRID_HOME), check=True)
+        except subprocess.CalledProcessError as e:
+            print(c_error(f"ERROR: 'git submodule update --init --recursive' failed ({e})."))
+            return False
+
+    ok = True
+    for name, path in SUBMODULES.items():
+        if path.is_dir() and any(path.iterdir()):
+            print(f"{name:20s} : {c_ok('present')} -> {path}")
+        else:
+            print(f"{name:20s} : {c_error('MISSING or empty')} -> {path}")
+            ok = False
+    return ok
+
+
+# ---------------------------------------------------------------------
 # Install VISMOL
 # ---------------------------------------------------------------------
 
@@ -309,6 +367,102 @@ def install_vismol():
     except ImportError as e:
         print(c_error(f"\nERROR: VISMOL build finished but the compiled extension did not "
                        f"import correctly ({e}). Check the build output above for the real error."))
+        return False
+
+
+# ---------------------------------------------------------------------
+# Build pdynamo3-eh (EasyHybrid's pDynamo3 fork, bundled as a submodule)
+# ---------------------------------------------------------------------
+
+def build_pdynamo3_eh():
+    """Compile src/pdynamo3-eh (its own installation/Install.py -f: the same
+    C/Cython build pDynamo3 itself uses, ~2 minutes), then verify pCore,
+    pBabel and pMolecule actually import from it afterwards.
+
+    Until 2026-11 this step instead located and patched a SEPARATELY
+    installed pDynamo3 (see check_pdynamo()/install_qc_modules(), still
+    below for anyone with a personal paths.py pointing elsewhere). The
+    bundled fork needs none of that: it already carries every patch
+    EasyHybrid used to apply by hand, so this only needs to build it.
+
+    Returns True if pCore/pBabel/pMolecule import correctly afterwards,
+    False otherwise.
+    """
+
+    print(c_header("\nBuilding pdynamo3-eh (EasyHybrid's pDynamo3 fork)...\n"))
+
+    installer = PDYNAMO3_EH_PATH / "installation" / "Install.py"
+    if not installer.exists():
+        print(c_error(f"ERROR: {installer} not found (submodule not initialized -- see the step above)."))
+        return False
+
+    try:
+        subprocess.run(
+            [sys.executable, "Install.py", "-f"],
+            cwd=str(installer.parent),
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        print(c_error(f"ERROR: pdynamo3-eh build failed ({e}). See the compiler output above."))
+        return False
+
+    pdynamo3_eh = str(PDYNAMO3_EH_PATH)
+    if pdynamo3_eh not in sys.path:
+        sys.path.insert(0, pdynamo3_eh)
+    try:
+        # pBabel before pMolecule: a known pDynamo3 circular-import quirk
+        # (pMolecule.MMModel.MMModel imports pBabel at module load time;
+        # importing pMolecule first leaves pBabel's own import of pMolecule
+        # symbols reaching a partially-initialized module).
+        importlib.import_module("pCore")
+        importlib.import_module("pBabel")
+        importlib.import_module("pMolecule")
+        print(c_ok("\npdynamo3-eh: OK (pCore/pBabel/pMolecule import correctly)."))
+        return True
+    except ImportError as e:
+        print(c_error(f"\nERROR: pdynamo3-eh build finished but did not import correctly ({e}). "
+                      f"Check the compiler output above for the real error."))
+        return False
+
+
+# ---------------------------------------------------------------------
+# dyff-1.0eh and dyffdock: pure Python, no build step -- just confirm the
+# submodule is actually there and importable (needs pdynamo3-eh already on
+# sys.path, i.e. build_pdynamo3_eh() must run first).
+# ---------------------------------------------------------------------
+
+def check_dyff_1_0eh():
+    """Sanity-import pdynamo.dyff_edits from src/dyff-1.0eh. No compiling --
+    it is pure Python -- so this only catches a missing/empty submodule or
+    a genuinely broken checkout, not a build failure."""
+    path = str(DYFF_1_0EH_PATH)
+    if path not in sys.path:
+        sys.path.insert(0, path)
+    try:
+        # pBabel before pMolecule: see build_pdynamo3_eh()'s own comment --
+        # importing this module alone, with nothing else having imported
+        # pBabel yet in this process, hits the same circular-import quirk.
+        importlib.import_module("pBabel")
+        importlib.import_module("pdynamo.dyff_edits")
+        print(f"dyff-1.0eh          : {c_ok('OK')} -> {DYFF_1_0EH_PATH}")
+        return True
+    except ImportError as e:
+        print(f"dyff-1.0eh          : {c_error('NOT FOUND or broken')} ({e})")
+        return False
+
+
+def check_dyffdock():
+    """Sanity-import dyffdock from src/dyffdock (one level deeper than the
+    submodule root: src/dyffdock/dyffdock/)."""
+    path = str(DYFFDOCK_PATH)
+    if path not in sys.path:
+        sys.path.insert(0, path)
+    try:
+        importlib.import_module("dyffdock")
+        print(f"dyffdock            : {c_ok('OK')} -> {DYFFDOCK_PATH}")
+        return True
+    except ImportError as e:
+        print(f"dyffdock            : {c_error('NOT FOUND or broken')} ({e})")
         return False
 
 
@@ -661,7 +815,12 @@ def parse_bash_env_file(filepath):
 # ---------------------------------------------------------------------
 
 def check_pdynamo():
-    """Check if required pDynamo modules are available."""
+    """Check if required pDynamo modules are available.
+
+    [EN] 2026-11: LEGACY path, only called when a personal paths.py already
+    exists (a separately installed, separately maintained pDynamo3 from
+    before the pdynamo3-eh submodule existed). The default path for a fresh
+    install is build_pdynamo3_eh() instead, which needs none of this."""
 
     print(c_header("\nLocating pDynamo3 Python modules...\n"))
 
@@ -822,6 +981,10 @@ PYTHON_LIBRARIES = {
     "cairo":    "pycairo",
     "gi":       "PyGObject",
     "Cython":   "Cython",
+    # [EN] needed to BUILD src/pdynamo3-eh (its installation/Install.py
+    # reads YAML parameter files) and, at runtime, by pdynamo/
+    # ligand_chemistry.py (LigandParameters.write_pdb_component).
+    "yaml":     "PyYAML",
     # [EN] vismol_gtkwidget.py hard-imports this at module level (image
     # filtering/compositing for the 3D view) -- was missing from this
     # dict and from requirements.txt, so a fresh install this checker
@@ -1188,6 +1351,12 @@ def main():
         "--credits", action="store_true",
         help="Print author credits and the reference citation, then exit.",
     )
+    parser.add_argument(
+        "--profile", choices=["ff", "dock", "full"], default="full",
+        help="What to install: 'ff' = pdynamo3-eh + dyff-1.0eh only (scripting/HPC use "
+             "of the force field, no GUI); 'dock' = + dyffdock; 'full' (default) = "
+             "+ the VISMOL graphics engine and the EasyHybrid GUI itself.",
+    )
     args = parser.parse_args()
 
     if args.credits:
@@ -1208,12 +1377,14 @@ It provides an intuitive interface for preparing, editing, visualizing,
 and running molecular simulations, while preserving the flexibility of
 Python scripting for advanced workflows.
 
-This installer will:
+This installer will (--profile {ff,dock,full}, default full):
 
   1. Check the required Python packages
-  2. Locate and verify your pDynamo3 installation and QC engines (ORCA/xTB)
-  3. Build the VISMOL graphics engine
-  4. Optionally create desktop and application-menu shortcuts
+  2. Fetch and build pdynamo3-eh (EasyHybrid's bundled pDynamo3 fork) and
+     dyff-1.0eh (the DYFF-1.0eh force field) -- every profile
+  3. [dock, full] Fetch dyffdock (docking)
+  4. [full] Build the VISMOL graphics engine; configure QC engines (ORCA/xTB);
+     optionally create desktop and application-menu shortcuts
 
 Run with --credits at any time to see the full citation details.\
 ''')
@@ -1224,6 +1395,9 @@ Run with --credits at any time to see the full citation details.\
     if is_macos():
         print(c_warn("\n" + MACOS_NOTE_TEXT))
 
+    profile = args.profile
+    print(c_info(f"\nProfile: {profile}"))
+
     # [EN] REORDERED (previously: install_vismol() ran FIRST, then
     # dependencies were checked afterwards). install_vismol() compiles
     # Cython extensions that need numpy/Cython/PyOpenGL already present
@@ -1231,33 +1405,52 @@ Run with --credits at any time to see the full citation details.\
     # one clear "NOT FOUND" message up front, instead of the build step
     # failing with a confusing compiler/import error and the REAL cause
     # only becoming obvious several steps later.
-    print(c_header("\n[Step 1/3] Python and system dependencies"))
+    print(c_header("\n[Step 1] Python and system dependencies"))
     if not check_external_libraries(auto_install=NON_INTERACTIVE):
         print(c_error("\nInstallation cannot continue until the dependencies listed "
                        "above are resolved. Please address them and re-run this installer."))
         return False
 
-    print(c_header("\n[Step 2/3] pDynamo3 installation"))
-    check_pdynamo()
+    print(c_header("\n[Step 2] Git submodules"))
+    init_submodules()
 
-    # External QC engines (ORCA / xTB) are optional but commonly used; report
-    # their environment-variable configuration so the user knows what will work.
-    check_qc_engines()
-
-    # Offer to persist the xTB executable path into pDynamo's environment script.
-    configure_xtb_command()
-
-    # Offer to install EasyHybrid's external QC modules (xTB, ...) into pDynamo
-    # -- copies the module and registers it in pMolecule/QCModel/__init__.py.
-    install_qc_modules()
-
-    print(c_header("\n[Step 3/3] VISMOL graphics engine"))
-    if not install_vismol():
-        print(c_error("\nVISMOL did not build or import correctly (see the errors above); "
-                       "EasyHybrid's 3D visualization will not work until this is resolved."))
+    print(c_header("\n[Step 3] pdynamo3-eh + dyff-1.0eh (the force field)"))
+    # [EN] 2026-11: this used to locate and patch a SEPARATELY installed
+    # pDynamo3 (check_pdynamo() + install_qc_modules(), kept below only for
+    # a personal paths.py pointing elsewhere -- see check_pdynamo()'s own
+    # docstring). The bundled submodule needs none of that.
+    if (EASYHYBRID_HOME / "paths.py").exists():
+        print(c_info("paths.py already present -- using the pDynamo3 it points to "
+                      "instead of building the bundled pdynamo3-eh submodule."))
+        check_pdynamo()
+        install_qc_modules()
+    elif not build_pdynamo3_eh():
+        print(c_error("\npdynamo3-eh did not build or import correctly (see the errors "
+                       "above); nothing that needs pDynamo3 will work until this is resolved."))
+        return False
+    if not check_dyff_1_0eh():
+        print(c_error("\ndyff-1.0eh did not import correctly (see the error above)."))
         return False
 
-    create_desktop_icon()
+    if profile in ("dock", "full"):
+        print(c_header("\n[Step 4] dyffdock (docking)"))
+        check_dyffdock()
+
+    if profile == "full":
+        # External QC engines (ORCA / xTB) are optional but commonly used;
+        # report their environment-variable configuration.
+        check_qc_engines()
+
+        # Offer to persist the xTB executable path into pDynamo's environment script.
+        configure_xtb_command()
+
+        print(c_header("\n[Step 5] VISMOL graphics engine"))
+        if not install_vismol():
+            print(c_error("\nVISMOL did not build or import correctly (see the errors above); "
+                           "EasyHybrid's 3D visualization will not work until this is resolved."))
+            return False
+
+        create_desktop_icon()
 
     print(c_ok("\nEasyHybrid has been installed successfully.\n"))
     print(CREDITS_TEXT)

@@ -49,6 +49,11 @@ psutil>=5.9.0
 # startup. gui/windows/builder/structure_library.py also uses it
 # (Kekulization matching) but already degrades gracefully if absent.
 networkx>=2.8
+# Needed to BUILD src/pdynamo3-eh (its own installation/Install.py reads
+# YAML parameter files) and, at runtime, by pdynamo/ligand_chemistry.py
+# (LigandParameters.write_pdb_component). Was relying on this already being
+# present as a transitive/system package, never declared here.
+PyYAML
 # macOS only: GTK3's Quartz backend corrupts window compositing when a
 # Gtk.GLArea is realized (see MACOS_NATIVE_RENDERING_FIX.md), so on
 # macOS the 3D view renders into a hidden GLFW window/offscreen OpenGL
