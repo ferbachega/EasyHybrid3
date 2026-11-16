@@ -1882,6 +1882,20 @@
                 <property name="orientation">vertical</property>
                 <property name="spacing">5</property>
                 <child>
+                  <object class="GtkLabel" id="label_orca_engine_status">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">ORCA: checking...</property>
+                    <property name="xalign">0</property>
+                    <property name="wrap">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
                   <!-- n-columns=2 n-rows=9 -->
                   <object class="GtkGrid">
                     <property name="visible">True</property>
@@ -1931,6 +1945,7 @@
                         <property name="can-focus">False</property>
                         <property name="hexpand">True</property>
                         <property name="popup-fixed-width">False</property>
+                        <property name="tooltip-text" translatable="yes">The class of electronic-structure method (HF, DFT, semi-empirical, ...). Changes which methods and basis sets are offered below.</property>
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
@@ -1942,6 +1957,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="popup-fixed-width">False</property>
+                        <property name="tooltip-text" translatable="yes">How tightly the SCF must converge (ORCA's TightSCF/VeryTightSCF/... keywords). Tighter settings are slower but needed for e.g. frequencies or small energy differences.</property>
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
@@ -1953,6 +1969,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="popup-fixed-width">False</property>
+                        <property name="tooltip-text" translatable="yes">The family of basis sets to choose from below (e.g. Pople, def2, correlation-consistent).</property>
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
@@ -1963,6 +1980,7 @@
                       <object class="GtkSpinButton" id="spin_button_orca_ncpus">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <property name="tooltip-text" translatable="yes">Cores ORCA's own %pal block will request. Keep at or below this machine's CPU count.</property>
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
@@ -1998,6 +2016,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="popup-fixed-width">False</property>
+                        <property name="tooltip-text" translatable="yes">The specific method/functional within the Type chosen above.</property>
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
@@ -2021,6 +2040,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="popup-fixed-width">False</property>
+                        <property name="tooltip-text" translatable="yes">Adds an excited-states block (e.g. %tddft) to the ORCA input. "None" runs a plain ground-state calculation.</property>
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
@@ -2044,6 +2064,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="popup-fixed-width">False</property>
+                        <property name="tooltip-text" translatable="yes">The specific basis set within the group chosen above.</property>
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
@@ -2063,9 +2084,37 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkEntry" id="entry_orca_scratch_folder">
+                      <object class="GtkBox">
                         <property name="visible">True</property>
-                        <property name="can-focus">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="spacing">4</property>
+                        <child>
+                          <object class="GtkEntry" id="entry_orca_scratch_folder">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="hexpand">True</property>
+                            <property name="tooltip-text" translatable="yes">Folder where ORCA writes its temporary job files. Created automatically if missing; must be writable.</property>
+                          </object>
+                          <packing>
+                            <property name="expand">True</property>
+                            <property name="fill">True</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkButton" id="button_orca_scratch_browse">
+                            <property name="label" translatable="yes">Browse…</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">True</property>
+                            <property name="tooltip-text" translatable="yes">Pick the scratch folder with a file chooser instead of typing it.</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">False</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
@@ -2089,6 +2138,7 @@
                         <property name="can-focus">True</property>
                         <property name="receives-default">False</property>
                         <property name="draw-indicator">True</property>
+                        <property name="tooltip-text" translatable="yes">Gives this job's ORCA scratch files a random subfolder name instead of a fixed one, so two ORCA jobs run at the same time never collide by sharing the same scratch files.</property>
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
@@ -2099,7 +2149,7 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="position">0</property>
+                    <property name="position">1</property>
                   </packing>
                 </child>
                 <child>
@@ -2112,7 +2162,7 @@
                     <property name="shadow-type">in</property>
                     <child>
                       <object class="GtkAlignment">
-                        <property name="height-request">125</property>
+                        <property name="height-request">185</property>
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="top-padding">5</property>
@@ -2120,17 +2170,48 @@
                         <property name="left-padding">5</property>
                         <property name="right-padding">5</property>
                         <child>
-                          <object class="GtkScrolledWindow">
+                          <object class="GtkBox">
                             <property name="visible">True</property>
-                            <property name="can-focus">True</property>
-                            <property name="shadow-type">in</property>
+                            <property name="can-focus">False</property>
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">4</property>
                             <child>
-                              <object class="GtkTextView" id="textview_orca">
+                              <object class="GtkLabel" id="label_orca_preview">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="label" translatable="yes">Sent to ORCA as line 1: ! ...</property>
+                                <property name="xalign">0</property>
+                                <property name="selectable">True</property>
+                                <property name="wrap">True</property>
+                                <attributes>
+                                  <attribute name="style" value="italic"/>
+                                </attributes>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkScrolledWindow">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
-                                <property name="tooltip-text" translatable="yes">Keywords for calculations with ORCA. pDynamo will add some keywords automatically (BOHRS, ENERGY, ENGRAD, %pointcharges as well as charge and multiplicity.). Don't add "!" the first line. You can add an extra command line, for example, assigning a specific base to a certain type of atom.</property>
-                                <property name="buffer">textbuffer_orca</property>
+                                <property name="shadow-type">in</property>
+                                <child>
+                                  <object class="GtkTextView" id="textview_orca">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="tooltip-text" translatable="yes">Line 1 is generated above from the fields above and already gets "!" (and BOHRS/ENERGY/ENGRAD/charge/multiplicity) added automatically by pDynamo -- don't type "!" there, just edit the fields above instead. Any EXTRA line you add below is sent to ORCA exactly as typed: start it with "!" yourself if it is another simple-keyword line (e.g. "! TightSCF"), or with "%" for a block directive (e.g. "%basis newGTO Fe "def2-TZVP" end") -- blocks don't need "!".</property>
+                                    <property name="buffer">textbuffer_orca</property>
+                                  </object>
+                                </child>
                               </object>
+                              <packing>
+                                <property name="expand">True</property>
+                                <property name="fill">True</property>
+                                <property name="position">1</property>
+                              </packing>
                             </child>
                           </object>
                         </child>
@@ -2147,7 +2228,7 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="position">1</property>
+                    <property name="position">2</property>
                   </packing>
                 </child>
               </object>
@@ -2186,7 +2267,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton" id="orca_button_cancel ">
+                  <object class="GtkButton" id="orca_button_cancel">
                     <property name="label" translatable="yes">Cancel</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
@@ -2200,7 +2281,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton" id="orca_button_ok ">
+                  <object class="GtkButton" id="orca_button_ok">
                     <property name="label" translatable="yes">OK</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
