@@ -83,7 +83,13 @@ from pMolecule.MMModel         import*
 from pMolecule.NBModel         import*                                     
 from pMolecule.QCModel         import*
 #---------------------------------------
-from pScientific               import*                                     
+# . pySCF is an addOn, not part of pMolecule.QCModel's own star import --
+#   safe to import even when the pyscf package itself is not installed
+#   (only instantiating QCModelPySCF.WithOptions() then raises
+#   NotInstalledError, same as every other optional QC engine here).
+from addOns.pySCF              import QCModelPySCF, NBModelPySCF
+#---------------------------------------
+from pScientific               import*
 from pScientific.Arrays        import*                                     
 from pScientific.Geometry3     import*                                     
 from pScientific.RandomNumbers import*                                     
@@ -2433,6 +2439,22 @@ class pDynamoSession (pSimulations, pRemote, pAnalysis, ModifyRepInVismol, LoadA
                                                 )
             '''
 
+        elif parameters['qcengine'] == 'PySCF':
+            # . QCModelPySCF's own scratch/parallelism are NOT WithOptions
+            #   kwargs -- _CheckOptions() reads PYSCF_TMPDIR (falling back
+            #   to PDYNAMO3_SCRATCH) and PySCF's own OMP_NUM_THREADS from
+            #   the environment every time, overwriting anything passed
+            #   in. Set them here, right before building the model.
+            if parameters.get('scratch'):
+                os.environ['PYSCF_TMPDIR'] = parameters['scratch']
+            if parameters.get('pyscf_ncpu'):
+                os.environ['OMP_NUM_THREADS'] = str ( parameters['pyscf_ncpu'] )
+            qcModel = QCModelPySCF.WithOptions ( method         = parameters['method'       ],
+                                                 functional     = parameters['functional'   ],
+                                                 orbitalBasis   = parameters['orbitalBasis'  ],
+                                                 deleteJobFiles = parameters['deleteJobFiles'],
+                                                 )
+
         else:
             converger = DIISSCFConverger.WithOptions( energyTolerance   = parameters['energyTolerance'] ,
                                                       densityTolerance  = parameters['densityTolerance'] ,
@@ -2467,6 +2489,13 @@ class pDynamoSession (pSimulations, pRemote, pAnalysis, ModifyRepInVismol, LoadA
                 
                 elif parameters['qcengine'] == 'DFTB+':
                     system.DefineNBModel (NBModelDFTB.WithDefaults ( ))
+
+                elif parameters['qcengine'] == 'PySCF':
+                    # . QCModelPySCF's own module docstring: "For QCMM
+                    #   gradients, use NBModel.NBModelPySCF" -- the generic
+                    #   NBModelCutOff below has no QC/MM electrostatic
+                    #   embedding PySCF understands.
+                    system.DefineNBModel (NBModelPySCF.WithDefaults ( ))
                 else:
                     system.DefineNBModel ( NBModelCutOff.WithDefaults ( ) )
             else:
