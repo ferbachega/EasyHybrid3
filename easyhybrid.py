@@ -140,13 +140,23 @@ def parse_bash_env_file(filepath):
             # Remove inline comments
             line = line.split("#")[0].strip()
 
-            # Remove "; export VAR"
+            # Remove "; export VAR" (pDynamo3's own template style:
+            # "VAR=value ; export VAR")
             line = re.sub(r";\s*export\s+\w+", "", line)
+
+            # Remove a leading "export " keyword (the other common style,
+            # "export VAR=value" -- e.g. what install.py's
+            # _write_env_var_to_script() writes; without this the variable
+            # name ends up as "export VAR" and is never actually set)
+            line = re.sub(r"^export\s+", "", line.strip())
 
             if "=" in line:
                 var, value = line.split("=", 1)
                 var = var.strip()
                 value = value.strip()
+                # Strip one matching pair of surrounding quotes
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+                    value = value[1:-1]
 
                 env_vars[var] = value
 
