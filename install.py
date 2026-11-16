@@ -606,19 +606,29 @@ def configure_xtb_command():
             "Set {:s} manually in your shell configuration.".format(var)))
         return True
 
-    # Ask for the xtb path, validating it is a real executable.
-    xtb_path = ""
-    while True:
-        xtb_path = input("\nFull path to the xtb executable "
-                         "(e.g. /home/user/xtb-6.7.1/bin/xtb): ").strip()
-        if not xtb_path:
-            print(c_info("No path given; skipping."))
+    # Ask for the xtb path, validating it is a real executable. In
+    # non-interactive mode there is no one to ask -- reuse the already
+    # detected path (current) if there is one, otherwise skip instead of
+    # calling input() with no TTY to read from (EOFError).
+    if NON_INTERACTIVE:
+        if current and os.path.isfile(current) and os.access(current, os.X_OK):
+            xtb_path = os.path.abspath(os.path.expanduser(current))
+        else:
+            print(c_info("Non-interactive mode and no valid {:s} detected; skipping.".format(var)))
             return True
-        xtb_path = os.path.abspath(os.path.expanduser(xtb_path))
-        if os.path.isfile(xtb_path) and os.access(xtb_path, os.X_OK):
-            break
-        print(c_warn("That path is not an executable file. "
-                     "Please check it and try again (or leave empty to skip)."))
+    else:
+        xtb_path = ""
+        while True:
+            xtb_path = input("\nFull path to the xtb executable "
+                             "(e.g. /home/user/xtb-6.7.1/bin/xtb): ").strip()
+            if not xtb_path:
+                print(c_info("No path given; skipping."))
+                return True
+            xtb_path = os.path.abspath(os.path.expanduser(xtb_path))
+            if os.path.isfile(xtb_path) and os.access(xtb_path, os.X_OK):
+                break
+            print(c_warn("That path is not an executable file. "
+                         "Please check it and try again (or leave empty to skip)."))
 
     if _write_env_var_to_script(script, var, xtb_path):
         print(c_ok("Saved {:s} -> {:s}".format(var, xtb_path)))
@@ -862,7 +872,10 @@ To load them manually, run:
 
         print(msg)
 
-        if ask_yes_no("Would you like the installer to locate and load it for you?"):
+        if NON_INTERACTIVE:
+            print(c_info("Non-interactive mode; cannot ask for the pDynamo3 path. Skipping."))
+
+        elif ask_yes_no("Would you like the installer to locate and load it for you?"):
 
             pdynamo_path = input(
                 "\nPath to the pDynamo3 installation (e.g. /home/user/pDynamo3): "
