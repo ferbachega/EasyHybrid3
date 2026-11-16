@@ -642,6 +642,29 @@ def configure_xtb_command():
     return False
 
 
+def ensure_scratch_directory():
+    """Create src/pdynamo3-eh/scratch if it does not exist yet.
+
+    pdynamo3-eh's own installer (Install.py -f) already writes
+    PDYNAMO3_SCRATCH=$PDYNAMO3_HOME/scratch into environment_bash.com (read at
+    GUI startup by easyhybrid.py's parse_bash_env_file(), independent of the
+    current shell) -- but it never creates that directory. On a fresh clone
+    nothing has, so the first QC (ORCA/xTB) calculation fails trying to write
+    there. Harmless to create unconditionally: it is a plain scratch folder,
+    already in src/pdynamo3-eh/.gitignore.
+    """
+    scratch_dir = PDYNAMO3_EH_PATH / "scratch"
+    if scratch_dir.is_dir():
+        return True
+    try:
+        scratch_dir.mkdir(parents=True, exist_ok=True)
+        print(c_ok(f"Created {scratch_dir} (PDYNAMO3_SCRATCH default)."))
+        return True
+    except Exception as e:
+        print(c_warn(f"Could not create {scratch_dir}: {e}"))
+        return False
+
+
 def install_qc_modules():
     """Offer to install EasyHybrid's external QC modules into pDynamo.
 
@@ -1441,6 +1464,8 @@ Run with --credits at any time to see the full citation details.\
         print(c_error("\npdynamo3-eh did not build or import correctly (see the errors "
                        "above); nothing that needs pDynamo3 will work until this is resolved."))
         return False
+    else:
+        ensure_scratch_directory()
     if not check_dyff_1_0eh():
         print(c_error("\ndyff-1.0eh did not import correctly (see the error above)."))
         return False
