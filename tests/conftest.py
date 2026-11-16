@@ -33,6 +33,10 @@ _REPO_ROOT = os.path.dirname(_TESTS_DIR)
 for _p in (
     os.path.join(_REPO_ROOT, "src"),
     os.path.join(_REPO_ROOT, "src", "graphics_engine", "src"),
+    # dyff-1.0eh (submodule): keeps the "pdynamo" package name, merged with
+    # src/pdynamo/ above as a PEP 420 namespace package -- see easyhybrid.py
+    # and src/dyff-1.0eh/README.md.
+    os.path.join(_REPO_ROOT, "src", "dyff-1.0eh"),
 ):
     if _p not in sys.path:
         sys.path.insert(0, _p)

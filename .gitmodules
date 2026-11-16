@@ -8,3 +8,6 @@
 [submodule "src/pdynamo3-eh"]
 	path = src/pdynamo3-eh
 	url = https://github.com/ferbachega/pdynamo3-eh.git
+[submodule "src/dyff-1.0eh"]
+	path = src/dyff-1.0eh
+	url = https://github.com/ferbachega/dyff-1.0eh.git

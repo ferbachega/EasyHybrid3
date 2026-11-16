@@ -16,11 +16,18 @@ import sys
 import pytest
 
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for p in (os.path.join(_REPO, "src"), os.path.join(_REPO, "fraglib")):
+for p in (os.path.join(_REPO, "src"), os.path.join(_REPO, "src", "dyff-1.0eh"), os.path.join(_REPO, "fraglib")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-DATA = os.path.join(_REPO, "src", "pdynamo", "data")
+# dyff-1.0eh (submodule): pdynamo/data/ moved with residue_library.py; DEFAULT_PATH
+# is that module's own, already-correct (relative to its own __file__) path to it.
+# dyff_residue_library_calibrated.json is NOT part of that package (superseded by
+# the force-matched "_fm" library, kept only for this regression check) -- it
+# stayed behind in this repo's own src/pdynamo/data/.
+from pdynamo.residue_library import DEFAULT_PATH as _RESIDUE_LIBRARY_PATH
+DATA = os.path.dirname(_RESIDUE_LIBRARY_PATH)
+OLD_DATA = os.path.join(_REPO, "src", "pdynamo", "data")
 
 
 def _even_profile(pairs):
@@ -35,7 +42,7 @@ def test_fm_library_planar_bonds_are_planar():
     #   plane, with the barrier of the calibrated series (fix_planar_torsions.py)
     from fraglib.run_force_matching import is_planar_bond
     fm = json.load(open(os.path.join(DATA, "dyff_residue_library_fm.json")))["templates"]
-    cal = json.load(open(os.path.join(DATA, "dyff_residue_library_calibrated.json")))["templates"]
+    cal = json.load(open(os.path.join(OLD_DATA, "dyff_residue_library_calibrated.json")))["templates"]
     n = 0
     for name, t in fm.items():
         cmap = {frozenset((a, b)): p for a, b, p in cal[name]["dihedral_bonds"]}

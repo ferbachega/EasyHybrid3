@@ -226,6 +226,14 @@ sys.path.append(os.path.join(EASYHYBRID_HOME,"src/"))
 # sys.path entry for "import dyffdock" to keep resolving.
 sys.path.append(os.path.join(EASYHYBRID_HOME,"src/dyffdock"))
 
+#.src/dyff-1.0eh is now its own repository (github.com/ferbachega/dyff-1.0eh),
+# added as a submodule: it keeps the package name "pdynamo" (every GUI/
+# automation call site already imports it that way) and relies on PEP 420
+# namespace packages to merge with this repo's own src/pdynamo/ (the GUI-
+# coupled bridge code that stayed behind) -- both need to be on sys.path,
+# neither has an __init__.py. See src/dyff-1.0eh/README.md.
+sys.path.append(os.path.join(EASYHYBRID_HOME,"src/dyff-1.0eh"))
+
 
 from gui.main import MainWindow
 from gui.eSession import EasyHybridSession
