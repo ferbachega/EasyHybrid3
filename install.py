@@ -532,6 +532,47 @@ def _locate_pdynamo_env_script():
         return None
 
 
+def find_qc_engine_candidates(binary_names):
+    """Look for an executable named any of binary_names on PATH and under
+    ~/programs/ and /opt/ (any depth).
+
+    Covers every layout actually seen in practice (~/programs/xtb-6.7.1/bin/xtb,
+    ~/programs/orca_6_1_0_.../orca, ~/programs/sparrow/install/bin/sparrow,
+    ~/programs/dftbplus-24.1.../bin/dftb+, ...) without needing to guess a
+    fixed folder convention per engine. Returns a deduplicated list of
+    absolute paths to real, executable files, PATH matches first (an explicit
+    PATH entry is a stronger signal of intent than a guessed folder).
+    """
+    found = []
+    seen = set()
+
+    for name in binary_names:
+        which = shutil.which(name)
+        if which:
+            which = os.path.abspath(which)
+            if which not in seen:
+                found.append(which)
+                seen.add(which)
+
+    for root in (Path.home() / "programs", Path("/opt")):
+        if not root.is_dir():
+            continue
+        for name in binary_names:
+            try:
+                matches = sorted(root.glob("**/" + name), reverse=True)
+            except (OSError, ValueError):
+                continue
+            for p in matches:
+                p = str(p)
+                if p in seen:
+                    continue
+                if os.path.isfile(p) and os.access(p, os.X_OK):
+                    found.append(p)
+                    seen.add(p)
+
+    return found
+
+
 def _write_env_var_to_script(script_path, var, value):
     """Add or update 'export VAR="value"' in a bash environment script.
 
@@ -576,26 +617,49 @@ def _write_env_var_to_script(script_path, var, value):
         return False
 
 
-def configure_xtb_command():
-    """Offer to persist PDYNAMO3_XTBCOMMAND into pDynamo's environment script.
+def _ask_for_executable_path(engine_name):
+    """Prompt for a path by hand, validating it is a real executable file.
+    Returns the absolute path, or None if the user left it empty (skip)."""
+    while True:
+        path = input("\nFull path to the {:s} executable: ".format(engine_name)).strip()
+        if not path:
+            print(c_info("No path given; skipping."))
+            return None
+        path = os.path.abspath(os.path.expanduser(path))
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+        print(c_warn("That path is not an executable file. "
+                     "Please check it and try again (or leave empty to skip)."))
 
-    Asks for authorization, asks for the xtb executable path (validating it),
-    and writes 'export PDYNAMO3_XTBCOMMAND="..."' into environment_bash.com so
-    the variable is set in future shells. Returns True unless the user
-    authorized it but writing failed.
+
+def configure_qc_engine(engine_name, var, binary_names):
+    """Offer to persist VAR (e.g. PDYNAMO3_XTBCOMMAND) into pDynamo's
+    environment script, searching PATH and ~/programs/ for a candidate
+    executable first instead of just asking the user to already know the
+    exact path (find_qc_engine_candidates()). Returns True unless the user
+    authorized a write but it failed.
     """
-    var = QC_ENGINE_ENV_VARS["xTB"]  # "PDYNAMO3_XTBCOMMAND"
-
     # If it is already set in this shell, tell the user and offer to skip.
     current = os.environ.get(var)
-    if current:
-        print(c_info("\n{:s} is already set -> {:s}".format(var, current)))
+    if current and os.path.isfile(current) and os.access(current, os.X_OK):
+        print(c_info("\n{:s} ({:s}) is already set -> {:s}".format(engine_name, var, current)))
         if not ask_yes_no("Do you want to (re)write it into environment_bash.com anyway?"):
             return True
+    else:
+        current = None
+
+    candidates = [c for c in find_qc_engine_candidates(binary_names) if c != current]
+
+    if current is None and not candidates:
+        # Nothing to offer: don't even ask "may the installer save...".
+        if not NON_INTERACTIVE:
+            print(c_warn("\nNo {:s} executable ({:s}) found on PATH or under ~/programs/.".format(
+                engine_name, "/".join(binary_names))))
+        return True
 
     if not ask_yes_no(
-        "\nMay the installer save the xTB executable path into pDynamo's "
-        "environment_bash.com (sets {:s} for future shells)?".format(var)):
+        "\nMay the installer save the {:s} executable path into pDynamo's "
+        "environment_bash.com (sets {:s} for future shells)?".format(engine_name, var)):
         print(c_info("Skipped writing {:s}. You can set it manually later.".format(var)))
         return True
 
@@ -606,35 +670,43 @@ def configure_xtb_command():
             "Set {:s} manually in your shell configuration.".format(var)))
         return True
 
-    # Ask for the xtb path, validating it is a real executable. In
-    # non-interactive mode there is no one to ask -- reuse the already
-    # detected path (current) if there is one, otherwise skip instead of
-    # calling input() with no TTY to read from (EOFError).
     if NON_INTERACTIVE:
-        if current and os.path.isfile(current) and os.access(current, os.X_OK):
-            xtb_path = os.path.abspath(os.path.expanduser(current))
-        else:
-            print(c_info("Non-interactive mode and no valid {:s} detected; skipping.".format(var)))
+        # No one to ask: the best already-detected path, or the first
+        # candidate found. Never call input() with no TTY (EOFError).
+        chosen = current or (candidates[0] if candidates else None)
+        if chosen is None:
+            print(c_info("Non-interactive mode and no {:s} executable found; skipping.".format(var)))
+            return True
+    elif not candidates:
+        chosen = _ask_for_executable_path(engine_name)
+        if chosen is None:
             return True
     else:
-        xtb_path = ""
-        while True:
-            xtb_path = input("\nFull path to the xtb executable "
-                             "(e.g. /home/user/xtb-6.7.1/bin/xtb): ").strip()
-            if not xtb_path:
-                print(c_info("No path given; skipping."))
+        print(c_info("\nFound {:s} candidate(s):".format(engine_name)))
+        for i, c in enumerate(candidates, 1):
+            print("  [{:d}] {:s}".format(i, c))
+        print("  [c] type a path myself")
+        print("  [s] skip ({:s} not set)".format(var))
+        chosen = None
+        while chosen is None:
+            choice = input("Choice: ").strip().lower()
+            if choice in ("s", ""):
+                print(c_info("Skipped {:s}.".format(var)))
                 return True
-            xtb_path = os.path.abspath(os.path.expanduser(xtb_path))
-            if os.path.isfile(xtb_path) and os.access(xtb_path, os.X_OK):
-                break
-            print(c_warn("That path is not an executable file. "
-                         "Please check it and try again (or leave empty to skip)."))
+            if choice == "c":
+                chosen = _ask_for_executable_path(engine_name)
+                if chosen is None:
+                    return True
+            elif choice.isdigit() and 1 <= int(choice) <= len(candidates):
+                chosen = candidates[int(choice) - 1]
+            else:
+                print(c_warn("Invalid choice."))
 
-    if _write_env_var_to_script(script, var, xtb_path):
-        print(c_ok("Saved {:s} -> {:s}".format(var, xtb_path)))
+    if _write_env_var_to_script(script, var, chosen):
+        print(c_ok("Saved {:s} -> {:s}".format(var, chosen)))
         print(c_info("in ") + str(script))
         # also set it for the current process so later checks see it
-        os.environ[var] = xtb_path
+        os.environ[var] = chosen
         print(c_warn(
             "Open a new shell or run:  source " + str(script) + "\n"
             "for the change to take effect in your current terminal."))
@@ -927,24 +999,41 @@ To load them manually, run:
 
 
 # ---------------------------------------------------------------------
-# Check external QC engines (ORCA / xTB)
+# Check external QC engines (ORCA, xTB, MOPAC, DFTB+, NWChem, Sparrow)
 # ---------------------------------------------------------------------
 
 # Each external QC engine that EasyHybrid can drive is configured through a
 # pDynamo environment variable that must point at the engine executable. This
-# table maps a human-readable name to that variable; add a row here when a new
-# engine is supported and the check below covers it automatically.
+# table maps a human-readable name to that variable; add a row here (and to
+# QC_ENGINE_BINARY_NAMES below) when a new engine is supported and both the
+# check and the search/configure step cover it automatically.
 QC_ENGINE_ENV_VARS = {
-    "ORCA": "PDYNAMO3_ORCACOMMAND",
-    "xTB":  "PDYNAMO3_XTBCOMMAND",
+    "ORCA":    "PDYNAMO3_ORCACOMMAND",
+    "xTB":     "PDYNAMO3_XTBCOMMAND",
+    "MOPAC":   "PDYNAMO3_MOPACCOMMAND",
+    "DFTB+":   "PDYNAMO3_DFTBCOMMAND",
+    "NWChem":  "PDYNAMO3_NWCHEMCOMMAND",
+    "Sparrow": "PDYNAMO3_SPARROWCOMMAND",
 }
 
-# The shared scratch directory both engines write their temporary files to.
+# Executable basenames find_qc_engine_candidates() looks for on PATH and
+# under ~/programs/ for each engine above (configure_qc_engine()).
+QC_ENGINE_BINARY_NAMES = {
+    "ORCA":    ("orca",),
+    "xTB":     ("xtb",),
+    "MOPAC":   ("mopac", "MOPAC2016.exe", "MOPAC2023.exe"),
+    "DFTB+":   ("dftb+",),
+    "NWChem":  ("nwchem",),
+    "Sparrow": ("sparrow",),
+}
+
+# The shared scratch directory every engine writes its temporary files to.
 QC_SCRATCH_ENV_VAR = "PDYNAMO3_SCRATCH"
 
 
 def check_qc_engines():
-    """Check that the external QC engines (ORCA, xTB) are configured.
+    """Check that the external QC engines (ORCA, xTB, MOPAC, DFTB+, NWChem,
+    Sparrow) are configured.
 
     This first stage verifies the *environment variables* that pDynamo uses to
     locate each engine executable, plus the shared scratch directory. It does
@@ -962,10 +1051,10 @@ def check_qc_engines():
     for engine, var in QC_ENGINE_ENV_VARS.items():
         value = os.environ.get(var)
         if value:
-            print(f"{engine:5s} ({var}) : {c_ok('SET')} -> {value}")
+            print(f"{engine:8s} ({var}) : {c_ok('SET')} -> {value}")
             results[engine] = True
         else:
-            print(f"{engine:5s} ({var}) : {c_warn('NOT SET')}")
+            print(f"{engine:8s} ({var}) : {c_warn('NOT SET')}")
             results[engine] = False
 
     # Shared scratch directory (used by every engine).
@@ -1493,12 +1582,15 @@ Run with --credits at any time to see the full citation details.\
         check_dyffdock()
 
     if profile == "full":
-        # External QC engines (ORCA / xTB) are optional but commonly used;
-        # report their environment-variable configuration.
+        # External QC engines (ORCA, xTB, MOPAC, DFTB+, NWChem, Sparrow) are
+        # optional but commonly used; report their environment-variable
+        # configuration.
         check_qc_engines()
 
-        # Offer to persist the xTB executable path into pDynamo's environment script.
-        configure_xtb_command()
+        # Offer to search PATH and ~/programs/ for each engine's executable
+        # and persist the chosen one into pDynamo's environment script.
+        for engine_name, var in QC_ENGINE_ENV_VARS.items():
+            configure_qc_engine(engine_name, var, QC_ENGINE_BINARY_NAMES[engine_name])
 
         print(c_header("\n[Step 5] VISMOL graphics engine"))
         if not install_vismol():
