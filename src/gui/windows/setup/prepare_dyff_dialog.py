@@ -293,6 +293,14 @@ class PrepareDYFFDialog:
             names = sorted ( { residues[i].name for i in info["metal_cofactors"] } )
             box.pack_start ( label ( "Not supported yet: metal-containing cofactors {} (heme, Fe-S clusters...). Remove them or use "
                                      "Prepare OPLS System / an active-site model in the Builder.".format ( ", ".join ( names ) ) ), False, False, 0 )
+        if info.get ( "unrecognized_metals" ):
+            box.pack_start ( label ( "Metal(s) without a default model: {}. This version has default charges/multiplicities for the "
+                                     "common biological metals only (Zn, Cu, Fe, Ni, Co, Mn, Cd, Hg, Mo, W, V, Cr, Pt, Ag, Au, Mg, Ca); these "
+                                     "will be kept as plain point ions, with no metal-donor bonds and no CM5/Hessian refinement. If the site "
+                                     "needs a bonded model, set its charge with System > Set Formal Charges and build the metal-donor bonds "
+                                     "by hand in the Builder after this preparation.".format (
+                                     ", ".join ( "{} ({})".format ( residues[i].label, e ) for i, _, e in info["unrecognized_metals"] ) ), True ),
+                             False, False, 0 )
 
         free_ligands = [ i for i in info["ligands"] if i not in set ( info["covalent"] ) ]
         if free_ligands:

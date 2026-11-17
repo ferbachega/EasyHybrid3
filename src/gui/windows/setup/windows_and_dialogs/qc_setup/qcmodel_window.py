@@ -133,7 +133,7 @@ class EasyHybridSetupQCModelWindow:
                           1:'ORCA'   ,
                           2:'DFTB+'  ,
                           3:'xTB'    ,
-                          4:'PySCF' ,
+                          #4:'PySCF' ,   # hidden 2026-11-16: window/options still being refined
                           #5:'MOPAC'  ,
                           #6:'sparrow',
                           }
@@ -380,7 +380,7 @@ class EasyHybridSetupQCModelWindow:
             self.builder.get_object('QCModel_methods_combobox').hide()
             self.setup_xtb_window.open_window()
 
-        elif self.qc_engine_id == 4:
+        elif self.qc_engine_id == 4:  # PySCF -- not in QC_engines yet (commented out above), kept wired for when it is
             self.builder.get_object('button_setup_dftb').set_label('PySCF Setup')
             self.builder.get_object('button_setup_dftb').show()
 
@@ -497,7 +497,7 @@ class EasyHybridSetupQCModelWindow:
             parameters['scratch'   ] = self.setup_xtb_window.parameters['scratch'] 
             parameters['xtb_backup_files'] = self.setup_xtb_window.parameters['backup_files']
         
-        elif self.qc_engine_id == 4: # PySCF
+        elif self.qc_engine_id == 4: # PySCF -- not in QC_engines yet (commented out above), kept wired for when it is
             parameters['method'        ] = self.setup_pyscf_window.parameters['method']        # RHF/UHF/RKS/UKS
             parameters['functional'    ] = self.setup_pyscf_window.parameters['functional']    # None for HF
             parameters['orbitalBasis'  ] = self.setup_pyscf_window.parameters['orbitalBasis']

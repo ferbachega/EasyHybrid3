@@ -656,15 +656,23 @@ class DYFFParametersWindow:
         self.refresh ( )
         self.label_status.set_text ( "CM5 charges set (total {:+d}, multiplicity {}); they are used by DYFF (System > Force Field) and Optimize.".format ( q, m ) )
 
-    def _run_hessian ( self, target, q, m, solvent, adopt_geometry ):
+    def _run_hessian ( self, target, q, m, solvent, adopt_geometry, method = "gfn2" ):
         """ xTB optimization + Hessian -> bond/angle edits, in a worker thread. """
         import threading
         n = len ( target.atoms )
         self.label_status.set_text ( "Running xTB optimization + Hessian ({} atoms)...".format ( n ) )
+        # . 2026-11-16, user's request: this label is only visible while the window is open;
+        #   a note in the main Status panel says the same for a few-second to several-minute
+        #   xTB run so it does not read as a frozen program.
+        self.main.bottom_notebook.status_teeview_add_new_item (
+            message = "DYFF Parameters: running xTB optimization + Hessian ({} atoms, {}). This can take from a few "
+                      "seconds to several minutes depending on size and method. EasyHybrid stays usable while it runs.".format (
+                      n, "g-xTB, gas phase" if method == "gxtb" else "GFN2-xTB" + ( " + implicit water" if solvent else "" ) ),
+            system = None )
         threads = max ( 1, min ( 8, ( os.cpu_count ( ) or 2 ) // 2 ) )
         def work ( ):
             try:
-                result = D.compute_hessian_edits ( target, q, m, threads = threads, solvent = solvent )
+                result = D.compute_hessian_edits ( target, q, m, threads = threads, solvent = solvent, method = method )
                 GLib.idle_add ( self._hessian_done, target, result, adopt_geometry, None )
             except Exception as error:
                 traceback.print_exc ( )
@@ -741,6 +749,15 @@ class DYFFParametersWindow:
         spin_m = Gtk.SpinButton.new_with_range ( 1, 9, 1 ); spin_m.set_value ( 1 ); grid.attach ( spin_m, 1, 9, 1, 1 )
         solvent = Gtk.CheckButton ( label = "Implicit water (ALPB) -- recommended for ions" ); solvent.set_active ( any ( int ( getattr ( a, "formal_charge", 0 ) or 0 ) for a in target.atoms.values ( ) ) )
         grid.attach ( solvent, 0, 10, 2, 1 )
+        grid.attach ( Gtk.Label ( label = "Hessian method:", xalign = 0 ), 0, 12, 1, 1 )
+        method_combo = Gtk.ComboBoxText ( )
+        method_combo.append ( "gfn2", "GFN2-xTB (implicit water allowed)" )
+        method_combo.append ( "gxtb", "g-xTB (more accurate; gas phase only)" )
+        method_combo.set_active_id ( "gfn2" )
+        method_combo.set_tooltip_text ( "Method for the xTB Hessian the bond/angle (modified Seminario) terms come from. g-xTB runs "
+                                        "through tblite, which has no implicit solvent: the water checkbox above is then ignored, "
+                                        "so prefer GFN2-xTB + ALPB for charged sites (metal sites, ions)." )
+        grid.attach ( method_combo, 1, 12, 1, 1 )
         grid.attach ( Gtk.Label ( label = "Parallel xTB scans:", xalign = 0 ), 0, 11, 1, 1 )
         spin_w = Gtk.SpinButton.new_with_range ( 1, 32, 1 ); spin_w.set_value ( max ( 1, min ( len ( bonds ), ( os.cpu_count ( ) or 2 ) // 2 ) ) )
         grid.attach ( spin_w, 1, 11, 1, 1 )
@@ -776,16 +793,21 @@ class DYFFParametersWindow:
                          solvent = "water" if solvent.get_active ( ) else None, workers = int ( spin_w.get_value ( ) ),
                          selection = selected if sel_radio.get_active ( ) else None, shell = int ( spin_shell.get_value ( ) ),
                          library = library.get_active ( ) and library.get_sensitive ( ),
-                         torsions = tors.get_active ( ), adopt = adopt.get_active ( ) )
+                         torsions = tors.get_active ( ), adopt = adopt.get_active ( ), method = method_combo.get_active_id ( ) or "gfn2" )
         dialog.destroy ( )
         if response != Gtk.ResponseType.OK: return
         if not options["torsions"] and not options["selection"]:
             if not options["hessian"]:
                 self.label_status.set_text ( "Nothing to refine: choose the Hessian and/or the torsions." ); return
-            self._run_hessian ( target, options["q"], options["m"], options["solvent"], options["adopt"] ); return
+            self._run_hessian ( target, options["q"], options["m"], options["solvent"], options["adopt"], options["method"] ); return
         if options["selection"]:
             self._run_selection_refinement ( target, options ); return
         self._refine_running = True
+        self.main.bottom_notebook.status_teeview_add_new_item (
+            message = "DYFF Parameters: refining with xTB ({} atom(s){}{}). This can take from a few seconds to several "
+                      "minutes -- the torsion scans especially, one xTB optimization per scan point. EasyHybrid stays "
+                      "usable while it runs.".format ( len ( target.atoms ),
+                      ", Hessian" if options["hessian"] else "", ", torsions" if options["torsions"] else "" ), system = None )
         def say ( text ):
             GLib.idle_add ( lambda: ( self.visible and self.label_status.set_text ( "Refine with xTB: " + text ) ) and False )
         def work ( ):
@@ -793,7 +815,8 @@ class DYFFParametersWindow:
                 hessian_result, base = None, getattr ( target, "dyff_parameter_edits", None )
                 if options["hessian"]:
                     say ( "xTB Hessian (bonds and angles)..." )
-                    hessian_result = D.compute_hessian_edits ( target, options["q"], options["m"], threads = 2, solvent = options["solvent"] )
+                    hessian_result = D.compute_hessian_edits ( target, options["q"], options["m"], threads = 2, solvent = options["solvent"],
+                                                               method = options["method"] )
                     import copy
                     base = copy.deepcopy ( base or { } )
                     base["bond_terms"] = hessian_result["edits"]["bond_terms"]; base["angle_terms"] = hessian_result["edits"]["angle_terms"]
@@ -814,13 +837,18 @@ class DYFFParametersWindow:
 
     def _run_selection_refinement ( self, target, options ):
         import threading
+        self.main.bottom_notebook.status_teeview_add_new_item (
+            message = "DYFF Parameters: refining the selected atoms with xTB ({} atom(s) selected{}{}). This can take "
+                      "from a few seconds to several minutes. EasyHybrid stays usable while it runs.".format (
+                      len ( options["selection"] ), ", Hessian" if options["hessian"] else "",
+                      ", torsions" if options["torsions"] else "" ), system = None )
         def say ( text ):
             GLib.idle_add ( lambda: ( self.visible and self.label_status.set_text ( "Refine selection with xTB: " + text ) ) and False )
         def work ( ):
             try:
                 result = D.refine_selection ( target, options["selection"], multiplicity = options["m"], solvent = options["solvent"],
                                               shell = options["shell"], do_hessian = options["hessian"], workers = options["workers"],
-                                              progress = say, use_library = options["library"] )
+                                              progress = say, use_library = options["library"], method = options["method"] )
                 GLib.idle_add ( self._selection_done, target, result, None )
             except Exception as error:
                 traceback.print_exc ( )

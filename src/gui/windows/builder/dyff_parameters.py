@@ -565,7 +565,7 @@ def hessian_calibration ( vismol_object ):
         return None
 
 def hessian_bonds_angles ( vismol_object, total_charge = None, multiplicity = 1, adopt_geometry = False, threads = 4,
-                           solvent = None, progress = None ):
+                           solvent = None, progress = None, method = "gfn2" ):
     """ xtb --ohess on the Builder molecule (its own atoms and bonds: no
         typing, metals included), modified Seminario on the Hessian
         (pdynamo/seminario.py) and per-term DYFF edits "bond_terms" /
@@ -574,19 +574,24 @@ def hessian_bonds_angles ( vismol_object, total_charge = None, multiplicity = 1,
         the Builder coordinates become the xTB minimum.
         The xTB part can run in a worker thread (compute_hessian_edits);
         store_hessian_edits() must run in the GTK thread. """
-    result = compute_hessian_edits ( vismol_object, total_charge, multiplicity, threads, solvent )
+    result = compute_hessian_edits ( vismol_object, total_charge, multiplicity, threads, solvent, method = method )
     return store_hessian_edits ( vismol_object, result, adopt_geometry )
 
-def compute_hessian_edits ( vismol_object, total_charge = None, multiplicity = 1, threads = 4, solvent = None, calibrate = True ):
+def compute_hessian_edits ( vismol_object, total_charge = None, multiplicity = 1, threads = 4, solvent = None, calibrate = True, method = "gfn2" ):
+    """ method: "gfn2" (GFN2-xTB, implicit water allowed) or "gxtb" (g-xTB through
+        tblite: more accurate, gas phase only -- `solvent` is then ignored, as in
+        seminario.xtb_hessian). """
     from pdynamo import seminario as SM
     symbols, coordinates, bonds = scan_inputs ( vismol_object )
     if total_charge is None:
         total_charge = sum ( int ( getattr ( a, "formal_charge", 0 ) or 0 ) for a in vismol_object.atoms.values ( ) )
     xyz, hessian, freqs = SM.xtb_hessian ( symbols, coordinates, charge = total_charge, multiplicity = multiplicity,
-                                           threads = threads, solvent = solvent )
+                                           threads = threads, solvent = solvent, gfn = "gxtb" if method == "gxtb" else 2 )
     skipped = [ ]
     calibration = hessian_calibration ( vismol_object ) if calibrate else None
     edits = SM.dyff_edits_from_hessian ( hessian, xyz, bonds, skipped, calibration = calibration )
+    from pScientific import PeriodicTable
+    SM.drop_metal_centered_angles ( edits, [ PeriodicTable.AtomicNumberFromSymbol ( s ) for s in symbols ] )
     n_imag = int ( sum ( 1 for f in freqs if f < -50.0 ) )
     return { "edits": edits, "xyz": xyz, "n_atoms": len ( symbols ), "bonds": bonds, "n_imaginary": n_imag,
              "frequencies": freqs, "skipped": skipped, "solvent": solvent,
@@ -845,11 +850,12 @@ def subsystem_factory ( vismol_object, sub ):
 
 
 def refine_selection ( vismol_object, selection_ids, multiplicity = 1, solvent = None, shell = SELECTION_SHELL, do_hessian = True,
-                       step = 15.0, workers = 4, progress = None, cancel = None, use_library = True ):
+                       step = 15.0, workers = 4, progress = None, cancel = None, use_library = True, method = "gfn2" ):
     """ xTB refinement of the selected atoms only, computed on a capped subsystem
         (selection + `shell` bonds): Hessian bonds/angles and the rotatable bonds
         whose two central atoms are selected; only terms with ALL atoms in the
-        selection are returned, in system indices. Worker-thread safe. """
+        selection are returned, in system indices. Worker-thread safe.
+        method: "gfn2" or "gxtb" for the Hessian (do_hessian); see compute_hessian_edits. """
     import copy
     from pScientific import PeriodicTable
     from pdynamo import seminario as SM
@@ -867,13 +873,24 @@ def refine_selection ( vismol_object, selection_ids, multiplicity = 1, solvent =
     hessian_parent, skipped = None, [ ]
     if do_hessian:
         say ( "xTB Hessian of the subsystem..." )
+        # . anchors: real atoms (not a cap) directly bonded to a cap, held fixed during
+        #   the xtb optimization so the subsystem does not relax away from the structure
+        #   it was cut from before the Hessian is taken (seminario.xtb_hessian docstring,
+        #   2026-11-16); their own bonds/angles are left to the plain DYFF defaults below.
+        cap = set ( i for i, p in enumerate ( sub["parent_index"] ) if p < 0 )
+        anchors = set ( )
+        for a, b in pairs:
+            if ( a in cap ) != ( b in cap ): anchors.add ( b if a in cap else a )
         xyz, hessian, freqs = SM.xtb_hessian ( symbols, sub["coordinates"], charge = sub["charge"], multiplicity = multiplicity,
-                                               threads = 2, solvent = solvent )
+                                               threads = 2, solvent = solvent, fixed = sorted ( anchors ),
+                                               gfn = "gxtb" if method == "gxtb" else 2 )
         calibration = hessian_calibration ( vismol_object )
         if calibration is not None:
             from pdynamo.bond_library import HessianCalibration
             calibration = HessianCalibration.mapped ( calibration, sub["parent_index"] )
-        sem = SM.dyff_edits_from_hessian ( hessian, xyz, pairs, skipped, calibration = calibration )
+        fit_pairs = [ ( a, b ) for a, b in pairs if a not in anchors and b not in anchors ]
+        sem = SM.dyff_edits_from_hessian ( hessian, xyz, fit_pairs, skipped, calibration = calibration )
+        SM.drop_metal_centered_angles ( sem, sub["atomic_numbers"] )
         base["bond_terms"] = dict ( base.get ( "bond_terms", { } ), **sem["bond_terms"] )
         base["angle_terms"] = dict ( base.get ( "angle_terms", { } ), **sem["angle_terms"] )
         hessian_parent = SS.map_term_edits_to_parent ( sem, sub["parent_index"], selection )

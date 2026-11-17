@@ -2804,6 +2804,16 @@ class MainWindow:
                 folder = PR.new_folder(getattr(system, "e_working_folder", None) or os.getcwd(), system.label)
             except Exception as error:
                 print("DYFF parametrization report: no output folder ({})".format(error))
+            # . 2026-11-16, user's request: this step runs xTB in a worker thread with no
+            #   visual cue besides the statusbar text, which is easy to miss and can read as
+            #   a frozen program during a multi-minute Hessian on a metal site or a g-xTB run
+            steps = ["CM5 charges"] + (["Hessian (bonds/angles)"] if use_bonded else []) + (["torsions"] if use_bonded else [])
+            self.bottom_notebook.status_teeview_add_new_item(
+                message="DYFF + residue library: running xTB ({}) for {} atom(s) outside the library, {}. This can take "
+                        "from under a minute to several minutes -- longer for metal sites, more atoms or g-xTB. EasyHybrid "
+                        "stays usable while it runs; the Status panel and the statusbar below update as each step finishes.".format(
+                        ", ".join(steps), s["rest_atoms"], {"gxtb": "g-xTB, gas phase"}.get(method, "GFN2-xTB" + (" + implicit water" if use_water else ""))),
+                system=system)
         started = time.time()
         def work():
             if precomputed is not None:

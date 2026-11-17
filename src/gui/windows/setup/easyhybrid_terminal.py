@@ -1503,7 +1503,9 @@ class Command:
         metal, default oxidation state, spin multiplicity, model (bonded
         or ionic) and donor atoms with distances (A). Also lists metal
         cofactors (heme, Fe-S clusters: not supported yet), covalently
-        bound residues (peptide caps) and truncated residues.
+        bound residues (peptide caps), truncated residues and single-atom
+        transition/lanthanide/actinide ions with no default model (kept
+        as a plain point ion unless you set one yourself).
 
         Examples:
           metals
@@ -1520,6 +1522,10 @@ class Command:
                 s["label"], s["element"], s["charge"], s["multiplicity"], s["model"], donors))
         if info["metal_cofactors"]:
             lines.append("  Not supported (metal cofactors): " + ", ".join(residues[i].label for i in info["metal_cofactors"]))
+        if info.get("unrecognized_metals"):
+            lines.append("  WARNING -- metal without a default model (kept as a plain point ion, no donor bonds; "
+                          "set a charge/multiplicity yourself if this site needs one): " +
+                          ", ".join("{} ({})".format(l, e) for _, l, e in info["unrecognized_metals"]))
         if info["covalent"]:
             lines.append("  Covalently bound, removed by 'dyff': " + ", ".join(residues[i].label for i in info["covalent"]))
         if info["truncated"]:
