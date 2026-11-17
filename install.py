@@ -425,6 +425,53 @@ def build_pdynamo3_eh():
         return False
 
 
+def choose_pdynamo_backend():
+    """Ask which pDynamo3 EasyHybrid should use: the bundled pdynamo3-eh fork
+    (default/recommended) or a separate, already-installed pDynamo3.
+
+    pdynamo3-eh carries every patch EasyHybrid needs already built in,
+    including things that are NOT separate "QC modules" that can be copied
+    into another install afterwards -- the DYFF-1.0eh force field hooks
+    straight into pdynamo3-eh's own pMolecule/MMModel. A separate, unmodified
+    pDynamo3 does not have any of that: install_qc_modules() can still patch
+    the xTB QC interface into it (if the user agrees, see that function), but
+    DYFF-1.0eh cannot be added the same way -- there is nowhere to copy it to.
+
+    Returns "eh" (build/use the bundled submodule, build_pdynamo3_eh()) or
+    "separate" (locate an existing installation instead, check_pdynamo() +
+    install_qc_modules()). A pre-existing paths.py (from before pdynamo3-eh
+    existed) is honoured silently, same as before this function existed --
+    an upgrade should not start asking a question a past run already
+    answered.
+    """
+    if (EASYHYBRID_HOME / "paths.py").exists():
+        print(c_info("paths.py already present -- using the pDynamo3 it points to "
+                      "instead of building the bundled pdynamo3-eh submodule."))
+        return "separate"
+
+    print(c_header("\nWhich pDynamo3 should EasyHybrid use?\n"))
+    print(c_bold("  [1] pdynamo3-eh -- recommended, default"))
+    print("      The pDynamo3 fork maintained for EasyHybrid, bundled as a git submodule")
+    print("      in this checkout. Includes the DYFF-1.0eh force field, the xTB QC")
+    print("      interface, metal-site geometry and every other patch EasyHybrid needs,")
+    print("      already built in. Built automatically -- nothing else to configure.\n")
+    print(c_bold("  [2] An existing, separate pDynamo3 installation"))
+    print("      Point EasyHybrid at a pDynamo3 you already have installed elsewhere,")
+    print("      instead of building the bundled fork.")
+    print(c_warn("      WARNING: some EasyHybrid extension modules will not work this way --"))
+    print(c_warn("      the DYFF-1.0eh force field is NOT available at all (it lives inside"))
+    print(c_warn("      the fork, not stock pDynamo3), and the xTB QC interface only works"))
+    print(c_warn("      if you agree to patch it in separately (next step)."))
+    print()
+
+    if NON_INTERACTIVE:
+        print(c_info("Non-interactive mode; using the default: pdynamo3-eh. [--yes]"))
+        return "eh"
+
+    answer = input("Choose [1/2] (default 1): ").strip()
+    return "separate" if answer == "2" else "eh"
+
+
 # ---------------------------------------------------------------------
 # dyff-1.0eh and dyffdock: pure Python, no build step -- just confirm the
 # submodule is actually there and importable (needs pdynamo3-eh already on
@@ -1562,9 +1609,7 @@ Run with --credits at any time to see the full citation details.\
     # pDynamo3 (check_pdynamo() + install_qc_modules(), kept below only for
     # a personal paths.py pointing elsewhere -- see check_pdynamo()'s own
     # docstring). The bundled submodule needs none of that.
-    if (EASYHYBRID_HOME / "paths.py").exists():
-        print(c_info("paths.py already present -- using the pDynamo3 it points to "
-                      "instead of building the bundled pdynamo3-eh submodule."))
+    if choose_pdynamo_backend() == "separate":
         check_pdynamo()
         install_qc_modules()
     elif not build_pdynamo3_eh():
