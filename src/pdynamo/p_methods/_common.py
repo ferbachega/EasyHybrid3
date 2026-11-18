@@ -295,6 +295,29 @@ def get_hamiltonian (system):
     return hamiltonian
 
 
+def qc_worker_scratch_directory ( system, process_tag ):
+    """Return an existing, isolated scratch directory for one parallel worker.
+
+    External QC engines (xTB, ORCA, DFTB+ ...) write their job files under
+    fixed names (XTBJob.inp/coord/log, orcaJob.log/gbw, ...). Parallel scan
+    workers must therefore run in isolated subfolders of the configured
+    scratch base -- otherwise they overwrite each other's input/output files
+    and the backup step cannot retrieve the right files (the symptoms
+    reported for the 2D surface scans: no per-process job folders created
+    under the scratch and xTB files that are never retrieved).
+
+    The directory is created with exist_ok=True so reruns over leftovers
+    from previous runs do not fail. Returns None when the QC model has no
+    scratch base (internal engines such as MNDO need no isolation).
+    """
+    scratch = getattr ( system.qcModel, 'scratch', None ) if system.qcModel else None
+    if not scratch:
+        return None
+    directory = os.path.join ( scratch, 'process_{:d}'.format ( int ( process_tag ) ) )
+    os.makedirs ( directory, exist_ok = True )
+    return directory
+
+
 def write_header (parameters, logfile = 'output.log'):
     """ Function doc """
     

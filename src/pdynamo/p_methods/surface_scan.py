@@ -51,7 +51,7 @@ from pprint import pprint
 import os, time, sys
 
 # --- imports entre modulos adicionados na refatoracao ---
-from pdynamo.p_methods._common import backup_qc_files, backup_orca_files, write_header, get_hamiltonian, plot_data
+from pdynamo.p_methods._common import backup_qc_files, backup_orca_files, write_header, get_hamiltonian, plot_data, qc_worker_scratch_directory
 
 
 def _minimize_scan_point (parameters, system, **options):
@@ -1354,15 +1354,18 @@ def _run_advanced_second_coordinate_in_parallel (job):
     hamiltonian = get_hamiltonian (system)
 
     if hamiltonian in ['DFTB QC Model', 'ORCA QC Model', 'XTB QC Model', 'external']: #
-        try:
-            os.mkdir(system.qcModel.scratch +'/process_'+str(i))
-        except:
-            pass
-     
-        try:
-            system.qcState.DeterminePaths(system.qcModel.scratch +'/process_'+str(i))
-        except:
-            pass
+        worker_scratch = qc_worker_scratch_directory ( system, i )
+        if worker_scratch is None:
+            print ( 'WARNING: parallel worker', i, 'has no QC scratch base -- '
+                    'concurrent workers will share one set of QC job files' )
+        else:
+            try:
+                system.qcState.DeterminePaths ( worker_scratch )
+                dprint ( 'parallel worker', i, 'scratch ->', worker_scratch )
+            except Exception as exc:
+                print ( 'ERROR: could not isolate parallel worker', i,
+                        'in scratch', worker_scratch, ':', exc )
+                raise
 
 
     restraints = RestraintModel()
@@ -1454,15 +1457,18 @@ def _run_second_coordinate_in_parallel (job):
     
     '''
     if hamiltonian in ['DFTB QC Model', 'ORCA QC Model', 'XTB QC Model', 'external']: #
-        try:
-            os.mkdir(system.qcModel.scratch +'/process_'+str(i))
-        except:
-            pass
-     
-        try:
-            system.qcState.DeterminePaths(system.qcModel.scratch +'/process_'+str(i))
-        except:
-            pass
+        worker_scratch = qc_worker_scratch_directory ( system, i )
+        if worker_scratch is None:
+            print ( 'WARNING: parallel worker', i, 'has no QC scratch base -- '
+                    'concurrent workers will share one set of QC job files' )
+        else:
+            try:
+                system.qcState.DeterminePaths ( worker_scratch )
+                dprint ( 'parallel worker', i, 'scratch ->', worker_scratch )
+            except Exception as exc:
+                print ( 'ERROR: could not isolate parallel worker', i,
+                        'in scratch', worker_scratch, ':', exc )
+                raise
 
     
     
