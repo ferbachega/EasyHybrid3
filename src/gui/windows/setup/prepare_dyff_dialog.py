@@ -32,7 +32,7 @@ from gi.repository import GLib, Gtk
 #  2026-10-21, user's request: System > Force Field > Define Force Field > Prepare
 #  DYFF System first asks which DYFF to use.
 DYFF_VERSIONS = (
-    ( "modified", "DYFF modified: residue library + Seminario + CM5 (recommended)",
+    ( "modified", "DYFF modified: residue library + Seminario + CM5 (experimental -- use with caution)",
       "Residues matched to the precomputed xTB library; the rest refined on capped fragments: bonds and angles "
       "from the xTB Hessian (modified Seminario), torsions from the DFT torsion library, CM5 charges. A raw "
       "structure (PDB without bond orders) is prepared first: hydrogens, protonation, metal sites, ligands." ),
