@@ -32,7 +32,7 @@ from gi.repository import GLib, Gtk
 #  2026-10-21, user's request: System > Force Field > Define Force Field > Prepare
 #  DYFF System first asks which DYFF to use.
 DYFF_VERSIONS = (
-    ( "modified", "DYFF modified: residue library + Seminario + CM5 (recommended)",
+    ( "modified", "DYFF modified: residue library + Seminario + CM5 (experimental -- use with caution)",
       "Residues matched to the precomputed xTB library; the rest refined on capped fragments: bonds and angles "
       "from the xTB Hessian (modified Seminario), torsions from the DFT torsion library, CM5 charges. A raw "
       "structure (PDB without bond orders) is prepared first: hydrogens, protonation, metal sites, ligands." ),
@@ -178,8 +178,11 @@ def prepare_dyff_headless ( main, system, version = "modified", new = True, name
         if remove_caps and info["covalent"]:
             DP.remove_residues ( info, list ( info["covalent"] ) )
         PrepareDYFFDialog ( main )._build ( system, info, options )
-        sites = ", ".join ( "{} {}{:+d} {} (mult {})".format ( s["label"], s["element"], s["charge"], s["model"], s["multiplicity"] )
-                            for s in info["metals"] ) or "none"
+        sites_list = [ "{} {}{:+d} {} (mult {})".format ( s["label"], s["element"], s["charge"], s["model"], s["multiplicity"] )
+                      for s in info["metals"] ]
+        sites_list += [ "{} [{}Fe-{}S]{:+d} (mult {})".format ( c["label"], len ( c["irons"] ), len ( c["irons"] ), c["charge"], c["multiplicity"] )
+                       for c in info.get ( "metal_clusters", [ ] ) ]
+        sites = ", ".join ( sites_list ) or "none"
         return ( "Prepare DYFF System started: new system '{}' (raw structure: hydrogens, protonation at pH {:.1f}, metal sites: {}). "
                  "xTB runs in the background; the result appears in the Status panel.".format ( options["name"], options["ph"], sites ) )
     # . bond orders already known: residue library directly
@@ -289,10 +292,19 @@ class PrepareDYFFDialog:
                 cell.connect ( "edited", edited )
                 view.append_column ( Gtk.TreeViewColumn ( title, cell, text = idx ) )
             box.pack_start ( view, False, False, 0 )
+        if info.get ( "metal_clusters" ):
+            box.pack_start ( label ( "Fe-S cluster(s)", True ), False, False, 0 )
+            for c in info["metal_clusters"]:
+                donors = "; ".join ( "{}: {}".format ( ir["name"], ", ".join ( "{} {}".format ( residues[j].label.split ( ":" )[-1], n )
+                                     for j, n, d in ir["donors"] ) or "none found" ) for ir in c["irons"] )
+                box.pack_start ( label ( "{} -- [{}Fe-{}S], core charge {:+d}, mult {} (literature oxidized default, not editable here yet). "
+                                         "{}.".format ( c["label"], len ( c["irons"] ), len ( c["irons"] ), c["charge"], c["multiplicity"], donors ) ),
+                                 False, False, 0 )
         if info["metal_cofactors"]:
             names = sorted ( { residues[i].name for i in info["metal_cofactors"] } )
-            box.pack_start ( label ( "Not supported yet: metal-containing cofactors {} (heme, Fe-S clusters...). Remove them or use "
-                                     "Prepare OPLS System / an active-site model in the Builder.".format ( ", ".join ( names ) ) ), False, False, 0 )
+            box.pack_start ( label ( "Not supported yet: metal-containing cofactors {} (heme, a [3Fe-4S]/[4Fe-4S] cubane, ...). Remove "
+                                     "them or use Prepare OPLS System / an active-site model in the Builder.".format ( ", ".join ( names ) ) ),
+                             False, False, 0 )
         if info.get ( "unrecognized_metals" ):
             box.pack_start ( label ( "Metal(s) without a default model: {}. This version has default charges/multiplicities for the "
                                      "common biological metals only (Zn, Cu, Fe, Ni, Co, Mn, Cd, Hg, Mo, W, V, Cr, Pt, Ag, Au, Mg, Ca); these "
