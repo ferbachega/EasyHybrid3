@@ -7,7 +7,7 @@ The interface has been designed to make it easy to determine reaction pathways i
 
 Pure quantum chemistry (QC) simulations, both ab initio and semi-empirical
 
-Pure molecular mechanics (MM) simulations using AMBER, CHARMM, or OPLS force fields
+Pure molecular mechanics (MM) simulations using AMBER, CHARMM, OPLS, or DYFF force fields (DYFF is experimental -- use with caution)
 
 Hybrid QC/MM simulations
 

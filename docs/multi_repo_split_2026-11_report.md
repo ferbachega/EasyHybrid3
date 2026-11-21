@@ -203,11 +203,23 @@ no existing call site needed to change.
   `dyff-1.0eh` (scripting/HPC use of the force field, no GUI needed); `dock` adds
   `dyffdock`; `full` adds VISMOL, QC engine configuration and the desktop shortcut.
 
+## Update (2026-11-19)
+
+- `dyff-1.0eh` is now **public** (github.com/ferbachega/dyff-1.0eh).
+- `init_submodules()` was fetching all 4 submodules unconditionally (`git submodule
+  update --init --recursive` with no path filter), regardless of `--profile` -- so even
+  `ff`/`full` hit the private `dyffdock` repo and failed/prompted for credentials for
+  anyone without access. It now fetches only the submodules the chosen profile needs
+  (`PROFILE_SUBMODULES`); `dyffdock` is pulled in only for `--profile dock` or the new
+  `--with-dyffdock` flag on top of any profile. `dyffdock` stays private.
+- `menuitem_run_dyffdock` (Extras > Run DYFFDock) now catches the `ImportError` and shows
+  a dialog pointing at `--with-dyffdock` instead of crashing when the submodule is absent.
+
 ## Known follow-ups (not done, not blocking)
 
 - `install.py` has not been tested end to end from a genuinely fresh clone.
-- `dyffdock` and `dyff-1.0eh` are private; decide when (paper submission/acceptance) to
-  make them public.
+- `dyffdock` is still private; decide when (paper submission/acceptance) to make it
+  public.
 - The manifest-vs-submodule question was settled in favour of submodules (matches the
   existing vismol pattern); a migration path to a version-range + lockfile model was
   discussed and remains possible later without disruption.

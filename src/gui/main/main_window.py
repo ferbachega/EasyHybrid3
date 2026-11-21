@@ -1434,7 +1434,27 @@ class MainWindow:
             self.prepare_autodock_gpu_window.open_window()
 
         elif menuitem == self.builder.get_object('menuitem_run_dyffdock'):
-            from gui.windows.simulation.dyffdock_window import DYFFDockWindow
+            try:
+                from gui.windows.simulation.dyffdock_window import DYFFDockWindow
+            except ImportError as e:
+                # [EN] dyffdock (src/dyffdock) is a private, invite-only submodule,
+                # never fetched by a base/full EasyHybrid install (see install.py's
+                # --with-dyffdock) -- most users simply will not have it.
+                dialog = Gtk.MessageDialog(
+                    transient_for=self.window,
+                    modal=True,
+                    message_type=Gtk.MessageType.INFO,
+                    buttons=Gtk.ButtonsType.OK,
+                    text="DYFFDock is not installed",
+                )
+                dialog.format_secondary_text(
+                    "dyffdock is a separate, invite-only module and is not part of a "
+                    "regular EasyHybrid install.\n\nIf you have access to it, fetch it with:\n"
+                    "python3 install.py --with-dyffdock\n\n({})".format(e)
+                )
+                dialog.run()
+                dialog.destroy()
+                return
             if not hasattr(self, 'dyffdock_window'):
                 self.dyffdock_window = DYFFDockWindow(main=self)
                 self.window_list.append(self.dyffdock_window)

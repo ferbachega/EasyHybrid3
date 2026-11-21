@@ -136,6 +136,21 @@ SUBMODULES = {
     "src/dyffdock":        DYFFDOCK_PATH,
 }
 
+# [EN] 2026-11: dyff-1.0eh (public) and dyffdock (private, invite-only) used
+# to be fetched together, unconditionally, by init_submodules() regardless
+# of --profile -- so even a plain "ff" or "full" install ran
+# `git submodule update --init` against the private dyffdock repo and hit a
+# credentials prompt/failure for anyone without access to it, even though
+# nothing in that profile needs it. Submodules are now fetched per-profile:
+# dyffdock is pulled in ONLY for "dock", never for "ff"/"full", so a base
+# EasyHybrid install (GUI included) never touches it. Pass --with-dyffdock
+# to add it on top of any profile if you do have access.
+PROFILE_SUBMODULES = {
+    "ff":   ["src/pdynamo3-eh", "src/dyff-1.0eh"],
+    "dock": ["src/pdynamo3-eh", "src/dyff-1.0eh", "src/dyffdock"],
+    "full": ["src/pdynamo3-eh", "src/dyff-1.0eh", "src/graphics_engine"],
+}
+
 
 # ---------------------------------------------------------------------
 # Credits and citation
@@ -276,19 +291,29 @@ def ask_yes_no(question):
 # Git submodules (graphics_engine/vismol, pdynamo3-eh, dyff-1.0eh, dyffdock)
 # ---------------------------------------------------------------------
 
-def init_submodules():
-    """git submodule update --init --recursive, then report which of the 4
-    expected submodule directories actually ended up non-empty.
+def init_submodules(profile, with_dyffdock=False):
+    """git submodule update --init --recursive, but only for the submodules
+    the chosen profile actually needs, then report which of those ended up
+    non-empty.
+
+    Only pdynamo3-eh, dyff-1.0eh and (for "full") graphics_engine are public;
+    dyffdock is private/invite-only, so it is fetched ONLY for --profile dock
+    or when --with-dyffdock is passed on top of another profile -- never as
+    a side effect of installing EasyHybrid itself. See PROFILE_SUBMODULES.
 
     A plain `git clone` of EasyHybrid (without --recursive) leaves every
     submodule path present but EMPTY -- an easy trap: later steps that
     build/import from them fail with confusing "not found" errors that look
     like a missing dependency rather than a forgotten clone step. Returns
-    True if every submodule is present (NOT that it builds/imports -- the
-    later per-submodule steps check that), False if git itself is missing
-    or the command failed.
+    True if every needed submodule is present (NOT that it builds/imports --
+    the later per-submodule steps check that), False if git itself is
+    missing or the command failed.
     """
-    print(c_header("\nInitializing git submodules (graphics_engine, pdynamo3-eh, dyff-1.0eh, dyffdock)...\n"))
+    names = list(PROFILE_SUBMODULES[profile])
+    if with_dyffdock and "src/dyffdock" not in names:
+        names.append("src/dyffdock")
+
+    print(c_header(f"\nInitializing git submodules ({', '.join(names)})...\n"))
 
     git = shutil.which("git")
     if git is None:
@@ -301,14 +326,15 @@ def init_submodules():
                       "empty, you will need to fetch them yourself."))
     else:
         try:
-            subprocess.run(["git", "submodule", "update", "--init", "--recursive"],
+            subprocess.run(["git", "submodule", "update", "--init", "--recursive", "--"] + names,
                             cwd=str(EASYHYBRID_HOME), check=True)
         except subprocess.CalledProcessError as e:
             print(c_error(f"ERROR: 'git submodule update --init --recursive' failed ({e})."))
             return False
 
     ok = True
-    for name, path in SUBMODULES.items():
+    for name in names:
+        path = SUBMODULES[name]
         if path.is_dir() and any(path.iterdir()):
             print(f"{name:20s} : {c_ok('present')} -> {path}")
         else:
@@ -452,9 +478,10 @@ def choose_pdynamo_backend():
     print(c_header("\nWhich pDynamo3 should EasyHybrid use?\n"))
     print(c_bold("  [1] pdynamo3-eh -- recommended, default"))
     print("      The pDynamo3 fork maintained for EasyHybrid, bundled as a git submodule")
-    print("      in this checkout. Includes the DYFF-1.0eh force field, the xTB QC")
-    print("      interface, metal-site geometry and every other patch EasyHybrid needs,")
-    print("      already built in. Built automatically -- nothing else to configure.\n")
+    print("      in this checkout. Includes the DYFF-1.0eh force field (EXPERIMENTAL --")
+    print("      use with caution), the xTB QC interface, metal-site geometry and every")
+    print("      other patch EasyHybrid needs, already built in. Built automatically --")
+    print("      nothing else to configure.\n")
     print(c_bold("  [2] An existing, separate pDynamo3 installation"))
     print("      Point EasyHybrid at a pDynamo3 you already have installed elsewhere,")
     print("      instead of building the bundled fork.")
@@ -1544,8 +1571,17 @@ def main():
     parser.add_argument(
         "--profile", choices=["ff", "dock", "full"], default="full",
         help="What to install: 'ff' = pdynamo3-eh + dyff-1.0eh only (scripting/HPC use "
-             "of the force field, no GUI); 'dock' = + dyffdock; 'full' (default) = "
-             "+ the VISMOL graphics engine and the EasyHybrid GUI itself.",
+             "of the force field, no GUI); 'dock' = ff + dyffdock, no GUI; 'full' "
+             "(default) = ff + the VISMOL graphics engine and the EasyHybrid GUI itself. "
+             "dyffdock (private, invite-only) is never part of 'ff' or 'full' -- see "
+             "--with-dyffdock.",
+    )
+    parser.add_argument(
+        "--with-dyffdock", action="store_true",
+        help="Also fetch and check dyffdock (docking) on top of the chosen --profile, "
+             "e.g. '--profile full --with-dyffdock'. dyffdock is a private, invite-only "
+             "repository -- only pass this if you already have access to it; otherwise "
+             "the git fetch will fail or prompt for credentials.",
     )
     args = parser.parse_args()
 
@@ -1571,8 +1607,10 @@ This installer will (--profile {ff,dock,full}, default full):
 
   1. Check the required Python packages
   2. Fetch and build pdynamo3-eh (EasyHybrid's bundled pDynamo3 fork) and
-     dyff-1.0eh (the DYFF-1.0eh force field) -- every profile
-  3. [dock, full] Fetch dyffdock (docking)
+     dyff-1.0eh (the DYFF-1.0eh force field, public; EXPERIMENTAL -- use
+     with caution) -- every profile
+  3. [dock, or any profile with --with-dyffdock] Fetch dyffdock (docking;
+     private, invite-only -- never fetched otherwise)
   4. [full] Build the VISMOL graphics engine; configure QC engines (ORCA/xTB);
      optionally create desktop and application-menu shortcuts
 
@@ -1602,7 +1640,7 @@ Run with --credits at any time to see the full citation details.\
         return False
 
     print(c_header("\n[Step 2] Git submodules"))
-    init_submodules()
+    init_submodules(profile, with_dyffdock=args.with_dyffdock)
 
     print(c_header("\n[Step 3] pdynamo3-eh + dyff-1.0eh (the force field)"))
     # [EN] 2026-11: this used to locate and patch a SEPARATELY installed
@@ -1622,7 +1660,7 @@ Run with --credits at any time to see the full citation details.\
         print(c_error("\ndyff-1.0eh did not import correctly (see the error above)."))
         return False
 
-    if profile in ("dock", "full"):
+    if profile == "dock" or args.with_dyffdock:
         print(c_header("\n[Step 4] dyffdock (docking)"))
         check_dyffdock()
 
